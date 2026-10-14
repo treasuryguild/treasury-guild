@@ -486,13 +486,13 @@ create function public.check_budget_proposal(p_owners jsonb, p_steps jsonb, p_ac
 returns void language plpgsql security invoker set search_path = public as $$
 begin
   begin
-    perform set_config('guild_vault.proposal_apply', 'check', true);
+    perform set_config('treasury_guild.proposal_apply', 'check', true);
     perform public.run_budget_steps(p_owners, p_steps, p_actor, 'Proposal check');
     raise exception 'dry run' using errcode = 'GVDRY';
   exception when sqlstate 'GVDRY' then
     null;
   end;
-  perform set_config('guild_vault.proposal_apply', '', true);
+  perform set_config('treasury_guild.proposal_apply', '', true);
 end $$;
 
 -- Apply a passed proposal. A refusal is recorded (execution_state 'failed' with
@@ -510,7 +510,7 @@ begin
   if p.execution_state not in ('pending', 'failed') then return p.execution_state; end if;
   if p.execution_state = 'failed' and p_actor is null then return 'failed'; end if;
   begin
-    perform set_config('guild_vault.proposal_apply', p.id::text, true);
+    perform set_config('treasury_guild.proposal_apply', p.id::text, true);
     if p.kind = 'budget' then
       perform public.run_budget_steps(
         (select coalesce(jsonb_agg(jsonb_build_object('workgroupId', b.workgroup_id, 'treasuryId', b.treasury_id,
@@ -528,13 +528,13 @@ begin
     insert into proposal_events(proposal_id, community_id, action, actor, detail)
       values (p.id, p.community_id, 'execution_failed', p_actor, jsonb_build_object('code', v_code, 'message', left(v_error, 500)));
   end;
-  perform set_config('guild_vault.proposal_apply', '', true);
+  perform set_config('treasury_guild.proposal_apply', '', true);
   perform deactivate_proposal_budget_owners(p.id);
   return (select execution_state from proposals where id = p.id);
 end $$;
 
 -- With budget consent on, budgets change only through execute_proposal (or its
--- dry run), which sets guild_vault.proposal_apply. Not on DELETE: deleting a
+-- dry run), which sets treasury_guild.proposal_apply. Not on DELETE: deleting a
 -- community or workgroup cascades through these tables.
 create function public.guard_budget_consent() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -542,7 +542,7 @@ declare
   v_workgroup uuid;
   v_treasury uuid;
 begin
-  if coalesce(current_setting('guild_vault.proposal_apply', true), '') <> '' then return new; end if;
+  if coalesce(current_setting('treasury_guild.proposal_apply', true), '') <> '' then return new; end if;
   if tg_table_name = 'budget_plans' then
     select workgroup_id, treasury_id into v_workgroup, v_treasury from budget_setups where id = new.setup_id;
   else

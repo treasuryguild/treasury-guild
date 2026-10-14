@@ -3,7 +3,7 @@ import type { DiscordWebhookPayload } from "./payoutMessage";
 import { DiscordWebhookError, postDiscordWebhook, webhookUrlHint, type FetchLike } from "./webhook";
 
 const URL_ = "https://discord.com/api/webhooks/123456789012345678/abcDEF-ghi_JKL9876";
-const payload: DiscordWebhookPayload = { username: "Guild Vault", embeds: [] };
+const payload: DiscordWebhookPayload = { username: "Treasury Guild", embeds: [] };
 
 const answering = (status: number, body = "") =>
   vi.fn<FetchLike>(async () => new Response(status === 204 ? null : body, { status }));

@@ -167,7 +167,7 @@ describe("templated treasuries", () => {
     }));
     const rows = mocks.insert.mock.calls[1]![0] as { signer_group: string; display_name: string | null; wallet_address: string }[];
     const cosigner = rows.find((r) => r.signer_group === "cosigner")!;
-    expect(cosigner.display_name).toBe("Guild Vault co-signer");
+    expect(cosigner.display_name).toBe("Treasury Guild co-signer");
     expect(cosigner.wallet_address.startsWith("addr_test1")).toBe(true);
     expect(mocks.promote).toHaveBeenCalledWith("10000000-0000-4000-8000-000000000001", [addrA, addrB]);
   });

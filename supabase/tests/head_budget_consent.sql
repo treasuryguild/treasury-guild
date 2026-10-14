@@ -322,8 +322,8 @@ begin
     raise exception 'a budget proposal applied twice';
   end if;
   -- The pass the proposal held does not outlive it: direct saves are refused again.
-  if coalesce(current_setting('guild_vault.proposal_apply', true), '') <> '' then
-    raise exception 'guild_vault.proposal_apply still set after execute_proposal';
+  if coalesce(current_setting('treasury_guild.proposal_apply', true), '') <> '' then
+    raise exception 'treasury_guild.proposal_apply still set after execute_proposal';
   end if;
   perform pg_temp.consent_refuses(format('select save_budget_setup(%L, 3, ''recurring'', ''monthly'', %L, %L, ''admin'')',
     dev, month, pg_temp.ada('1')));
@@ -389,8 +389,8 @@ begin
     raise exception 'admin retry of a failed proposal went wrong';
   end if;
   -- The failure did not leave the consent pass set either.
-  if coalesce(current_setting('guild_vault.proposal_apply', true), '') <> '' then
-    raise exception 'guild_vault.proposal_apply still set after a failed execute_proposal';
+  if coalesce(current_setting('treasury_guild.proposal_apply', true), '') <> '' then
+    raise exception 'treasury_guild.proposal_apply still set after a failed execute_proposal';
   end if;
   perform pg_temp.consent_refuses(format('select save_budget_setup(%L, 0, ''recurring'', ''monthly'', %L, %L, ''admin'')',
     ops, month, pg_temp.ada('1')));

@@ -125,7 +125,7 @@ describe("cosignWithAppKey: what it refuses to touch", () => {
 
   it("does not sign for a treasury whose co-signer is a member", async () => {
     mocks.loadTreasury.mockResolvedValue({ treasury: { ...TREASURY, cosigner_kind: CosignerKind.Member }, signers: SIGNERS });
-    await expect(cosignWithAppKey("tx-1", CosignTrigger.Manual)).rejects.toThrow(new BadRequestError("This treasury's co-signer is a member, not Guild Vault"));
+    await expect(cosignWithAppKey("tx-1", CosignTrigger.Manual)).rejects.toThrow(new BadRequestError("This treasury's co-signer is a member, not Treasury Guild"));
     nothingSigned();
   });
 

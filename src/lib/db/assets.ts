@@ -64,7 +64,7 @@ interface MintAssetHintRow {
 }
 
 /**
- * Metadata for assets minted by Guild Vault. This is an immediate fallback
+ * Metadata for assets minted by Treasury Guild. This is an immediate fallback
  * for the short interval before a chain indexer exposes label-721 metadata.
  */
 export async function loadMintAssetHints(

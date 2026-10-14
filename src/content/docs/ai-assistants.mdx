@@ -1,18 +1,18 @@
-An AI assistant such as Claude can read Guild Vault for you: which communities you belong to, what their treasuries hold, which tasks are waiting to be paid, and how spending compares with the budget. If you allow it, it can also prepare changes for you to confirm: [proposals](/docs/governance), tasks and calls, and payouts for the signers to sign. You connect it once, approve it with your wallet, and can disconnect it at any time.
+An AI assistant such as Claude can read Treasury Guild for you: which communities you belong to, what their treasuries hold, which tasks are waiting to be paid, and how spending compares with the budget. If you allow it, it can also prepare changes for you to confirm: [proposals](/docs/governance), tasks and calls, and payouts for the signers to sign. You connect it once, approve it with your wallet, and can disconnect it at any time.
 
 <Callout title="Assistants cannot vote, sign or pay">
-Nothing an assistant does through Guild Vault can sign a transaction, pay anyone or vote. Every change goes through a preview, needs a permission you ticked, and the assistant is instructed to carry it out only after you agree to that preview in the conversation. A payout it prepares is only a draft transaction: the treasury's signers still sign it in the app with their wallets, and nothing is paid until they do.
+Nothing an assistant does through Treasury Guild can sign a transaction, pay anyone or vote. Every change goes through a preview, needs a permission you ticked, and the assistant is instructed to carry it out only after you agree to that preview in the conversation. A payout it prepares is only a draft transaction: the treasury's signers still sign it in the app with their wallets, and nothing is paid until they do.
 </Callout>
 
 ## Connecting an assistant
 
-Guild Vault is a remote MCP server (Model Context Protocol, the standard AI assistants use to reach other apps). Its address is your Guild Vault address followed by `/api/mcp`, for example `https://guild-vault.example/api/mcp`.
+Treasury Guild is a remote MCP server (Model Context Protocol, the standard AI assistants use to reach other apps). Its address is your Treasury Guild address followed by `/api/mcp`, for example `https://treasury-guild.example/api/mcp`.
 
-- **Claude (web and desktop)**: open **Settings → Connectors**, choose **Add custom connector**, give it a name such as "Guild Vault" and paste the address. Claude opens Guild Vault so you can approve it.
-- **Claude Code**: run `claude mcp add --transport http guild-vault https://guild-vault.example/api/mcp`, then `/mcp` inside Claude Code to sign in.
+- **Claude (web and desktop)**: open **Settings → Connectors**, choose **Add custom connector**, give it a name such as "Treasury Guild" and paste the address. Claude opens Treasury Guild so you can approve it.
+- **Claude Code**: run `claude mcp add --transport http treasury-guild https://treasury-guild.example/api/mcp`, then `/mcp` inside Claude Code to sign in.
 - **Other assistants**: any client that supports remote MCP servers with OAuth sign-in works the same way; point it at the address above.
 
-There is no key to copy or paste. The assistant finds Guild Vault's sign-in page on its own and sends you there.
+There is no key to copy or paste. The assistant finds Treasury Guild's sign-in page on its own and sends you there.
 
 ## Approving a connection
 
@@ -27,7 +27,7 @@ The assistant opens the **Connect an AI assistant** page in your browser.
 
    **Deny** sends the assistant away with nothing.
 
-You are then sent back to the assistant, which can start answering questions right away. If the page says the request is invalid or has expired, start connecting again from the assistant: a request is valid for ten minutes. If Guild Vault sees signs that an assistant's sign-in was copied and reused, it ends that connection at once; connect it again from the assistant. To add a permission later, disconnect the assistant and connect it again.
+You are then sent back to the assistant, which can start answering questions right away. If the page says the request is invalid or has expired, start connecting again from the assistant: a request is valid for ten minutes. If Treasury Guild sees signs that an assistant's sign-in was copied and reused, it ends that connection at once; connect it again from the assistant. To add a permission later, disconnect the assistant and connect it again.
 
 ## What an assistant can read
 
@@ -37,7 +37,7 @@ With the **communities:read** permission an assistant can:
 - list the transactions waiting for your signature, across all your communities: on which treasury, how many signatures they have and need, whether you already signed or rejected them, and whether they are ready to submit,
 - show each treasury's [template](/docs/treasury#treasury-templates) and lock date, its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
 - list transactions (payouts, payments and transfers, mints and anchors) with their treasury, state, on-chain hash, signatures and any budget problems found when they were built,
-- show one transaction in detail: who has signed and who still needs to, every payout or payment line (task, recipient, token, amount), minted tokens, the fee, the Guild Vault record it carries on chain and the co-signer's decisions. Ask it to check a transaction before you sign it in the app,
+- show one transaction in detail: who has signed and who still needs to, every payout or payment line (task, recipient, token, amount), minted tokens, the fee, the Treasury Guild record it carries on chain and the co-signer's decisions. Ask it to check a transaction before you sign it in the app,
 - list what arrived in the treasuries: amounts, the sending treasury of a transfer, the type and whether it waits for review on the Incoming page,
 - show [funding sources](/docs/funding): what each funder committed, what has arrived and what is still due,
 - list workgroups with their description, leads and the treasury that pays them,
@@ -123,6 +123,6 @@ The same reads and writes are plain HTTP endpoints, returning the JSON the assis
 | `POST /api/v1/communities/{slug}/payouts/preview` | Previews a payout (`tasks`, `treasury`, `workgroup`, all optional) |
 | `POST /api/v1/drafts/confirm` | Carries out any preview, a proposal's included, from `{ "draftToken": "…" }` (an optional `community` must be the previewed one); repeating it does the change once and answers `created: false` |
 
-A request authenticates with `Authorization: Bearer <access token>` from Guild Vault's OAuth sign-in (the flow an assistant runs), or with your browser session when you open the URL while signed in (a write then refuses a request sent from another site). Amounts are exact decimal strings in display units (ADA, not lovelace). Requests are rate limited per wallet.
+A request authenticates with `Authorization: Bearer <access token>` from Treasury Guild's OAuth sign-in (the flow an assistant runs), or with your browser session when you open the URL while signed in (a write then refuses a request sent from another site). Amounts are exact decimal strings in display units (ADA, not lovelace). Requests are rate limited per wallet.
 
-Related: [Profile & settings](/docs/profile), [Privacy policy](/docs/privacy#what-guild-vault-stores).
+Related: [Profile & settings](/docs/profile), [Privacy policy](/docs/privacy#what-treasury-guild-stores).

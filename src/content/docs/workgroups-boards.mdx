@@ -4,7 +4,7 @@ A **workgroup** is a team or project inside a community, for example "Dev", "Mar
 
 On the [community overview](/docs/communities#community-overview), admins see an add card under **Workgroups & projects** (while new workgroups are not decided by vote). Type a name, choose a kind and click **Add**:
 
-- **App board** — a kanban run inside Guild Vault with a payable column. Tasks are created here. Best when the work is not tracked on GitHub.
+- **App board** — a kanban run inside Treasury Guild with a payable column. Tasks are created here. Best when the work is not tracked on GitHub.
 - **GitHub project** — a live mirror of a GitHub repository's project board. Issues sync in automatically. Choosing this takes you straight to [GitHub settings](/docs/github) to link a repository.
 
 An empty app board also offers both choices again to admins and that workgroup's leads (**Use app board** or **Open GitHub settings**, the latter for admins only), so you can decide later; everyone else sees "This board hasn't been set up yet."
@@ -68,15 +68,15 @@ The **Archived tasks (n)** button switches the board to the archive list. **Mana
 
 ## GitHub boards
 
-A workgroup of kind **GitHub project** shows the linked project board live, column for column, with every item. Items that match the import rule (payable label **and** import column, see [GitHub integration](/docs/github)) are the ones that exist as tasks in Guild Vault; they show bounty amounts and assignee wallets. Tasks created in Guild Vault (tasks from before the repository was linked, `Call: …` attendance tasks, imported tasks) have no project item, so they are listed under **Created in Guild Vault** below the project columns; managers open them from there like any other card, and they are paid from Payday as usual. **Archived tasks** lists the workgroup's archived tasks on a GitHub board too.
+A workgroup of kind **GitHub project** shows the linked project board live, column for column, with every item. Items that match the import rule (payable label **and** import column, see [GitHub integration](/docs/github)) are the ones that exist as tasks in Treasury Guild; they show bounty amounts and assignee wallets. Tasks created in Treasury Guild (tasks from before the repository was linked, `Call: …` attendance tasks, imported tasks) have no project item, so they are listed under **Created in Treasury Guild** below the project columns; managers open them from there like any other card, and they are paid from Payday as usual. **Archived tasks** lists the workgroup's archived tasks on a GitHub board too.
 
 GitHub tasks are mirror data:
 
-- Title, description and amounts are managed on GitHub and overwritten by the sync. Editing them in Guild Vault is not possible.
+- Title, description and amounts are managed on GitHub and overwritten by the sync. Editing them in Treasury Guild is not possible.
 - GitHub assignees are managed on GitHub too. In the task dialog you set each GitHub assignee's **payout wallet** (it is filled in automatically when they have linked their GitHub account, and shows **Not linked** otherwise), and you can add extra **manual assignees** that the sync never touches.
-- Budget month is editable in Guild Vault.
+- Budget month is editable in Treasury Guild.
 - There is no **Archive task** for GitHub tasks: remove the label or move the issue out of the import column on GitHub and the sync removes the task (unless it is settled or has payout rows, see [Which issues become tasks](/docs/github#which-issues-become-tasks)).
-- After payment, Guild Vault moves the issue to the repository's **Paid status** column (see [GitHub integration](/docs/github#what-happens-after-payment)) when the project has a column of that name; the task stays and keeps mirroring the issue.
+- After payment, Treasury Guild moves the issue to the repository's **Paid status** column (see [GitHub integration](/docs/github#what-happens-after-payment)) when the project has a column of that name; the task stays and keeps mirroring the issue.
 
 ## Task lifecycle at a glance
 

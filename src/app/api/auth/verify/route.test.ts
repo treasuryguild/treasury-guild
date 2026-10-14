@@ -22,7 +22,7 @@ const privateKey = Ed25519PrivateKey.fromNormalBytes(Buffer.alloc(32, 7));
 const keyHash = String(privateKey.toPublic().hash().hex());
 const OTHER_HASH = "ab".repeat(28);
 const WALLET = serializeAddress({ pubKeyHash: keyHash, stakeCredentialHash: OTHER_HASH }, 0);
-const NONCE = `guild-vault login | vault.test | ${WALLET} | 3f2c8a52-8c0c-4d55-9b57-0d6f6f0c2f11 | 2026-09-30T12:00:00.000Z`;
+const NONCE = `treasury-guild login | vault.test | ${WALLET} | 3f2c8a52-8c0c-4d55-9b57-0d6f6f0c2f11 | 2026-09-30T12:00:00.000Z`;
 const sign = (text: string, address = WALLET) => signData(text, { address: Address.fromBech32(address), key: privateKey });
 const MINUTE = 60_000;
 

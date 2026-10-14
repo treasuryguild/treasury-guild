@@ -29,7 +29,7 @@ export interface BallotFields {
 
 export function ballotText(f: BallotFields): string {
   return [
-    "Guild Vault ballot",
+    "Treasury Guild ballot",
     `app: ${f.host}`,
     `community: ${f.community}`,
     `proposal: #${f.proposalNumber} ${f.proposalId}`,

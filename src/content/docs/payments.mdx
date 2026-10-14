@@ -16,7 +16,7 @@ Each row starts with what kind of recipient it is:
 - **Another treasury** — pick one of the community's other treasuries (greyed out while the community has only one). This is a **transfer** (see [Transfers between your treasuries](#transfers-between-your-treasuries)).
 - **Any address** — paste a Cardano address on the community's network, for a contractor, another community or anyone else.
 
-Then enter an amount for each token the treasury holds: ADA and every native token in the wallet are offered, in the token's own units (10 GVTT, 2.5 ADA). Leave a token blank to pay none of it. Two rows naming the same address are paid as one output with the sum. Guild Vault reads what the treasury holds from the chain, so no token needs to be registered.
+Then enter an amount for each token the treasury holds: ADA and every native token in the wallet are offered, in the token's own units (10 GVTT, 2.5 ADA). Leave a token blank to pay none of it. Two rows naming the same address are paid as one output with the sum. Treasury Guild reads what the treasury holds from the chain, so no token needs to be registered.
 
 The build is refused while a row has no recipient, an invalid or wrong-network address, the paying treasury's own address, no amount, a zero or malformed amount, or an amount with more decimals than the token supports; each problem is listed under the summary, naming the row. **Exceeds treasury balance** means the treasury does not hold enough of that token for the sum of every row. At most **40** recipients fit in one transaction.
 
@@ -48,7 +48,7 @@ A treasury can have only one transaction waiting for signatures at a time, wheth
 
 Like a payout, a payment carries a public record under metadata label **190001** so the community's spending can be audited from the chain. It is told apart from a payout by `t: "payment"` and contains only:
 
-- `v` — the record version (`1`), `src` — always `"guild-vault"`, `c` — the community's slug,
+- `v` — the record version (`1`), `src` — always `"treasury-guild"`, `c` — the community's slug,
 - `t` — `"payment"`; a payout has no `t` and carries `p` instead,
 - `b` — the budget period the spend counts against (`YYYY-MM` or `YYYY-Qn`), or empty when every output is a transfer,
 - `k` — the list of asset tickers paid, including `ADA` when explicitly paid,
@@ -61,7 +61,7 @@ Example, for a transfer of 188 ADA and 50 000 GVTT from the main treasury to ano
 ```json
 {
   "v": 1,
-  "src": "guild-vault",
+  "src": "treasury-guild",
   "t": "payment",
   "c": "signius",
   "b": "",
@@ -71,12 +71,12 @@ Example, for a transfer of 188 ADA and 50 000 GVTT from the main treasury to ano
 }
 ```
 
-The flag `1` marks the single output as a transfer, and `b` is empty because nothing is charged to a budget. A payment to a contractor instead carries the period in `b` and flag `0` on its outputs; a payment mixing both keeps the period and flags each output on its own. Amounts are in display units; the small ADA minimum added to token-only outputs is not included. The recipient is the output's address, which the chain already shows; Guild Vault does not add personal handles or names automatically. The memo is public and permanent, so leave private information out of it. A short human-readable message (CIP-20, label 674) rides along, naming the community, the date, the number of recipients or transfers and the memo.
+The flag `1` marks the single output as a transfer, and `b` is empty because nothing is charged to a budget. A payment to a contractor instead carries the period in `b` and flag `0` on its outputs; a payment mixing both keeps the period and flags each output on its own. Amounts are in display units; the small ADA minimum added to token-only outputs is not included. The recipient is the output's address, which the chain already shows; Treasury Guild does not add personal handles or names automatically. The memo is public and permanent, so leave private information out of it. A short human-readable message (CIP-20, label 674) rides along, naming the community, the date, the number of recipients or transfers and the memo.
 
-The transaction page shows the record decoded from the transaction itself, with member handles and treasury names from Guild Vault's records beside each output, and the cited decisions linked to their proposals. Expanding **On-chain payment metadata** there shows the raw record with a **what the keys mean** legend above it.
+The transaction page shows the record decoded from the transaction itself, with member handles and treasury names from Treasury Guild's records beside each output, and the cited decisions linked to their proposals. Expanding **On-chain payment metadata** there shows the raw record with a **what the keys mean** legend above it.
 
 While the community decides budgets by vote, a payment is [checked against the voted budgets](/docs/governance#spend-citations-and-the-budget-check) before it is built: depending on the community's setting, a payment that does not fit is built with a warning for the signers, or refused with the reasons. Transfers are never checked. On a co-signer treasury the co-signer signs only a payment that fits, whatever that setting says (see [The co-signer check](/docs/transactions#the-co-signer-check)).
 
-The record is complete enough to rebuild the payment from the chain alone. When Guild Vault finds one at a treasury address that it has no record of, it imports it as a confirmed payment with the same recipients, amounts, budget period and memo; a transfer is imported only when the receiving treasury belongs to this community. See [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts).
+The record is complete enough to rebuild the payment from the chain alone. When Treasury Guild finds one at a treasury address that it has no record of, it imports it as a confirmed payment with the same recipients, amounts, budget period and memo; a transfer is imported only when the receiving treasury belongs to this community. See [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts).
 
 Next: [Signing transactions](/docs/transactions).

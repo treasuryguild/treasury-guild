@@ -73,7 +73,7 @@ describe("buildPayoutMetadata", () => {
       }),
     ]);
     expect(meta.v).toBe(3);
-    expect(meta.src).toBe("guild-vault");
+    expect(meta.src).toBe("treasury-guild");
     expect(meta.c).toBe("my-dao");
     expect("n" in meta).toBe(false);
     expect(meta.w).toEqual(["Dev", "Marketing", "Design"]);
@@ -268,7 +268,7 @@ describe("parsePayoutMetadata", () => {
     expect(parsePayoutMetadata({ ...cited, g: {} })).toBeNull();
   });
 
-  it("is null for anything that is not a complete v3 Guild Vault payout", () => {
+  it("is null for anything that is not a complete v3 Treasury Guild payout", () => {
     expect(parsePayoutMetadata(null)).toBeNull();
     expect(parsePayoutMetadata({ ...record, v: 2 })).toBeNull();
     expect(parsePayoutMetadata({ ...record, src: "someone-else" })).toBeNull();
@@ -278,7 +278,7 @@ describe("parsePayoutMetadata", () => {
     expect(parsePayoutMetadata({ ...record, p: [[0, [[50, 0, 0, ["5", "1"]]]]] })).toBeNull();
     expect(parsePayoutMetadata({ ...record, p: [[0, [[0, 0, 0, ["5"]]]]] })).toBeNull();
     // A payment record shares the label but has no `p`.
-    expect(parsePayoutMetadata({ v: 1, src: "guild-vault", t: "payment", c: "signius", b: "", k: [], o: [] })).toBeNull();
+    expect(parsePayoutMetadata({ v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "", k: [], o: [] })).toBeNull();
   });
 });
 

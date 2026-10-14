@@ -9,7 +9,7 @@ import { cronSecret, oauthStateSecret } from "@/lib/env.server";
 
 /** OAUTH_STATE_SECRET, else a key derived from CRON_SECRET for this use only. */
 function secret(): string {
-  return oauthStateSecret() ?? hmacSha256Hex(cronSecret(), "guild-vault/oauth-state");
+  return oauthStateSecret() ?? hmacSha256Hex(cronSecret(), "treasury-guild/oauth-state");
 }
 
 function macOf(body: string): string {

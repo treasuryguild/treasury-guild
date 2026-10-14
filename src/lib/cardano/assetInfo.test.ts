@@ -159,7 +159,7 @@ describe("tokenFromAssetInfo", () => {
     expect(t.decimals).toBe(0);
   });
 
-  it("fills a newly indexed asset from Guild Vault's mint record", () => {
+  it("fills a newly indexed asset from Treasury Guild's mint record", () => {
     const unresolved = tokenFromAssetInfo(
       UNIT,
       200_000_000_000n,

@@ -66,7 +66,7 @@ export function protectedResourceMetadata() {
     authorization_servers: [origin],
     scopes_supported: [...API_SCOPES],
     bearer_methods_supported: ["header"],
-    resource_name: "Guild Vault",
+    resource_name: "Treasury Guild",
     resource_documentation: `${origin}/docs/ai-assistants`,
   };
 }

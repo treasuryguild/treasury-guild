@@ -149,7 +149,7 @@ describe("buildPayoutEmbed", () => {
       balance: { url: "https://preprod.cexplorer.io/address/addr_test1x", amounts: [{ ...ADA, quantity: 9_000_000_000n }] },
       rate: { price: 0.42, currency: "usd", symbol: "ADA" },
     });
-    expect(payload.username).toBe("Guild Vault");
+    expect(payload.username).toBe("Treasury Guild");
     const embed = payload.embeds[0]!;
     expect(embed.author).toEqual({
       name: "Guild DAO",

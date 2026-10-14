@@ -58,7 +58,7 @@ Filters change what is listed, never what is paid. A selected task a filter hide
 
 ## Tokens
 
-Bounties can be in ADA and in native tokens. Guild Vault does not need tokens to be registered anywhere: it reads what the selected treasury holds and matches each bounty's ticker to a token in the wallet.
+Bounties can be in ADA and in native tokens. Treasury Guild does not need tokens to be registered anywhere: it reads what the selected treasury holds and matches each bounty's ticker to a token in the wallet.
 
 - Tickers that match exactly one wallet token are connected automatically.
 - If a ticker matches nothing, or several tokens share it, the summary shows "Connect a wallet token for: …" with a dropdown per ticker. Choose the right token before building. That choice is remembered for the community so later displays use the same name, and a remembered connection wins over auto-matching next time. If the remembered token is no longer in the selected treasury the dropdown reappears as a warning ("mapped token not in this wallet") but does not block the build on its own. `ADA` is built in and cannot be reconnected.
@@ -76,7 +76,7 @@ The button stays disabled while any of these apply:
 
 ## Building
 
-Click **Build payout transaction**. Guild Vault fetches the treasury's UTxOs, balances the transaction, writes the [payout metadata](/docs/transactions#on-chain-metadata) and opens the transaction page. The selected tasks flip to **queued** so they cannot be paid twice. Tasks without a budget month are stamped with the period they are paid in. The record also cites the decisions behind each task (the proposal that created it and the budget proposal that set its period's budget) and carries any [proposal anchors](/docs/governance#on-chain-anchors) that are due, as far as they fit.
+Click **Build payout transaction**. Treasury Guild fetches the treasury's UTxOs, balances the transaction, writes the [payout metadata](/docs/transactions#on-chain-metadata) and opens the transaction page. The selected tasks flip to **queued** so they cannot be paid twice. Tasks without a budget month are stamped with the period they are paid in. The record also cites the decisions behind each task (the proposal that created it and the budget proposal that set its period's budget) and carries any [proposal anchors](/docs/governance#on-chain-anchors) that are due, as far as they fit.
 
 The server re-checks everything and refuses the build with a list of problems when a selected task is archived or in an archived workgroup, is no longer payable, is already in another payout transaction, has an assignee without a wallet or one whose address is on the other network, has no bounty, or is routed to another wallet for its period, and when the chosen spending path is not open (a lock-until treasury before its date). Fix the tasks and build again.
 

@@ -129,7 +129,7 @@ describe("CIP-26 registry draft", () => {
       policy_id: POLICY, policy_script_cbor: "8200581c00", lock_slot: null, lock_until: null,
       asset_name: "GVT", asset_name_hex: "475654", quantity: "1000000", decimals: 6, ticker: "GVT",
       image_cid: null, recipient: "addr_test1recipient", created_at: "2026-09-01T00:00:00Z",
-      metadata: { name: "Guild Vault Token", description: "The community token", url: "https://guild.test" },
+      metadata: { name: "Treasury Guild Token", description: "The community token", url: "https://guild.test" },
       transaction: { state: 2, tx_hash: "ff".repeat(32) },
       ...over,
     };
@@ -145,7 +145,7 @@ describe("CIP-26 registry draft", () => {
     expect(cip26DraftForMint(mintRow(), "fallback", "bG9nbw==")).toEqual({
       subject: `${POLICY}475654`,
       policy: "8200581c00",
-      name: unsigned("Guild Vault Token"),
+      name: unsigned("Treasury Guild Token"),
       description: unsigned("The community token"),
       ticker: unsigned("GVT"),
       decimals: unsigned(6),
@@ -158,16 +158,16 @@ describe("CIP-26 registry draft", () => {
 
   it("joins chunked 721 strings back together", () => {
     const description = ["a".repeat(64), "b".repeat(10)];
-    const draft = cip26DraftForMint(mintRow({ metadata: { name: ["Guild ", "Vault"], description, url: ["https://guild", ".test"] } }), "fallback");
-    expect(draft.name).toEqual(unsigned("Guild Vault"));
+    const draft = cip26DraftForMint(mintRow({ metadata: { name: ["Treasury ", "Guild"], description, url: ["https://guild", ".test"] } }), "fallback");
+    expect(draft.name).toEqual(unsigned("Treasury Guild"));
     expect(draft.description).toEqual(unsigned(`${"a".repeat(64)}${"b".repeat(10)}`));
     expect(draft.url).toEqual(unsigned("https://guild.test"));
   });
 
   it("falls back to the asset name and the given description, and leaves out what the row lacks", () => {
-    const draft = cip26DraftForMint(mintRow({ metadata: {}, ticker: null, decimals: 0 }), "Minted with Guild Vault");
+    const draft = cip26DraftForMint(mintRow({ metadata: {}, ticker: null, decimals: 0 }), "Minted with Treasury Guild");
     expect(draft.name).toEqual(unsigned("GVT"));
-    expect(draft.description).toEqual(unsigned("Minted with Guild Vault"));
+    expect(draft.description).toEqual(unsigned("Minted with Treasury Guild"));
     expect(draft).not.toHaveProperty("ticker");
     expect(draft).not.toHaveProperty("url");
     expect(draft).not.toHaveProperty("logo");

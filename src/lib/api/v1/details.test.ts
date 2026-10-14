@@ -89,7 +89,7 @@ describe("transaction_detail", () => {
     });
     mocks.decode.mockReturnValue({
       outputs: [], fee: "180000", message: null, mint: [], cip25Meta: null, ttl: null, anchorMeta: null,
-      payoutMeta: { v: 3, src: "guild-vault", c: "signius", w: ["Development"], b: ["2026-10"], k: ["ADA"], p: [[0, [[12, 0, 0, ["50"]]]]] },
+      payoutMeta: { v: 3, src: "treasury-guild", c: "signius", w: ["Development"], b: ["2026-10"], k: ["ADA"], p: [[0, [[12, 0, 0, ["50"]]]]] },
     });
   });
 
@@ -130,7 +130,7 @@ describe("transaction_detail", () => {
     });
     mocks.decode.mockReturnValue({
       outputs: [], fee: null, message: ["Hosting"], mint: [], cip25Meta: null, ttl: null, anchorMeta: null,
-      payoutMeta: { v: 1, src: "guild-vault", t: "payment", c: "signius", b: "2026-09", k: ["ADA", "HOSKY"], o: [[0, ["", "1.5"], 0], [1, ["10"], 1]] },
+      payoutMeta: { v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "2026-09", k: ["ADA", "HOSKY"], o: [[0, ["", "1.5"], 0], [1, ["10"], 1]] },
     });
     const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
     // A transfer's recipient is a treasury, never looked up as a member.
@@ -184,7 +184,7 @@ describe("transaction_detail", () => {
     const entries = [[7, "proposed", "a".repeat(64), "b".repeat(64)], [7, "opened", "c".repeat(64)]];
     mocks.decode.mockReturnValue({
       outputs: [], fee: "170000", message: null, mint: [], cip25Meta: null, ttl: null, payoutMeta: null,
-      anchorMeta: { v: 1, src: "guild-vault", c: "signius", a: entries },
+      anchorMeta: { v: 1, src: "treasury-guild", c: "signius", a: entries },
     });
     const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
     expect(res.cosigner).toEqual([
@@ -197,7 +197,7 @@ describe("transaction_detail", () => {
   it("shows no anchors for a malformed anchor record", async () => {
     mocks.decode.mockReturnValue({
       outputs: [], fee: null, message: null, mint: [], cip25Meta: null, ttl: null, payoutMeta: null,
-      anchorMeta: { v: 1, src: "guild-vault", c: "signius", a: [[7, "proposed", "not-a-hash", "b".repeat(64)]] },
+      anchorMeta: { v: 1, src: "treasury-guild", c: "signius", a: [[7, "proposed", "not-a-hash", "b".repeat(64)]] },
     });
     const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
     expect(res.onChainRecord.anchors).toBeNull();

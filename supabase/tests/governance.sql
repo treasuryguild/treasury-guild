@@ -340,9 +340,9 @@ begin
   owners := jsonb_build_array(jsonb_build_object('workgroupId', dev, 'baseRevision', 1));
   steps := jsonb_set(steps, '{0,amounts}', pg_temp.ada('200'));
   q := pg_temp.propose('budget', rules, 'lead', array[dev], '{}', jsonb_build_object('steps', steps), owners);
-  perform set_config('guild_vault.proposal_apply', 'test', true);
+  perform set_config('treasury_guild.proposal_apply', 'test', true);
   update budget_setup_states set revision = revision + 1 where workgroup_id = dev;
-  perform set_config('guild_vault.proposal_apply', '', true);
+  perform set_config('treasury_guild.proposal_apply', '', true);
   perform pg_temp.vote(q, 'admin', 'agree');
   perform pg_temp.expire(q);
   perform close_proposal(q, 1, 'passed', '{}', 'passed');

@@ -7,7 +7,7 @@ const H = (c: string) => c.repeat(64);
 const doc = {
   hashAlgorithm: "blake2b-256", hash: H("d"),
   body: {
-    type: "guild-vault/proposal-tally", version: 1, app: "guildvault.app", community: "guild",
+    type: "treasury-guild/proposal-tally", version: 1, app: "guildvault.app", community: "guild",
     proposal: {
       id: "p4", number: 4, kind: "decision", title: "t", body: "b", discussionUrl: null, payload: {}, contentHash: H("a"),
       rules: {}, rulesHash: H("b"), electorateHash: H("c"), proposer: "addr", createdAt: "2026-09-28T10:00:00Z",

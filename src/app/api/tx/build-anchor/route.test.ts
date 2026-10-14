@@ -124,8 +124,8 @@ describe("POST /api/tx/build-anchor", () => {
     expect(mocks.due).toHaveBeenCalledWith("community");
     const built = mocks.build.mock.calls[0]?.[0];
     expect(built).toMatchObject({ treasuryAddress: TREASURY, scriptCbor: "00", network: 0, validFromSlot: null });
-    expect(built.message).toMatch(/^Guild Vault anchors: signius \d{4}-\d{2}-\d{2}, 2 proposals$/);
-    expect(built.record).toMatchObject({ v: 1, src: "guild-vault", c: "signius" });
+    expect(built.message).toMatch(/^Treasury Guild anchors: signius \d{4}-\d{2}-\d{2}, 2 proposals$/);
+    expect(built.record).toMatchObject({ v: 1, src: "treasury-guild", c: "signius" });
     expect(built.record.a).toHaveLength(3);
     expect(mocks.record).toHaveBeenCalledWith("tx-1", expect.arrayContaining([expect.objectContaining({ proposalId: "p1", step: "opened" })]));
   });

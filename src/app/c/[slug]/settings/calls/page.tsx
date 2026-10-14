@@ -30,7 +30,7 @@ export default function CallSettingsPage({ params }: { params: Promise<{ slug: s
         returnTo={returnTo}
         nouns={{ thing: "server", connect: "Connect Discord server", change: "Change server" }}
         blurb={<>
-          Adds the Guild Vault bot to a server you manage. It only needs to see your voice
+          Adds the Treasury Guild bot to a server you manage. It only needs to see your voice
           channels: every few minutes during a Discord call it notes who is in the call&apos;s
           channel. It never joins a call, listens, speaks or posts.
         </>}
@@ -81,7 +81,7 @@ export default function CallSettingsPage({ params }: { params: Promise<{ slug: s
         returnTo={returnTo}
         nouns={{ thing: "account", connect: "Connect Google account", change: "Change account" }}
         blurb={<>
-          Connect the Google account that creates your community&apos;s Meet calls. Guild Vault
+          Connect the Google account that creates your community&apos;s Meet calls. Treasury Guild
           then reads who attended the meetings you list on the Calls page, and for how long. It
           asks for one permission, reading your meetings&apos; attendance: no audio, video, chat,
           recordings or calendar. Meet only reports a meeting to the account that created it, so

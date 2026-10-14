@@ -1,5 +1,5 @@
 // The signed tally of a proposal as one self-contained JSON document, and a
-// checker anyone can run on it without trusting Guild Vault. In the style of
+// checker anyone can run on it without trusting Treasury Guild. In the style of
 // CIP-100 governance metadata: a `body` and its blake2b-256 `hash` over the
 // canonical JSON, so the document can be anchored (hash) on-chain.
 //
@@ -24,7 +24,7 @@ import { electorateHash } from "./electorateHash";
 import { canonicalJson, type ProposalRules } from "./rules";
 import { tallyProposal, type ProposalTally } from "./tally";
 
-export const TALLY_DOCUMENT_TYPE = "guild-vault/proposal-tally";
+export const TALLY_DOCUMENT_TYPE = "treasury-guild/proposal-tally";
 
 export interface TallyDocumentBody {
   type: typeof TALLY_DOCUMENT_TYPE;

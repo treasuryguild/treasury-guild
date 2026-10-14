@@ -67,7 +67,7 @@ describe("issueBallot", () => {
       text: expectedText({ choice: "agree", reason: null, signedAt: NOW.toISOString() }),
     });
     expect(issued.text.split("\n")).toEqual([
-      "Guild Vault ballot",
+      "Treasury Guild ballot",
       "app: vault.example",
       "community: guild",
       `proposal: #4 ${PROPOSAL_ID}`,

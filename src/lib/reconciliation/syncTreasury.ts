@@ -1,6 +1,6 @@
 // One treasury's chain sync, as the sweep and the on-visit sync both run it:
 // poll the address, then import what the poll (or an earlier one) recorded as
-// external but carries a Guild Vault record. The import also runs when the
+// external but carries a Treasury Guild record. The import also runs when the
 // poll found nothing new: that is how rows recorded before it existed, and
 // rows that failed transiently, get their turn.
 import "server-only";

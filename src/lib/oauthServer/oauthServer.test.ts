@@ -171,7 +171,7 @@ describe("client identity on the consent page", () => {
 
 describe("consent error messages", () => {
   it("shows fixed text for known codes and a generic sentence for anything else", () => {
-    expect(consentErrorMessage("invalid_client")).toBe("Guild Vault does not know this assistant");
+    expect(consentErrorMessage("invalid_client")).toBe("Treasury Guild does not know this assistant");
     expect(consentErrorMessage("Your wallet is compromised, visit evil.test")).toBe("the request is not valid");
     expect(consentErrorMessage("toString")).toBe("the request is not valid");
     expect(consentErrorMessage(null)).toBe("the request is not valid");

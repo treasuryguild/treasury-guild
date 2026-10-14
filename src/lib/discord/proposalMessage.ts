@@ -106,7 +106,7 @@ export function buildProposalEmbed(input: {
       fields.push({ name: "Why", value: OUTCOME_TEXT[p.outcome_reason as OutcomeReason] ?? p.outcome_reason });
     }
     if (p.end_reason) fields.push({ name: "Reason", value: truncate(p.end_reason, 500) });
-    if (p.execution_state === ExecutionState.Applied) fields.push({ name: "Carried out", value: "Applied in Guild Vault" });
+    if (p.execution_state === ExecutionState.Applied) fields.push({ name: "Carried out", value: "Applied in Treasury Guild" });
     if (p.execution_state === ExecutionState.Failed) {
       fields.push({ name: "Carried out", value: truncate(`Could not be applied: ${p.execution_error ?? "error"}`, 500) });
     }
@@ -121,7 +121,7 @@ export function buildProposalEmbed(input: {
     embeds: [{
       title: truncate(title, 256),
       url: input.url,
-      description: `**${truncate(p.title, 300)}**\n${input.communityName}${milestone === "closed" ? "" : ` · vote with your wallet in Guild Vault`}`,
+      description: `**${truncate(p.title, 300)}**\n${input.communityName}${milestone === "closed" ? "" : ` · vote with your wallet in Treasury Guild`}`,
       color,
       fields,
     }],
@@ -132,7 +132,7 @@ export function buildGovernanceConnectedEmbed(communityName: string): DiscordWeb
   return {
     username: USERNAME,
     embeds: [{
-      title: "🔗 Guild Vault connected",
+      title: "🔗 Treasury Guild connected",
       description: `New proposals of **${communityName}** will be announced in this channel: when they are up for discussion, when voting opens, a day before it closes, and the result.`,
       color: COLORS.neutral,
     }],

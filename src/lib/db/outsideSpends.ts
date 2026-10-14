@@ -1,6 +1,6 @@
 // The external_txs rows the outside-spend alert (0059) works through: outgoing
 // transactions no app build produced, once the chain import is done with
-// them (no Guild Vault record to import, or a decided import status), not yet
+// them (no Treasury Guild record to import, or a decided import status), not yet
 // announced or dismissed.
 import "server-only";
 

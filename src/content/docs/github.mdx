@@ -14,7 +14,7 @@ Each repository card has:
 
 | Field | Meaning | Default |
 |---|---|---|
-| **Workgroup** | The workgroup whose board mirrors this repository's project (archived workgroups are not offered). Linking turns the workgroup into a **GitHub project** board whatever kind it was created as; moving the last repository away from a workgroup turns it back into an app board. Tasks created on the app board before the link move to **Created in Guild Vault** below the project columns. | — |
+| **Workgroup** | The workgroup whose board mirrors this repository's project (archived workgroups are not offered). Linking turns the workgroup into a **GitHub project** board whatever kind it was created as; moving the last repository away from a workgroup turns it back into an app board. Tasks created on the app board before the link move to **Created in Treasury Guild** below the project columns. | — |
 | **Payable label** | The issue label that marks work as audited and ready to pay. Matched case-insensitively; an empty field falls back to the default. | `audited` |
 | **Import status** | The Projects v2 **Status** column an issue must be in. Matched case-insensitively; an empty field falls back to the default. | `In review` |
 | **Paid status** | The **Status** column paid issues are moved to. It must already exist on the project; leave the field empty to disable the move. | `Paid` |
@@ -44,8 +44,8 @@ Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet li
 
 ## What happens after payment
 
-When a payout transaction is confirmed on-chain, Guild Vault comments the transaction hash on each paid issue, adds a `paid` label and moves the issue's project item to the repository's **Paid status** column. The write-back is done by the background job that runs every 15 minutes, so it lands a few minutes after confirmation; if GitHub was unreachable it is retried on the next run.
+When a payout transaction is confirmed on-chain, Treasury Guild comments the transaction hash on each paid issue, adds a `paid` label and moves the issue's project item to the repository's **Paid status** column. The write-back is done by the background job that runs every 15 minutes, so it lands a few minutes after confirmation; if GitHub was unreachable it is retried on the next run.
 
-The move only happens when the project's Status field has an option with that name (matched case-insensitively), the task recorded which project item it was imported from, and the GitHub App has write access to projects. Otherwise the comment and label are still written and the issue stays in its column. The task itself is never removed: paid issues keep mirroring their title, labels and column in Guild Vault.
+The move only happens when the project's Status field has an option with that name (matched case-insensitively), the task recorded which project item it was imported from, and the GitHub App has write access to projects. Otherwise the comment and label are still written and the issue stays in its column. The task itself is never removed: paid issues keep mirroring their title, labels and column in Treasury Guild.
 
 Related: [Workgroups & boards](/docs/workgroups-boards#github-boards), [Payday](/docs/payday).

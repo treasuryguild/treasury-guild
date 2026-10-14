@@ -3,7 +3,7 @@
   "groups": [
     {
       "id": "42aba4d2-b8eb-4217-9897-8289d6cca2b5",
-      "label": "Guild Vault",
+      "label": "Treasury Guild",
       "sortOrder": 0
     }
   ],
@@ -12,7 +12,7 @@
       "id": "97741bd5-b0c7-48a1-9b37-d6c286a533e3",
       "label": "supabase project list",
       "command": ".\\scripts\\supa.ps1 projects list",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 0,
       "terminalMode": "active"
     },
@@ -20,7 +20,7 @@
       "id": "3eac9fbe-e1f4-4e76-b6d8-e8311a449876",
       "label": "Supabase db push",
       "command": ".\\scripts\\supa.ps1 db push",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 1,
       "terminalMode": "active"
     },
@@ -28,7 +28,7 @@
       "id": "d29dd51e-5dd9-4dd8-b341-9ce22b6250ca",
       "label": "Supabase start local",
       "command": ".\\scripts\\supa.ps1 start",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 2,
       "terminalMode": "active"
     },
@@ -36,7 +36,7 @@
       "id": "cf1bbb03-1718-4509-955e-b074b04e50fb",
       "label": "Supabase stop local",
       "command": ".\\scripts\\supa.ps1 stop",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 3,
       "terminalMode": "active"
     },
@@ -44,7 +44,7 @@
       "id": "64631b71-4873-4ebd-a352-47ced6c9920a",
       "label": "Supabase reset local",
       "command": "npm run db:reset",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 4,
       "terminalMode": "active"
     },
@@ -52,7 +52,7 @@
       "id": "8f1c2a6e-5b3d-4e7f-9a1b-2c3d4e5f6a7b",
       "label": "Supabase snapshot remote data",
       "command": "npm run db:snapshot",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 5,
       "terminalMode": "active"
     },
@@ -60,7 +60,7 @@
       "id": "b7e6d5c4-3a2b-4c1d-8e9f-0a1b2c3d4e5f",
       "label": "Supabase env -> local",
       "command": "npm run db:env",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 6,
       "terminalMode": "active"
     },
@@ -68,7 +68,7 @@
       "id": "c3d4e5f6-a7b8-4c9d-8e1f-2a3b4c5d6e7f",
       "label": "Seed sandbox (local)",
       "command": "npm run seed:sandbox",
-      "group": "Guild Vault",
+      "group": "Treasury Guild",
       "sortOrder": 7,
       "terminalMode": "active"
     }

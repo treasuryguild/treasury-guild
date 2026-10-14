@@ -17,7 +17,7 @@ import { COPY_CHECK_INTERVAL_MS, documentFilename, publishTallyDocuments } from 
 const NOW = new Date("2026-09-30T12:00:00Z");
 const DOC = JSON.stringify({
   hashAlgorithm: "blake2b-256", hash: "ab".repeat(32),
-  body: { type: "guild-vault/proposal-tally", version: 1, community: "signius", proposal: { number: 4 } },
+  body: { type: "treasury-guild/proposal-tally", version: 1, community: "signius", proposal: { number: 4 } },
 });
 const document = (proposalId: string, copies: { store: string; locator: string }[] = []) => ({
   proposal_id: proposalId, community_id: "c-1", document: DOC, hash: "ab".repeat(32), frozen_at: "2026-09-29T00:00:00Z",

@@ -257,9 +257,9 @@ begin
       or (select proposal_id from budget_plans where setup_id = sid) is not null then
     raise exception 'direct save stamped a proposal';
   end if;
-  -- A proposal apply: the id in guild_vault.proposal_apply (a real proposal, for the foreign key).
+  -- A proposal apply: the id in treasury_guild.proposal_apply (a real proposal, for the foreign key).
   applying := pg_temp.discussed('Budget by vote');
-  perform set_config('guild_vault.proposal_apply', applying::text, true);
+  perform set_config('treasury_guild.proposal_apply', applying::text, true);
   perform save_budget_setup(dev, 1, 'monthly', 'monthly', (date_trunc('month', now() at time zone 'UTC') + interval '1 month')::date,
     '[{"unit":"lovelace","amount":"200000000","asset_label":"ADA","decimals":6}]', 'admin');
   if (select proposal_id from budget_plans where setup_id = sid
@@ -267,14 +267,14 @@ begin
     raise exception 'plan row not stamped with the applying proposal';
   end if;
   -- The dry run's marker is not an id: null, never an error.
-  perform set_config('guild_vault.proposal_apply', 'check', true);
+  perform set_config('treasury_guild.proposal_apply', 'check', true);
   perform save_budget_setup(dev, 2, 'monthly', 'monthly', (date_trunc('month', now() at time zone 'UTC') + interval '2 month')::date,
     '[{"unit":"lovelace","amount":"300000000","asset_label":"ADA","decimals":6}]', 'admin');
   if (select proposal_id from budget_plans where setup_id = sid
       and starts_on = (date_trunc('month', now() at time zone 'UTC') + interval '2 month')::date) is not null then
     raise exception 'the dry-run marker was stamped';
   end if;
-  perform set_config('guild_vault.proposal_apply', '', true);
+  perform set_config('treasury_guild.proposal_apply', '', true);
   -- The month the vote set, saved again directly: now a direct value.
   perform save_budget_setup(dev, 3, 'monthly', 'monthly', (date_trunc('month', now() at time zone 'UTC') + interval '1 month')::date,
     '[{"unit":"lovelace","amount":"250000000","asset_label":"ADA","decimals":6}]', 'admin');

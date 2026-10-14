@@ -3,7 +3,7 @@
 // emitted here is enforced against that limit.
 //
 // v3 shape — compact positional encoding, one entry per recipient output:
-//   { v: 3, src: "guild-vault", c: <community slug>,
+//   { v: 3, src: "treasury-guild", c: <community slug>,
 //     w: [<workgroup name>, …], b: [<budget period>, …], k: [<asset ticker>, …],
 //     p: [ [<output index>, [ [<task number>, <w index>, <b index>, [<amount>, …]], … ]], … ] }
 // Workgroup names, budget periods and asset tickers are interned in the
@@ -33,8 +33,8 @@ import { isRecord, isStringArray } from "@/lib/guards";
 export const PAYOUT_METADATA_LABEL = "190001";
 export const CIP20_LABEL = "674";
 export const PAYOUT_METADATA_VERSION = 3;
-/** The `src` of every Guild Vault label-190001 record (payouts and payments). */
-export const METADATA_SRC = "guild-vault";
+/** The `src` of every Treasury Guild label-190001 record (payouts and payments). */
+export const METADATA_SRC = "treasury-guild";
 
 /** Cardano metadatum string cap (bytes). */
 export const MAX_METADATUM_STR_BYTES = 64;
@@ -133,7 +133,7 @@ export function dedupeCitations(citations: readonly Citation[]): Citation[] {
 }
 
 /**
- * Narrow a decoded label-190001 datum to a v3 Guild Vault payout record. It
+ * Narrow a decoded label-190001 datum to a v3 Treasury Guild payout record. It
  * comes from the chain, so any shape is possible: anything that is not a
  * complete record (wrong version or source, an index outside its list, more
  * amounts than tickers) is null. The one reader of the payout shape: the
@@ -192,7 +192,7 @@ export interface PayoutMetaView {
 /**
  * Read label-190001 metadata leniently for display: unlike
  * `parsePayoutMetadata`, which needs a complete record, this shows whatever
- * it can read. Null unless it looks like a Guild Vault payout.
+ * it can read. Null unless it looks like a Treasury Guild payout.
  */
 export function parsePayoutMeta(meta: unknown): PayoutMetaView | null {
   if (!isRecord(meta)) return null;

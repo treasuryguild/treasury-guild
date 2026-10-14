@@ -1,4 +1,4 @@
--- Chain import: rebuild payouts and manual payments that another Guild Vault
+-- Chain import: rebuild payouts and manual payments that another Treasury Guild
 -- database built (the local stack against the same treasury, a lost record)
 -- from the transaction itself. pollTreasury already records such a tx in
 -- external_txs with its label-190001 record; the import (src/lib/chainImport)
@@ -10,7 +10,7 @@
 
 -- import_status NULL = not evaluated yet (or a transient failure to retry);
 -- 'blocked' = needs an admin, reasons in import_issues; 'ignored' = an admin
--- dismissed it; 'skipped' = the label-190001 record is not a Guild Vault one.
+-- dismissed it; 'skipped' = the label-190001 record is not a Treasury Guild one.
 alter table external_txs
   add column import_status text check (import_status in ('blocked', 'ignored', 'skipped')),
   add column import_issues jsonb not null default '[]',

@@ -1,11 +1,11 @@
 // Why /api/oauth/authorize refused a request before a handle existed. The
 // consent page is sent a code (?error=<code>), never text: anything in the URL
 // is attacker-chosen, and free text rendered on this origin would let anyone
-// put their own words on a Guild Vault page. Client-safe.
+// put their own words on a Treasury Guild page. Client-safe.
 
 export const CONSENT_ERROR_MESSAGES = {
   invalid_request: "the request is missing the assistant's identity or return address",
-  invalid_client: "Guild Vault does not know this assistant",
+  invalid_client: "Treasury Guild does not know this assistant",
   unregistered_redirect: "the assistant asked to return somewhere it did not register",
   bad_redirect_scheme: "the assistant's return address is not allowed",
 } as const;

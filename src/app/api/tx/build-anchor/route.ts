@@ -39,7 +39,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     network: ctx.network,
     provider: getProvider(ctx.network),
     record: fitted.record,
-    message: `Guild Vault anchors: ${ctx.communitySlug} ${dateStr}, ${numbers.length} ${numbers.length === 1 ? "proposal" : "proposals"}`,
+    message: `Treasury Guild anchors: ${ctx.communitySlug} ${dateStr}, ${numbers.length} ${numbers.length === 1 ? "proposal" : "proposals"}`,
     validFromSlot: validFromSlotFor(ctx.treasury, path),
   });
 

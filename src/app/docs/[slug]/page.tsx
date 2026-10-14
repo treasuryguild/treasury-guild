@@ -19,7 +19,7 @@ export async function generateMetadata({
   if (!isDocSlug(slug)) return {};
   const doc = docBySlug(slug);
   return {
-    title: `${doc.title} – Guild Vault docs`,
+    title: `${doc.title} – Treasury Guild docs`,
     description: doc.summary,
   };
 }

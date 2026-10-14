@@ -143,7 +143,7 @@ function SidebarContent({
           <BrandLogo className="h-7 w-7" />
         </span>
         <span className={compact ? "sr-only" : "brand-copy"}>
-          <strong>Guild Vault</strong>
+          <strong>Treasury Guild</strong>
           <small>Community treasury</small>
         </span>
       </div>

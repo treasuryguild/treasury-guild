@@ -92,7 +92,7 @@ begin
   if p.execution_state not in ('pending', 'failed') then return p.execution_state; end if;
   if p.execution_state = 'failed' and p_actor is null then return 'failed'; end if;
   begin
-    perform set_config('guild_vault.proposal_apply', p.id::text, true);
+    perform set_config('treasury_guild.proposal_apply', p.id::text, true);
     if p.kind = 'budget' then
       perform public.run_budget_steps(
         (select coalesce(jsonb_agg(jsonb_build_object('workgroupId', b.workgroup_id, 'treasuryId', b.treasury_id,
@@ -115,7 +115,7 @@ begin
     insert into proposal_events(proposal_id, community_id, action, actor, detail)
       values (p.id, p.community_id, 'execution_failed', p_actor, jsonb_build_object('code', v_code, 'message', left(v_error, 500)));
   end;
-  perform set_config('guild_vault.proposal_apply', '', true);
+  perform set_config('treasury_guild.proposal_apply', '', true);
   perform deactivate_proposal_budget_owners(p.id);
   return (select execution_state from proposals where id = p.id);
 end $$;

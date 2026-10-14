@@ -103,7 +103,7 @@ beforeEach(() => {
   mocks.hash.mockReturnValue(TX_HASH);
   mocks.outputs.mockReturnValue([ALICE_OUT, CHANGE]);
   mocks.mint.mockReturnValue([]);
-  mocks.extract.mockReturnValue({ v: 3, src: "guild-vault" });
+  mocks.extract.mockReturnValue({ v: 3, src: "treasury-guild" });
   mocks.compare.mockReturnValue([]);
   mocks.payouts.mockResolvedValue([payout()]);
   mocks.payments.mockResolvedValue([payment()]);
@@ -152,7 +152,7 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
   });
 
   it("hands a payout its payouts rows, the decoded outputs, mint, record and the sibling addresses", async () => {
-    const meta = { v: 3, src: "guild-vault", p: [[0, [[7, 0, 0, ["5"]]]]] };
+    const meta = { v: 3, src: "treasury-guild", p: [[0, [[7, 0, 0, ["5"]]]]] };
     mocks.extract.mockReturnValue(meta);
     await runCosignerCheck(tx(), TREASURY);
     expect(mocks.payouts).toHaveBeenCalledExactlyOnceWith("tx-1");
@@ -210,7 +210,7 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
     const forged = [{ unit: `${policy}4e4654`, policyId: policy, assetNameHex: "4e4654", quantity: "1" }];
     mocks.mint.mockReturnValue(forged);
     mocks.mints.mockResolvedValue([{ policy_id: policy, asset_name_hex: "4e4654", quantity: "1", recipient: ALICE }]);
-    mocks.extract.mockReturnValue({ v: 3, src: "guild-vault", g: [[1, H1, [7]]] });
+    mocks.extract.mockReturnValue({ v: 3, src: "treasury-guild", g: [[1, H1, [7]]] });
     await runCosignerCheck(tx({ kind: TxKind.Mint }), TREASURY);
     expect(mocks.mints).toHaveBeenCalledExactlyOnceWith("tx-1");
     expect(mocks.compare).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
@@ -300,7 +300,7 @@ describe("runCosignerCheck: step 2, the budget", () => {
 });
 
 describe("runCosignerCheck: step 3, the citations", () => {
-  const cite = (...g: unknown[]) => mocks.extract.mockReturnValue({ v: 3, src: "guild-vault", g });
+  const cite = (...g: unknown[]) => mocks.extract.mockReturnValue({ v: 3, src: "treasury-guild", g });
 
   it("passes when every cited proposal passed, was applied and still has the cited content hash", async () => {
     cite([2, H2, [7]], [1, H1, [7]]);
@@ -344,13 +344,13 @@ describe("runCosignerCheck: step 3, the citations", () => {
 
   it("checks citations even while the budget kind is off, and collects every step's problems", async () => {
     mocks.settings.mockResolvedValue({ enabled: false });
-    mocks.compare.mockReturnValue(["The transaction carries no Guild Vault payout record"]);
+    mocks.compare.mockReturnValue(["The transaction carries no Treasury Guild payout record"]);
     cite([1, H1, [7]]);
     mocks.proposals.mockResolvedValue([]);
     expect(await runCosignerCheck(tx({ kind: TxKind.Payment }), TREASURY)).toEqual({
       passed: false,
       problems: [
-        "The transaction carries no Guild Vault payout record",
+        "The transaction carries no Treasury Guild payout record",
         "Cited proposal #1 does not exist in this community",
       ],
     });

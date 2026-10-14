@@ -39,7 +39,7 @@ describe("verifyWalletSignature", () => {
   const privateKey = Ed25519PrivateKey.fromNormalBytes(Buffer.alloc(32, 7));
   const keyHash = String(privateKey.toPublic().hash().hex());
   const own = serializeAddress({ pubKeyHash: keyHash, stakeCredentialHash: OTHER_HASH }, 0);
-  const text = "Guild Vault ballot\nchoice: agree";
+  const text = "Treasury Guild ballot\nchoice: agree";
   const signed = signData(text, { address: Address.fromBech32(own), key: privateKey });
 
   it("accepts the exact text signed by the address's payment key", async () => {

@@ -17,7 +17,7 @@ const fields = {
 describe("ballotText", () => {
   it("is the exact multi-line text the wallet signs", () => {
     expect(ballotText(fields)).toBe([
-      "Guild Vault ballot",
+      "Treasury Guild ballot",
       "app: guildvault.app",
       "community: guild",
       "proposal: #12 5b8c2c7e-0000-4000-8000-000000000012",

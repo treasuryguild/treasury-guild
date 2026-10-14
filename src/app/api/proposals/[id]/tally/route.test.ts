@@ -21,7 +21,7 @@ const ID = "40000000-0000-4000-8000-000000000001";
 const COMMUNITY = "10000000-0000-4000-8000-000000000001";
 const proposal = (state: string, hideResults: boolean) => ({ id: ID, community_id: COMMUNITY, number: 7, state, rules: { hideResults } });
 const BALLOTS = { voters: [{ wallet_address: "addr_a", recused: false }], votes: [{ voter: "addr_a", choice: "yes" }] };
-const DOCUMENT = { format: "guild-vault-tally", hash: "abc" };
+const DOCUMENT = { format: "treasury-guild-tally", hash: "abc" };
 const get = (id = ID) => GET(new Request(`http://localhost/api/proposals/${id}/tally`), { params: Promise.resolve({ id }) });
 
 const savedAppUrl = process.env.APP_URL;

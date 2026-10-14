@@ -292,7 +292,7 @@ export default function TreasuryPage({
                   {tx.import_status === ChainImportStatus.Blocked && (
                     <Badge tone="yellow">Needs import review</Badge>
                   )}
-                  {budgetConsent ? <Badge tone="yellow">Built outside Guild Vault</Badge> : <Badge>On-chain</Badge>}
+                  {budgetConsent ? <Badge tone="yellow">Built outside Treasury Guild</Badge> : <Badge>On-chain</Badge>}
                   <TxStateBadge state={TxState.Confirmed} />
                 </span>
               </Card>

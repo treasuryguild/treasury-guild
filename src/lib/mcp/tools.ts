@@ -56,7 +56,7 @@ export interface McpToolDef {
 }
 
 const READ_ONLY = { readOnlyHint: true, idempotentHint: true, openWorldHint: false } as const;
-/** Reads the Cardano chain as well as Guild Vault's own records. */
+/** Reads the Cardano chain as well as Treasury Guild's own records. */
 const READ_ONLY_CHAIN = { readOnlyHint: true, idempotentHint: true, openWorldHint: true } as const;
 /** Creates a record; replaying the same input answers with the first result. */
 const CREATES = { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const;
@@ -81,7 +81,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     name: "community_list",
     title: "My communities",
     description:
-      "The Guild Vault communities the wallet belongs to, with its role in each (owner, admin or member), the Cardano network and a link. Other tools take a community's `slug`.",
+      "The Treasury Guild communities the wallet belongs to, with its role in each (owner, admin or member), the Cardano network and a link. Other tools take a community's `slug`.",
     endpoint: listCommunities,
     restPath: "/api/v1/communities",
     annotations: READ_ONLY,
@@ -171,7 +171,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     name: "transaction_detail",
     title: "Transaction detail",
     description:
-      "One transaction, by its id or on-chain hash: state, who has signed and who still needs to (on its own spending path), whether it is ready to submit, every payout line (task, recipient, token, amount), payment lines (transfers between the community's treasuries flagged), minted tokens, the fee, the Guild Vault record it carries on chain (decoded from its own CBOR), budget problems found when it was built and the co-signer's decisions. Use it to check what a transaction pays before signing it in the app.",
+      "One transaction, by its id or on-chain hash: state, who has signed and who still needs to (on its own spending path), whether it is ready to submit, every payout line (task, recipient, token, amount), payment lines (transfers between the community's treasuries flagged), minted tokens, the fee, the Treasury Guild record it carries on chain (decoded from its own CBOR), budget problems found when it was built and the co-signer's decisions. Use it to check what a transaction pays before signing it in the app.",
     endpoint: transactionDetail,
     restPath: "/api/v1/communities/{community}/transactions/{tx}",
     annotations: READ_ONLY,

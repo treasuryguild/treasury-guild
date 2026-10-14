@@ -21,7 +21,7 @@ export default function WelcomePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <PageTitle>Welcome to Guild Vault</PageTitle>
+      <PageTitle>Welcome to Treasury Guild</PageTitle>
       <p className="mb-6 text-zinc-400">
         Two quick optional steps, then pick your communities.
       </p>

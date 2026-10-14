@@ -107,7 +107,7 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
       </PageTitle>
       <p className="-mt-2 text-sm text-zinc-400">
         Moved here from another wallet? Import its payments from a CSV so the Dashboard and budgets show everything
-        your workgroups were paid. Guild Vault never reads the old wallet: the file is taken as it is, so check it
+        your workgroups were paid. Treasury Guild never reads the old wallet: the file is taken as it is, so check it
         before importing. You can delete or replace an import at any time.
       </p>
       <ErrorText error={overview.error} />

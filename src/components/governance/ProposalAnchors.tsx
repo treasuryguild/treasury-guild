@@ -58,7 +58,7 @@ export function ProposalAnchors({ slug, communityId, proposal, anchors, treasuri
       <SectionTitle>On-chain anchors</SectionTitle>
       <p className="mb-3 text-sm text-zinc-400">
         Each step puts the proposal&apos;s fingerprints on the Cardano chain (metadata, no funds), so the decision can be checked
-        without trusting Guild Vault. Anchors ride on the community&apos;s next payout or payment, or go alone.
+        without trusting Treasury Guild. Anchors ride on the community&apos;s next payout or payment, or go alone.
       </p>
       {neverAnchored ? (
         <p className="text-sm text-zinc-500">Closed before any anchor was made: nothing goes on-chain for it.</p>

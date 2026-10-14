@@ -14,7 +14,7 @@ import { cosignerKeySecret, cronSecret } from "@/lib/env.server";
 const VERSION = "v1";
 
 function keySecret(): string {
-  return cosignerKeySecret() ?? createHmac("sha256", cronSecret()).update("guild-vault/cosigner-keys").digest("hex");
+  return cosignerKeySecret() ?? createHmac("sha256", cronSecret()).update("treasury-guild/cosigner-keys").digest("hex");
 }
 
 function cipherKey(secret: string): Buffer {

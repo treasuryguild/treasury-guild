@@ -54,7 +54,7 @@ export interface VerifiedDraft extends Draft {
 }
 
 function secret(): Uint8Array {
-  return new TextEncoder().encode(hmacSha256Hex(mcpTokenSecret() ?? cronSecret(), "guild-vault/mcp-draft-token"));
+  return new TextEncoder().encode(hmacSha256Hex(mcpTokenSecret() ?? cronSecret(), "treasury-guild/mcp-draft-token"));
 }
 
 function audience(): string {

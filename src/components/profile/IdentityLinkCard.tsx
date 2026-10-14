@@ -17,13 +17,13 @@ const COPY: Record<IdentityProvider, { title: string; name: string; blurb: strin
     title: "🎧 Discord account",
     name: "Discord",
     blurb:
-      "Link your Discord account and communities can recognise you in their voice calls, so call rewards reach this wallet. Guild Vault learns your Discord user id and name, nothing else.",
+      "Link your Discord account and communities can recognise you in their voice calls, so call rewards reach this wallet. Treasury Guild learns your Discord user id and name, nothing else.",
   },
   [IdentityProvider.Google]: {
     title: "📹 Google account",
     name: "Google",
     blurb:
-      "Link the Google account you join Meet calls with, so call rewards reach this wallet. Guild Vault learns only the account's id: no email, name or other data.",
+      "Link the Google account you join Meet calls with, so call rewards reach this wallet. Treasury Guild learns only the account's id: no email, name or other data.",
   },
 };
 

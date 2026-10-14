@@ -30,7 +30,7 @@ export interface VerifiedAccessToken {
 
 /** MCP_TOKEN_SECRET (required in production), else, in dev and tests, a key derived from CRON_SECRET. */
 function secret(): Uint8Array {
-  const key = mcpTokenSecret() ?? hmacSha256Hex(cronSecret(), "guild-vault/mcp-access-token");
+  const key = mcpTokenSecret() ?? hmacSha256Hex(cronSecret(), "treasury-guild/mcp-access-token");
   return new TextEncoder().encode(key);
 }
 

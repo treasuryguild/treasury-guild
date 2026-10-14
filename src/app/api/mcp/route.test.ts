@@ -124,7 +124,7 @@ describe("/api/mcp", () => {
 
   it("initializes with the server instructions, and serves a second request (no shared transport)", async () => {
     const first = await body(await POST(rpc("initialize", INITIALIZE)));
-    expect(first.result?.serverInfo).toMatchObject({ name: "guild-vault" });
+    expect(first.result?.serverInfo).toMatchObject({ name: "treasury-guild" });
     expect(String(first.result?.instructions)).toContain("Nothing on this server can vote, sign or pay");
 
     const second = await POST(rpc("tools/list", {}, {}, 2));

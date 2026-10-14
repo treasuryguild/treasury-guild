@@ -41,9 +41,9 @@ function renderView(over: Partial<Parameters<typeof GithubBoardView>[0]> = {}) {
 afterEach(cleanup);
 
 describe("GithubBoardView", () => {
-  it("lists native tasks under Created in Guild Vault, GitHub tasks in their live column", () => {
+  it("lists native tasks under Created in Treasury Guild, GitHub tasks in their live column", () => {
     renderView();
-    const section = screen.getByRole("region", { name: "Created in Guild Vault" });
+    const section = screen.getByRole("region", { name: "Created in Treasury Guild" });
     expect(within(section).getByText("Call: Standup, 2026-09-01")).toBeTruthy();
     expect(within(section).queryByText("Fix the login bug")).toBeNull();
     expect(screen.getAllByText("Fix the login bug")).toHaveLength(1);
@@ -51,7 +51,7 @@ describe("GithubBoardView", () => {
 
   it("keeps native tasks out of the fallback status columns", () => {
     renderView({ boards: null, error: "GitHub is down" });
-    const section = screen.getByRole("region", { name: "Created in Guild Vault" });
+    const section = screen.getByRole("region", { name: "Created in Treasury Guild" });
     expect(within(section).getByText("Call: Standup, 2026-09-01")).toBeTruthy();
     expect(screen.queryByText("No status")).toBeNull();
   });
@@ -59,11 +59,11 @@ describe("GithubBoardView", () => {
   it("shows native tasks even before a repository is linked", () => {
     renderView({ boards: [], hasRepos: false });
     expect(screen.getByText(/no repository is linked yet/)).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Created in Guild Vault" })).toBeTruthy();
+    expect(screen.getByRole("region", { name: "Created in Treasury Guild" })).toBeTruthy();
   });
 
   it("has no section when every task comes from GitHub", () => {
     renderView({ tasks: [githubTask] });
-    expect(screen.queryByRole("region", { name: "Created in Guild Vault" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Created in Treasury Guild" })).toBeNull();
   });
 });

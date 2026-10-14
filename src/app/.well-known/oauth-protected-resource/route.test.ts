@@ -27,7 +27,7 @@ describe("GET /.well-known/oauth-protected-resource (root form)", () => {
       authorization_servers: [APP],
       scopes_supported: ["communities:read", "proposals:write", "tasks:write", "payouts:write"],
       bearer_methods_supported: ["header"],
-      resource_name: "Guild Vault",
+      resource_name: "Treasury Guild",
       resource_documentation: `${APP}/docs/ai-assistants`,
     });
   });

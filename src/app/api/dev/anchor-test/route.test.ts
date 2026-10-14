@@ -111,7 +111,7 @@ describe("GET /api/dev/anchor-test", () => {
 
 describe("POST /api/dev/anchor-test", () => {
   it("builds the phase-0 test record as a pending anchor transaction on the treasury's own network", async () => {
-    const record = { v: 1, src: "guild-vault", c: "signius", test: 1 };
+    const record = { v: 1, src: "treasury-guild", c: "signius", test: 1 };
     const res = await post();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ txId: "tx-1", txHash: HASH, slug: "signius", record });
@@ -121,7 +121,7 @@ describe("POST /api/dev/anchor-test", () => {
     expect(mocks.provider).toHaveBeenCalledWith(0);
     expect(mocks.build).toHaveBeenCalledExactlyOnceWith({
       treasuryAddress: TREASURY, scriptCbor: "8200", network: 0, provider: PROVIDER, record,
-      message: "Guild Vault anchor test: signius", validFromSlot: null,
+      message: "Treasury Guild anchor test: signius", validFromSlot: null,
     });
     expect(mocks.withTx).toHaveBeenCalledExactlyOnceWith({
       treasury_id: TREASURY_ID, kind: "anchor", spending_path: "base", tx_cbor: "84a0", tx_hash: HASH,

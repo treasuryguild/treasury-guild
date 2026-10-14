@@ -31,12 +31,12 @@ describe("mintAccessJwt", () => {
   });
 
   it("carries the wallet claim and the shape RLS expects", async () => {
-    const { payload } = await jwtVerify(await mintAccessJwt(WALLET), key(), { audience: "authenticated", issuer: "guild-vault" });
+    const { payload } = await jwtVerify(await mintAccessJwt(WALLET), key(), { audience: "authenticated", issuer: "treasury-guild" });
     expect(payload.wallet).toBe(WALLET);
     expect(payload.sub).toBe(WALLET);
     expect(payload.role).toBe("authenticated");
     expect(payload.aud).toBe("authenticated");
-    expect(payload.iss).toBe("guild-vault");
+    expect(payload.iss).toBe("treasury-guild");
   });
 
   it(`expires ${ACCESS_TOKEN_MINUTES} minutes after it is issued`, async () => {
@@ -73,7 +73,7 @@ describe("verifySessionJwt", () => {
     new SignJWT(claims)
       .setProtectedHeader({ alg: "HS256" })
       .setAudience(opts.aud ?? "authenticated")
-      .setIssuer(opts.iss ?? "guild-vault")
+      .setIssuer(opts.iss ?? "treasury-guild")
       .setIssuedAt()
       .setExpirationTime("5m")
       .sign(key(opts.secret));
@@ -110,7 +110,7 @@ describe("verifySessionJwt", () => {
   it("is null for an unsigned (alg none) token", async () => {
     const b64 = (v: object) => Buffer.from(JSON.stringify(v)).toString("base64url");
     const now = Math.floor(Date.now() / 1000);
-    const unsigned = `${b64({ alg: "none" })}.${b64({ wallet: WALLET, aud: "authenticated", iss: "guild-vault", exp: now + 300 })}.`;
+    const unsigned = `${b64({ alg: "none" })}.${b64({ wallet: WALLET, aud: "authenticated", iss: "treasury-guild", exp: now + 300 })}.`;
     expect(await verifySessionJwt(unsigned)).toBeNull();
   });
 });

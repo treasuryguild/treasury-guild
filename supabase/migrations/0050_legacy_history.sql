@@ -1,5 +1,5 @@
 -- Previous-wallet history: a community that moved from a normal wallet to a
--- Guild Vault treasury carries the old wallet's payments over from a CSV it
+-- Treasury Guild treasury carries the old wallet's payments over from a CSV it
 -- generated and audited itself. Nothing here is read from the chain: the old
 -- wallet's address is a label, never polled. The rows are planned in
 -- TypeScript (src/lib/legacyHistory) and written only by

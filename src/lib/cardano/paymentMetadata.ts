@@ -1,11 +1,11 @@
 // On-chain metadata for a manual payment (Payments page). It shares label
-// 190001 with task payouts so every Guild Vault outflow is found under one
+// 190001 with task payouts so every Treasury Guild outflow is found under one
 // label, and is told apart by `t: "payment"` and its `o` list: it has no `p`,
 // so the payout readers (parsePayoutMeta, parsePayoutMetadata) never
 // mistake it for a task payout. Strings obey the 64-byte metadatum cap.
 //
 // Shape — one entry per output of the tx body:
-//   { v: 1, src: "guild-vault", t: "payment", c: <community slug>,
+//   { v: 1, src: "treasury-guild", t: "payment", c: <community slug>,
 //     b: <budget period of the spend outputs: "YYYY-MM" | "YYYY-Qn" | "">,
 //     k: [<asset ticker>, …], m?: <memo>,
 //     o: [ [<output index>, [<amount>, …], <flag>], … ] }
@@ -162,7 +162,7 @@ export interface PaymentMetaView {
 
 /**
  * Read a label-190001 datum defensively (it comes from the chain, so any
- * shape is possible). Returns null unless it is a Guild Vault payment record.
+ * shape is possible). Returns null unless it is a Treasury Guild payment record.
  */
 export function parsePaymentMeta(meta: unknown): PaymentMetaView | null {
   if (!isRecord(meta)) return null;

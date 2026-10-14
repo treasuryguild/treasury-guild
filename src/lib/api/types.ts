@@ -881,7 +881,7 @@ export interface V1TransactionDetailResponse {
   fee: string | null;
   /** Its CIP-20 message, if any. */
   message: string | null;
-  /** The Guild Vault records it carries, decoded from its own CBOR: label 190001 (payout or payment) and 190002 (proposal anchors). */
+  /** The Treasury Guild records it carries, decoded from its own CBOR: label 190001 (payout or payment) and 190002 (proposal anchors). */
   onChainRecord: { payout: unknown; payment: unknown; anchors: unknown[] | null };
   /** The app-held co-signer's decisions on it, newest first. */
   cosigner: { at: string; trigger: string; passed: boolean; problems: string[]; signed: boolean; error: string | null }[];

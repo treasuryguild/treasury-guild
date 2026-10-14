@@ -27,7 +27,7 @@ export const DOCS = [
   {
     slug: "getting-started",
     title: "Getting started",
-    summary: "What Guild Vault is, wallets, signing in, networks and your first visit.",
+    summary: "What Treasury Guild is, wallets, signing in, networks and your first visit.",
     group: "Start here",
   },
   {
@@ -135,7 +135,7 @@ export const DOCS = [
   {
     slug: "privacy",
     title: "Privacy policy",
-    summary: "What Guild Vault stores about you, who can see it, and how to have it changed or deleted.",
+    summary: "What Treasury Guild stores about you, who can see it, and how to have it changed or deleted.",
     group: "Reference",
   },
 ] as const satisfies readonly DocEntry[];

@@ -90,7 +90,7 @@ export interface PayoutMessageInput {
   at?: Date;
 }
 
-export const USERNAME = "Guild Vault";
+export const USERNAME = "Treasury Guild";
 /** Workgroups listed in the spending/budget blocks before "+N more" (field values cap at 1024 chars). */
 export const MAX_WORKGROUP_LINES = 8;
 const MAX_WORKGROUP_NAME = 40;
@@ -327,7 +327,7 @@ export function buildConnectedEmbed(treasuryName: string): DiscordWebhookPayload
     username: USERNAME,
     embeds: [
       {
-        title: "🔗 Guild Vault connected",
+        title: "🔗 Treasury Guild connected",
         description: `Payout notifications for **${treasuryName}** will appear in this channel once each payout is confirmed on-chain.`,
         color: COLOR_INDIGO,
       },

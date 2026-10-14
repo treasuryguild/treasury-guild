@@ -44,7 +44,7 @@ export const POST = devRoute(async (req, { session }) => {
     network: ctx.network,
     provider: getProvider(ctx.network),
     record,
-    message: `Guild Vault anchor test: ${ctx.communitySlug}`,
+    message: `Treasury Guild anchor test: ${ctx.communitySlug}`,
     validFromSlot: validFromSlotFor(ctx.treasury, path),
   });
 

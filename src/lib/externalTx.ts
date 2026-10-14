@@ -14,14 +14,14 @@ export function describeExternalTx(row: ExternalTxRow): { title: string; detail:
     const transfers = payment.outputs.filter((o) => o.transfer).length;
     return {
       title: `Payment on-chain: ${plural(payment.outputs.length, "output")}${transfers > 0 ? ` (${plural(transfers, "transfer")})` : ""}`,
-      detail: payment.memo ?? (payment.period ? `Guild Vault payment · ${payment.period}` : "Guild Vault payment"),
+      detail: payment.memo ?? (payment.period ? `Treasury Guild payment · ${payment.period}` : "Treasury Guild payment"),
     };
   }
   const meta = parsePayoutMeta(row.payout_meta);
   if (meta) {
     return {
       title: `Payout on-chain: ${plural(meta.taskNumbers.length, "task")}, ${plural(meta.outputs, "output")}`,
-      detail: meta.workgroups.length > 0 ? meta.workgroups.join(", ") : "Guild Vault payout",
+      detail: meta.workgroups.length > 0 ? meta.workgroups.join(", ") : "Treasury Guild payout",
     };
   }
   return {

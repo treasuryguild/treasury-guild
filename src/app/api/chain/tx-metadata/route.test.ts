@@ -12,7 +12,7 @@ import { GET } from "./route";
 
 const HASH = "a".repeat(64);
 const CBOR = "84a0";
-const record = { v: 1, src: "guild-vault", c: "signius", a: [[3, "proposed", "b".repeat(64), "c".repeat(64)]] };
+const record = { v: 1, src: "treasury-guild", c: "signius", a: [[3, "proposed", "b".repeat(64), "c".repeat(64)]] };
 const get = (query = `?hash=${HASH}&network=0`) =>
   GET(new Request(`http://localhost/api/chain/tx-metadata${query}`), { params: Promise.resolve({}) });
 

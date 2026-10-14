@@ -186,5 +186,5 @@ export function pageLabel(pathname: string): string {
   for (const [test, label] of PAGE_LABELS) {
     if (test(path)) return label;
   }
-  return "Guild Vault";
+  return "Treasury Guild";
 }

@@ -54,9 +54,9 @@ function AppTasksSection({
   if (tasks.length === 0) return null;
   return (
     <section className="mt-8" aria-labelledby="app-tasks-heading">
-      <h2 id="app-tasks-heading" className="font-medium">Created in Guild Vault</h2>
+      <h2 id="app-tasks-heading" className="font-medium">Created in Treasury Guild</h2>
       <p className="mb-3 mt-1 text-sm text-zinc-500">
-        Tasks made in Guild Vault, such as call attendance, are paid from Payday like any other.
+        Tasks made in Treasury Guild, such as call attendance, are paid from Payday like any other.
       </p>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         {tasks.map((t) => (

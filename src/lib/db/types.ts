@@ -523,7 +523,7 @@ export interface CallTaskLink {
 
 export const CALL_TASKS_EMBED = "task_id, chunk_index, tasks(number, title, pay_state, paid_tx_hash)";
 
-/** A wallet a community paid from before Guild Vault (migration 0050). The address is a label, never read. */
+/** A wallet a community paid from before Treasury Guild (migration 0050). The address is a label, never read. */
 export interface LegacyWalletRow {
   id: string;
   community_id: string;

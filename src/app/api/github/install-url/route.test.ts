@@ -16,7 +16,7 @@ const get = (query = `communityId=${COMMUNITY}`) => GET(new Request(`http://loca
 beforeEach(() => {
   vi.resetAllMocks();
   process.env.CRON_SECRET = "test-secret";
-  process.env.GITHUB_APP_SLUG = "guild-vault-test";
+  process.env.GITHUB_APP_SLUG = "treasury-guild-test";
   mocks.session.mockResolvedValue({ wallet: WALLET });
   mocks.requireAdmin.mockResolvedValue("admin");
   mocks.slug.mockResolvedValue("demo");
@@ -27,7 +27,7 @@ describe("GET /api/github/install-url", () => {
     const response = await get();
     expect(response.status).toBe(200);
     const url = new URL((await response.json()).url);
-    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/apps/guild-vault-test/installations/new");
+    expect(`${url.origin}${url.pathname}`).toBe("https://github.com/apps/treasury-guild-test/installations/new");
     expect([...url.searchParams.keys()]).toEqual(["state"]);
     const state = url.searchParams.get("state")!;
     expect(verifyOAuthState("github-install", state)).toEqual({

@@ -47,7 +47,7 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
           hint="Every proposal that reached a vote gets a frozen, hashed record of its ballots and result, kept here for members. Publishing also puts a copy where anyone can fetch it by its hash. Applies to proposals closing from when it is turned on.">
           <Select aria-label="Publish signed tallies" value={store ?? ""} disabled={off}
             onChange={(e) => { setSaved(false); setStore((e.target.value || null) as DocumentStoreName | null); }}>
-            <option value="">Keep in Guild Vault only</option>
+            <option value="">Keep in Treasury Guild only</option>
             {Object.entries(STORE_LABELS).map(([name, label]) => <option key={name} value={name}>{label}</option>)}
           </Select>
         </Field>

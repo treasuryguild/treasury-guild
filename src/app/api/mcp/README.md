@@ -266,7 +266,7 @@ Properties worth not regressing (tests in `src/lib/oauthServer/*.test.ts`,
   accepted. Loopback URIs match with the port ignored (RFC 8252).
 - **The consent page never renders URL text.** A refusal arrives as `?error=<code>` and
   is shown through `consentErrorMessage` (`consentErrors.ts`). Anything else reads as
-  "the request is not valid", so nobody can put their own words on a Guild Vault page.
+  "the request is not valid", so nobody can put their own words on a Treasury Guild page.
 - **Identity is shown for what it is.** A CIMD client is labelled with the domain serving
   its metadata document (`verifiedDomain`). A DCR client's name is flagged as
   self-declared, with a warning when it returns to a website rather than a local program.
@@ -314,7 +314,7 @@ Clients read it once, at initialize, so reconnect after changing it.
 npm run dev
 curl http://localhost:3000/.well-known/oauth-protected-resource/api/mcp
 npx @modelcontextprotocol/inspector   # URL http://localhost:3000/api/mcp, via its proxy (no Origin)
-claude mcp add --transport http guild-vault-local http://localhost:3000/api/mcp
+claude mcp add --transport http treasury-guild-local http://localhost:3000/api/mcp
 ```
 
 The `/api/v1` routes also answer in a browser tab signed in to the app.

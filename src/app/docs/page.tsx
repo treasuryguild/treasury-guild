@@ -5,8 +5,8 @@ import { routes } from "@/lib/routes";
 import { Card, PageTitle, SectionTitle } from "@/components/ui";
 
 export const metadata: Metadata = {
-  title: "Documentation – Guild Vault",
-  description: "How to use Guild Vault: communities, treasuries, task boards, Payday and more.",
+  title: "Documentation – Treasury Guild",
+  description: "How to use Treasury Guild: communities, treasuries, task boards, Payday and more.",
 };
 
 export default function DocsIndexPage() {
@@ -14,7 +14,7 @@ export default function DocsIndexPage() {
     <div>
       <PageTitle>Documentation</PageTitle>
       <p className="mb-8 max-w-3xl text-zinc-400">
-        Guild Vault is a treasury manager for Cardano communities: a shared
+        Treasury Guild is a treasury manager for Cardano communities: a shared
         multisig wallet, task boards for bounty work, and a Payday flow that
         pays contributors in one batch transaction with a verifiable on-chain
         record of who was paid for what. These pages explain every section of

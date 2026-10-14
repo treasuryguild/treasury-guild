@@ -99,7 +99,7 @@ describe("protectedResourceMetadata", () => {
     expect(meta.authorization_servers).toEqual([authorizationServerMetadata().issuer]);
     expect(meta.scopes_supported).toEqual([...API_SCOPES]);
     expect(meta.bearer_methods_supported).toEqual(["header"]);
-    expect(meta.resource_name).toBe("Guild Vault");
+    expect(meta.resource_name).toBe("Treasury Guild");
     expect(meta.resource_documentation).toBe(`${ORIGIN}/docs/ai-assistants`);
   });
 });

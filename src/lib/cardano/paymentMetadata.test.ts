@@ -27,7 +27,7 @@ describe("buildPaymentMetadata", () => {
       output(2, false, [{ ...GVTT, quantity: 250_000n }, { ...ADA, quantity: 0n }]),
     ]);
     expect(meta).toEqual({
-      v: 1, src: "guild-vault", t: "payment", c: "signius", b: "2026-09", k: ["ADA", "GVTT"], m: "Design invoice #12",
+      v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "2026-09", k: ["ADA", "GVTT"], m: "Design invoice #12",
       o: [[0, ["5", "1.5"], 0], [1, ["2"], 1], [2, ["", "0.25"], 0]],
     });
   });
@@ -88,12 +88,12 @@ describe("parsePaymentMeta", () => {
   });
 
   it("reads the cited decisions, skipping malformed ones", () => {
-    const view = parsePaymentMeta({ src: "guild-vault", t: "payment", o: [], g: [[4, HASH], [0, HASH], [5, "nope"], "junk"] });
+    const view = parsePaymentMeta({ src: "treasury-guild", t: "payment", o: [], g: [[4, HASH], [0, HASH], [5, "nope"], "junk"] });
     expect(view?.citations).toEqual([{ number: 4, contentHash: HASH }]);
   });
 
   it("rejects payouts and foreign shapes", () => {
-    expect(parsePaymentMeta({ v: 3, src: "guild-vault", c: "x", w: [], b: [], k: [], p: [] })).toBeNull();
+    expect(parsePaymentMeta({ v: 3, src: "treasury-guild", c: "x", w: [], b: [], k: [], p: [] })).toBeNull();
     expect(parsePaymentMeta({ src: "other", t: "payment", o: [] })).toBeNull();
     expect(parsePaymentMeta(null)).toBeNull();
     expect(parsePaymentMeta([1, 2])).toBeNull();
@@ -101,7 +101,7 @@ describe("parsePaymentMeta", () => {
   });
 
   it("skips malformed entries and tolerates missing lists", () => {
-    const view = parsePaymentMeta({ src: "guild-vault", t: "payment", o: [[2, ["1", ""], 0], "junk", [0, "x"], [1, ["3"]]] });
+    const view = parsePaymentMeta({ src: "treasury-guild", t: "payment", o: [[2, ["1", ""], 0], "junk", [0, "x"], [1, ["3"]]] });
     expect(view).toEqual({
       period: "", memo: null, tickers: [],
       outputs: [

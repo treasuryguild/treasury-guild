@@ -55,7 +55,7 @@ export interface AnchorMetadata {
 /** The groundwork test record: no proposal, just the version, source and slug (phase 0). */
 export interface AnchorTestMetadata {
   v: 1;
-  src: "guild-vault";
+  src: "treasury-guild";
   c: string;
   /** Marks the record as the phase-0 test; the real record has `a` (anchors) instead. */
   test: 1;
@@ -65,8 +65,8 @@ export function buildAnchorTestMetadata(communitySlug: string): AnchorTestMetada
   return { v: ANCHOR_METADATA_VERSION, src: METADATA_SRC, c: communitySlug, test: 1 };
 }
 
-/** Whether a decoded label-190002 value is a Guild Vault anchor record (any version, test record included). */
-export function isAnchorRecord(value: unknown): value is { v: number; src: "guild-vault"; c: string } {
+/** Whether a decoded label-190002 value is a Treasury Guild anchor record (any version, test record included). */
+export function isAnchorRecord(value: unknown): value is { v: number; src: "treasury-guild"; c: string } {
   return isRecord(value) && typeof value.v === "number" && value.src === METADATA_SRC && typeof value.c === "string";
 }
 

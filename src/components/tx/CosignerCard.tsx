@@ -45,7 +45,7 @@ export function CosignerCard({
       <h3 className="mb-2 text-sm font-medium text-zinc-400">Co-signer check</h3>
       <p className="mb-2 text-xs text-zinc-400">
         {app
-          ? "Guild Vault holds this treasury's co-signer key and signs only what passes: the outputs match the stored rows, the spend fits the voted budgets and every cited decision passed and was applied."
+          ? "Treasury Guild holds this treasury's co-signer key and signs only what passes: the outputs match the stored rows, the spend fits the voted budgets and every cited decision passed and was applied."
           : "The co-signer signs only what passes: the outputs match the stored rows, the spend fits the voted budgets and every cited decision passed and was applied. Read the result before signing."}
       </p>
       {check.loading && (

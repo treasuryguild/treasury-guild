@@ -5,7 +5,7 @@ import { describeExternalTx, recentTreasuryActivity } from "./externalTx";
 
 const META = {
   v: 3,
-  src: "guild-vault",
+  src: "treasury-guild",
   c: "signius",
   w: ["[LIVE] Signius Payout Runs"],
   b: ["2026-09"],
@@ -60,14 +60,14 @@ describe("parsePayoutMeta", () => {
     });
   });
 
-  it("rejects anything that is not a Guild Vault payout object", () => {
+  it("rejects anything that is not a Treasury Guild payout object", () => {
     expect(parsePayoutMeta(null)).toBeNull();
     expect(parsePayoutMeta("x")).toBeNull();
     expect(parsePayoutMeta([1])).toBeNull();
     expect(parsePayoutMeta({ src: "other", p: [] })).toBeNull();
-    expect(parsePayoutMeta({ src: "guild-vault" })).toBeNull();
+    expect(parsePayoutMeta({ src: "treasury-guild" })).toBeNull();
     // Malformed entries are skipped, not thrown on.
-    expect(parsePayoutMeta({ src: "guild-vault", w: "nope", p: [1, [0, "x"], [0, [["a"]]]] })).toEqual({
+    expect(parsePayoutMeta({ src: "treasury-guild", w: "nope", p: [1, [0, "x"], [0, [["a"]]]] })).toEqual({
       workgroups: [],
       taskNumbers: [],
       outputs: 3,

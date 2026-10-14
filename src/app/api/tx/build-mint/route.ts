@@ -208,7 +208,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     assets: specs,
     recipient,
     metadata721,
-    message: `Guild Vault mint: ${ctx.communitySlug} ${dateStr}, ${description.slice(6)}`,
+    message: `Treasury Guild mint: ${ctx.communitySlug} ${dateStr}, ${description.slice(6)}`,
     lockSlot,
     validFromSlot: validFromSlotFor(treasury, path),
   });

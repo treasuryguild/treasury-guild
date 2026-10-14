@@ -1,4 +1,4 @@
-// Add a wallet the community paid from before Guild Vault. Its address is a
+// Add a wallet the community paid from before Treasury Guild. Its address is a
 // label only: nothing ever reads that wallet on-chain.
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { createLegacyWalletSchema } from "@/lib/api/schemas";

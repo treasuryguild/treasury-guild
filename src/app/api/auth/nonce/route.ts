@@ -18,7 +18,7 @@ export const POST = publicRoute(async (req) => {
   // The wallet shows this text when asked to sign: it names the site and the
   // address, so a challenge relayed from another site reads as such.
   const host = new URL(appUrl()).host;
-  const nonce = `guild-vault login | ${host} | ${address} | ${randomUUID()} | ${new Date().toISOString()}`;
+  const nonce = `treasury-guild login | ${host} | ${address} | ${randomUUID()} | ${new Date().toISOString()}`;
   await saveNonce(address, nonce, new Date(Date.now() + NONCE_TTL_MS).toISOString());
   return { nonce } satisfies AuthNonceResponse;
 });

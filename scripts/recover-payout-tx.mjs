@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Rebuild the database record of a Guild Vault payout from the chain.
+// Rebuild the database record of a Treasury Guild payout from the chain.
 //
 //   node --env-file=.env scripts/recover-payout-tx.mjs <txHash> [<txHash>...] [--remote]
 //
-// For a payout that Guild Vault built and submitted but whose rows were lost
+// For a payout that Treasury Guild built and submitted but whose rows were lost
 // (for example a local database reset after a locally submitted seed:live
 // batch), this reads the transaction from Koios — body CBOR, inputs, outputs
 // and the label-190001 metadata — and recreates the `transactions` row, one
@@ -106,8 +106,8 @@ function parsePayoutMeta(meta) {
   if (!meta || typeof meta !== "object" || Array.isArray(meta)) {
     throw new Error("No label-190001 metadata");
   }
-  if (meta.src !== "guild-vault" || meta.v !== 3) {
-    throw new Error(`Not a v3 Guild Vault payout (src=${meta.src}, v=${meta.v})`);
+  if (meta.src !== "treasury-guild" || meta.v !== 3) {
+    throw new Error(`Not a v3 Treasury Guild payout (src=${meta.src}, v=${meta.v})`);
   }
   for (const key of ["w", "b", "k", "p"]) {
     if (!Array.isArray(meta[key])) throw new Error(`Metadata "${key}" is not a list`);

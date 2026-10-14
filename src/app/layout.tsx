@@ -4,7 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Guild Vault",
+  title: "Treasury Guild",
   description:
     "Cardano treasury manager for communities: multisig payouts for completed tasks",
 };

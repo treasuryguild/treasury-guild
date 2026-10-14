@@ -26,7 +26,7 @@ export interface MetadataLegend {
 }
 
 const COMMON_HEAD: readonly MetadataLegendEntry[] = [
-  { key: "src", meaning: 'Always "guild-vault": marks a record written by Guild Vault.' },
+  { key: "src", meaning: 'Always "treasury-guild": marks a record written by Treasury Guild.' },
   { key: "c", meaning: "The community's slug (its address in the app)." },
 ];
 

@@ -1,7 +1,7 @@
 "use client";
 
 // Admin-only queue on the Treasury page: payouts and payments found on-chain
-// that carry a Guild Vault record but could not be imported on their own.
+// that carry a Treasury Guild record but could not be imported on their own.
 // Each row says why, and offers what settles it: name the workgroup, import
 // the task under a new number, try again, or dismiss it.
 import { useState } from "react";
@@ -184,7 +184,7 @@ export function ChainImportQueue({
     <section className="mb-8">
       <SectionTitle>On-chain payments waiting for import ({held.length})</SectionTitle>
       <p className="-mt-2 mb-3 text-sm text-zinc-400">
-        These transactions were sent from a treasury by another copy of Guild Vault. Their tasks and
+        These transactions were sent from a treasury by another copy of Treasury Guild. Their tasks and
         payments are added here once the points below are settled.
       </p>
       <ErrorText error={action.error} className="mb-3" />

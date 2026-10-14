@@ -87,7 +87,7 @@ export function TreasuryDetailsModal({
             )}
             {t.cosigner && (
               <Row label="Co-signer">
-                {t.cosigner.kind === "app" ? "Guild Vault (app-held key)" : "A member"}{" "}
+                {t.cosigner.kind === "app" ? "Treasury Guild (app-held key)" : "A member"}{" "}
                 <span className="font-mono text-xs text-zinc-500">{shortAddress(t.cosigner.walletAddress)}</span>
               </Row>
             )}

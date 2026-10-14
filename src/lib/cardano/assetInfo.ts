@@ -40,7 +40,7 @@ export function assetNameFromUnit(unit: string): string | null {
 }
 
 /**
- * Fill an unresolved chain token from Guild Vault's own mint record. The
+ * Fill an unresolved chain token from Treasury Guild's own mint record. The
  * record is available immediately, while Koios can take a short time to add
  * the mint transaction's label-721 metadata to /asset_info.
  */
@@ -64,7 +64,7 @@ export function applyWalletTokenHint(
 
 /**
  * Metadata fallback chain: token registry (CIP-26) -> CIP-25 (721) hints from
- * the minting tx (what Guild Vault's own mints carry) -> ASCII name -> nothing.
+ * the minting tx (what Treasury Guild's own mints carry) -> ASCII name -> nothing.
  */
 export function tokenFromAssetInfo(
   unit: string,

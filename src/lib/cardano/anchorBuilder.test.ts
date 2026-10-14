@@ -11,8 +11,8 @@ const BASE = {
   scriptCbor: "8201828200581c",
   network: 0 as const,
   provider: {} as IFetcher,
-  record: { v: 1, src: "guild-vault", c: "signius", a: [[1, "proposed", "a".repeat(64), "b".repeat(64)]] },
-  message: "Guild Vault: anchor of proposal #1",
+  record: { v: 1, src: "treasury-guild", c: "signius", a: [[1, "proposed", "a".repeat(64), "b".repeat(64)]] },
+  message: "Treasury Guild: anchor of proposal #1",
 };
 
 beforeEach(() => {
@@ -29,7 +29,7 @@ describe("buildAnchorTx", () => {
     });
     expect(opts.metadata).toEqual([
       ["190002", BASE.record],
-      ["674", { msg: ["Guild Vault: anchor of proposal #1"] }],
+      ["674", { msg: ["Treasury Guild: anchor of proposal #1"] }],
     ]);
   });
 

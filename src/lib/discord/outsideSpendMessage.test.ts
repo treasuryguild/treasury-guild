@@ -25,7 +25,7 @@ describe("buildOutsideSpendEmbed", () => {
       communityName: "Signius", treasuryName: "Main", spend, display, explorerUrl: "https://preprod.cexplorer.io/tx/f",
     });
     const embed = payload.embeds[0]!;
-    expect(embed.title).toBe("⚠️ Spend built outside Guild Vault");
+    expect(embed.title).toBe("⚠️ Spend built outside Treasury Guild");
     expect(embed.url).toBe("https://preprod.cexplorer.io/tx/f");
     expect(embed.description).toContain("**Signius**");
     expect(embed.fields).toEqual([

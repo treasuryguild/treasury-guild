@@ -1,4 +1,4 @@
-// The Discord message that flags a spend built outside Guild Vault: an
+// The Discord message that flags a spend built outside Treasury Guild: an
 // outgoing transaction of a treasury that no app build produced and the
 // chain import did not claim. Pure and client-safe. It carries the
 // treasury, the amounts and the transaction link, never a wallet or a name.
@@ -51,10 +51,10 @@ export function buildOutsideSpendEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
-      title: "⚠️ Spend built outside Guild Vault",
+      title: "⚠️ Spend built outside Treasury Guild",
       url: input.explorerUrl,
       description:
-        `A transaction of **${input.communityName}** moved funds without a Guild Vault payout or payment record, ` +
+        `A transaction of **${input.communityName}** moved funds without a Treasury Guild payout or payment record, ` +
         "so it cites no decision and was not checked against the voted budgets.",
       color: AMBER,
       fields,

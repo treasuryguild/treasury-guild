@@ -98,7 +98,7 @@ function exchangeGuildCode(code: string, redirectUri: string) {
 
 /**
  * The Zoom account that hosts the community's calls. Attendance only reaches
- * Guild Vault for meetings this account hosts, which is why a community uses
+ * Treasury Guild for meetings this account hosts, which is why a community uses
  * one shared host account.
  */
 export const zoomHostLink: HostLinkAdapter = {

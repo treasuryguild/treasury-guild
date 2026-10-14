@@ -5,7 +5,7 @@
 -- or concurrent snapshot can never inflate it.
 --
 -- Capture writes down the Discord user id of everyone in the channel, linked
--- to Guild Vault or not. Those ids are nobody else's business: members keep
+-- to Treasury Guild or not. Those ids are nobody else's business: members keep
 -- reading the attendee list, but no longer its external_id column.
 
 create table public.call_integrations (

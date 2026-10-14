@@ -13,7 +13,7 @@
 --     warned about or refused;
 --   * back-links from what a proposal created or set: tasks.proposal_id (set
 --     by apply_task_proposal) and proposal_id on budget setups and plans,
---     stamped by a trigger from guild_vault.proposal_apply, so a payout or
+--     stamped by a trigger from treasury_guild.proposal_apply, so a payout or
 --     payment can cite the decisions behind it;
 --   * transactions.spend_problems keeps what the budget check found at build
 --     time (warn mode) for the signers; external_txs.governance_alerted_at
@@ -143,7 +143,7 @@ alter table public.budget_plans add column proposal_id uuid references public.pr
 create function public.stamp_budget_proposal() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
-  v_apply text := coalesce(current_setting('guild_vault.proposal_apply', true), '');
+  v_apply text := coalesce(current_setting('treasury_guild.proposal_apply', true), '');
 begin
   new.proposal_id := case when v_apply ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     then v_apply::uuid else null end;

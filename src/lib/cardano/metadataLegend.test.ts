@@ -49,8 +49,8 @@ describe("metadata legends", () => {
   });
 
   it("picks the legend from the record's shape", () => {
-    expect(payoutOrPaymentLegend({ src: "guild-vault", t: "payment", o: [] })).toBe(PAYMENT_METADATA_LEGEND);
-    expect(payoutOrPaymentLegend({ src: "guild-vault", v: 3, p: [] })).toBe(PAYOUT_METADATA_LEGEND);
+    expect(payoutOrPaymentLegend({ src: "treasury-guild", t: "payment", o: [] })).toBe(PAYMENT_METADATA_LEGEND);
+    expect(payoutOrPaymentLegend({ src: "treasury-guild", v: 3, p: [] })).toBe(PAYOUT_METADATA_LEGEND);
     expect(payoutOrPaymentLegend({ v: 2, p: [{ r: "abc" }] })).toBe(PAYOUT_METADATA_LEGEND);
     expect(payoutOrPaymentLegend(null)).toBeNull();
     expect(payoutOrPaymentLegend({ msg: ["hi"] })).toBeNull();

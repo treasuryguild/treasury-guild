@@ -75,10 +75,10 @@ describe("buildProposalEmbed", () => {
 describe("buildGovernanceConnectedEmbed", () => {
   it("confirms the connection in one embed, naming the community", () => {
     const payload = buildGovernanceConnectedEmbed("Signius");
-    expect(payload.username).toBe("Guild Vault");
+    expect(payload.username).toBe("Treasury Guild");
     expect(payload.embeds).toHaveLength(1);
     const [embed] = payload.embeds;
-    expect(embed!.title).toBe("🔗 Guild Vault connected");
+    expect(embed!.title).toBe("🔗 Treasury Guild connected");
     expect(embed!.description).toContain("**Signius**");
     expect(embed!.color).toBe(0x6366f1);
     // A confirmation, not an announcement: no link, no fields.

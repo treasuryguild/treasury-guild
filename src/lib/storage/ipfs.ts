@@ -23,7 +23,7 @@ export function ipfsStore(deps: {
     name: "ipfs",
     async put(bytes, filename, tags) {
       const file = new File([bytes as BlobPart], filename, { type: "application/json" });
-      const uploaded = await client().upload.public.file(file).name(filename).keyvalues({ app: "guild-vault", ...tags });
+      const uploaded = await client().upload.public.file(file).name(filename).keyvalues({ app: "treasury-guild", ...tags });
       return uploaded.cid;
     },
     url(locator) {

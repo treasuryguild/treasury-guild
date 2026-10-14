@@ -117,7 +117,7 @@ describe("signing path", () => {
     const view = decodeTxForDisplay(built.unsignedTxHex);
     const out = view.outputs.find((o) => o.address === RECIPIENT);
     expect(out?.lovelace).toBe("5000000");
-    expect(view.message).toMatch(/^Guild Vault payout: test-dao/);
+    expect(view.message).toMatch(/^Treasury Guild payout: test-dao/);
     const meta = extractPayoutMetadata(built.unsignedTxHex) as {
       v: number;
       c: string;
@@ -193,7 +193,7 @@ describe("signing path", () => {
       assets: [{ assetNameHex: nameHex, quantity: 1000n }],
       recipient: RECIPIENT,
       metadata721,
-      message: "Guild Vault mint: test",
+      message: "Treasury Guild mint: test",
       lockSlot: null,
     });
 
@@ -281,7 +281,7 @@ describe("signing path", () => {
     const policyId = resolveNativeScriptHash(forgeScript);
     const { scriptCbor: forgeScriptCbor } = serializeNativeScript(forgeScript, undefined, 0, true);
     const metadata721 = buildCip25Metadata(policyId, [
-      { assetName: "GVT", name: "Guild Vault Token", image: "ipfs://cid", mediaType: "image/png", ticker: "GVT", decimals: 2, attributes: { Rarity: "common" } },
+      { assetName: "GVT", name: "Treasury Guild Token", image: "ipfs://cid", mediaType: "image/png", ticker: "GVT", decimals: 2, attributes: { Rarity: "common" } },
       { assetName: "LONG", image: "ipfs://cid", description: "d".repeat(150) },
     ]);
     const mint = await buildMintTx({
@@ -294,7 +294,7 @@ describe("signing path", () => {
       assets: [{ assetNameHex: utf8ToHex("GVT"), quantity: 1000n }, { assetNameHex: utf8ToHex("LONG"), quantity: 1n }],
       recipient: RECIPIENT,
       metadata721,
-      message: "Guild Vault mint: test",
+      message: "Treasury Guild mint: test",
       lockSlot,
     });
     expect(decodeTxTtl(mint.unsignedTxHex)).toBe(String(lockSlot));
@@ -307,7 +307,7 @@ describe("signing path", () => {
     const decoded = extractCip25Metadata(mint.unsignedTxHex);
     expect(decoded).toEqual(metadata721);
     const entries = (decoded as Record<string, Record<string, Record<string, unknown>>>)[policyId]!;
-    expect(entries.GVT).toEqual({ name: "Guild Vault Token", image: "ipfs://cid", mediaType: "image/png", ticker: "GVT", decimals: 2, Rarity: "common" });
+    expect(entries.GVT).toEqual({ name: "Treasury Guild Token", image: "ipfs://cid", mediaType: "image/png", ticker: "GVT", decimals: 2, Rarity: "common" });
     expect(entries.LONG!.description).toEqual(["d".repeat(64), "d".repeat(64), "d".repeat(22)]);
     expect(decodeTxForDisplay(mint.unsignedTxHex).cip25Meta).toEqual(metadata721);
     // A mint is not a payout.

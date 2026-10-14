@@ -115,7 +115,7 @@ function compareOutputs(leaving: readonly Leaving[], expected: Map<string, { uni
 
 function comparePayoutRecord(meta: PayoutMetadata | null, input: CompareInput, problems: string[]) {
   if (!meta) {
-    problems.push("The transaction carries no Guild Vault payout record");
+    problems.push("The transaction carries no Treasury Guild payout record");
     return;
   }
   const tasksByWallet = new Map<string, Set<number>>();
@@ -145,7 +145,7 @@ function comparePayoutRecord(meta: PayoutMetadata | null, input: CompareInput, p
 
 function comparePaymentRecord(meta: PaymentMetadata | null, input: CompareInput, problems: string[]) {
   if (!meta) {
-    problems.push("The transaction carries no Guild Vault payment record");
+    problems.push("The transaction carries no Treasury Guild payment record");
     return;
   }
   const transferByWallet = new Map<string, boolean>();

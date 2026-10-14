@@ -208,7 +208,7 @@ export async function buildPayoutTx(opts: {
       [
         CIP20_LABEL,
         buildMessageMetadata(
-          `Guild Vault payout: ${communitySlug} ${dateStr}, ${recipients.length} contributors`,
+          `Treasury Guild payout: ${communitySlug} ${dateStr}, ${recipients.length} contributors`,
         ),
       ],
     ],

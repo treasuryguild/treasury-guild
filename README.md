@@ -1,4 +1,4 @@
-# Guild Vault
+# Treasury Guild
 
 Cardano treasury manager for communities: multisig treasuries, GitHub-synced
 task boards, batch payouts anchored on-chain, and refund reconciliation.
@@ -25,7 +25,7 @@ task boards, batch payouts anchored on-chain, and refund reconciliation.
   record marked `t: "payment"`.
 - **Reconciliation** — incoming refunds to the treasury are detected via Koios
   polling and matched back to payouts.
-- **Chain import** — an outgoing transaction that carries a Guild Vault
+- **Chain import** — an outgoing transaction that carries a Treasury Guild
   label-`190001` record this database did not build (another deployment, a
   lost local record) is rebuilt from the chain as the payout or payment the
   app would have written; what needs a decision waits on the Treasury page.
@@ -46,7 +46,7 @@ task boards, batch payouts anchored on-chain, and refund reconciliation.
 - **Funding sources** — outside funders and their commitments (one-off,
   recurring or a schedule), compared with the inflows tagged to them.
 - **Previous-wallet history** — payments made from the wallet a community
-  used before Guild Vault, imported from a CSV and counted in budgets.
+  used before Treasury Guild, imported from a CSV and counted in budgets.
 - **Minting** — tokens and NFTs minted under the treasury's own multisig
   script, optionally time-locked, with images on IPFS.
 - **AI assistants** — an MCP server (`/api/mcp`) and REST API (`/api/v1`)
@@ -250,7 +250,7 @@ payout to it. A separate webhook per community, pasted on the Governance
 page (`governance_discord_webhooks`, migration 0057, service-role only),
 receives proposal announcements from the same cron: up for discussion,
 voting open, a day left, the result. While budget consent is on it also
-gets one post per outgoing transaction built outside Guild Vault (migration
+gets one post per outgoing transaction built outside Treasury Guild (migration
 0059; treasury, amounts and tx link, never a recipient).
 
 ### Call attendance: Discord, Zoom, Google (optional)
@@ -520,7 +520,7 @@ creates one row (`create_proposal_from_draft` for proposals). Fixtures:
 A payout or payment that reached the chain without this database knowing
 (another deployment, a local reset) comes back through the **chain import**
 (`src/lib/chainImport/`, migration `0045_chain_import.sql`): after every
-treasury poll, an outgoing transaction with a Guild Vault record is rebuilt
+treasury poll, an outgoing transaction with a Treasury Guild record is rebuilt
 from its own CBOR as confirmed `transactions` + `payouts` / `payments` rows,
 creating missing tasks as paid stubs (`Imported task #N`). A transaction is
 imported completely or not at all; what cannot be resolved (an unknown
@@ -545,7 +545,7 @@ cites the proposals behind the spend, `[[proposalNumber, contentHash,
 
 ```json
 {
-  "v": 3, "src": "guild-vault", "c": "signius",
+  "v": 3, "src": "treasury-guild", "c": "signius",
   "w": ["Dev", "Design"],
   "b": ["2026-05", "2026-Q2"],
   "k": ["ADA", "GVT"],
@@ -562,7 +562,7 @@ of 188 ADA and 50 000 GVTT to another of the community's treasuries:
 
 ```json
 {
-  "v": 1, "src": "guild-vault", "t": "payment", "c": "signius",
+  "v": 1, "src": "treasury-guild", "t": "payment", "c": "signius",
   "b": "",
   "k": ["ADA", "GVTT"],
   "m": "Workgroup Budget",

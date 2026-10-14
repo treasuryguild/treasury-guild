@@ -16,7 +16,7 @@ Create the call before it starts, so the check-in code is ready to share.
 Check-in is how attendees put themselves on the list with the right wallet, without anyone matching names afterwards.
 
 1. On the call's page, a manager presses **Create check-in code** and shares the **link** (or reads out the six-character **code**) in the call.
-2. Each attendee opens the link while signed in to Guild Vault and presses **Check in**. Their attendance is recorded for the wallet they are signed in with, and that wallet receives the reward.
+2. Each attendee opens the link while signed in to Treasury Guild and presses **Check in**. Their attendance is recorded for the wallet they are signed in with, and that wallet receives the reward.
 
 Check-in is open from 15 minutes before the start until the call ends. **New code** replaces the code at once (the old link stops working) and **Close check-in** removes it.
 
@@ -28,13 +28,13 @@ A wallet can be on a call's list only once, however it got there, so nobody is r
 
 ## Connecting a Discord server
 
-An admin connects the community's Discord server once, on **Call capture** in the community sidebar. **Connect Discord server** opens Discord, where you pick a server you manage and add the Guild Vault bot to it. The bot asks for one permission, **View Channels**. It never joins a call, listens, speaks or posts; it only reads who is in a voice channel.
+An admin connects the community's Discord server once, on **Call capture** in the community sidebar. **Connect Discord server** opens Discord, where you pick a server you manage and add the Treasury Guild bot to it. The bot asks for one permission, **View Channels**. It never joins a call, listens, speaks or posts; it only reads who is in a voice channel.
 
 - The server you picked in Discord is the one that gets connected. One server per community; **Change server** repeats the step with another one.
 - A **private voice channel** is captured only if the bot's role is allowed to view it. Give the role access in the channel's permissions, or the channel is not offered when creating a call.
 - **Disconnect** stops capture and takes the bot out of the server (unless another community uses the same server). Attendees already captured stay on their calls.
 - Connecting a different server replaces the old one, and the bot leaves the old server under the same rule.
-- If you add the bot on Discord but the connection is never finished (the tab was closed, or Guild Vault refused it), the bot leaves that server by itself, within about an hour.
+- If you add the bot on Discord but the connection is never finished (the tab was closed, or Treasury Guild refused it), the bot leaves that server by itself, within about an hour.
 
 ## Capturing Discord voice calls
 
@@ -61,7 +61,7 @@ An admin connects the Zoom account that **hosts** the community's calls, once, u
 
 Creating or editing a Zoom call then offers:
 
-- **Meeting ID**: the 9 to 11 digit id of the meeting (spaces are fine). Leave it empty to rely on check-in. A recurring meeting or personal room reuses its id; Guild Vault takes the meeting that happens around the call's start and end.
+- **Meeting ID**: the 9 to 11 digit id of the meeting (spaces are fine). Leave it empty to rely on check-in. A recurring meeting or personal room reuses its id; Treasury Guild takes the meeting that happens around the call's start and end.
 - **Minimum minutes**: how long someone must be present, between the call's start and end, to be rewarded.
 
 While the meeting runs, people appear on the attendee list as they join, with their minutes so far. Time before the start and after the end does not count, leaving and rejoining adds up, and nobody's minutes are counted twice. About 10 minutes after the call ends, Zoom's participant report is read and the minutes become final; the call's page says when that happened.
@@ -72,7 +72,7 @@ Most community calls are one recurring meeting, or a personal room, with an id t
 
 From then on nobody has to create the call. When the first person joins a linked Zoom meeting, a call creates itself in that workgroup with the link's title, reward and threshold, and fills up as people join. It starts when the meeting started; it ends after the usual length, moves out when people are still leaving later, and takes the real end once Zoom reports the meeting over. The call is marked **Linked meeting** on the Calls page and is an ordinary call from there on: edit it, link wallets, and create the attendance task whenever you like, the same day or at the end of the month.
 
-A linked Google Meet meeting works the same way, a little later: Google sends no notifications, so Guild Vault looks every 5 minutes for a new meeting under the linked code, and the call appears within about 5 minutes of the meeting starting, with everyone who was already there. Its end moves out while the meeting keeps running and becomes Google's end time once the meeting is over. A meeting that was over before anyone looked still gets its call, as long as it ended within the last hour. The connected Google account has to be the one that created the meeting.
+A linked Google Meet meeting works the same way, a little later: Google sends no notifications, so Treasury Guild looks every 5 minutes for a new meeting under the linked code, and the call appears within about 5 minutes of the meeting starting, with everyone who was already there. Its end moves out while the meeting keeps running and becomes Google's end time once the meeting is over. A meeting that was over before anyone looked still gets its call, as long as it ended within the last hour. The connected Google account has to be the one that created the meeting.
 
 Editing a link changes the calls it creates next; removing it only stops new ones. A link in an archived workgroup is paused and cannot be edited or removed, and the workgroup's calls cannot be changed either ("Restore this workgroup before making changes"); restore the workgroup first. If you delete a call while its meeting is still running (for Google Meet: or ended less than an hour ago), it creates itself again.
 
@@ -92,13 +92,13 @@ Zoom attendees are mostly guests, known only by the name they typed. A name that
 
 ## Capturing Google Meet calls
 
-An admin connects the Google account that **creates** the community's Meet calls, once, under **Google Meet account** on the **Call capture** page. Google asks for one Meet permission, read access to the account's Meet conferences, which Guild Vault uses only to read who attended and when; tick it, or the connection is refused. Guild Vault reads no audio, video, chat, recordings, transcripts or calendar. Meet only reports a meeting to the account that created it, so create your rewarded calls from this one shared account. **Disconnect** deletes the stored access and revokes it at Google; connecting a different Google account does the same for the old one. Access is not revoked while another community is still connected to the same Google account, because revoking would cut that community off too.
+An admin connects the Google account that **creates** the community's Meet calls, once, under **Google Meet account** on the **Call capture** page. Google asks for one Meet permission, read access to the account's Meet conferences, which Treasury Guild uses only to read who attended and when; tick it, or the connection is refused. Treasury Guild reads no audio, video, chat, recordings, transcripts or calendar. Meet only reports a meeting to the account that created it, so create your rewarded calls from this one shared account. **Disconnect** deletes the stored access and revokes it at Google; connecting a different Google account does the same for the old one. Access is not revoked while another community is still connected to the same Google account, because revoking would cut that community off too.
 
 This is separate from the **Google account** link on your own Profile page, which only tells communities which Google account is yours.
 
 Creating or editing a Meet call then offers:
 
-- **Meet link or code**: paste the meeting link, or its code (`abc-mnop-xyz`). Leave it empty to rely on check-in. A recurring meeting reuses its code; Guild Vault takes the occurrence that overlaps the call's start and end.
+- **Meet link or code**: paste the meeting link, or its code (`abc-mnop-xyz`). Leave it empty to rely on check-in. A recurring meeting reuses its code; Treasury Guild takes the occurrence that overlaps the call's start and end.
 - **Minimum minutes**: how long someone must be present, between the call's start and end, to be rewarded.
 
 Google sends no notifications, so the list is refreshed every 5 minutes while the call runs and read once more about 10 minutes after it ends, when the times become final. Time outside the call does not count, leaving and rejoining adds up.

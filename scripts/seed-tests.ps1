@@ -15,7 +15,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$name = 'guild-vault-sql-tests'
+$name = 'treasury-guild-sql-tests'
 $tests = Get-ChildItem (Join-Path $root 'supabase\tests\*.sql') | Where-Object { $_.Name -like "*$Filter*" } | Sort-Object Name
 if (-not $tests) { throw "No tests match '$Filter'" }
 

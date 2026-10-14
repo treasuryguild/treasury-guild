@@ -48,7 +48,7 @@ describe("listBotGuilds", () => {
 
 describe("botUserId", () => {
   it("returns the bot's own id", async () => {
-    fetchMock.mockResolvedValueOnce(json({ id: "bot-1", username: "Guild Vault" }));
+    fetchMock.mockResolvedValueOnce(json({ id: "bot-1", username: "Treasury Guild" }));
     expect(await botUserId()).toBe("bot-1");
     expect(fetchMock).toHaveBeenCalledWith(`${API}/users/@me`, expect.anything());
   });

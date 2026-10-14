@@ -29,7 +29,7 @@ function output(address: string, lovelace: bigint, tokens: Record<string, bigint
 // Task 50 to alice; task 51 (two assignees) to alice and bob; change last.
 const META: PayoutMetadata = {
   v: 3,
-  src: "guild-vault",
+  src: "treasury-guild",
   c: "signius",
   w: ["Payout Runs"],
   b: ["2026-Q3"],
@@ -292,7 +292,7 @@ describe("checkOutputAmounts", () => {
 describe("planPaymentImport", () => {
   const PAYMENT: PaymentMetadata = {
     v: 1,
-    src: "guild-vault",
+    src: "treasury-guild",
     t: "payment",
     c: "signius",
     b: "2026-09",

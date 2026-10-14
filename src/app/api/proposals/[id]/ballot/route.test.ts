@@ -10,7 +10,7 @@ import { POST } from "./route";
 
 const WALLET = "addr_test1voter";
 const ID = "40000000-0000-4000-8000-000000000001";
-const BALLOT = { text: "Guild Vault ballot…", signedAt: "2026-09-30T10:00:00.000Z" };
+const BALLOT = { text: "Treasury Guild ballot…", signedAt: "2026-09-30T10:00:00.000Z" };
 const post = (body: unknown, headers: Record<string, string> = {}, id = ID) =>
   POST(new Request(`http://localhost/api/proposals/${id}/ballot`, {
     method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", ...headers },

@@ -94,7 +94,7 @@ export const CosignerKind = {
 } as const;
 export type CosignerKind = (typeof CosignerKind)[keyof typeof CosignerKind];
 /** treasury_signers.display_name of the app-held co-signer key. */
-export const COSIGNER_DISPLAY_NAME = "Guild Vault co-signer";
+export const COSIGNER_DISPLAY_NAME = "Treasury Guild co-signer";
 
 /** cosigner_decisions.trigger: what ran the co-signer check. */
 export const CosignTrigger = {
@@ -166,7 +166,7 @@ export const ChainImportStatus = {
   Blocked: "blocked",
   /** An admin dismissed it. */
   Ignored: "ignored",
-  /** The label-190001 record is not a Guild Vault one. */
+  /** The label-190001 record is not a Treasury Guild one. */
   Skipped: "skipped",
 } as const;
 export type ChainImportStatus = (typeof ChainImportStatus)[keyof typeof ChainImportStatus];

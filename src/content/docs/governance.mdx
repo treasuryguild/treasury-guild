@@ -64,7 +64,7 @@ Once voting closes, the page shows the counts, the outcome and every signed ball
 
 ### Checking a result
 
-**Download the signed tally** (on the results, once ballots are visible) saves the whole record as one JSON file: the proposal and its rules, who could vote, every signed ballot and the recorded result. The file carries a blake2b-256 hash of its content, in the style of Cardano's governance metadata (CIP-100). Anyone can check it without trusting Guild Vault:
+**Download the signed tally** (on the results, once ballots are visible) saves the whole record as one JSON file: the proposal and its rules, who could vote, every signed ballot and the recorded result. The file carries a blake2b-256 hash of its content, in the style of Cardano's governance metadata (CIP-100). Anyone can check it without trusting Treasury Guild:
 
 1. The proposal's text and rules match the fingerprints every ballot signed (sha256 of their canonical JSON).
 2. Each ballot's text names this proposal, its fingerprints, the voter and the choice, and its signature is valid for the voter's own payment key.
@@ -73,17 +73,17 @@ Once voting closes, the page shows the counts, the outcome and every signed ball
 
 5. When the proposal has a voter-list fingerprint (proposals whose voting opened once [anchoring](#on-chain-anchors) was in place), the list of voters in the file hashes to it, and every ballot signed it.
 
-Developers can run these checks with `checkTallyDocument` in the Guild Vault source. **Verify record and anchors** under **On-chain anchors** on the proposal page runs them in your browser and then compares the file with the proposal's anchors read from the chain.
+Developers can run these checks with `checkTallyDocument` in the Treasury Guild source. **Verify record and anchors** under **On-chain anchors** on the proposal page runs them in your browser and then compares the file with the proposal's anchors read from the chain.
 
 ### The frozen record
 
 Once a proposal that reached a vote is final (passed, rejected, no quorum, or cancelled during voting), its signed tally is **frozen**: built once, stored with its hash, and served byte for byte from then on. Every later download is the same file, whatever happens to the proposal afterwards (carrying out a passed budget change is not part of it). The results show when the record was frozen and its hash. A proposal withdrawn or cancelled before voting opened has no ballots to record and no frozen record.
 
-Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Guild Vault. The one store today is [IPFS](https://ipfs.tech/), through Pinata. Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. The results link every published copy, and Guild Vault checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
+Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Treasury Guild. The one store today is [IPFS](https://ipfs.tech/), through Pinata. Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. The results link every published copy, and Treasury Guild checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
 
 ## On-chain anchors
 
-A community that votes and has a treasury gets each proposal's fingerprints written to the Cardano chain, so the decision is evident there without trusting Guild Vault: what was proposed, who could vote, and how it ended. Nothing member-written goes on-chain, only the community's slug, proposal numbers, states and hashes. The **On-chain anchors** card on the proposal page shows where each step stands.
+A community that votes and has a treasury gets each proposal's fingerprints written to the Cardano chain, so the decision is evident there without trusting Treasury Guild: what was proposed, who could vote, and how it ended. Nothing member-written goes on-chain, only the community's slug, proposal numbers, states and hashes. The **On-chain anchors** card on the proposal page shows where each step stands.
 
 | Step | Due from | What the anchor carries |
 |---|---|---|
@@ -112,7 +112,7 @@ This supports a simple practice: keep most funds in a **reserve treasury** with 
 
 ## Spend citations and the budget check
 
-Every payout and payment Guild Vault builds names, in its on-chain record, the decisions behind it: the proposal that created a task, and the budget proposal that set the budget of the period a spend counts against (see the `g` key under [On-chain metadata](/docs/transactions#on-chain-metadata) and the [payment record](/docs/payments#on-chain-record)). A spend of a budget that was saved directly cites no budget proposal. The transaction page lists the cited decisions and links each to its proposal.
+Every payout and payment Treasury Guild builds names, in its on-chain record, the decisions behind it: the proposal that created a task, and the budget proposal that set the budget of the period a spend counts against (see the `g` key under [On-chain metadata](/docs/transactions#on-chain-metadata) and the [payment record](/docs/payments#on-chain-record)). A spend of a budget that was saved directly cites no budget proposal. The transaction page lists the cited decisions and links each to its proposal.
 
 While budget consent is on, every payout and payment is **checked against the voted budgets** before it is built:
 
@@ -122,17 +122,17 @@ While budget consent is on, every payout and payment is **checked against the vo
 
 Under [Governance settings](#governance-settings) an admin chooses what a spend that fails the check does. **Warn** (the default) lets the build go ahead and shows the problems on the transaction page, above the signatures, so every signer sees them before signing. **Refuse** stops the build and lists the problems instead. Transfers between the community's own treasuries are not spending and are never checked.
 
-A transaction that spends from a treasury but was not built in Guild Vault cites no decision and is checked against nothing. While budget consent is on, the Treasury page marks such a transaction **Built outside Guild Vault**, and it is posted once to the [Discord announcements](#discord-announcements) channel (the treasury, the amounts and the transaction link; never who received it).
+A transaction that spends from a treasury but was not built in Treasury Guild cites no decision and is checked against nothing. While budget consent is on, the Treasury page marks such a transaction **Built outside Treasury Guild**, and it is posted once to the [Discord announcements](#discord-announcements) channel (the treasury, the amounts and the transaction link; never who received it).
 
 ## The co-signer
 
-The budget check warns or refuses at build time; the signers can still sign whatever was built, and a spend built outside the app is only announced. A community that wants its votes to bind more tightly creates a [co-signer treasury](/docs/treasury#co-signer): its normal spends need the base signers **plus a co-signer** that signs only what passes the [co-signer check](/docs/transactions#the-co-signer-check), which compares the transaction's bytes with the rows it was built from, runs the budget check in its strictest form (while budget consent is on), and confirms every cited decision passed and was applied. The co-signer is a member chosen at creation, who reads the check before signing, or Guild Vault itself, holding one encrypted key per treasury and signing automatically on a pass.
+The budget check warns or refuses at build time; the signers can still sign whatever was built, and a spend built outside the app is only announced. A community that wants its votes to bind more tightly creates a [co-signer treasury](/docs/treasury#co-signer): its normal spends need the base signers **plus a co-signer** that signs only what passes the [co-signer check](/docs/transactions#the-co-signer-check), which compares the transaction's bytes with the rows it was built from, runs the budget check in its strictest form (while budget consent is on), and confirms every cited decision passed and was applied. The co-signer is a member chosen at creation, who reads the check before signing, or Treasury Guild itself, holding one encrypted key per treasury and signing automatically on a pass.
 
 This is near-enforcement, not enforcement: every base signer together can still spend without the co-signer (the bypass path), so a unanimous signer set can act against a vote, and the check is run by the app or the co-signer, not by the chain. What it removes is the case where a majority of signers, or a compromised app database, moves funds a vote did not allow. The decision to co-sign is deterministic code: an assistant may explain it, never make it.
 
 ## Discord announcements
 
-An admin can connect a Discord channel under **Governance → Discord announcements** by pasting a webhook URL (in Discord: channel settings, **Integrations**, **Webhooks**). Guild Vault posts a test message, then announces each proposal:
+An admin can connect a Discord channel under **Governance → Discord announcements** by pasting a webhook URL (in Discord: channel settings, **Integrations**, **Webhooks**). Treasury Guild posts a test message, then announces each proposal:
 
 - when it is **up for discussion**,
 - when **voting opens**, with the deadline and who votes,
@@ -173,7 +173,7 @@ A proposal keeps the rules it was made with. A change affects only proposals mad
 
 **Records and checks** holds two settings for the whole community, logged under **Changes** like the others:
 
-- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Guild Vault only (the default), or also publish new ones to IPFS. Turning publication on asks for confirmation, because a published copy cannot be taken back.
+- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Treasury Guild only (the default), or also publish new ones to IPFS. Turning publication on asks for confirmation, because a published copy cannot be taken back.
 - **A spend that does not fit the voted budgets**: warn the signers on the transaction page (the default) or refuse to build it. See [the budget check](#spend-citations-and-the-budget-check).
 
 Defaults for budgets: proposed by admins and leads, decided by consent of all members with a 25% quorum, 24 hours of discussion and 72 hours of voting. New workgroups and decisions: any member proposes, majority vote above 50% with a 20% quorum, 48 hours of discussion and five days of voting. Tasks: any member proposes, lazy consensus of the people of the workgroup (one objection rejects), no discussion period and three days of voting. The people of a new workgroup with no leads or history yet are nobody, so a task proposed there is cancelled for lack of voters: choose another electorate or give the workgroup leads first.

@@ -44,7 +44,7 @@ async function loadTx(txId: string): Promise<TransactionRow> {
 export async function cosignWithAppKey(txId: string, trigger: CosignTrigger): Promise<CosignResult> {
   let tx = await loadTx(txId);
   const { treasury, signers } = await loadTreasuryWithSigners(tx.treasury_id);
-  if (treasury.cosigner_kind !== CosignerKind.App) throw new BadRequestError("This treasury's co-signer is a member, not Guild Vault");
+  if (treasury.cosigner_kind !== CosignerKind.App) throw new BadRequestError("This treasury's co-signer is a member, not Treasury Guild");
   if (tx.spending_path !== SpendingPath.Cosigned) throw new BadRequestError("Only a co-signed transaction takes the co-signer's signature");
   if (tx.state !== TxState.Pending) throw new ConflictError("Transaction is no longer pending");
   const cosigner = signers.find((s) => s.signer_group === SignerGroup.Cosigner);

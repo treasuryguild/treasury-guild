@@ -112,7 +112,7 @@ export default function GithubSettings({
       {installed === false && (
         <Card>
           <p className="mb-4 text-zinc-400">
-            Install the Guild Vault GitHub App on your organization to sync
+            Install the Treasury Guild GitHub App on your organization to sync
             issues and project boards. Issues in your project&apos;s import
             column (default &quot;In review&quot;) that carry your payable
             label (default <Badge tone="green">audited</Badge>) are imported

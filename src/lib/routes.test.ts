@@ -65,7 +65,7 @@ describe("routes", () => {
     expect(pageLabel("/docs")).toBe("Documentation");
     expect(pageLabel("/docs/treasury")).toBe("Documentation");
     expect(pageLabel("/dev")).toBe("Developer tools");
-    expect(pageLabel("/something-else")).toBe("Guild Vault");
+    expect(pageLabel("/something-else")).toBe("Treasury Guild");
   });
 });
 
@@ -95,9 +95,9 @@ describe("pageLabel: the remaining pages", () => {
   });
 
   it("matches the top-level pages exactly, not as prefixes or community slugs", () => {
-    expect(pageLabel("/settings/other")).toBe("Guild Vault");
-    expect(pageLabel("/welcome/back")).toBe("Guild Vault");
-    expect(pageLabel("/communities")).toBe("Guild Vault");
+    expect(pageLabel("/settings/other")).toBe("Treasury Guild");
+    expect(pageLabel("/welcome/back")).toBe("Treasury Guild");
+    expect(pageLabel("/communities")).toBe("Treasury Guild");
     // A community whose slug is a page name is still just a community.
     for (const slug of ["settings", "welcome", "payments", "mint", "reconcile", "funding", "members", "treasury", "docs", "dev"]) {
       expect(pageLabel(routes.community(slug)), slug).toBe("Community overview");
@@ -107,7 +107,7 @@ describe("pageLabel: the remaining pages", () => {
   it("gives every sidebar entry a label of its own, whatever the community is called", () => {
     for (const entry of COMMUNITY_NAV) {
       const label = pageLabel(communityHref(entry.key, "dao"));
-      expect(label, entry.key).not.toBe("Guild Vault");
+      expect(label, entry.key).not.toBe("Treasury Guild");
       if (entry.key !== "community") expect(label, entry.key).not.toBe("Community overview");
       for (const slug of ["treasury", "payments", "mint-guild", "calls", "funding", "proposals", "settings"]) {
         expect(pageLabel(communityHref(entry.key, slug)), `${entry.key} in ${slug}`).toBe(label);

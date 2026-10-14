@@ -63,7 +63,7 @@ snapshot. The CLI cannot bind to loopback only, so add a firewall rule from an
 **elevated** PowerShell; `npm run db:start` warns until it exists:
 
 ```powershell
-New-NetFirewallRule -DisplayName 'Guild Vault local Supabase (block LAN)' `
+New-NetFirewallRule -DisplayName 'Treasury Guild local Supabase (block LAN)' `
   -Direction Inbound -Protocol TCP -LocalPort 54320-54330 -RemoteAddress Any -Action Block
 ```
 
@@ -93,7 +93,7 @@ Things to keep in mind while testing locally:
 
 Authenticated remote Supabase CLI calls go through `scripts/supa.ps1`, never
 bare `supabase`. Snapshot and seed scripts can instead use `pg_dump` / `psql`
-with `SUPABASE_DB_URL`. The wrapper sets `SUPABASE_ACCESS_TOKEN` for the Guild Vault
+with `SUPABASE_DB_URL`. The wrapper sets `SUPABASE_ACCESS_TOKEN` for the Treasury Guild
 account before forwarding all arguments, so the globally stored CLI login
 (which belongs to another project) is never touched or overwritten.
 `scripts/local.ps1` uses the wrapper too when it exists (harmless for the
@@ -102,7 +102,7 @@ local commands, required for `db dump --linked`).
 ```powershell
 .\scripts\supa.ps1 <any supabase args>
 # is exactly
-supabase <any supabase args>   # ...but authenticated as the Guild Vault account
+supabase <any supabase args>   # ...but authenticated as the Treasury Guild account
 ```
 
 Never run `supabase login` or `supabase logout` in this repo. That would
@@ -115,7 +115,7 @@ On a fresh clone, recreate it:
 
 ```powershell
 # scripts/supa.ps1
-$env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # Guild Vault account → Account → Access Tokens
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # Treasury Guild account → Account → Access Tokens
 supabase @args
 ```
 
@@ -127,7 +127,7 @@ link command below once to rebuild `.temp`.
 
 | Command | What it does |
 |---|---|
-| `.\scripts\supa.ps1 projects list` | Confirms the token works and shows the Guild Vault project ref. |
+| `.\scripts\supa.ps1 projects list` | Confirms the token works and shows the Treasury Guild project ref. |
 | `.\scripts\supa.ps1 link --project-ref <ref>` | Links this repo to the remote project. Prompts for the database password (Project Settings → Database). Writes `supabase/.temp/`. |
 | `.\scripts\supa.ps1 status` | Shows what is linked / what is running locally. |
 
@@ -203,14 +203,14 @@ as part of an intentional change to the typing approach.
 The app now does this by itself: after every treasury poll (the 15-minute
 reconcile job and the on-visit sync) the **chain import**
 (`src/lib/chainImport`, migration 0045) turns an outgoing transaction that
-carries a Guild Vault label-190001 record into the rows the app would have
+carries a Treasury Guild label-190001 record into the rows the app would have
 written, creating missing tasks, and holds what needs a decision on the
 Treasury page. The script below remains the manual fallback for a single
 payout hash when no app server is running against that database; unlike the
 import it never creates tasks.
 
 `scripts/recover-payout-tx.mjs` rebuilds the database side of a payout that
-Guild Vault built and submitted but whose rows are gone (a local reset after a
+Treasury Guild built and submitted but whose rows are gone (a local reset after a
 locally submitted `seed:live` batch, a failed bookkeeping write after submit):
 
 ```powershell

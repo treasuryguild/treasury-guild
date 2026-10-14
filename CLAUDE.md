@@ -1,4 +1,4 @@
-# Guild Vault — development notes
+# Treasury Guild — development notes
 
 Cardano community treasury manager. Next.js App Router + MeshJS + Koios +
 Supabase (RLS, no ORM) + Netlify.
@@ -148,7 +148,7 @@ Supabase (RLS, no ORM) + Netlify.
   renamed key updates the legend, its test and the matching doc together.
 - **Payout metadata (label 190001) is v3**, built only in
   `src/lib/cardano/metadata.ts` and positional: top-level `v` (3), `src`
-  (`"guild-vault"`), `c` (community slug), `w` (workgroup
+  (`"treasury-guild"`), `c` (community slug), `w` (workgroup
   names), `b` (budget periods: "YYYY-MM" for a monthly workgroup, "YYYY-Qn"
   for a quarterly one, resolved by `taskBudgetPeriod` from the workgroup's
   setup timeline) and `k` (asset tickers, "ADA"
@@ -174,7 +174,7 @@ Supabase (RLS, no ORM) + Netlify.
   browser column grant) and the proposal on the budget in force for its
   period (`budgetInForce` in `src/lib/budgetSetups.ts`: the plan row's
   `proposal_id`, else the setup's; both stamped by the
-  `stamp_budget_proposal` trigger from `guild_vault.proposal_apply` when it
+  `stamp_budget_proposal` trigger from `treasury_guild.proposal_apply` when it
   is uuid-shaped, null otherwise, so a direct save clears it). Citations are
   resolved in the build routes (`citationsOf`, `loadProposalCitations`),
   threaded `TaskPayment.citations` → `PayoutForMetadata.citations`; the
@@ -217,7 +217,7 @@ Supabase (RLS, no ORM) + Netlify.
   without a post (never posted late; the migration stamps history); no
   wallet or name. `external_txs` has two FKs to `treasuries`, so its embed
   names `external_txs_treasury_id_fkey`. The Treasury page reads such rows
-  **Built outside Guild Vault** while the budget kind is on.
+  **Built outside Treasury Guild** while the budget kind is on.
 - **Proposal anchors** (migration 0060, label **190002**, the one home
   `src/lib/cardano/anchorMetadata.ts`): `{v:1, src, c, a}` with one positional
   entry per (proposal, step): `[n, "proposed", contentHash, rulesHash]`,
@@ -227,7 +227,7 @@ Supabase (RLS, no ORM) + Netlify.
   exists in the community's chosen store). Numbers, states and hashes only,
   every string ≤ 64 bytes; the strict parser is `parseAnchorMetadata` (null
   for the phase-0 test record `{v, src, c, test:1}`, which the `/dev` tool
-  still builds). Label 190002 never carries `src: "guild-vault"` with a `p`
+  still builds). Label 190002 never carries `src: "treasury-guild"` with a `p`
   or `t`, so the chain import never sees an anchor. **Electorate hash**:
   `open_proposal_voting` stores `proposals.electorate_hash` = sha256 hex of
   `"<wallet> <0|1>"` lines (1 = recused) sorted `collate "C"`, joined by
@@ -681,7 +681,7 @@ Supabase (RLS, no ORM) + Netlify.
   (`src/lib/fundingFlow.ts`).
 - **Chain import** (migration 0045, `src/lib/chainImport/`,
   `src/lib/db/chainImport.ts`): an `external_txs` row whose transaction
-  carries a Guild Vault label-190001 record is rebuilt as the rows the app
+  carries a Treasury Guild label-190001 record is rebuilt as the rows the app
   would have written (payout: `transactions` state 2 + `payouts` + paid
   tasks; payment: `transactions` + `payments`) and the external row is
   dropped. `pollTreasury` stays discovery-only; `syncTreasury` (the sweep and
@@ -715,7 +715,7 @@ Supabase (RLS, no ORM) + Netlify.
   cap, as the builder writes them.
 - **Previous-wallet history** (migration 0050, `src/lib/legacyHistory/`,
   `src/lib/db/legacyHistory.ts`, page `/c/[slug]/treasury/history`): a
-  community's payments from the wallet it used before Guild Vault, imported
+  community's payments from the wallet it used before Treasury Guild, imported
   from an admin's CSV (`userId` = receiver address end, one column per token
   ticker, `task`, `date`, `workgroup`). Own tables only (`legacy_wallets`,
   `legacy_imports`, `legacy_payments`, `legacy_payment_amounts`; RLS, no
@@ -788,7 +788,7 @@ Supabase (RLS, no ORM) + Netlify.
   (`advanceDueProposals`) and the proposal page's `/advance` nudge take due
   steps. **Budget consent**: with the budget kind on, `guard_budget_consent`
   refuses every insert/update of the budget tables unless
-  `guild_vault.proposal_apply` is set, which only `execute_proposal` and the
+  `treasury_guild.proposal_apply` is set, which only `execute_proposal` and the
   `check_budget_proposal` dry run do (direct saves and resets surface as
   403). A budget proposal stores the worksheet's saves as resolved steps
   (`src/lib/db/budgetSave.ts`), locks each owner (one `active`

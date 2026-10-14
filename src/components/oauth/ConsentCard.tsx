@@ -53,7 +53,7 @@ export function ConsentCard({
   return (
     <Card>
       <h3 className="font-medium">
-        <span className="break-words">{request.clientName}</span> wants to use Guild Vault as you
+        <span className="break-words">{request.clientName}</span> wants to use Treasury Guild as you
       </h3>
       <p className="mt-2 text-sm text-zinc-400">
         {request.verifiedDomain ? (

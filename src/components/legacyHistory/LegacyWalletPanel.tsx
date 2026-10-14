@@ -1,6 +1,6 @@
 "use client";
 
-// The previous wallets a community paid from before Guild Vault: pick the one
+// The previous wallets a community paid from before Treasury Guild: pick the one
 // a CSV belongs to, add one, rename it or remove it with its history. The
 // address is a label only; nothing reads that wallet on-chain.
 import { useState } from "react";
@@ -34,7 +34,7 @@ function WalletForm({
         <Input aria-label="Previous wallet name" value={name} maxLength={64} disabled={busy}
           placeholder="Old treasury wallet" onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Address (optional)" hint="Shown as a label only. Guild Vault never reads or watches this wallet.">
+      <Field label="Address (optional)" hint="Shown as a label only. Treasury Guild never reads or watches this wallet.">
         <Input aria-label="Previous wallet address" value={address} disabled={busy} className="font-mono text-xs"
           placeholder="addr1…" spellCheck={false} onChange={(e) => setAddress(e.target.value)} />
       </Field>

@@ -17,7 +17,7 @@ const closed: AnchorEntry = [4, "closed", "passed", H3, [5, 3, [["yes", 2], ["no
 describe("anchor record", () => {
   it("is the exact positional shape", () => {
     expect(buildAnchorMetadata("guild", [proposed, opened, closed])).toEqual({
-      v: 1, src: "guild-vault", c: "guild",
+      v: 1, src: "treasury-guild", c: "guild",
       a: [
         [4, "proposed", H1, H2],
         [4, "opened", H3],
@@ -48,7 +48,7 @@ describe("anchor record", () => {
   it("names each anchored proposal once, ascending", () => {
     const record = buildAnchorMetadata("guild", [[9, "opened", H3], proposed, opened, [2, "closed", "cancelled"]]);
     expect(anchorProposalNumbers(record)).toEqual([2, 4, 9]);
-    expect(anchorProposalNumbers({ v: 1, src: "guild-vault", c: "guild", test: 1 })).toEqual([]);
+    expect(anchorProposalNumbers({ v: 1, src: "treasury-guild", c: "guild", test: 1 })).toEqual([]);
   });
 
   it("orders entries by proposal number then lifecycle step", () => {

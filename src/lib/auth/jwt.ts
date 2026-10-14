@@ -45,7 +45,7 @@ async function mintJwt(wallet: string, expiresIn: string): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(wallet)
     .setAudience("authenticated")
-    .setIssuer("guild-vault")
+    .setIssuer("treasury-guild")
     .setIssuedAt()
     .setExpirationTime(expiresIn)
     .sign(secret());
@@ -57,7 +57,7 @@ export async function verifySessionJwt(
   try {
     const { payload } = await jwtVerify(token, secret(), {
       audience: "authenticated",
-      issuer: "guild-vault",
+      issuer: "treasury-guild",
     });
     const wallet = payload.wallet;
     if (typeof wallet !== "string" || !wallet) return null;

@@ -79,7 +79,7 @@ export async function buildPaymentTx(opts: {
       [PAYOUT_METADATA_LABEL, metadata],
       ...anchors.metadata,
       [CIP20_LABEL, buildMessageMetadata(
-        `Guild Vault payment: ${communitySlug} ${dateStr}, ${summary}${memo ? `: ${memo}` : ""}`,
+        `Treasury Guild payment: ${communitySlug} ${dateStr}, ${summary}${memo ? `: ${memo}` : ""}`,
       )],
     ],
   });

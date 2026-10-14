@@ -55,7 +55,7 @@ export async function writeBackPayment(opts: {
     owner,
     repo,
     issue_number: issueNumber,
-    body: `💸 Paid **${paid}**${each} to ${recipients} in tx [\`${shortHash(txHash, 16)}\`](${explorerTxUrl(network, txHash)}) via Guild Vault.`,
+    body: `💸 Paid **${paid}**${each} to ${recipients} in tx [\`${shortHash(txHash, 16)}\`](${explorerTxUrl(network, txHash)}) via Treasury Guild.`,
   });
 
   try {

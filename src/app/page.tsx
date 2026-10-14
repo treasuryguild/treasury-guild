@@ -31,7 +31,7 @@ export default function Home() {
     return (
       <div className="glass-panel mx-auto max-w-2xl rounded-3xl px-6 py-14 text-center sm:px-12 sm:py-16">
         <BrandLogo className="mx-auto mb-6 h-20 w-20" />
-        <h1 className="text-4xl font-bold">Guild Vault</h1>
+        <h1 className="text-4xl font-bold">Treasury Guild</h1>
         <p className="mt-4 text-lg text-zinc-400">
           Multisig treasury management for Cardano communities. Sync tasks from
           GitHub or run your own board, pay contributors in batches with

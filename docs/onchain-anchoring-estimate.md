@@ -33,7 +33,7 @@ Still open from the built phases:
 Community members have asked for smart contracts that record decisions
 on-chain and allocate funds. A contract would add one thing the app cannot do
 today: *enforcement* (funds cannot move unless a vote passed). That only works
-if the vote and the electorate are on-chain too, which Guild Vault's
+if the vote and the electorate are on-chain too, which Treasury Guild's
 membership-based voting is not.
 
 The lighter alternative makes decisions *evident* instead of enforced:
@@ -173,7 +173,7 @@ same snapshot; phases 0 to 6 have since closed all of it).
 - **Kind-agnostic signing.** Sign, submit, reject, delete and the confirm
   poller do not check `transactions.kind`.
 - **The proposal id during apply.** `execute_proposal` sets
-  `guild_vault.proposal_apply` to the proposal id while it applies a budget.
+  `treasury_guild.proposal_apply` to the proposal id while it applies a budget.
 - **Transfers between treasuries.** Payments to a sibling treasury are
   recognised server-side, flagged in metadata and tagged on the receiver.
 - **Transaction CBOR from the chain.** `src/lib/cardano/koios.ts` reads
@@ -225,7 +225,7 @@ page), together with the label's home `src/lib/cardano/anchorMetadata.ts` and
 `buildAnchorTx` (`anchorBuilder.ts`: `completeTreasuryTx` with no outputs).
 The preprod test is a `/dev` tool, **Anchor test transaction**
 (`/api/dev/anchor-test`): it builds a metadata-only transaction carrying the
-test record `{v: 1, src: "guild-vault", c: <slug>, test: 1}` under label
+test record `{v: 1, src: "treasury-guild", c: <slug>, test: 1}` under label
 190002 as a pending `anchor` transaction that the signers sign and submit on
 the normal transaction page. A real build against the Signius Main Treasury's
 preprod UTxOs produced a 404-byte transaction; its signing is what remains.
@@ -354,7 +354,7 @@ wallet, choice and reason).
 - `tasks.proposal_id`, set by `apply_task_proposal`, kept out of the
   browser's column grants.
 - `proposal_id` on `budget_setups` and `budget_plans`, stamped by a trigger
-  from `guild_vault.proposal_apply`: the applying proposal's id, or null when
+  from `treasury_guild.proposal_apply`: the applying proposal's id, or null when
   a row is written without a proposal.
 
 **Which proposals a spend cites:**
@@ -406,7 +406,7 @@ links each to its proposal. A spend with no citation simply shows none.
   lands in `external_txs`. Once the chain import has run and the row is still
   there, the sweep posts it once to the governance Discord channel
   (`governance_discord_webhooks`), recorded in a new timestamp column.
-- The Treasury page marks such rows as "built outside Guild Vault".
+- The Treasury page marks such rows as "built outside Treasury Guild".
 - Only while the budget kind is on. No wallet or name is posted, only the
   treasury, the amounts and the transaction link.
 
@@ -424,7 +424,7 @@ new columns and trigger; `transactions.mdx`, `payments.mdx`,
   (setup in force, a recurring setup's amounts or the period's plan row; the
   plan row's `proposal_id`, else the setup's), fed by `loadBudgetSources`
   (`src/lib/db/budgetSetups.ts`). The stamping trigger
-  `stamp_budget_proposal` copies `guild_vault.proposal_apply` only when it is
+  `stamp_budget_proposal` copies `treasury_guild.proposal_apply` only when it is
   uuid-shaped, so the dry run's `'check'` and a direct save leave null, and
   a direct save of a period the vote set clears the link.
 - `citationsOf` (`src/lib/governance/citations.ts`) turns the ids into
@@ -448,7 +448,7 @@ new columns and trigger; `transactions.mdx`, `payments.mdx`,
   `import_status` set) once, stamping `governance_alerted_at`; a row seen
   while the budget kind is off or with no webhook is stamped without a post,
   and the migration stamped every existing row. The Treasury page's badge
-  reads **Built outside Guild Vault** while the budget kind is on.
+  reads **Built outside Treasury Guild** while the budget kind is on.
 - Checked locally against the dev server: a payout of a task linked to one
   proposal under a budget stamped by another carried
   `g: [[1, …, [68]], [2, …, [68]]]` in its decoded CBOR with both links on
@@ -758,7 +758,7 @@ together.
   route answers with `signedAddresses`, which the page's auto-submit uses.
 - Creation: the form's **Template** select with the lock date
   (`datetime-local`, ≥ 1 hour ahead), the recovery signers and rule, the
-  co-signer pick (a member, or Guild Vault), and a confirmation dialog in
+  co-signer pick (a member, or Treasury Guild), and a confirmation dialog in
   plain words (`TemplateFields.tsx`); the route validates every group's
   addresses, refuses a key in two groups and a co-signer on an all-signers
   base, requires recovery signers and a member co-signer to be members, and

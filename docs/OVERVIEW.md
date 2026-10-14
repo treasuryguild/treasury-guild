@@ -1,10 +1,10 @@
-# Guild Vault — product overview
+# Treasury Guild — product overview
 
 *Written for agents and collaborators who need to understand what this product is before proposing ideas around it. It describes the essence, not the implementation. End-user documentation lives in the app at `/docs` (source: `src/content/docs/*.mdx`).*
 
 ## One sentence
 
-Guild Vault is a treasury manager for Cardano communities: a shared multisig wallet, a task board of bounty work, and a "Payday" flow that pays contributors in one batch transaction with a verifiable on-chain record of who was paid for what.
+Treasury Guild is a treasury manager for Cardano communities: a shared multisig wallet, a task board of bounty work, and a "Payday" flow that pays contributors in one batch transaction with a verifiable on-chain record of who was paid for what.
 
 ## The problem it solves
 
@@ -15,13 +15,13 @@ Community-run organisations on Cardano (DAOs, guilds, working groups, open-sourc
 - signers coordinating over chat,
 - and no durable, public link between a payment and the work it paid for.
 
-Guild Vault collapses that into one place, so a community can go from "this task is done" to "this contributor has been paid, and anyone can verify it on-chain" without leaving the app.
+Treasury Guild collapses that into one place, so a community can go from "this task is done" to "this contributor has been paid, and anyone can verify it on-chain" without leaving the app.
 
 ## Core concepts
 
 **Community** — the top-level organisation. Has members, admins, one or more treasuries, and workgroups. Users sign in with their Cardano wallet only (no email/password). Each community runs on mainnet or preprod, chosen at creation and never changed, so one deployment hosts both and every treasury matches its community's network. Roles: owner, admins, members, and **workgroup leads** who manage their workgroup's board and can build payouts for it; a treasury's base signers are made admins. Communities are private by default; public communities allow self-joining, and GitHub assignments, call check-in and linked Discord capture can also add members.
 
-**Treasury** — a native-script multisig wallet owned by the community. Signers are ordinary CIP-30 browser wallets. Any signer can add a partial signature; the app collects them and submits once the threshold is met. Nothing moves without the required signers. An existing multisig can be imported from its native-script CBOR, keeping its signer order. A new treasury picks one of four fixed **templates**, written into the script for good: plain multisig; **clawback** (from a lock date a second group of recovery signers can move the funds out too); **lock-until** (nothing can be spent before the date, receiving continues); or **co-signer** (a normal spend needs the base rule plus a co-signer, which is either a chosen member or Guild Vault itself holding one encrypted key per treasury, and every base signer together can still spend without it). Every transaction is built for one **spending path** (base, recovery, co-signed or bypass), and only that path's signers count. A treasury has at most one transaction waiting for signatures at a time (a second would spend the same coins); rejecting or deleting it puts its tasks back to payable in the same step.
+**Treasury** — a native-script multisig wallet owned by the community. Signers are ordinary CIP-30 browser wallets. Any signer can add a partial signature; the app collects them and submits once the threshold is met. Nothing moves without the required signers. An existing multisig can be imported from its native-script CBOR, keeping its signer order. A new treasury picks one of four fixed **templates**, written into the script for good: plain multisig; **clawback** (from a lock date a second group of recovery signers can move the funds out too); **lock-until** (nothing can be spent before the date, receiving continues); or **co-signer** (a normal spend needs the base rule plus a co-signer, which is either a chosen member or Treasury Guild itself holding one encrypted key per treasury, and every base signer together can still spend without it). Every transaction is built for one **spending path** (base, recovery, co-signed or bypass), and only that path's signers count. A treasury has at most one transaction waiting for signatures at a time (a second would spend the same coins); rejecting or deleting it puts its tasks back to payable in the same step.
 
 **Workgroup** — a sub-team inside the community (e.g. "Marketing", "Dev"). Each workgroup has a task board, an optional budget, and can be routed to a specific treasury.
 
@@ -39,7 +39,7 @@ Guild Vault collapses that into one place, so a community can go from "this task
 
 **Reconciliation** — the app polls the chain (every 15 minutes, and on opening the Treasury or Incoming page when the last check is older than two minutes) to confirm submitted payouts, marks tasks paid, comments the tx hash back onto GitHub issues, posts a payout summary to the treasury's Discord channel when a webhook is configured, and records every inflow so admins can classify it (contribution, revenue, other, refund) and treasury signers can match a refund to the payout it returns. The same sweep repairs a task left queued with no live payout.
 
-**Chain import** — the on-chain record is complete enough to rebuild the database from. When a treasury's outgoing transaction carries a Guild Vault record the app has no row for (built by another deployment, or lost), the app reads the transaction's own bytes and recreates the payout or payment as confirmed history, creating missing tasks as paid stubs titled `Imported task #N` that can be retitled. A transaction is imported completely or not at all; anything ambiguous (an unknown workgroup name, a task number already used by a different task) waits in a queue on the Treasury page for an admin to resolve. Imported history keeps its block time and is never announced on Discord.
+**Chain import** — the on-chain record is complete enough to rebuild the database from. When a treasury's outgoing transaction carries a Treasury Guild record the app has no row for (built by another deployment, or lost), the app reads the transaction's own bytes and recreates the payout or payment as confirmed history, creating missing tasks as paid stubs titled `Imported task #N` that can be retitled. A transaction is imported completely or not at all; anything ambiguous (an unknown workgroup name, a task number already used by a different task) waits in a queue on the Treasury page for an admin to resolve. Imported history keeps its block time and is never announced on Discord.
 
 **Funding sources** — outside funders (a grant treasury releasing a monthly allocation, Project Catalyst proposals, a sponsor) and their commitments: one-off totals, recurring amounts, or schedules loaded from a funder's release-plan CSV. Admins tie treasury inflows to a source (and commitment) on the Incoming page; the Funding page shows planned, due so far, received, over/under and still to receive, per token and per period, and the Dashboard's funding flow names the source.
 
@@ -59,7 +59,7 @@ Guild Vault collapses that into one place, so a community can go from "this task
 
 1. A contributor picks up a GitHub issue with a bounty.
 2. They finish the work; a maintainer moves it to "In review" with the payable label.
-3. The task appears as payable in Guild Vault, attached to the contributor's linked wallet.
+3. The task appears as payable in Treasury Guild, attached to the contributor's linked wallet.
 4. A treasurer opens Payday, selects this month's payable tasks, and builds one transaction.
 5. Signers each approve from their own wallet; the last signature triggers submission.
 6. The chain confirms it. Tasks flip to paid, the GitHub issue gets a "paid" label and the tx hash, and moves to the board's Paid status.

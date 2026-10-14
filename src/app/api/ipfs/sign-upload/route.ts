@@ -36,7 +36,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     mimeTypes: [mimeType],
     maxFileSize: MAX_IMAGE_BYTES,
     keyvalues: {
-      app: "guild-vault",
+      app: "treasury-guild",
       community: slug,
       uploader: session.wallet,
     },

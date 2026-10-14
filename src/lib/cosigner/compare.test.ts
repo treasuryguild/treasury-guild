@@ -75,7 +75,7 @@ describe("compareTxToRows: payouts", () => {
       { outputIndex: 1, taskNumber: 7, workgroupName: "Dev", budgetPeriod: "2026-10", amounts: [{ ticker: "ADA", decimals: 6, quantity: 5_000_000n }], citations: [] },
     ]);
     expect(compareTxToRows({ ...input, payoutMeta: otherTasks })).toEqual([expect.stringMatching(/tasks for output 0 differ/)]);
-    expect(compareTxToRows({ ...input, payoutMeta: null })).toEqual([expect.stringMatching(/carries no Guild Vault payout record/)]);
+    expect(compareTxToRows({ ...input, payoutMeta: null })).toEqual([expect.stringMatching(/carries no Treasury Guild payout record/)]);
     expect(compareTxToRows({ ...input, mint: [{ unit: TOKEN, policyId: "p".repeat(56), assetNameHex: "48", quantity: "1" }] }))
       .toEqual([expect.stringMatching(/payout forges no assets/)]);
     expect(compareTxToRows({ ...input, payouts: [] })).toEqual(expect.arrayContaining([expect.stringMatching(/No payouts are stored/)]));
@@ -111,7 +111,7 @@ describe("compareTxToRows: payments", () => {
       { outputIndex: 1, transfer: true, amounts: [{ ticker: "ADA", decimals: 6, quantity: 9_000_000n }] },
     ]);
     expect(compareTxToRows({ ...input, payoutMeta: flipped })).toEqual([expect.stringMatching(/Output 0 is not a transfer in the stored payments/)]);
-    expect(compareTxToRows({ ...input, payoutMeta: null })).toEqual([expect.stringMatching(/carries no Guild Vault payment record/)]);
+    expect(compareTxToRows({ ...input, payoutMeta: null })).toEqual([expect.stringMatching(/carries no Treasury Guild payment record/)]);
   });
 });
 

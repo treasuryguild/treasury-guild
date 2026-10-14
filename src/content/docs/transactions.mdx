@@ -29,7 +29,7 @@ Only community members can open transaction pages.
 
 While a transaction is **Pending**, each signer of its [spending path](#spending-paths) who has not responded yet sees:
 
-- **Sign** — your wallet opens and asks you to approve. This is a *partial* signature: the transaction is not sent until the threshold is met. When your signature is the one that completes the threshold, Guild Vault submits the transaction to the chain in the same step.
+- **Sign** — your wallet opens and asks you to approve. This is a *partial* signature: the transaction is not sent until the threshold is met. When your signature is the one that completes the threshold, Treasury Guild submits the transaction to the chain in the same step.
 - **Reject** — records your refusal. As long as the remaining signers could still reach the threshold, the transaction stays **Pending** for them; once they no longer can (for example the second rejection in a 2 of 3), it moves to **Rejected** and its queued tasks become payable again.
 
 Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject** and **Delete** never need the wallet and stay available.
@@ -44,13 +44,13 @@ A treasury created with a [template](/docs/treasury#treasury-templates) has more
 
 On a **co-signer** treasury, a co-signed transaction shows a **Co-signer check** card above the signatures. The check is the same deterministic code whoever the co-signer is, and it refuses unless all of the following hold:
 
-1. the transaction's own bytes move exactly what Guild Vault stored for it: every output leaving the treasury matches a stored payout, payment or mint row (amounts included, as the builder would make them), the on-chain record names the same tasks and transfers, and nothing else leaves but the change;
+1. the transaction's own bytes move exactly what Treasury Guild stored for it: every output leaving the treasury matches a stored payout, payment or mint row (amounts included, as the builder would make them), the on-chain record names the same tasks and transfers, and nothing else leaves but the change;
 2. while the community decides budgets by vote, the spend fits the voted budgets (the [budget check](/docs/governance#spend-citations-and-the-budget-check) in its strictest form: every problem refuses, whatever the warn-or-refuse setting says), counting what was already paid but not the transaction itself;
 3. every decision the record cites is a proposal of the community that passed, was applied and still has the cited content fingerprint.
 
 A transfer to another of the community's treasuries is never checked against a budget, but any decision it cites is checked like any other; an anchor passes when nothing but the change leaves; a mint passes when it forges exactly the recorded assets to the recorded recipient. The card lists every problem in words, or says the transaction passes.
 
-When the co-signer is a **member**, they read the card and sign like any signer; the check advises, they decide. When the co-signer is **Guild Vault**, it runs the check as soon as the base signers have signed: on a pass it adds its own signature (when that happens right after the last base signature, the transaction submits as usual; after a re-run or the background job, a signer clicks **Submit to chain**), on a refusal it records why, and when the check passes but its signature cannot be added it records that too, with the reason (the background job tries again after an hour). The card shows every decision it took with the time and what triggered it. Admins or base signers can click **Run the co-signer check again** once the cause is dealt with (a budget voted, a task re-proposed); the background job also retries every 15 minutes. An assistant may explain a refusal or summarise a transaction, but never makes the decision and never holds the key.
+When the co-signer is a **member**, they read the card and sign like any signer; the check advises, they decide. When the co-signer is **Treasury Guild**, it runs the check as soon as the base signers have signed: on a pass it adds its own signature (when that happens right after the last base signature, the transaction submits as usual; after a re-run or the background job, a signer clicks **Submit to chain**), on a refusal it records why, and when the check passes but its signature cannot be added it records that too, with the reason (the background job tries again after an hour). The card shows every decision it took with the time and what triggered it. Admins or base signers can click **Run the co-signer check again** once the cause is dealt with (a budget voted, a task re-proposed); the background job also retries every 15 minutes. An assistant may explain a refusal or summarise a transaction, but never makes the decision and never holds the key.
 
 ## Submitting
 
@@ -74,9 +74,9 @@ A background job checks the chain every 15 minutes, and opening the [Treasury pa
 
 ## On-chain metadata
 
-Each payout transaction carries a public record under metadata label **190001**, so anyone can audit the community's spending from the chain without trusting Guild Vault's database. It contains only:
+Each payout transaction carries a public record under metadata label **190001**, so anyone can audit the community's spending from the chain without trusting Treasury Guild's database. It contains only:
 
-- `v` — the record version (`3`), `src` — always `"guild-vault"`, `c` — the community's slug,
+- `v` — the record version (`3`), `src` — always `"treasury-guild"`, `c` — the community's slug,
 - `w` — the list of workgroup names used in this payout,
 - `b` — the list of budget periods: `YYYY-MM` for a task in a workgroup budgeted by month, `YYYY-Qn` for one budgeted by quarter,
 - `k` — the list of asset tickers paid as bounties, including `ADA` when an ADA bounty is paid,
@@ -88,7 +88,7 @@ Example, for output 0 paying task #12 (Dev, May 2026) 150 ADA and 250 GVT, and o
 ```json
 {
   "v": 3,
-  "src": "guild-vault",
+  "src": "treasury-guild",
   "c": "signius",
   "w": ["Dev", "Design"],
   "b": ["2026-05", "2026-Q2"],
@@ -98,7 +98,7 @@ Example, for output 0 paying task #12 (Dev, May 2026) 150 ADA and 250 GVT, and o
 }
 ```
 
-A quarter is written as the quarter itself (`2026-Q2`), never as one of its months, so the record can be read without Guild Vault's database even if the workgroup later changes how it is budgeted. Amounts are the bounty amounts in display units; the small ADA minimum added to token-only outputs is not included. No addresses, handles or names of people are written on-chain: the recipient is simply the output's address, which the chain already shows. A task paid to several assignees appears under each of their outputs with the same amounts. The record is complete enough to rebuild the payout from the chain alone, which is what Guild Vault does when it finds one it has no record of: see [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts). When a task was imported under a different number than the record names, the table on this page shows both. A short human-readable message (CIP-20, label 674) rides along.
+A quarter is written as the quarter itself (`2026-Q2`), never as one of its months, so the record can be read without Treasury Guild's database even if the workgroup later changes how it is budgeted. Amounts are the bounty amounts in display units; the small ADA minimum added to token-only outputs is not included. No addresses, handles or names of people are written on-chain: the recipient is simply the output's address, which the chain already shows. A task paid to several assignees appears under each of their outputs with the same amounts. The record is complete enough to rebuild the payout from the chain alone, which is what Treasury Guild does when it finds one it has no record of: see [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts). When a task was imported under a different number than the record names, the table on this page shows both. A short human-readable message (CIP-20, label 674) rides along.
 
 [Proposal anchors](/docs/governance#on-chain-anchors) travel under label **190002**, on a payout or payment that carries them along or on an **Anchor** transaction of their own, which pays nobody. The record holds `v` (`1`), `src`, `c` and `a`: one entry per proposal step, `[proposal number, step, …]`:
 
@@ -109,7 +109,7 @@ A quarter is written as the quarter itself (`2026-Q2`), never as one of its mont
 ```json
 {
   "v": 1,
-  "src": "guild-vault",
+  "src": "treasury-guild",
   "c": "signius",
   "a": [
     [7, "proposed", "4f2c…e1a9", "9b71…03cd"],

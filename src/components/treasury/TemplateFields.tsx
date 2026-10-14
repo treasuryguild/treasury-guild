@@ -157,12 +157,12 @@ export function TemplateFields({
       )}
 
       {draft.template === TreasuryTemplate.Cosigner && (
-        <Field label="Co-signer" hint="A member who reads the check before signing, or a key Guild Vault generates and keeps encrypted, signing only what passes.">
+        <Field label="Co-signer" hint="A member who reads the check before signing, or a key Treasury Guild generates and keeps encrypted, signing only what passes.">
           <div className="flex flex-col gap-2 sm:flex-row">
             <Select aria-label="Co-signer kind" value={draft.cosignerKind} disabled={disabled}
               onChange={(e) => onChange({ cosignerKind: e.target.value as CosignerKind })}>
               <option value={CosignerKind.Member}>A member</option>
-              <option value={CosignerKind.App}>Guild Vault (app-held key)</option>
+              <option value={CosignerKind.App}>Treasury Guild (app-held key)</option>
             </Select>
             {draft.cosignerKind === CosignerKind.Member && (
               <Select aria-label="Co-signer wallet" value={draft.cosignerAddress} disabled={disabled}
@@ -204,7 +204,7 @@ export function templateSummary(draft: TemplateDraft, baseRule: string): string[
         `A normal spend needs the base rule (${baseRule}) plus the co-signer, who signs only what passes the check.`,
         "Every base signer together can spend without the co-signer.",
         draft.cosignerKind === CosignerKind.App
-          ? "Guild Vault generates the co-signer key now and keeps it encrypted. It can never be rotated; if it is lost, only every base signer together can move the funds."
+          ? "Treasury Guild generates the co-signer key now and keeps it encrypted. It can never be rotated; if it is lost, only every base signer together can move the funds."
           : "The co-signer is a member's wallet. They are not made an admin.",
         "The groups are written into the script and can never be changed.",
       ];

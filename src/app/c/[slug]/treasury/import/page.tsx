@@ -89,7 +89,7 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
             <Input aria-label="Name" value={name} disabled={busy}
               onChange={(e) => setName(e.target.value)} placeholder="Main treasury" />
           </Field>
-          <Field label="Native script (CBOR hex)" hint="Paste the payment script: a flat all, any or at-least multisig, or one of Guild Vault's clawback, lock-until or co-signer shapes.">
+          <Field label="Native script (CBOR hex)" hint="Paste the payment script: a flat all, any or at-least multisig, or one of Treasury Guild's clawback, lock-until or co-signer shapes.">
             <Textarea aria-label="Native script (CBOR hex)" value={cbor} rows={5} maxLength={65_536}
               disabled={busy} spellCheck={false} className="font-mono text-xs" placeholder="83030283…"
               onChange={(e) => {

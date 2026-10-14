@@ -62,7 +62,7 @@ describe("POST /api/ipfs/sign-upload", () => {
     expect(mocks.sdk).toHaveBeenCalledWith({ pinataJwt: JWT, pinataGateway: "guild.mypinata.cloud" });
     expect(mocks.sign).toHaveBeenCalledExactlyOnceWith({
       expires: 120, name: "signius/logo.png", mimeTypes: ["image/png"], maxFileSize: MAX,
-      keyvalues: { app: "guild-vault", community: "signius", uploader: WALLET },
+      keyvalues: { app: "treasury-guild", community: "signius", uploader: WALLET },
     });
   });
 

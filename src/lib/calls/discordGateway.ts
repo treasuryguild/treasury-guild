@@ -106,7 +106,7 @@ export function fetchGuildStates(args: {
           d: {
             token: args.token,
             intents: INTENTS,
-            properties: { os: "linux", browser: "guild-vault", device: "guild-vault" },
+            properties: { os: "linux", browser: "treasury-guild", device: "treasury-guild" },
           },
         }));
       } else if (message.op === OP.Heartbeat) {
