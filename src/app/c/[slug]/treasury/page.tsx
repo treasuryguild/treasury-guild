@@ -1,0 +1,308 @@
+"use client";
+
+import { use, useCallback, useState } from "react";
+import Link from "next/link";
+import { apiFetch } from "@/lib/api/client";
+import type { TreasuryDiscordWebhooksResponse } from "@/lib/api/types";
+import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
+import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
+import { asNetwork } from "@/lib/config";
+import { ChainImportStatus, TxState } from "@/lib/constants";
+import {
+  EXTERNAL_TX_COLUMNS,
+  TRANSACTION_SUMMARY_COLUMNS,
+  type ExternalTxRow,
+  type TransactionSummary,
+} from "@/lib/db/types";
+import { describeExternalTx, recentTreasuryActivity } from "@/lib/externalTx";
+import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, shortUnit } from "@/lib/format";
+import { routes } from "@/lib/routes";
+import { browserClient } from "@/lib/supabase/browser";
+import { useAssetRegistry } from "@/hooks/useAssetRegistry";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { useChainImportQueue } from "@/hooks/useChainImportQueue";
+import { useChainSync } from "@/hooks/useChainSync";
+import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { useGovernanceSettings } from "@/hooks/useProposals";
+import { useTreasuries } from "@/hooks/useTreasuries";
+import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
+import { useWorkgroups } from "@/hooks/useWorkgroups";
+import {
+  Badge,
+  Button,
+  Card,
+  CopyButton,
+  EmptyState,
+  ErrorText,
+  ExplorerLink,
+  LinkButton,
+  PageTitle,
+  SectionTitle,
+  TxKindBadge,
+  TxStateBadge,
+} from "@/components/ui";
+import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
+import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
+import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
+import { DiscordWebhookControl } from "@/components/treasury/DiscordWebhookControl";
+import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
+
+const RECENT_TX_LIMIT = 20;
+
+export default function TreasuryPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = use(params);
+  const { community, isAdmin, blocked } = useCommunityGate(slug);
+  const treasuries = useTreasuries(community?.id);
+  const list = treasuries.data ?? [];
+  const treasuryIds = list.map((t) => t.id);
+
+  const txs = useAsyncData(
+    treasuryIds.length > 0 ? treasuryIds.join(",") : null,
+    async () => {
+      const { data } = await browserClient()
+        .from("transactions")
+        .select(TRANSACTION_SUMMARY_COLUMNS)
+        .in("treasury_id", treasuryIds)
+        .order("created_at", { ascending: false })
+        .limit(RECENT_TX_LIMIT);
+      return (data ?? []) as TransactionSummary[];
+    },
+  );
+  // Outgoing txs found on-chain that the app has no record of (external_txs).
+  const externals = useAsyncData(
+    treasuryIds.length > 0 ? treasuryIds.join(",") : null,
+    async () => {
+      const { data } = await browserClient()
+        .from("external_txs")
+        .select(EXTERNAL_TX_COLUMNS)
+        .in("treasury_id", treasuryIds)
+        .order("block_time", { ascending: false })
+        .limit(RECENT_TX_LIMIT);
+      return (data ?? []) as ExternalTxRow[];
+    },
+  );
+  // On-chain payouts and payments the import holds for an admin (not capped
+  // by the activity list's limit).
+  const importQueue = useChainImportQueue(isAdmin ? treasuryIds : []);
+  const workgroups = useWorkgroups(isAdmin ? community?.id : null);
+  const registry = useAssetRegistry(community?.id);
+  // With budget consent on, a spend the app did not build is flagged: it
+  // cites no decision and was never checked against the voted budgets.
+  const governance = useGovernanceSettings(community?.id);
+  const budgetConsent = governance.data?.budget.enabled ?? false;
+  // Poll the chain for treasuries not checked in the last two minutes, in the
+  // background; the lists reload if anything was polled. Balances are live.
+  const reloadTxs = txs.reload;
+  const reloadExternals = externals.reload;
+  const reloadQueue = importQueue.reload;
+  const reloadActivity = useCallback(() => {
+    reloadTxs();
+    reloadExternals();
+    reloadQueue();
+  }, [reloadTxs, reloadExternals, reloadQueue]);
+  const sync = useChainSync(community?.id, reloadActivity);
+  const balances = useWalletAssetsMany(list.map((t) => t.address));
+  // Which treasury's details dialog is open (native script, CBOR, signers).
+  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const detailsTreasury = list.find((t) => t.id === detailsId) ?? null;
+  // Admin-only: which treasuries have a Discord webhook (masked, never the URL).
+  const discord = useAsyncData(isAdmin && community ? community.id : null, () =>
+    apiFetch<TreasuryDiscordWebhooksResponse>("/api/treasury/discord", {
+      query: { communityId: community!.id },
+    }),
+  );
+
+  if (blocked) return blocked;
+
+  const display = unitDisplayFromRegistry(registry.data ?? []);
+  // Network is per community (every treasury matches it), so explorer links
+  // take it from the community row.
+  const network = asNetwork(community?.network ?? 0);
+  const activity = recentTreasuryActivity(txs.data ?? [], externals.data ?? [], RECENT_TX_LIMIT);
+  const treasuryName = (id: string) => list.find((t) => t.id === id)?.name ?? "Unknown wallet";
+  const activityLoading = txs.loading || externals.loading;
+
+  return (
+    <div>
+      <PageTitle
+        action={
+          isAdmin ? (
+            <div className="flex flex-wrap gap-2">
+              <LinkButton href={routes.paymentHistory(slug)} variant="secondary">Payment history</LinkButton>
+              <LinkButton href={routes.importTreasury(slug)} variant="secondary">Import treasury</LinkButton>
+              <LinkButton href={routes.newTreasury(slug)}>New treasury</LinkButton>
+            </div>
+          ) : undefined
+        }
+      >
+        Treasury
+      </PageTitle>
+
+      <ErrorText error={discord.error} className="mb-3" />
+      <div className="mb-8 grid gap-4 lg:grid-cols-2">
+        {list.map((t) => {
+          const balance = balances.data?.[t.address];
+          return (
+            <Card key={t.id}>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="min-w-0 truncate font-medium">{t.name}</h3>
+                  <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
+                    {shortAddress(t.address)}
+                    <CopyButton value={t.address} />
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setDetailsId(t.id)}
+                    title="Native script, CBOR, script hash and signers"
+                  >
+                    Details
+                  </Button>
+                </div>
+              </div>
+              <p className="mt-4 text-2xl font-semibold">
+                {balance ? formatLovelace(balance.lovelace) : "…"}
+              </p>
+              {balance && balance.tokens.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {balance.tokens.map((tok) => (
+                    <span
+                      key={tok.unit}
+                      className="text-sm text-zinc-400"
+                      title={tok.unit}
+                    >
+                      {formatUnits(
+                        tok.quantity,
+                        tok.decimals,
+                        tok.ticker ?? shortUnit(tok.unit),
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {isAdmin && (
+                <DiscordWebhookControl
+                  endpoint="/api/treasury/discord"
+                  target={{ treasuryId: t.id }}
+                  removeText={`Payouts from ${t.name} will no longer be announced in the channel.`}
+                  status={discord.data?.webhooks.find((w) => w.treasuryId === t.id) ?? null}
+                  onChanged={discord.reload}
+                />
+              )}
+            </Card>
+          );
+        })}
+        {!treasuries.loading && list.length === 0 && (
+          <EmptyState>
+            No treasury yet.{" "}
+            {isAdmin ? "Create a multisig treasury to hold community funds." : ""}
+          </EmptyState>
+        )}
+      </div>
+
+      {detailsTreasury && (
+        <TreasuryDetailsModal
+          treasuryId={detailsTreasury.id}
+          treasuryName={detailsTreasury.name}
+          onClose={() => setDetailsId(null)}
+        />
+      )}
+
+      {isAdmin && community && (
+        <ChainImportQueue
+          communityId={community.id}
+          network={network}
+          rows={importQueue.data ?? []}
+          workgroups={workgroups.data ?? []}
+          treasuryName={list.length > 1 ? treasuryName : null}
+          onChanged={reloadActivity}
+        />
+      )}
+
+      {community && (
+        <div className="mb-6">
+          <AnchorsDueNotice slug={slug} communityId={community.id} treasuries={treasuries.data} isAdmin={isAdmin} />
+        </div>
+      )}
+
+      <SectionTitle>Transactions</SectionTitle>
+      <ChainSyncStatus {...sync} className="-mt-2 mb-3" />
+      <div className="space-y-3">
+        {activity.map((item) => {
+          if (item.kind === "app") {
+            const tx = item.tx;
+            return (
+              <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
+                <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
+                  <div className="min-w-0">
+                    <p className="text-sm">{tx.description ?? "Transaction"}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+                      {formatDate(tx.created_at, "datetime")} ·{" "}
+                      {tx.signed_addresses.length} signature(s)
+                    </p>
+                  </div>
+                  <span className="flex flex-wrap items-center gap-2">
+                    <TxKindBadge kind={tx.kind} />
+                    <TxStateBadge state={tx.state} />
+                  </span>
+                </Card>
+              </Link>
+            );
+          }
+          // An outgoing tx seen on-chain without an app record: no signing
+          // page to open, so it links to the explorer.
+          const tx = item.tx;
+          const { title, detail } = describeExternalTx(tx);
+          const tokens = Object.entries(tx.assets ?? {});
+          return (
+            <ExplorerLink
+              key={tx.tx_hash}
+              network={network}
+              target={{ txHash: tx.tx_hash }}
+              className="block"
+              title="Open in the explorer"
+            >
+              <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
+                <div className="min-w-0">
+                  <p className="text-sm">{title}</p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+                    {formatDate(tx.block_time, "datetime")} · {detail} ·{" "}
+                    <span className="font-mono">{shortHash(tx.tx_hash, 12)}</span>
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    {formatLovelace(tx.amount_lovelace)}
+                    {tokens.map(([unit, qty]) => (
+                      <span key={unit} title={unit}>
+                        {" "}
+                        · {formatUnitAmount(unit, qty, display)}
+                      </span>
+                    ))}
+                  </p>
+                </div>
+                <span className="flex flex-wrap items-center gap-2">
+                  {tx.import_status === ChainImportStatus.Blocked && (
+                    <Badge tone="yellow">Needs import review</Badge>
+                  )}
+                  {budgetConsent ? <Badge tone="yellow">Built outside Guild Vault</Badge> : <Badge>On-chain</Badge>}
+                  <TxStateBadge state={TxState.Confirmed} />
+                </span>
+              </Card>
+            </ExplorerLink>
+          );
+        })}
+        {!activityLoading && activity.length === 0 && (
+          <EmptyState card={false}>No transactions yet.</EmptyState>
+        )}
+      </div>
+    </div>
+  );
+}

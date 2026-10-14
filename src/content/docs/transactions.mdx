@@ -1,0 +1,128 @@
+Every payout, payment, mint and anchor is a **transaction** that needs the treasury's signature threshold before it reaches the chain. The transaction page (`/c/your-slug/tx/…`) is where signers approve it and everyone follows its progress. Open it from the Treasury page's transaction list, or you land on it right after building a payout, payment, mint or anchor transaction.
+
+## The transaction page
+
+The title shows the transaction's description with a kind badge (**Mint**, **Payment** or **Anchor**; payouts have none) and a state badge:
+
+| State | Meaning |
+|---|---|
+| **Pending** | Waiting for signatures. |
+| **Submitted** | Sent to the chain, waiting for confirmation. |
+| **Confirmed** | Seen on-chain; tasks are marked paid. |
+| **Rejected** | Enough signers rejected it that the threshold can no longer be met. Nothing was spent. |
+
+Below it:
+
+- **Spending path** (templated treasuries only): the path and its rule under the title, for example "Co-signed · 2 of 3 + co-signer" (see [Spending paths](#spending-paths)).
+- **Mint preview** (mints only): the tokens being created, their metadata and images, and the policy lock if any.
+- **Payment** (payments only): each recipient by member handle, treasury name or address, marked **Transfer** when it is another of the community's treasuries, with the budget period, memo, the decisions it cites (linked to their proposals) and amounts exactly as written on-chain.
+- **Proposal anchors** (when the transaction carries label-190002 anchors): one row per proposal step, linked to the proposal, with the raw **On-chain anchor record** underneath.
+- **Outputs**: every address the transaction pays, with ADA and token amounts, the fee, and the message. The treasury's own output is marked *(change)* (or *(treasury)* when a mint lands there) and an output to another of the community's treasuries *(transfer)*. For payouts, the **payout metadata table** underneath lists each output's task numbers, workgroup, budget period, amounts and, when the record cites any, the **decisions** behind each task, exactly as they are written on-chain, each decision linked to its proposal. An **Anchor** transaction has no outputs but the change: it carries only its record (see [Proposals](/docs/governance)).
+- **Budget check** (while the community decides budgets by vote and chose to warn rather than refuse): the problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) found when the transaction was built, for every signer to weigh before signing.
+- **Co-signer check** (co-signed transactions only): whether the transaction passes the [co-signer check](#the-co-signer-check), every problem found, and what an app-held co-signer decided.
+- **Signatures**: each signer of the transaction's [spending path](#spending-paths) by name with a green tick once they have signed or a red cross if they rejected, with the count collected and the rule (for example "1 collected · 2 of 3 required", or "2 of 3 + co-signer" with the co-signer listed apart).
+- **Tx hash** with a copy button and an explorer link. The hash is known as soon as the transaction is built (signatures do not change it), but the explorer only finds it once the transaction has been submitted.
+
+Only community members can open transaction pages.
+
+## Signing
+
+While a transaction is **Pending**, each signer of its [spending path](#spending-paths) who has not responded yet sees:
+
+- **Sign** — your wallet opens and asks you to approve. This is a *partial* signature: the transaction is not sent until the threshold is met. When your signature is the one that completes the threshold, Guild Vault submits the transaction to the chain in the same step.
+- **Reject** — records your refusal. As long as the remaining signers could still reach the threshold, the transaction stays **Pending** for them; once they no longer can (for example the second rejection in a 2 of 3), it moves to **Rejected** and its queued tasks become payable again.
+
+Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject** and **Delete** never need the wallet and stay available.
+
+If someone else signed while you were looking at the page, your signature is refused with a conflict and the page reloads with the latest version. Simply click **Sign** again.
+
+### Spending paths
+
+A treasury created with a [template](/docs/treasury#treasury-templates) has more than one way to be spent, and every transaction is built for one of them: its **spending path**. The page names the path and its rule under the title (for example "Recovery signers · any signer · valid from 1 March 2027, 00:00", or "Co-signed · 2 of 3 + co-signer"); a plain treasury's transactions show nothing there. Only the path's signers see **Sign** and **Reject**, and only their signatures count towards the rule: a recovery signer cannot sign a base-path transaction, a base signer cannot sign a recovery one, and a co-signed transaction is not complete until the co-signer has signed too, however many base signers did. A rejection by the co-signer, or by any base signer on the bypass path, moves the transaction to **Rejected** at once. A transaction on the recovery path, or from a lock-until treasury, carries a validity start at the lock slot: the chain refuses it before the date, which is why it cannot be built earlier.
+
+### The co-signer check
+
+On a **co-signer** treasury, a co-signed transaction shows a **Co-signer check** card above the signatures. The check is the same deterministic code whoever the co-signer is, and it refuses unless all of the following hold:
+
+1. the transaction's own bytes move exactly what Guild Vault stored for it: every output leaving the treasury matches a stored payout, payment or mint row (amounts included, as the builder would make them), the on-chain record names the same tasks and transfers, and nothing else leaves but the change;
+2. while the community decides budgets by vote, the spend fits the voted budgets (the [budget check](/docs/governance#spend-citations-and-the-budget-check) in its strictest form: every problem refuses, whatever the warn-or-refuse setting says), counting what was already paid but not the transaction itself;
+3. every decision the record cites is a proposal of the community that passed, was applied and still has the cited content fingerprint.
+
+A transfer to another of the community's treasuries is never checked against a budget, but any decision it cites is checked like any other; an anchor passes when nothing but the change leaves; a mint passes when it forges exactly the recorded assets to the recorded recipient. The card lists every problem in words, or says the transaction passes.
+
+When the co-signer is a **member**, they read the card and sign like any signer; the check advises, they decide. When the co-signer is **Guild Vault**, it runs the check as soon as the base signers have signed: on a pass it adds its own signature (when that happens right after the last base signature, the transaction submits as usual; after a re-run or the background job, a signer clicks **Submit to chain**), on a refusal it records why, and when the check passes but its signature cannot be added it records that too, with the reason (the background job tries again after an hour). The card shows every decision it took with the time and what triggered it. Admins or base signers can click **Run the co-signer check again** once the cause is dealt with (a budget voted, a task re-proposed); the background job also retries every 15 minutes. An assistant may explain a refusal or summarise a transaction, but never makes the decision and never holds the key.
+
+## Submitting
+
+Once enough signatures are collected, any signer of its spending path sees **Submit to chain**. This is only needed when the automatic submission after the final signature failed (for example a network hiccup), or when the app-held co-signer signed from a re-run or the background job; the signatures are kept, so just click it.
+
+After submission the explorer link resolves; while the transaction is **Submitted** the page asks the chain every 30 seconds and, once the chain has it, adds "seen on-chain (block N)". The state itself changes to Confirmed with the next chain check (below).
+
+## Deleting
+
+Any signer of the transaction's spending path can **Delete** a **Pending** transaction that is no longer wanted, for example to change the selection, whether or not they have already signed or rejected it. It asks for confirmation. Signatures already collected are thrown away and, for payouts, the queued tasks go back to payable so a new transaction can be built; you are taken back to the Treasury page. Submitted transactions cannot be deleted.
+
+## Confirmation and what follows
+
+A background job checks the chain every 15 minutes, and opening the [Treasury page](/docs/treasury#the-treasury-page) or Incoming page checks it sooner when the last check is older than two minutes. When the submitted transaction is found on-chain:
+
+1. the transaction becomes **Confirmed**,
+2. every paid task flips to **paid**, shows "Paid in tx …" in its dialog and, on an app board, moves to the **Paid** column,
+3. with the next 15-minute job, paid GitHub issues receive a comment with the transaction hash and a `paid` label, and are moved to the repository's **Paid status** column when one is set,
+4. the amounts show up on the [Dashboard](/docs/budgets#dashboard),
+5. if the treasury has a [Discord webhook](/docs/treasury#discord-notifications), its channel receives the payout summary with the next 15-minute job (opening a page never posts it).
+
+## On-chain metadata
+
+Each payout transaction carries a public record under metadata label **190001**, so anyone can audit the community's spending from the chain without trusting Guild Vault's database. It contains only:
+
+- `v` — the record version (`3`), `src` — always `"guild-vault"`, `c` — the community's slug,
+- `w` — the list of workgroup names used in this payout,
+- `b` — the list of budget periods: `YYYY-MM` for a task in a workgroup budgeted by month, `YYYY-Qn` for one budgeted by quarter,
+- `k` — the list of asset tickers paid as bounties, including `ADA` when an ADA bounty is paid,
+- `p` — for each output (by its position in the transaction), the tasks it pays: the task number, which workgroup and budget period it belongs to (as positions in `w` and `b`), and the amounts in the same order as `k`,
+- `g` — only when a decision is cited: for each cited [proposal](/docs/governance), its number, its content hash (the sha256 fingerprint every ballot signed) and the numbers of the tasks citing it. A task cites the proposal that created it and the budget proposal that set its period's budget.
+
+Example, for output 0 paying task #12 (Dev, May 2026) 150 ADA and 250 GVT, and output 1 paying task #15 (Design, Q2 2026) 40 ADA, where task #15 was created by proposal #7 and both tasks' budgets were set by proposal #3:
+
+```json
+{
+  "v": 3,
+  "src": "guild-vault",
+  "c": "signius",
+  "w": ["Dev", "Design"],
+  "b": ["2026-05", "2026-Q2"],
+  "k": ["ADA", "GVT"],
+  "p": [[0, [[12, 0, 0, ["150", "250"]]]], [1, [[15, 1, 1, ["40"]]]]],
+  "g": [[3, "4f2c…e1a9", [12, 15]], [7, "9b71…03cd", [15]]]
+}
+```
+
+A quarter is written as the quarter itself (`2026-Q2`), never as one of its months, so the record can be read without Guild Vault's database even if the workgroup later changes how it is budgeted. Amounts are the bounty amounts in display units; the small ADA minimum added to token-only outputs is not included. No addresses, handles or names of people are written on-chain: the recipient is simply the output's address, which the chain already shows. A task paid to several assignees appears under each of their outputs with the same amounts. The record is complete enough to rebuild the payout from the chain alone, which is what Guild Vault does when it finds one it has no record of: see [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts). When a task was imported under a different number than the record names, the table on this page shows both. A short human-readable message (CIP-20, label 674) rides along.
+
+[Proposal anchors](/docs/governance#on-chain-anchors) travel under label **190002**, on a payout or payment that carries them along or on an **Anchor** transaction of their own, which pays nobody. The record holds `v` (`1`), `src`, `c` and `a`: one entry per proposal step, `[proposal number, step, …]`:
+
+- `"proposed"`, then the content fingerprint and the rules fingerprint every ballot signs (sha256 of their canonical JSON),
+- `"opened"`, then the fingerprint of the fixed voter list,
+- `"closed"`, then the final state; for a proposal that reached a vote also the blake2b-256 hash of its frozen signed tally, `[voters, ballots, [[choice, count], …]]`, and, when the record was published, `[store, locator]` of the copy (for IPFS, the CID).
+
+```json
+{
+  "v": 1,
+  "src": "guild-vault",
+  "c": "signius",
+  "a": [
+    [7, "proposed", "4f2c…e1a9", "9b71…03cd"],
+    [7, "opened", "d02e…77b1"],
+    [6, "closed", "passed", "a8c3…5e40", [12, 9, [["no", 2], ["yes", 7]]], ["ipfs", "bafy…"]]
+  ]
+}
+```
+
+Nothing member-written and no wallet is in it. The transaction page lists each entry with a link to its proposal, above the outputs. (A developer's groundwork test record, `{v, src, c, test: 1}`, may also appear under this label on preprod.)
+
+A manual [payment](/docs/payments) uses the same label with a different record, marked `t: "payment"`: the budget period, the tickers, an optional memo and, per output, the amounts plus a flag saying whether the output is spending or a transfer to another of the community's treasuries. See [On-chain record](/docs/payments#on-chain-record).
+
+Mints use the standard CIP-25 token metadata (label 721) instead; see [Minting tokens](/docs/mint).
+
+On the transaction page, expanding **On-chain payout metadata**, **On-chain payment metadata**, **On-chain anchor record** or **On-chain CIP-25 metadata** shows the raw record exactly as decoded from the transaction, with a **what the keys mean** legend above it that explains each key and links to the matching section of these docs.

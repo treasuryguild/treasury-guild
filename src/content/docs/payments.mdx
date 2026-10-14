@@ -1,0 +1,82 @@
+**Payments** (community sidebar) is for money that is not a task bounty: paying another community or a contractor for a service, paying a member for something outside any workgroup budget, or moving funds from one of your treasuries to another. You pick the treasury that pays, list the recipients and amounts, and build **one** transaction that the treasury's signers approve on the [signing page](/docs/transactions), exactly like a payout.
+
+## The Payments page
+
+1. **Pay from treasury** — the wallet that pays, each listed with the workgroups currently routed to it. If the community has one treasury it is chosen for you; the picker shows the balance of the selected one.
+2. **Spending path** — shown when the treasury offers more than one right now (see [Spending paths](/docs/treasury#spending-paths)); a lock-until treasury before its date shows a warning instead.
+3. **Recipients** — one row per recipient (see below). **Add recipient** adds a row, the bin icon removes one. Rows are disabled until a treasury is selected.
+4. **Budget period** — the month this payment counts against (see [Budget period](#budget-period)).
+5. The summary card totals the payment, checks it against the treasury's balance and budget, takes an optional **Memo** (public on-chain text; the form allows 64 characters, shortened to 64 UTF-8 bytes when recorded), and holds **Build payment transaction**.
+
+## Recipients
+
+Each row starts with what kind of recipient it is:
+
+- **Community member** — pick a member; their wallet is paid and their handle is shown on the transaction.
+- **Another treasury** — pick one of the community's other treasuries (greyed out while the community has only one). This is a **transfer** (see [Transfers between your treasuries](#transfers-between-your-treasuries)).
+- **Any address** — paste a Cardano address on the community's network, for a contractor, another community or anyone else.
+
+Then enter an amount for each token the treasury holds: ADA and every native token in the wallet are offered, in the token's own units (10 GVTT, 2.5 ADA). Leave a token blank to pay none of it. Two rows naming the same address are paid as one output with the sum. Guild Vault reads what the treasury holds from the chain, so no token needs to be registered.
+
+The build is refused while a row has no recipient, an invalid or wrong-network address, the paying treasury's own address, no amount, a zero or malformed amount, or an amount with more decimals than the token supports; each problem is listed under the summary, naming the row. **Exceeds treasury balance** means the treasury does not hold enough of that token for the sum of every row. At most **40** recipients fit in one transaction.
+
+Token-only outputs carry a small amount of ADA (about 1.2 to 1.5 ADA), the ledger minimum per output. It is not part of the payment and is not recorded as such.
+
+## Budget period
+
+Every payment is charged to the **paying treasury's own budget**, never to a workgroup's: workgroup budgets stay task-based and verifiable task by task on-chain. Set up a budget for a treasury on the [Budgets page](/docs/budgets#treasury-budgets), where each treasury has its own card next to the workgroups.
+
+Choose the **month** the payment belongs to; it defaults to the current one. A treasury that budgets by quarter resolves the month to its quarter, and the hint under the field says which period will be charged. The summary shows that period's budget with what is already spent and what would be left after this payment; going over is allowed, but the line turns amber so you notice. A treasury with no budget still records the payment against itself, so history is there once a budget is added.
+
+The period is written into the [on-chain record](#on-chain-record) as `YYYY-MM` or `YYYY-Qn`, and the [Dashboard](/docs/budgets#dashboard) attributes the spending to it.
+
+## Transfers between your treasuries
+
+An output to another of the community's treasuries is a **transfer**, not spending: it takes no budget period, counts against no budget, and is marked *Transfer* on the transaction page. Once the chain confirms it, the receiving treasury logs the inflow as an internal transfer without review (see [Several treasuries](/docs/treasury#several-treasuries)), and the Dashboard's funding flow draws it between the two wallets. A payment can mix transfers and other recipients; only the other recipients are charged to the budget.
+
+**Fund this budget** on an applied [budget proposal](/docs/governance#funding-a-voted-budget) opens this page with such a transfer filled in: the workgroup's treasury as the recipient, the period's voted amounts, and the proposal to cite. A notice at the top says which budget is being funded. Pick the treasury that pays (not the one being funded), edit the amounts if you like, and build; the transfer's on-chain record then cites the budget proposal under `g`. A voted amount in a token the paying treasury does not hold is listed as a problem until you clear it or pay from another treasury.
+
+## Who can build a payment
+
+**Build payment transaction** is enabled for community **admins** and for the selected treasury's **base signers**; on a clawback treasury's recovery path (from its lock date) for admins and its **recovery signers**, and then only the recovery signers sign. Workgroup leads cannot build payments. Signing still needs the treasury's threshold, so nothing moves on one person's say-so, and your wallet must be on the community's network.
+
+<Callout title="One pending transaction per treasury">
+A treasury can have only one transaction waiting for signatures at a time, whether it is a payout, a mint, a payment or an anchor transaction, because a second one would try to spend the same funds. Open the pending transaction from the Treasury page and submit, reject or delete it, then build again.
+</Callout>
+
+## On-chain record
+
+Like a payout, a payment carries a public record under metadata label **190001** so the community's spending can be audited from the chain. It is told apart from a payout by `t: "payment"` and contains only:
+
+- `v` — the record version (`1`), `src` — always `"guild-vault"`, `c` — the community's slug,
+- `t` — `"payment"`; a payout has no `t` and carries `p` instead,
+- `b` — the budget period the spend counts against (`YYYY-MM` or `YYYY-Qn`), or empty when every output is a transfer,
+- `k` — the list of asset tickers paid, including `ADA` when explicitly paid,
+- `m` — the memo, if one was entered; the form allows 64 characters, and the on-chain text is shortened to 64 UTF-8 bytes (so non-ASCII text can be shorter),
+- `o` — for each output (by its position in the transaction), the amounts in the same order as `k` (`""` where the output carries none of that asset), and a flag: `0` for spending, `1` for a transfer to another of the community's treasuries,
+- `g` — only when a decision is cited: the number and content hash of each cited [proposal](/docs/governance), such as the budget proposal that set the budget of the period the spending counts against. A payment charged to a budget that was saved directly cites nothing.
+
+Example, for a transfer of 188 ADA and 50 000 GVTT from the main treasury to another of the community's treasuries, with the memo "Workgroup Budget":
+
+```json
+{
+  "v": 1,
+  "src": "guild-vault",
+  "t": "payment",
+  "c": "signius",
+  "b": "",
+  "k": ["ADA", "GVTT"],
+  "m": "Workgroup Budget",
+  "o": [[0, ["188", "50000"], 1]]
+}
+```
+
+The flag `1` marks the single output as a transfer, and `b` is empty because nothing is charged to a budget. A payment to a contractor instead carries the period in `b` and flag `0` on its outputs; a payment mixing both keeps the period and flags each output on its own. Amounts are in display units; the small ADA minimum added to token-only outputs is not included. The recipient is the output's address, which the chain already shows; Guild Vault does not add personal handles or names automatically. The memo is public and permanent, so leave private information out of it. A short human-readable message (CIP-20, label 674) rides along, naming the community, the date, the number of recipients or transfers and the memo.
+
+The transaction page shows the record decoded from the transaction itself, with member handles and treasury names from Guild Vault's records beside each output, and the cited decisions linked to their proposals. Expanding **On-chain payment metadata** there shows the raw record with a **what the keys mean** legend above it.
+
+While the community decides budgets by vote, a payment is [checked against the voted budgets](/docs/governance#spend-citations-and-the-budget-check) before it is built: depending on the community's setting, a payment that does not fit is built with a warning for the signers, or refused with the reasons. Transfers are never checked. On a co-signer treasury the co-signer signs only a payment that fits, whatever that setting says (see [The co-signer check](/docs/transactions#the-co-signer-check)).
+
+The record is complete enough to rebuild the payment from the chain alone. When Guild Vault finds one at a treasury address that it has no record of, it imports it as a confirmed payment with the same recipients, amounts, budget period and memo; a transfer is imported only when the receiving treasury belongs to this community. See [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts).
+
+Next: [Signing transactions](/docs/transactions).

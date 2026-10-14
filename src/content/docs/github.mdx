@@ -1,0 +1,51 @@
+The **GitHub** page (community sidebar → GitHub) connects a community to GitHub so that issues on a project board become payable tasks without anyone retyping them. It is admin-only.
+
+## Installing the GitHub App
+
+If the community has no installation yet, the page shows **Install GitHub App**. Click it, choose the GitHub organisation or account and the repositories it may access, and you are sent back here. The page then shows "Installed on …" and lists every repository the installation can see.
+
+Finish on GitHub within 10 minutes, in the same browser and signed in with the same wallet: the return trip is tied to the admin who started it. An installation that already belongs to another community is never moved (the page says so), and an existing installation that no community holds is accepted only if it was installed or updated on GitHub in the last 15 minutes. If the page says the installation was not recent, open **Install GitHub App** again and save the installation on GitHub.
+
+The app needs read and write access to issues (to comment the payment back later) and to project boards (to move paid issues to the Paid column).
+
+## Linking a repository to a workgroup
+
+Each repository card has:
+
+| Field | Meaning | Default |
+|---|---|---|
+| **Workgroup** | The workgroup whose board mirrors this repository's project (archived workgroups are not offered). Linking turns the workgroup into a **GitHub project** board whatever kind it was created as; moving the last repository away from a workgroup turns it back into an app board. Tasks created on the app board before the link move to **Created in Guild Vault** below the project columns. | — |
+| **Payable label** | The issue label that marks work as audited and ready to pay. Matched case-insensitively; an empty field falls back to the default. | `audited` |
+| **Import status** | The Projects v2 **Status** column an issue must be in. Matched case-insensitively; an empty field falls back to the default. | `In review` |
+| **Paid status** | The **Status** column paid issues are moved to. It must already exist on the project; leave the field empty to disable the move. | `Paid` |
+
+Click **Link** (or **Update** after changes); the button stays disabled until a workgroup is chosen. A linked repository also shows **Full sync**, which re-reads the whole project immediately and reports "Synced N issues, removed M". Linking does not import existing issues at once: click **Full sync** after linking, or wait for the next hourly sweep.
+
+Repositories linked to an archived workgroup are paused until the workgroup is restored.
+
+## Which issues become tasks
+
+An issue is imported as a task only when **both** conditions hold:
+
+1. it sits in the **import status** column of a Projects v2 board that includes the repository, and
+2. it carries the **payable label**.
+
+Imported tasks are immediately *payable*. When an issue loses the label or leaves the column, its task is removed again, unless it has already been queued, paid or reconciled, or still has payout rows from a rejected transaction. Queued, paid and reconciled tasks keep mirroring only their GitHub text, labels and column. An unpaid task retained solely because it has payout rows is left unchanged while it is outside the import filter.
+
+Bounties come from the project board's **number fields**: every number field with a positive value is stored as a bounty amount under the field's name. At payout the field name is matched to a token by ticker, case-insensitively: `ADA` is built in, a field whose name matches the ticker of exactly one token the treasury holds is connected automatically, and anything else has to be connected by hand on [Payday](/docs/payday#tokens).
+
+Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet linked to that GitHub account (see [linking a GitHub account](/docs/profile#linking-a-github-account)); until they link, the task shows **Not linked** and cannot be paid. The linked wallet is filled in only while the assignee's wallet is empty, so a wallet set by hand in the task dialog is never overwritten by the sync. Admins and leads can additionally add manual assignees in the task dialog.
+
+## How syncing works
+
+- **Webhooks** update tasks within seconds of a change on GitHub.
+- An **hourly sweep** re-syncs linked repositories that were never synced or not synced in the last six hours (up to five per run) and repairs anything a webhook missed. Webhooks are never the only source of truth.
+- **Full sync** on a repository card runs the same full re-read for that repository right now.
+
+## What happens after payment
+
+When a payout transaction is confirmed on-chain, Guild Vault comments the transaction hash on each paid issue, adds a `paid` label and moves the issue's project item to the repository's **Paid status** column. The write-back is done by the background job that runs every 15 minutes, so it lands a few minutes after confirmation; if GitHub was unreachable it is retried on the next run.
+
+The move only happens when the project's Status field has an option with that name (matched case-insensitively), the task recorded which project item it was imported from, and the GitHub App has write access to projects. Otherwise the comment and label are still written and the issue stays in its column. The task itself is never removed: paid issues keep mirroring their title, labels and column in Guild Vault.
+
+Related: [Workgroups & boards](/docs/workgroups-boards#github-boards), [Payday](/docs/payday).

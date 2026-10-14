@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  # Call capture uses the runtime's global WebSocket (stable from Node 22).
+  NODE_VERSION = "22"
+  # Turbopack inlines server-side env values into its persisted build cache;
+  # the cache is never deployed, so exclude it from Netlify secrets scanning.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache/**,.next/cache/**"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

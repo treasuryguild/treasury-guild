@@ -1,0 +1,92 @@
+The **Members** page (community sidebar → Members) lists everyone in the community with their role, and lets admins manage roles, workgroup leads, visibility, the Discord exchange rate, the main spending token and invitations.
+
+## Roles
+
+Every member has exactly one role:
+
+| Role | Who | What they can do |
+|---|---|---|
+| **Owner** | The wallet that created the community. | Everything an admin can. There is one owner and the role cannot be reassigned from the app. |
+| **Admin** | Promoted by an admin, or automatically any base signer of a treasury. | Manage members, visibility, workgroups, GitHub, treasuries and budgets; build payouts for any workgroup; make payments; mint. |
+| **Member** | Everyone else. | View shared community pages, be assigned to tasks and get paid. Admin-only settings remain restricted. Members cannot change boards, budgets or settings unless they are a workgroup lead. |
+
+Two further responsibilities sit on top of the role:
+
+- **Treasury signer** — a wallet listed in a [treasury's](/docs/treasury) signer set. **Base signers** sign, reject, submit and delete that treasury's transactions, build payouts, payments and anchor transactions from it, reconcile its incoming refunds and mint under its policy. They are **admins automatically** and cannot be demoted while they remain one ("Treasury signers must remain admins"). A clawback treasury's **recovery signers** and a co-signer treasury's member **co-signer** (see [Treasury templates](/docs/treasury#treasury-templates)) must already be members and are **not** made admins: recovery signers build and sign recovery payments from the lock date, the co-signer signs co-signed transactions, and both keep their role otherwise.
+- **Workgroup lead** — assigned per workgroup by an admin. Leads manage that workgroup's board and tasks, edit its budget row, and can build a payout when every selected task belongs to a workgroup they lead. Leads are otherwise ordinary members.
+
+## Who can do what
+
+| Action | Member | Workgroup lead | Admin / owner | Base signer |
+|---|---|---|---|---|
+| View shared community pages | yes | yes | yes | yes |
+| Create / edit tasks on a board | — | their workgroups | yes | yes |
+| Create workgroups, edit details, archive | — | — | yes (by proposal when workgroups are voted on) | yes |
+| Edit budgets | — | their workgroups (workgroup budgets only) | yes | yes |
+| Reset budgets | — | — | yes | yes |
+| Make proposals, vote | as the [governance settings](/docs/governance#governance-settings) allow | as the settings allow | as the settings allow | as the settings allow |
+| Change governance settings, cancel a proposal, connect Discord announcements | — | — | yes | yes |
+| Build a payout | — | if all selected tasks are theirs | yes | yes |
+| Build a payment | — | — | yes (a recovery payment: admins or recovery signers) | yes |
+| Build an anchor transaction, re-run the co-signer check | — | — | yes | yes |
+| Create / manage calls and attendance tasks | — | their workgroups | yes | yes |
+| Open Call capture settings | — | — | yes | yes |
+| Sign / reject / submit / delete a transaction | — | — | only if a signer on its spending path | on its spending path |
+| Create a treasury, connect GitHub, manage members | — | — | yes | yes |
+| Mint tokens | — | — | yes | yes |
+| Reconcile incoming refunds | — | — | classify (**Details**) only | yes, for their treasury |
+
+Base signers are always admins (being made one promotes you, and one cannot be demoted), so the signer column adds only signing, rejecting, submitting and deleting transactions and matching refunds for their own treasury. A recovery signer or co-signer who is not an admin has the Member column's rights, plus signing on their own [spending path](/docs/transactions#spending-paths) (and, for recovery signers, building recovery payments). No signer of any group can be removed from the community.
+
+Pages that need a role you do not have show "Members only." or "Admin access required." instead of their content.
+
+## Changing roles
+
+Admins see buttons next to each member:
+
+- **Make admin** on a member.
+- **Demote** on an admin. Disabled for base signers of a treasury.
+
+You cannot change your own role.
+
+## Workgroup leads
+
+For each member who is not an admin, admins see a **Lead of** row with a checkbox per workgroup. Tick a workgroup to make that member its lead; untick to remove them. Everyone else sees a lead's workgroups listed as badges on their card.
+
+## Visibility
+
+The **Community** card at the top of the page (admins only) sets the community's visibility:
+
+- **Public** — listed on Discover; anyone signed in can join as a member.
+- **Private** — members are added by an admin below, through GitHub assignments, or through call check-in and linked Discord capture. See [Joining a community](/docs/communities#joining-a-community).
+
+New communities start private.
+
+## Discord exchange rate
+
+Also in the Community card, admins choose which exchange rate the footer of [Discord payout notifications](/docs/treasury#discord-notifications) shows:
+
+- **ADA** (the default) in a fiat currency of your choice, USD unless changed;
+- **Another coin…** — any coin listed on CoinGecko, by its id (the last part of its coingecko.com URL, for example `singularitynet`);
+- **None (date only)**.
+
+Prices are fetched from CoinGecko when the message is posted. If the price cannot be fetched, the footer shows the date alone.
+
+## Main spending token
+
+Also in the Community card, admins pick the token the community mainly budgets and spends: **ADA** (the default), any token the community has paid out, or one a treasury wallet currently holds. The [Dashboard](/docs/budgets#dashboard) charts it first and lists it first in its tables; when no budget is set for the period in view, it is the only token charted.
+
+## Adding a member
+
+In the same card, paste a wallet address (`addr…` on mainnet, `addr_test…` on preprod) and click **Add member**. The wallet becomes a member immediately, even if it has never signed in. When its owner signs in for the first time, the community is already there.
+
+Each member card shows the short address, "(you)" for yourself, the display handle or "no handle", the linked GitHub username if any, a **signer** badge for base signers (**recovery signer** or **co-signer** for those groups), and the role badge.
+
+## Leaving a community
+
+There is no leave or remove-member button on this page yet. Ask a community
+admin or contact the operator through the [privacy policy](/docs/privacy#your-choices)
+for administrative support. The removal API excludes the owner, treasury
+signers of any group (base, recovery or co-signer) and the admin making the request. Removing an eligible member also
+clears their workgroup lead assignments in that community; it does not erase
+task or payment history.

@@ -1,0 +1,99 @@
+**Budgets** are allocations per token for a month or a quarter: one per workgroup for its task payouts, and one per treasury for the manual [payments](/docs/payments) made from it. Payouts and payments are attributed to a budget month, so the community can compare planned against actual spending over time.
+
+## The budgets worksheet
+
+**Budgets** (community sidebar) shows one card per workgroup or project, then one per treasury, with a row per token and an amount for each period in view. Every card appears in every view, whatever its [setup](#budget-setups).
+
+**Choosing a period.** The **View** selector offers:
+
+- **Month** — pick a month. A monthly project shows that month's amount. A quarterly project shows the quarter containing the month, read-only, with an **Edit in Q…** link that switches to the quarter view.
+- **Quarter** — pick a quarter and year. The worksheet becomes a grid with one column per month: a monthly project has one cell per month, each captioned with its month, a quarterly project one cell captioned **whole quarter**, and a recurring project shows its repeating amount read-only (clicking it opens the setup dialog).
+- **Recurring defaults** — the standing amount that applies from a date onward, with its dated history.
+
+The arrows step to the previous or next period, and **This month** / **This quarter** jumps back to today. Changing the view only navigates; it never changes a budget. **View spending** opens the [Dashboard](#dashboard) for the same period.
+
+**Who can edit.** Admins can edit every row. A workgroup lead can edit the rows of the workgroups they lead. Treasury cards are edited by admins only. Everyone else sees the worksheet read-only, as does everyone for an archived workgroup (marked **View only**). With [budget consent](#budget-consent) on, whoever may propose budget changes edits instead, and a project with an open budget proposal is locked until it closes.
+
+**Finding a card.** The search box filters cards by name, **Changed projects only** keeps the ones with staged edits, and the recurring view adds a frequency filter (**All frequencies**, **Monthly**, **Quarterly**). The save bar counts changes hidden by the filters so nothing is saved unseen.
+
+**Editing.** **Add budget** puts a first ADA row on a card; **Add token** then offers ADA, the community's registered tokens and the tokens the card's treasury wallet currently holds (a workgroup's routed treasury, or the treasury itself), up to 50 tokens per card. Type amounts directly in the cells. Edits are staged and highlighted; nothing is written until you click **Save all changes**. Clearing a saved cell removes that token for that period only; the trash icon removes the token from every period in view, and the undo icon restores it. A token added without any amount is ignored. **Discard changes** throws the staged edits away. Switching period with unsaved edits asks for confirmation first.
+
+When a staged setup change is among the edits, **Save all changes** first opens **Review budget changes**: per card, the setup before and after, the effective date, the previous amounts, what each period will save, the correction reason, and any future allocations the change replaces (they remain in history). **Confirm and save all changes** writes everything; **Back to editing** returns to the worksheet.
+
+**Copy last month / quarter** fills empty cells from the previous period: in the quarter grid each month is copied from the same month of the previous quarter, and a quarterly project from the previous quarter. Saved amounts and your edits are never overwritten, and cards that need a setup change first are skipped. In the quarter grid a monthly project saves one plan per edited month.
+
+## Budget setups
+
+Each workgroup has one active **setup** that says how it is planned:
+
+- **Recurring amount from this date onward** — the same amounts every month or every quarter until changed. Changes create a new dated version and keep the earlier amounts in history.
+- **Monthly planning** — every month is set separately.
+- **Quarterly planning** — every quarter is set separately.
+
+**Change setup** on a row opens the setup dialog: choose the mode, the frequency for recurring setups, and the **effective month** it starts, then **Stage setup change**. A workgroup with no setup shows **No setup** (or **Needs review** when its original budget records were ambiguous). Setup changes are staged like amounts and saved with **Save all changes**; **Undo setup change** drops a staged change.
+
+Some rules keep history honest:
+
+- Switching to or from quarterly starts at a quarter boundary, and a setup change never rewrites past periods.
+- Correcting an amount in a **past** period requires a **reason** and only affects that period. A period is past once it has ended: the current quarter stays editable without a reason through its last month. For recurring setups the previous amount comes back in the next period.
+- A later scheduled setup blocks an earlier change, so nothing is silently displaced.
+- **Before a project's first setup**, earlier periods can still get a budget, past ones included, for example to budget [history imported from a previous wallet](/docs/treasury#payment-history-from-a-previous-wallet). Open the worksheet on such a month and click **Add budget**: the setup starts at that month and runs until the first setup begins (the dialog says until when), which it leaves as it is. A past start needs a **reason**, recorded in the history. A quarterly budget there must end at a quarter boundary, so it cannot run into a first setup that starts mid-quarter; choose monthly amounts instead.
+- Saves are atomic per card (workgroup or treasury) and checked against the latest revision; if someone else saved first, your unsaved rows stay staged and only those are retried.
+
+Each card with a setup shows **Setup history & scheduled changes**: the setup timeline with its amounts and dates, any preserved original records, and the latest 20 changes with who made them, when, why, and the previous values.
+
+### Treasury budgets
+
+A treasury's card (marked **Treasury**) budgets the [payments](/docs/payments) made straight from that wallet: contractors, other communities, members paid outside any workgroup. It has the same setups, periods, corrections and history as a workgroup card; the tokens offered are ADA, the community's registered tokens and those the treasury holds, and an unregistered token is accepted only while the treasury holds it. Transfers to another of the community's treasuries are never charged to it. Treasury budgets cannot be reset; correct them through the editor.
+
+## Budget consent
+
+When an admin turns on **budget consent** under [Governance](/docs/governance#governance-settings), budgets change only by a vote of the community. The worksheet works as usual until you save: **Save all changes** becomes **Propose changes…**, which turns every project you changed into one [budget proposal](/docs/governance#budget-consent). The changes apply together when the proposal passes, recorded in each project's setup history as "Proposal #N", and not at all otherwise. Meanwhile the projects in it are locked and listed above the worksheet with a link to their proposal.
+
+While budget consent is on, direct saves and budget resets are refused, whoever tries them.
+
+Once a budget proposal passes and is applied, admins see **Fund this budget** on the proposal for each workgroup budget it set: it appears when the workgroup is routed to one treasury for that period and the community has another treasury to pay from, and opens [Payments](/docs/payments#transfers-between-your-treasuries) with a transfer of the period's voted amounts that cites the proposal (see [Funding a voted budget](/docs/governance#funding-a-voted-budget)). While budget consent is on, every payout and payment is also [checked against the voted budgets](/docs/governance#spend-citations-and-the-budget-check) and cites the budget proposal behind its period in its on-chain record; a budget saved directly before consent was turned on counts as set directly, not by a proposal, and fails that check.
+
+## Resetting budgets
+
+**Reset budgets** (admins only, shown beside a workgroup row once it has any setup or history, and not while [budget consent](#budget-consent) is on) wipes that workgroup's setups, plans and displayed history and returns it to **No setup**. Save or discard that workgroup's staged edits first. The dialog requires the exact workgroup name and a reason (up to 500 characters), then **Reset all budgets**; it refuses if the budgets changed since the worksheet loaded. The previous configuration and full change history are retained in the community's audit record.
+
+Reset is refused when the workgroup is archived, has any payout history (including rejected transactions), has paid or reconciled tasks, or has payable or queued tasks, archived ones included. In that case correct the amounts through the normal editor.
+
+## Budget period
+
+Every task carries a **budget period** (task dialog): a **month** in a workgroup budgeted by month, or a **quarter** in a workgroup budgeted by quarter, matching the workgroup's setup. It shows the current period until someone sets it, and can be changed by admins and leads. When a payout is built, tasks without a period are stamped with the current one: the current month in a workgroup budgeted by month, the current quarter in one budgeted by quarter.
+
+The period is written into the [on-chain payout metadata](/docs/transactions#on-chain-metadata) as `YYYY-MM` for a month or `YYYY-Qn` for a quarter (Q2 2026 is `2026-Q2`), so the chain record says which kind of period it was. Internally a quarter is stored as its first month, and the workgroup's setup history decides what that month meant, so switching a workgroup between monthly and quarterly never re-labels tasks already paid. The dashboard uses the period to attribute spending.
+
+## Dashboard
+
+**Dashboard** (community sidebar) is the read-only side: who was paid, what each workgroup and treasury spent against its plan, and what left the treasury, for the selected month or quarter, or for the community's whole history.
+
+**Filters.** The **period picker** works like the worksheet's (no recurring view). Both views include every project: a quarter covers each month of a monthly project, and a month includes a quarterly project's whole quarter. Its third view, **All time**, has no period to pick: everything below covers the community's history up to today (see [All time](#all-time)). The **workgroup** selector focuses everything on one workgroup or project, archived ones included, or on one treasury's direct payments. The **token** selector defaults to **As budgeted**: the spending charts show one panel per token budgeted in view, the community's [main spending token](/docs/members-roles#main-spending-token) first, then ADA, then the rest; when nothing is budgeted, the main token alone. Pick a token to narrow the charts to it (every token with a budget, spending or an inflow in the window is listed) — the table always lists every token.
+
+**Charts.** Each chart has a **Data table** disclosure with the same numbers, and hovering a bar shows exact amounts.
+
+- **Contributors and tasks paid** — how many distinct wallets were paid and how many distinct tasks they were paid for, month by month over the last twelve months, ending at the selected period, which is shaded. Months are by **budget period**, not by the day the payout was sent: a task budgeted for May counts in May even when it was paid in September. A task in a quarter counts in the month it was paid when that month is inside the quarter; paid after the quarter it counts in the quarter's last month, paid before it in the first. A task or payment with no budget period counts in the month it was paid. A task paid to several people counts once; a wallet paid for several tasks counts once.
+- **Treasury spending** — one chart per token in view: what was paid out for each month's budget period (task payouts and direct [payments](/docs/payments), transfers between the community's wallets excluded) over the same twelve months, stacked by treasury wallet when more than one wallet spent; beyond four wallets the rest fold into **Other treasuries**. Reconciled refunds are deducted in the month they were matched.
+- **Funding flow** — one flow diagram per token in view, for the selected period: where the money came from (**Contributions**, **Revenue**, **Other income** and **Unclassified income**, as classified on [Incoming & reconciliation](/docs/reconciliation); an inflow tied to a [funding source](/docs/funding) is drawn from that source by name instead), which treasury wallets received it, transfers between the community's own wallets, and which workgroups each wallet paid, with the wallet's own [payments](/docs/payments) gathered under **Direct payments**. Income counts by the day it arrived, payouts and payments by budget period (as above), refunds are deducted, and a transfer between two of the community's wallets is neither income nor spending. Hover a band or a bar for the exact amount, or a wallet for what came in and went out. A name too long for its column is shortened with "…": hover it for the full name, which the **Data table** also lists. On a narrow screen a flow that includes a transfer between wallets keeps its width and scrolls sideways. Transfers that went both ways between two wallets in the period are drawn as one net band, and a loop between three or more wallets leaves its smallest transfer out; a note under the diagram says so, and the **Data table** always lists every flow. The workgroup filter narrows the diagram to that workgroup, the wallets that paid it and what fed those wallets.
+- **Spending by workgroup** — one chart per token in view: what each workgroup and treasury spent in the selected period, most first, by **budget period** like the other charts, so it matches the table; a budgeted row stays even at zero.
+
+**Budget vs spending** is the table: one row per workgroup or treasury (shown as *Treasury: name*) and token with the budget, what was spent, the balance and a used bar that reads **Over** in red once spending exceeds the budget. Spending counts payouts and payments from submission (not only confirmation) minus reconciled refunds. In the quarter view a monthly project's three months are summed into one row; in the month view a quarterly project shows its whole quarter and says so under its name. A workgroup that spent without a budget for that token still appears, with no budget or balance, so spending is never hidden. Tokens are ordered main spending token first, then ADA. The footer totals each token.
+
+**History from a previous wallet.** Payments a community [imported from the wallet it used before Guild Vault](/docs/treasury#payment-history-from-a-previous-wallet) count as their workgroup's spending in the period of their date, everywhere above: in the table and its budgets, in **Spending by workgroup**, in **Treasury spending** and the **Funding flow** as paid from "*name* (previous wallet)". They also count in **Contributors and tasks paid**: the lines of one workgroup with the same date and task text are one task, and a recipient is one contributor, the same person as a member when that member's wallet is the only one ending with the recipient's characters.
+
+Below the table, **Spending detail** lists the latest 20 payouts and payments in view with task or recipient (payments are marked *Payment*, imported history *Previous wallet* with the status *imported*), workgroup or treasury, date, status and amount, and **Incoming** shows the eight most recent treasury inflows with their ADA amount and status (*logged*, *reconciled* or *review*; a transfer between the community's own wallets is shown as *transfer · from wallet → to wallet*); **Manage** opens [Incoming & reconciliation](/docs/reconciliation). **Edit budgets** jumps back to the worksheet for the same period.
+
+A notice appears when a workgroup's original budget records were ambiguous and it is excluded from budget totals until an admin reviews its setup.
+
+### All time
+
+With **All time** selected nothing is shaded, and every panel reads "All time" where it would name the period:
+
+- **Contributors and tasks paid** and **Treasury spending** run from the community's first budget period paid (or first inflow) to the current month; spending booked to a later period appears once that period comes. Up to two years they stay month by month; beyond that each bar is a **quarter**, and a wallet or task is counted once per quarter.
+- **Funding flow** sums every inflow, transfer and payout so far.
+- **Budget vs spending** compares everything spent with the **budget to date**: each workgroup's or treasury's budget for every period from its first budget setup through the current one. A recurring budget counts once for each month or quarter that has passed, a dated plan counts for the periods it was filled in for, and the running quarter of a quarterly project counts whole. Plans for later periods are not included. Spending counts in full even where it fell in a period with no budget, or before the first setup, so a project that was paid before it was budgeted shows as over. Imported history from a previous wallet usually falls before the first setup, so it shows the same way.
+- **Spending by workgroup** and **Spending detail** follow the table: all spending so far, the latest 20 lines listed.
+
+**Edit budgets** opens the worksheet on the current month, since the worksheet has no all-time view.

@@ -1,0 +1,204 @@
+// Server-side Koios REST helpers for endpoints the Mesh KoiosProvider doesn't
+// expose. Koios sends no CORS headers, so these must never run in the browser.
+import "server-only";
+
+import type { Network } from "@/lib/config";
+import { koiosApiKey, koiosBaseUrl } from "@/lib/env.server";
+import { UpstreamError } from "@/lib/errors";
+import { joinUnit, splitUnit } from "./units";
+
+const PAGE_SIZE = 500;
+const MAX_PAGES = 8;
+const TIMEOUT_MS = 15_000;
+
+function headers(): Record<string, string> {
+  const h: Record<string, string> = {
+    accept: "application/json",
+    "content-type": "application/json",
+  };
+  const apiKey = koiosApiKey();
+  if (apiKey) h.authorization = `Bearer ${apiKey}`;
+  return h;
+}
+
+async function koiosFetch(
+  network: Network,
+  path: string,
+  init: RequestInit,
+): Promise<unknown> {
+  const res = await fetch(`${koiosBaseUrl(network)}${path}`, {
+    ...init,
+    headers: { ...headers(), ...(init.headers ?? {}) },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    // Log the upstream body server-side; never echo it to clients.
+    const body = await res.text().catch(() => "");
+    console.error(`Koios ${path} failed: ${res.status} ${body.slice(0, 300)}`);
+    throw new UpstreamError(`Koios ${path} failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function koiosPost(
+  network: Network,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<unknown> {
+  return koiosFetch(network, path, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/** POST with offset pagination until a short page arrives (8-page cap). */
+async function koiosPostAllPages<T>(
+  network: Network,
+  path: string,
+  body: Record<string, unknown>,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const sep = path.includes("?") ? "&" : "?";
+    const rows = (await koiosFetch(
+      network,
+      `${path}${sep}offset=${page * PAGE_SIZE}&limit=${PAGE_SIZE}`,
+      { method: "POST", body: JSON.stringify(body) },
+    )) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
+// --- Typed helpers for the endpoints reconciliation needs ---
+
+export interface KoiosAddressTx {
+  tx_hash: string;
+  epoch_no: number;
+  block_height: number;
+  block_time: number;
+}
+
+export async function addressTxs(
+  network: Network,
+  address: string,
+  afterBlockHeight?: number,
+): Promise<KoiosAddressTx[]> {
+  const body: Record<string, unknown> = { _addresses: [address] };
+  if (afterBlockHeight && afterBlockHeight > 0) {
+    body._after_block_height = afterBlockHeight;
+  }
+  return koiosPostAllPages<KoiosAddressTx>(network, "/address_txs", body);
+}
+
+export interface KoiosAssetEntry {
+  policy_id: string;
+  asset_name: string | null;
+  quantity: string;
+}
+
+export interface KoiosTxInfo {
+  tx_hash: string;
+  block_height: number;
+  tx_timestamp: number;
+  /** Lovelace, as a decimal string. */
+  fee?: string;
+  inputs: {
+    payment_addr: { bech32: string };
+    value: string;
+    asset_list?: KoiosAssetEntry[] | null;
+  }[];
+  /**
+   * Koios returns outputs in no particular order: the body position is
+   * `tx_index`, never the array position.
+   */
+  outputs: {
+    payment_addr: { bech32: string };
+    value: string;
+    tx_index?: number;
+    asset_list?: KoiosAssetEntry[] | null;
+  }[];
+  /** Transaction metadata keyed by label (e.g. "190001"), when requested. */
+  metadata?: Record<string, unknown> | null;
+}
+
+export async function txInfoBulk(
+  network: Network,
+  txHashes: string[],
+): Promise<KoiosTxInfo[]> {
+  if (txHashes.length === 0) return [];
+  const out: KoiosTxInfo[] = [];
+  // tx_info accepts arrays; chunk to keep request bodies reasonable
+  for (let i = 0; i < txHashes.length; i += 50) {
+    const rows = (await koiosPost(network, "/tx_info", {
+      _tx_hashes: txHashes.slice(i, i + 50),
+      _inputs: true,
+      _assets: true,
+      _metadata: true,
+    })) as KoiosTxInfo[];
+    out.push(...rows);
+  }
+  return out;
+}
+
+/**
+ * The submitted bytes of confirmed transactions (body and witnesses) via
+ * POST /tx_cbor, keyed by hash. A hash Koios has no bytes for is absent.
+ */
+export async function txCborBulk(
+  network: Network,
+  txHashes: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  for (let i = 0; i < txHashes.length; i += 50) {
+    const rows = (await koiosPost(network, "/tx_cbor", {
+      _tx_hashes: txHashes.slice(i, i + 50),
+    })) as { tx_hash: string; cbor: string | null }[];
+    for (const row of rows) {
+      if (row.cbor) out.set(row.tx_hash, row.cbor);
+    }
+  }
+  return out;
+}
+
+export interface KoiosAssetInfo {
+  policy_id: string;
+  asset_name: string | null; // hex
+  asset_name_ascii: string | null;
+  token_registry_metadata: {
+    ticker?: string;
+    name?: string;
+    decimals?: number;
+  } | null;
+  cip68_metadata: unknown | null;
+  /** Metadata of the minting tx keyed by label, e.g. {"721": {...}}. */
+  minting_tx_metadata?: unknown | null;
+}
+
+/**
+ * Bulk token metadata via POST /asset_info. Units are policyId(56)+nameHex;
+ * the result map is keyed the same way. Do NOT use Mesh's
+ * KoiosProvider.fetchAssetMetadata for this — it only understands CIP-25
+ * minting metadata and throws on fungible tokens.
+ */
+export async function assetInfoBulk(
+  network: Network,
+  units: string[],
+): Promise<Map<string, KoiosAssetInfo>> {
+  const out = new Map<string, KoiosAssetInfo>();
+  if (units.length === 0) return out;
+  const list = units.map((u) => {
+    const { policyId, assetNameHex } = splitUnit(u);
+    return [policyId, assetNameHex];
+  });
+  for (let i = 0; i < list.length; i += 50) {
+    const rows = (await koiosPost(network, "/asset_info", {
+      _asset_list: list.slice(i, i + 50),
+    })) as KoiosAssetInfo[];
+    for (const row of rows) {
+      out.set(joinUnit(row.policy_id, row.asset_name), row);
+    }
+  }
+  return out;
+}

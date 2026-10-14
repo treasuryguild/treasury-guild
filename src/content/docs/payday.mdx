@@ -1,0 +1,93 @@
+**Payday** (community sidebar) is where finished work gets paid. You pick a treasury, review the payable tasks, and build **one** transaction that pays every selected contributor. The transaction then goes to the [signing page](/docs/transactions).
+
+## What makes a task payable
+
+A task appears on Payday when it is **payable**:
+
+- on an app board, it is in the **Audited** column;
+- from GitHub, the issue carries the payable label **and** sits in the import column;
+- from a [call](/docs/calls#creating-the-attendance-tasks), the attendance task is payable as soon as it is created, with every attendee as an assignee.
+
+Payable tasks are preselected only when they can actually be paid. A task is *buildable* when it has:
+
+1. at least one assignee,
+2. a wallet for **every** assignee (an assignee without one is flagged "(no wallet)" on the row; in the task dialog a GitHub assignee who has not linked their account shows **Not linked**),
+3. a bounty amount.
+
+Tasks missing any of these are listed but cannot be selected; the **Needs attention** filter lists just them. Archived tasks and tasks of archived workgroups are not listed at all. Admins and the workgroup's leads see an **Edit** button on the row: it opens the same task dialog as the board (assignees and their wallets, bounty, budget month) so you can fix the task without leaving Payday, and the list refreshes when you save. A GitHub assignee can link their account on their profile, or an admin or lead can set that assignee's payout wallet in the task dialog.
+
+If the page says "No payable tasks", nothing is audited yet.
+
+## Who can build a payout
+
+The **Build payout transaction** button is enabled for:
+
+- community **admins** (for any workgroup),
+- **base signers of the selected treasury** (for any workgroup); a treasury's recovery signers and co-signer cannot build payouts unless they are admins,
+- a **workgroup lead**, only when every selected task belongs to a workgroup they lead.
+
+Anyone else sees "Only signers, admins, or leads of all selected workgroups can build payouts". Your wallet must also be on the community's network.
+
+## Choosing a treasury
+
+If the community has one treasury it is chosen automatically; otherwise pick one under **Pay from treasury** at the top of the page. Each option lists the workgroups currently routed to that treasury and how many ready tasks it can pay ("Main · Dev, Design · 7 ready"). Once one is selected its balance (ADA and every token it holds) is shown next to the picker.
+
+The list then shows only the tasks that treasury can pay: those of workgroups whose **Payment wallet** is this treasury for the task's budget period, and those of workgroups with no payment wallet (any treasury may pay them). Tasks routed to a *different* treasury move to a collapsed section at the bottom, "N tasks are paid from other treasuries", grouped by treasury and marked "paid from …". They are never dropped from the page. Each group has a **Pay from …** button that switches to that treasury. Switching treasury also clears any manual token connections.
+
+**Spending path.** When the selected treasury offers more than one way to spend right now, a **Spending path** choice appears under the picker: on a co-signer treasury, **Co-signed** (the default) or **Bypass (every base signer)**. Payouts never use a clawback treasury's recovery path. A lock-until treasury says it is locked until its date instead, and nothing can be built before then. See [Spending paths](/docs/treasury#spending-paths).
+
+## Selecting tasks
+
+Tasks are grouped by workgroup, and each group's header shows how many of its tasks are selected, how many need attention, and the selected subtotal. **Select all** and **Clear** tick or untick the ready tasks the group lists, which makes paying every workgroup routed to a treasury in one batch a matter of checking each group.
+
+Each row shows the task number and title, workgroup, assignees and amounts (with "each · ×N" when the task has several assignees). Every ready task starts selected: untick tasks you want to leave for a later payout. What you untick stays unticked while you edit other tasks, and a task you fix with **Edit** (adding a wallet, an assignee or a bounty) is selected as soon as it is ready.
+
+The summary card totals the selection as "N tasks → N payments → N contributors": a task with several assignees produces several payments, and a contributor with several tasks receives one output with the sum. Below the totals, **Not included** counts what the payout leaves out (tasks that need attention, tasks you unticked, tasks paid from other treasuries). Click one to list those tasks.
+
+### Filtering the list
+
+To prepare a payout in steps, narrow the list with the filters above it:
+
+- **All**, **Selected**, **Unticked** or **Needs attention**, each with its count;
+- a workgroup;
+- a search by task number (`#12`) or by a piece of the title.
+
+A good order is **Needs attention** first, fixing each task with **Edit**, then **Selected** to review what will be paid.
+
+Filters change what is listed, never what is paid. A selected task a filter hides stays in the payout, and the summary card says "N selected tasks are hidden by the filters and still included" with a **Show all** link.
+
+## Tokens
+
+Bounties can be in ADA and in native tokens. Guild Vault does not need tokens to be registered anywhere: it reads what the selected treasury holds and matches each bounty's ticker to a token in the wallet.
+
+- Tickers that match exactly one wallet token are connected automatically.
+- If a ticker matches nothing, or several tokens share it, the summary shows "Connect a wallet token for: …" with a dropdown per ticker. Choose the right token before building. That choice is remembered for the community so later displays use the same name, and a remembered connection wins over auto-matching next time. If the remembered token is no longer in the selected treasury the dropdown reappears as a warning ("mapped token not in this wallet") but does not block the build on its own. `ADA` is built in and cannot be reconnected.
+- Token payouts carry a small amount of ADA per output (about 1.2 to 1.5 ADA), the ledger minimum. It is not part of the bounty and is not recorded as such.
+
+## Checks before building
+
+The button stays disabled while any of these apply:
+
+- **Exceeds treasury balance: …** — the treasury does not hold enough of that asset.
+- **Max 40 contributors per batch** — Cardano transactions have a size limit; split the selection into two payouts.
+- A warning appears above **25** contributors when tokens are involved, because token outputs are larger.
+- Unconnected tokens, no treasury chosen, nothing selected, or wrong wallet network.
+- A lock-until treasury before its date: no spending path is offered, so nothing can be built.
+
+## Building
+
+Click **Build payout transaction**. Guild Vault fetches the treasury's UTxOs, balances the transaction, writes the [payout metadata](/docs/transactions#on-chain-metadata) and opens the transaction page. The selected tasks flip to **queued** so they cannot be paid twice. Tasks without a budget month are stamped with the period they are paid in. The record also cites the decisions behind each task (the proposal that created it and the budget proposal that set its period's budget) and carries any [proposal anchors](/docs/governance#on-chain-anchors) that are due, as far as they fit.
+
+The server re-checks everything and refuses the build with a list of problems when a selected task is archived or in an archived workgroup, is no longer payable, is already in another payout transaction, has an assignee without a wallet or one whose address is on the other network, has no bounty, or is routed to another wallet for its period, and when the chosen spending path is not open (a lock-until treasury before its date). Fix the tasks and build again.
+
+While the community decides budgets by vote, the payout is also [checked against the voted budgets](/docs/governance#spend-citations-and-the-budget-check): each task's workgroup needs a budget for its period, set by a proposal, with room left. Depending on the community's setting, a payout that does not fit is either built with a **Budget check** card on the transaction page for the signers to weigh, or refused with "This spend does not fit the voted budgets" and the list of problems.
+
+<Callout title="One pending transaction per treasury">
+A treasury can have only one transaction waiting for signatures at a time, whether it is a payout, payment, mint or anchor transaction, because a second one would try to spend the same funds. If you see "A pending transaction already exists for this treasury. Submit or reject it first.", open the pending transaction from the Treasury page and submit, reject or delete it, then build again.
+</Callout>
+
+Deleting a pending payout transaction (any signer on its [spending path](/docs/transactions#spending-paths) can, from the transaction page) returns its tasks to **payable**, as does rejecting it until its path's rule can no longer be met.
+
+An [AI assistant](/docs/ai-assistants#preparing-tasks-calls-and-payouts) you connected with the **payouts:write** permission can prepare the same payout for you, after showing you who receives what and you confirm. It runs every check above and creates the pending transaction; the signers still sign it here. Tokens to connect by hand are left to this page.
+
+Next: [Signing transactions](/docs/transactions).

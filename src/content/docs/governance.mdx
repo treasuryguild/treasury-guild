@@ -1,0 +1,179 @@
+Some decisions belong to the whole community, not to its admins. **Proposals** lets members put a decision to a vote, and with **budget consent** turned on, budgets change only when the community agrees. Every ballot is signed with the voter's wallet, so anyone can check the result.
+
+Admins choose what is decided this way and by whom under [Governance settings](#governance-settings). Everything is off until they turn it on.
+
+## Proposal types
+
+- **Decision**: a statement members vote on, such as adopting a code of conduct or choosing an event date. Nothing happens automatically when it passes: the result is the record.
+- **Budget**: changes to one or more [budgets](/docs/budgets), made on the Budgets page while budget consent is on. They apply by themselves when the proposal passes.
+- **New workgroup**: a name, a description and its leads. When it passes, the workgroup is created as an app board with the usual columns, led by the proposed leads who are still members. While this kind is on, admins cannot add workgroups directly: the overview offers **Propose a workgroup** instead.
+- **Task**: a task on an app board, with its bounty, optionally assigned to whoever proposes it. **Propose a task** is on the board, and on this page. When it passes, the task is added to the board's first column that is neither the payable nor the paid one. It is not payable yet: the workgroup's leads move it along like any other task.
+
+**New proposal** on the Proposals page offers the kinds you may propose. A new workgroup is refused when an active workgroup already has that name, and again when it would be created. A task cannot be proposed on a GitHub board or an archived one.
+
+An [AI assistant](/docs/ai-assistants#making-proposals) you connected with the **proposals:write** permission can also make a decision, task, workgroup or budget proposal for you, after showing you a preview you confirm, and withdraw one of yours while it is in discussion. It goes through the same checks and rules as this form, and it cannot vote.
+
+## How a proposal moves
+
+1. **In discussion**: the proposal is visible and can be discussed (add a link to a forum thread or Discord channel). Nobody votes yet. The proposer can **Withdraw** it.
+2. **Voting**: once the discussion period ends, the list of voters is fixed and voting opens for the voting period.
+3. **Closed**: at the deadline the ballots are counted. The result is **Passed**, **Rejected**, or **No quorum** when too few members voted.
+4. A passed budget, workgroup or task proposal is **applied**: the budget changes are saved (with "Proposal #N" in each project's budget history), the workgroup is created or the task added, and the proposal links to it. If that fails (for example the workgroup was archived meanwhile), the proposal shows why and an admin can **Retry applying** once it is fixed.
+
+An admin can **Cancel proposal** on an open proposal with a reason. Every member sees who cancelled it and why. A proposal that nobody is eligible to vote on is cancelled when voting would open.
+
+Deadlines are exact: a ballot sent after the deadline is refused. The count itself runs every 15 minutes, and straight away when someone has the proposal open.
+
+## Who can vote
+
+Each proposal type has an **electorate**:
+
+- **All members**.
+- **Admins**.
+- **Admins and workgroup leads**.
+- **People of the workgroups concerned**: the leads of the workgroups a proposal is about, and the members paid for their tasks, or assigned to tasks created, in the look-back period. A proposal that concerns no workgroup falls back to recently paid contributors.
+- **Recently paid contributors**: members paid by a confirmed payout or payment in the look-back period.
+
+A **minimum membership** can also be set. Membership is counted up to the moment the proposal was made, so joining the community afterwards never gives a vote on it. The list of voters is fixed when voting opens, and each member wallet has one vote however many tokens it holds. Someone who leaves the community before voting closes can no longer vote.
+
+With **recusal** on, those who gain from a proposal do not vote on it and are not counted toward the quorum: the leads of a workgroup whose budget is proposed, the proposed leads of a new workgroup, and a proposer who assigns a proposed task to themselves.
+
+## Voting
+
+Open the proposal, choose your answer and click **Sign and vote**. Your wallet shows the ballot text, and signing it records your vote. The text names the app, the community, the proposal, fingerprints of its content, its rules and the fixed list of voters, your choice and reason, your address and the time. Signing costs nothing and sends no transaction. Use the wallet you signed in with: a ballot signed by another wallet is refused. Sign within 10 minutes: an older ballot text is refused, and clicking **Sign and vote** again gives a fresh one.
+
+You can change your vote until the deadline by signing again (**Sign and change vote**): only your latest ballot counts. The choices depend on how the proposal is decided:
+
+- **Consent**: Agree, Abstain, Disagree or Block. A block needs a reason. Use it for an objection you cannot live with, not for a preference.
+- **Majority vote**: Yes, No or Abstain.
+- **Lazy consensus**: Agree or Object. An objection needs a reason.
+
+<Callout title="Ballots are hidden until the close">
+While voting runs you see only how many members voted, not what they chose, so nobody votes with the crowd. Your own vote is always visible to you. Admins can show results live instead.
+</Callout>
+
+## Results
+
+- **Consent** passes when the quorum is met, nobody blocked, and more members agreed than disagreed.
+- **Majority vote** passes when the quorum is met and yes votes exceed the threshold share of yes + no. A tie fails. Abstentions count toward the quorum only.
+- **Lazy consensus** passes unless enough members object. It has no quorum. For tasks, admins can cap it: a task whose bounty is above the cap, or paid in any token other than ADA, is decided by majority vote or consent instead, as set.
+
+The **quorum** is a share of the voters. Any ballot counts toward it, abstentions included. A proposal that misses it ends as **No quorum**.
+
+Once voting closes, the page shows the counts, the outcome and every signed ballot. **Signature** under a ballot shows the exact text signed, the public key and the signature, so anyone can verify it with a Cardano message-signing tool.
+
+### Checking a result
+
+**Download the signed tally** (on the results, once ballots are visible) saves the whole record as one JSON file: the proposal and its rules, who could vote, every signed ballot and the recorded result. The file carries a blake2b-256 hash of its content, in the style of Cardano's governance metadata (CIP-100). Anyone can check it without trusting Guild Vault:
+
+1. The proposal's text and rules match the fingerprints every ballot signed (sha256 of their canonical JSON).
+2. Each ballot's text names this proposal, its fingerprints, the voter and the choice, and its signature is valid for the voter's own payment key.
+3. Every voter was in the electorate and not recused.
+4. Counting the ballots again with the proposal's rules gives the recorded result.
+
+5. When the proposal has a voter-list fingerprint (proposals whose voting opened once [anchoring](#on-chain-anchors) was in place), the list of voters in the file hashes to it, and every ballot signed it.
+
+Developers can run these checks with `checkTallyDocument` in the Guild Vault source. **Verify record and anchors** under **On-chain anchors** on the proposal page runs them in your browser and then compares the file with the proposal's anchors read from the chain.
+
+### The frozen record
+
+Once a proposal that reached a vote is final (passed, rejected, no quorum, or cancelled during voting), its signed tally is **frozen**: built once, stored with its hash, and served byte for byte from then on. Every later download is the same file, whatever happens to the proposal afterwards (carrying out a passed budget change is not part of it). The results show when the record was frozen and its hash. A proposal withdrawn or cancelled before voting opened has no ballots to record and no frozen record.
+
+Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Guild Vault. The one store today is [IPFS](https://ipfs.tech/), through Pinata. Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. The results link every published copy, and Guild Vault checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
+
+## On-chain anchors
+
+A community that votes and has a treasury gets each proposal's fingerprints written to the Cardano chain, so the decision is evident there without trusting Guild Vault: what was proposed, who could vote, and how it ended. Nothing member-written goes on-chain, only the community's slug, proposal numbers, states and hashes. The **On-chain anchors** card on the proposal page shows where each step stands.
+
+| Step | Due from | What the anchor carries |
+|---|---|---|
+| **Proposed** | when the proposal is made | the content and rules fingerprints every ballot signs |
+| **Voting opened** | when voting opens | the fingerprint of the fixed voter list (sha256 of the sorted voters, recusals marked), which every ballot signs too, so the list cannot change once a ballot exists |
+| **Closed** | when the proposal is final | the final state and, for a proposal that reached a vote, the hash of its [frozen record](#the-frozen-record), the counts and, once [published](#the-frozen-record), where the copy is (for IPFS, its CID) |
+
+Anchors are metadata under label **190002** (see [On-chain metadata](/docs/transactions#on-chain-metadata)). They get on-chain in two ways:
+
+- **With a payout or payment.** Every payout and payment built in the community carries the anchors due at the time, in whatever room its own record leaves; the rest stay due for the next one. Nothing to do.
+- **On their own.** When no payout or payment is coming, the Proposals and Treasury pages show **On-chain anchors due** with **Build anchor transaction**: a treasury transaction that moves no funds, carries every due anchor that fits and returns the change to the treasury minus the fee (about 0.2 ADA). Admins and the treasury's base signers build it (a lock-until treasury only from its lock date; on a co-signer treasury it needs the co-signer too), and the signers sign and submit it on the [signing page](/docs/transactions) like any other. It counts as the treasury's one pending transaction while it waits.
+
+An anchor is **in progress** while its transaction waits for signatures, **anchored** once the chain confirms it, and due again if the transaction is rejected or deleted. The card shows when each anchor landed beside when voting opened: a proposed or voting-opened anchor that landed only after voting opened is marked, because it then proves less about what voters saw. The lifecycle never waits for anchors: voting opens and results apply on schedule.
+
+The closed anchor of a proposal that reached a vote waits for the frozen record, and when publication is on, for its copy in the chosen store (or a day), so it can name the copy. A proposal withdrawn or cancelled before voting opened gets a closed anchor only when its proposed anchor exists, so the chain never shows a proposal without an ending; otherwise it is never anchored. Proposals already closed when anchoring started are not anchored either.
+
+**Verify record and anchors** (on the card, once the record is frozen) downloads the frozen record, runs the checks under [Checking a result](#checking-a-result) in your browser, reads each anchor's record from the chain and compares: the content and rules fingerprints with the proposed anchor, the voter list with the voting-opened anchor, the state and the record's hash with the closed anchor. It lists every mismatch, or says the record matches the chain and whether the first two anchors landed before voting opened.
+
+A community with no treasury cannot anchor: the anchor is a transaction its signers sign.
+
+### Funding a voted budget
+
+Once a budget proposal passes and is applied, admins see **Fund this budget** under each workgroup budget it set (for a recurring budget, the current period, or its first if it starts later; for a single period, that period) when the workgroup is [routed to one treasury](/docs/treasury#several-treasuries) and the community has another to pay from. It opens the [Payments page](/docs/payments#transfers-between-your-treasuries) with a transfer to that treasury and the period's voted amounts filled in; the admin picks the treasury that pays and can edit the amounts. The transfer's on-chain record cites the budget proposal.
+
+This supports a simple practice: keep most funds in a **reserve treasury** with a higher threshold or a wider signer set, and move only each voted budget into the **operating treasuries** the workgroups spend from. A spend against a vote is then limited to one period's budget, and every transfer says which decision put the money there.
+
+## Spend citations and the budget check
+
+Every payout and payment Guild Vault builds names, in its on-chain record, the decisions behind it: the proposal that created a task, and the budget proposal that set the budget of the period a spend counts against (see the `g` key under [On-chain metadata](/docs/transactions#on-chain-metadata) and the [payment record](/docs/payments#on-chain-record)). A spend of a budget that was saved directly cites no budget proposal. The transaction page lists the cited decisions and links each to its proposal.
+
+While budget consent is on, every payout and payment is **checked against the voted budgets** before it is built:
+
+- the workgroup or treasury has a budget for the period each task or payment counts against;
+- the period stays within its budget for every asset, counting what was already paid or is waiting in a pending transaction, less refunds;
+- that budget was set by a proposal, not saved directly.
+
+Under [Governance settings](#governance-settings) an admin chooses what a spend that fails the check does. **Warn** (the default) lets the build go ahead and shows the problems on the transaction page, above the signatures, so every signer sees them before signing. **Refuse** stops the build and lists the problems instead. Transfers between the community's own treasuries are not spending and are never checked.
+
+A transaction that spends from a treasury but was not built in Guild Vault cites no decision and is checked against nothing. While budget consent is on, the Treasury page marks such a transaction **Built outside Guild Vault**, and it is posted once to the [Discord announcements](#discord-announcements) channel (the treasury, the amounts and the transaction link; never who received it).
+
+## The co-signer
+
+The budget check warns or refuses at build time; the signers can still sign whatever was built, and a spend built outside the app is only announced. A community that wants its votes to bind more tightly creates a [co-signer treasury](/docs/treasury#co-signer): its normal spends need the base signers **plus a co-signer** that signs only what passes the [co-signer check](/docs/transactions#the-co-signer-check), which compares the transaction's bytes with the rows it was built from, runs the budget check in its strictest form (while budget consent is on), and confirms every cited decision passed and was applied. The co-signer is a member chosen at creation, who reads the check before signing, or Guild Vault itself, holding one encrypted key per treasury and signing automatically on a pass.
+
+This is near-enforcement, not enforcement: every base signer together can still spend without the co-signer (the bypass path), so a unanimous signer set can act against a vote, and the check is run by the app or the co-signer, not by the chain. What it removes is the case where a majority of signers, or a compromised app database, moves funds a vote did not allow. The decision to co-sign is deterministic code: an assistant may explain it, never make it.
+
+## Discord announcements
+
+An admin can connect a Discord channel under **Governance → Discord announcements** by pasting a webhook URL (in Discord: channel settings, **Integrations**, **Webhooks**). Guild Vault posts a test message, then announces each proposal:
+
+- when it is **up for discussion**,
+- when **voting opens**, with the deadline and who votes,
+- a day before voting **closes** (for votes longer than a day), with the turnout,
+- the **result**, with the counts and whether it was carried out.
+
+A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. If Discord refuses the webhook (it was deleted), the error shows under Discord announcements until you connect a new one.
+
+With budget consent on, the same channel receives the [outside-spend alerts](#spend-citations-and-the-budget-check).
+
+## Budget consent
+
+With budget consent on, the Budgets page works the same way until you save. **Save all changes** becomes **Propose changes…**:
+
+1. Give the proposal a title and explain what the money is for.
+2. Every project you changed goes into one proposal and is applied together when it passes.
+3. Until the proposal closes, the budgets of those projects are locked: nobody can edit them or propose other changes to them.
+
+Direct saves and [budget resets](/docs/budgets#resetting-budgets) are refused while budget consent is on.
+
+When a budget proposal passes, the changes are saved as if the proposer had saved them, with "Proposal #N" and their reason in the budget history. If a budget changed after the proposal was made (for example while budget consent was briefly turned off), nothing is applied and the proposal shows why. Then make a new proposal from the current budgets. When the cause was temporary, for example an archived workgroup that has since been restored, an admin can use **Retry applying**.
+
+A change to a budget's setup (switching between recurring, monthly and quarterly) must start no earlier than the month voting ends, because past periods cannot switch setup.
+
+## Governance settings
+
+**Governance** (community sidebar) holds the rules for each proposal type. Every member can read them; only admins change them.
+
+- **On or off**: **Budget consent** for budgets, **New workgroups by vote**, **Task proposals** and **Polls** for decisions.
+- **Who can propose**: any member, admins and the leads of the workgroups concerned (a lead must lead every workgroup the proposal concerns; for one that concerns none, such as a decision or a new workgroup, only admins), or admins only.
+- **Who votes**, the **look-back** for the activity-based electorates, and a **minimum membership** in days.
+- **Decided by**: consent, majority vote or lazy consensus, with the **quorum**, the majority **threshold** or the number of **objections that reject**.
+- **Discussion** and **Voting** periods, in hours.
+- For tasks decided by lazy consensus, **Lazy consensus up to (ADA)** and the method used above it.
+- **Hide ballots until voting closes**, and for budgets, workgroups and tasks the **recusal** of those who gain from them.
+
+A proposal keeps the rules it was made with. A change affects only proposals made afterwards, and every change is listed under **Changes** with who made it.
+
+**Records and checks** holds two settings for the whole community, logged under **Changes** like the others:
+
+- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Guild Vault only (the default), or also publish new ones to IPFS. Turning publication on asks for confirmation, because a published copy cannot be taken back.
+- **A spend that does not fit the voted budgets**: warn the signers on the transaction page (the default) or refuse to build it. See [the budget check](#spend-citations-and-the-budget-check).
+
+Defaults for budgets: proposed by admins and leads, decided by consent of all members with a 25% quorum, 24 hours of discussion and 72 hours of voting. New workgroups and decisions: any member proposes, majority vote above 50% with a 20% quorum, 48 hours of discussion and five days of voting. Tasks: any member proposes, lazy consensus of the people of the workgroup (one objection rejects), no discussion period and three days of voting. The people of a new workgroup with no leads or history yet are nobody, so a task proposed there is cancelled for lack of voters: choose another electorate or give the workgroup leads first.

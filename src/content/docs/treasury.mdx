@@ -1,0 +1,209 @@
+A **treasury** is a Cardano multisig wallet owned by the community. Its address is a *native script* that lists the signers' payment keys and how many of them must sign. Guild Vault holds no key that can spend: it builds transactions and collects signatures, but nothing can leave the treasury without the required signers approving in their own wallets. The one key it can hold is the app-held [co-signer](/docs/treasury#co-signer) of a co-signer treasury, which only completes the base signers' rule and alone moves nothing.
+
+## The Treasury page
+
+**Treasury** (community sidebar) shows one card per treasury:
+
+- name, short address and a copy button,
+- the signing rule, for example **2 of 3**, with the template's addition (**· recovery from** or **· locked until** a date, or **+ co-signer**), and a **Details** button (see [Wallet details](/docs/treasury#wallet-details)),
+- the current **ADA balance** and every native token the wallet holds, read live from the chain.
+
+Below the cards, **Transactions** lists the 20 most recent entries across all treasuries (transactions built in the app and the On-chain entries described below, newest first). A transaction shows its description, a **Mint**, **Payment** or **Anchor** badge (payouts have none), its state (Pending, Submitted, Confirmed, Rejected), date and number of signatures, and the wallet's name when the community has several treasuries. Click one to open its [signing page](/docs/transactions).
+
+The same list shows **On-chain** entries: outgoing transactions found at a treasury address that Guild Vault did not build, or no longer has a record of (for example a transfer made from the multisig with another tool). They show what left the wallet, the date and the transaction hash, and open the explorer instead of a signing page. When such a transaction carries Guild Vault payout metadata, the entry names the workgroups and the number of tasks it paid; when it carries a payment record, the entry counts its outputs and transfers and shows the memo or budget period. Such a transaction does not stay an On-chain entry: it is imported as an ordinary payout or payment (see [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts)), and carries a **Needs import review** badge while an admin has something to settle first. While the community decides budgets by vote, the entries that stay read **Built outside Guild Vault** instead of On-chain, because such a spend cites no decision and was checked against no budget; each is also announced once in the community's proposal channel (see [Spend citations and the budget check](/docs/governance#spend-citations-and-the-budget-check)).
+
+Opening the page also checks the chain: if a treasury was last checked more than two minutes ago, its latest on-chain transactions are fetched in the background, submitted transactions (payouts, payments, mints and anchors) found on-chain become **Confirmed**, new inflows are recorded for [Incoming & reconciliation](/docs/reconciliation), unknown outgoing transactions are added as On-chain entries, and the ones that carry a Guild Vault record are imported. The list refreshes by itself when that happens. The **Chain checked** line under the heading shows the time of the last check; a background job also checks every treasury every 15 minutes, and GitHub comments and Discord announcements for confirmed payouts arrive with that job.
+
+Admins see **Payment history**, **Import treasury** and **New treasury** buttons (see [Payment history from a previous wallet](/docs/treasury#payment-history-from-a-previous-wallet), [Importing a treasury](/docs/treasury#importing-a-treasury) and [Creating a treasury](/docs/treasury#creating-a-treasury)).
+
+While a community votes on proposals, **On-chain anchors due** appears above the transactions when a proposal's fingerprints are not on-chain yet. The next payout or payment carries them by itself; **Build anchor transaction** puts them on-chain now with a transaction that moves no funds (see [On-chain anchors](/docs/governance#on-chain-anchors)).
+
+### Importing on-chain payouts
+
+Every payout and payment Guild Vault builds carries a public record on-chain (see [On-chain metadata](/docs/transactions#on-chain-metadata)). When a treasury's history contains such a transaction that this community's database does not know, for example one built from another copy of Guild Vault that manages the same treasury, the record is enough to rebuild it, and Guild Vault does so by itself, each time the chain is checked:
+
+- a **payout** becomes a confirmed transaction with its payouts, and each task it names is marked paid. A task this community does not have yet is created as a paid task in the workgroup the record names, with the recipients as assignees, the budget period and amounts from the record, and the title **Imported task #N** (titles and descriptions are not on-chain; see [Imported tasks](/docs/workgroups-boards#imported-tasks)). A task that already exists under that number, payable (waiting to be paid, not archived), in the same workgroup, with the same amounts and exactly the paid wallets as assignees, is simply marked paid.
+- a **payment** becomes a confirmed payment with one entry per recipient; an output to another of the community's treasuries is recorded as a transfer.
+
+The imported transaction keeps the date it happened on-chain, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) count it in the right period, and it is never announced on Discord. Amounts are checked against the transaction's real outputs first, and a transaction is imported completely or not at all. Recipients are not added to the community by an import.
+
+When something has to be decided by a person, the transaction waits. Admins then see **On-chain payments waiting for import** above the transaction list, with the reason for each transaction and what settles it:
+
+- **The record names a workgroup this community does not have** (or has several of, or has archived). **Create workgroup** adds it with a standard board; **Use an existing workgroup** points the name at one you already have, for example after a rename. The choice is remembered: later transactions that use that name are imported without asking, and every waiting transaction that needed it is tried again at once.
+- **The task number is already another task here.** **Import as new task number** creates the task under the next free number and keeps the on-chain number as a note on the task and on the transaction page.
+- **Anything else** (the record belongs to another community, an amount does not match the outputs, a token cannot be identified, a transfer to a treasury this community does not have) is explained in a sentence. **Try again** repeats the import after you fixed the cause.
+- **Ignore** dismisses a transaction; it stays an On-chain entry. **Show ignored** lists the dismissed ones, each with **Restore**.
+
+### Wallet details
+
+Click **Details** on a treasury card to open the wallet details dialog:
+
+- the full **address** with a copy button and an explorer link, and the network,
+- the **template** and the base **signing rule** with its native-script type (`atLeast`, `all` or `any`); a clawback treasury's recovery rule, a lock date with its slot, and the co-signer, when the template has them,
+- the **script hash**, which is also the policy id of tokens [minted](/docs/mint) without a time lock,
+- the stake address and stake credential, when the wallet has one,
+- the **signers** in native-script order (new wallets sort by key hash within each group; imports keep their original order), each with their name, wallet address, payment key hash and, outside the base group, whether they are a recovery signer or the co-signer,
+- the payment **native script as JSON** and as **CBOR hex**, each with a copy button.
+
+The script is checked against the stored signers and treasury address when the dialog opens, so what you see is exactly what transactions are witnessed with. Use it to verify the wallet in another tool or to register the treasury's script elsewhere.
+
+## Creating a treasury
+
+Only admins can create a treasury, and their wallet must be on the community's network.
+
+1. Click **New treasury**.
+2. **Name** it, for example "Main treasury".
+3. Choose what it is **Used for**. **Community treasury** (the default) ties it to nothing: any workgroup or project can be paid from it. Picking a workgroup or project makes the new treasury that workgroup's **payment wallet** (see [Several treasuries](/docs/treasury#several-treasuries)). The field only appears once the community has a workgroup, and archived workgroups are not listed.
+4. Under **Signers (payment addresses)** (**Base signers (payment addresses)** once a template is chosen), paste each signer's **payment address** (`addr…` on mainnet, `addr_test…` on preprod) and give them a name. The form starts with two rows; **+ Add signer** adds more, and rows left blank are ignored. Every address must be on the community's network and listed once. When you create the community's first treasury, you must be one of its base signers.
+5. Set **Required signatures**, the number of signers that must approve each transaction; the label reads back the rule, for example **2 of 3**.
+6. Choose a **Template**: **Plain multisig** (the default) or one of the [treasury templates](/docs/treasury#treasury-templates) below, which add a lock date, recovery signers or a co-signer. Depending on the template, set the **Lock date** (at least one hour from now), the **Recovery signers (payment addresses)** with their **Recovery rule** (any, all or at least N of them), or the **Co-signer**: **A member** you pick from the member list, or **Guild Vault (app-held key)**.
+7. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
+
+When you linked a workgroup, the page then tells you when the link starts: from the current budget period, or from the **next** one when the workgroup was already paid from another wallet this period. If the workgroup already has a later wallet change scheduled, the treasury is still created but not linked; set the wallet from the workgroup's **Edit details** dialog instead. Only one workgroup can be linked here; link more from each workgroup's own dialog.
+
+The signers you list here are the treasury's **base signers**, under the *at least N of M* rule (`atLeast` in the native script). The multisig address is derived deterministically from the script (keys in CIP-1854 ordering within each group), so the same signers, threshold and template always produce the same address — creating a second treasury with exactly the same script is refused. Signers, the threshold and the template cannot be edited afterwards; create a new treasury instead.
+
+Every base signer automatically becomes a community **admin** (see [Members & roles](/docs/members-roles#roles)). Recovery signers and a co-signer are not promoted; they must already be members.
+
+## Treasury templates
+
+A treasury's native script has one of four fixed shapes. The base signers and their rule are the same in all of them; a template adds one thing, written into the script for good.
+
+| Template | Script | What it means |
+|---|---|---|
+| **Plain multisig** | `base` | The base signers spend under their rule. |
+| **Clawback** | `any[ base, all[ recovery, after(slot) ] ]` | The base signers can always spend; from the lock date the recovery signers can move the funds out too. |
+| **Lock-until** | `all[ base, after(slot) ]` | Nobody can spend before the lock date; the treasury can still receive. |
+| **Co-signer** | `any[ all[ base, sig(co-signer) ], all[ every base signer ] ]` | A normal spend needs the base rule plus the co-signer, who signs only what passes a check; every base signer together can spend without the co-signer. |
+
+The **Details** dialog shows the template, the lock date with its slot, each group's rule and every signer with its group. The templates cannot be combined, and a lock or a co-signer cannot be added to an existing treasury.
+
+### Clawback
+
+For funds a community wants back if a workgroup goes quiet: the base signers spend as usual, and from the **lock date** a second group, the **recovery signers**, can move the funds out with a [payment](/docs/payments) (to any address, or a transfer to another of the community's treasuries). The recovery group has its own rule (any, all, or at least N of its signers). Recovery signers must already be members of the community; they are not made admins, they can see the treasury like any member, and from the lock date they can build and sign recovery payments. Before the date, a build on the recovery path is refused with the date.
+
+### Lock-until
+
+For funds set aside until a date, for example a grant that may only be spent from next quarter: nothing can be built from the treasury before the **lock date**, while it keeps receiving. From the date, the base signers spend as usual. There is no way around the date; a wrong one means creating a new treasury and moving the funds there once it opens.
+
+### Co-signer
+
+For a treasury whose spends should follow the community's votes without relying on every signer to check: a normal spend needs the base rule **plus the co-signer**, and the co-signer signs only what passes the [co-signer check](/docs/transactions#the-co-signer-check). The co-signer is either a **member** chosen at creation (an auditor, say), who reads the check's result on the transaction page before signing, or **Guild Vault** itself, which generates a key at creation, keeps it encrypted on the server and signs only when the check passes. Every base signer together can still spend **without** the co-signer (the bypass path), so the funds stay reachable if the co-signer is unavailable or its key is lost; the co-signer key alone can never move funds. A base rule that already needs every base signer cannot take a co-signer, since the two paths would be the same. The app-held key can never be rotated: if it is compromised, the treasury is back at a plain multisig's trust level, and the funds can be moved to a new treasury through the bypass path.
+
+### Spending paths
+
+Every transaction is built for one **spending path**, the branch of the script it will satisfy, and only that path's signers count:
+
+- **Base signers**: the base rule (plain, clawback, and lock-until from its date).
+- **Recovery signers**: a clawback treasury's recovery group, from the lock date, payments only.
+- **Co-signed**: the base rule plus the co-signer (the default on a co-signer treasury).
+- **Bypass (every base signer)**: every base signer, without the co-signer.
+
+The Payments, Payday, Mint and anchor builds show a **Spending path** choice when the treasury offers more than one right now; a treasury that offers none (locked until a date) says so instead. Admins or base signers build on every path but recovery, which admins or recovery signers build (for payouts, also leads of every workgroup paid; payouts and mints never take the recovery path); only the path's signers can sign or reject, and the transaction page names the path and its rule under the title. A transaction on the recovery path, or from a lock-until treasury, is valid only from the lock date, as its script demands.
+
+<Callout title="Signers use ordinary browser wallets">
+Each signer approves with their own CIP-30 wallet (Eternl, Lace…). Make sure the address you paste is the payment address of the account they will use to sign, on the right network.
+</Callout>
+
+## Importing a treasury
+
+Admins can import an existing treasury from its payment **native script CBOR hex**.
+
+1. On **Treasury**, click **Import treasury** and enter a name.
+2. Paste the CBOR and click **Read CBOR**. Review the signing rule and derived treasury address.
+3. Match every signer key to its payment wallet address. Known community wallets are filled in automatically; enter any missing addresses and optional names.
+4. Optionally choose a workgroup under **Used for**, then click **Import treasury**.
+
+Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. The preview names the template, each group's rule and the lock date, and lists every key with its group, so recovery signers and a co-signer are matched like the base signers. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
+
+As with new treasuries, every base signer becomes a community admin (recovery signers and a co-signer must already be members), and you must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
+
+## Payment history from a previous wallet
+
+A community that paid its workgroups from an ordinary wallet before moving to a Guild Vault treasury can bring that history along, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) show everything spent, before and after the move. The history comes from a CSV file you export and check yourself: Guild Vault never reads, watches or verifies the old wallet, and the file is taken as it is. Moving the funds is a separate step: send them from the old wallet to the treasury address as usual (see [Funding a treasury](/docs/treasury#funding-a-treasury)).
+
+Only admins can import history. On **Treasury**, click **Payment history**.
+
+1. **Add the previous wallet**: a name, for example "Old treasury wallet", and optionally its address, shown as a label only. Several previous wallets can be added; pick the one the file belongs to.
+2. Choose the **CSV file**. **Download a template** gives an example to fill in. Nothing is saved yet: the file is read and a preview lists the lines with their status (**New**, **Already imported**, **Repeats line N** or **Error**), what cannot be imported and why, and what the import adds per workgroup and token.
+3. Settle what the preview asks about (see [Tokens and workgroups](/docs/treasury#tokens-and-workgroups)). If a line has an error, fix the file and choose it again.
+4. Click **Import**. A file is imported completely or not at all.
+
+### The CSV format
+
+The first row names the columns, in any order and any letter case:
+
+- **userId**: the end of the receiver's address, at least 6 characters (a whole address works too).
+- **One column per token**, named by its ticker, for example **ADA** or **AGIX**. A cell is the amount paid in that token, in whole units with a dot for decimals (`480`, `114.5`). Leave it empty when the line paid none of that token; a line can pay several tokens.
+- **task**: what was paid for. Put it in double quotes when it contains commas.
+- **date**: the day of the payment, `DD.MM.YYYY` (`15.09.2026`), `DD.MM.YY` (`15.09.26`) or `YYYY-MM-DD`.
+- **workgroup**: the workgroup's name. Case, spaces, hyphens and underscores do not matter: `governance-workgroup` matches a workgroup named "Governance Workgroup".
+
+```
+userId,ADA,AGIX,task,date,workgroup
+f39ntm,,480,"Meeting documentation: 25th, 27th Aug",15.09.2026,governance-workgroup
+7xcueh,114.5,,Contribution handling fee,15.09.26,treasury-guild
+```
+
+An amount with a comma, more decimals than the token has, a date in the future or before 2017, or a line with more values than columns (usually a task with commas and no quotes) is an error, never guessed at. A file holds at most 5,000 lines, 20 token columns and 1 MB; a task can be up to 500 characters long.
+
+### Tokens and workgroups
+
+ADA is always known. Another ticker is matched against the tokens your payouts already use, earlier history imports, and the tokens your treasuries hold. When several tokens share the ticker, choose one; when none has it, enter the token's unit (policy id followed by the asset name, in hex), which is checked against the chain.
+
+A workgroup name that no workgroup has can be **created** as a new workgroup, or pointed at an **existing workgroup**, archived ones included, for example after a rename. The choice is remembered for later files.
+
+### Importing more, replacing and deleting
+
+Each line is recognised by its recipient, workgroup, date, task and amounts. Lines already imported for the wallet are skipped, so after finding a few forgotten payments you can import the whole corrected file again and only the new lines are added. If two real payments look exactly the same, tick **Also import the lines already imported**.
+
+**Imported files** lists every import of the wallet with its lines, dates and totals:
+
+- **View lines** shows them, and **Remove** takes out a single line.
+- **Replace** swaps the whole import for a corrected file in one step: its lines are removed and the new file's lines take their place.
+- **Delete** removes the import and its lines.
+- Deleting the previous wallet removes all of its history.
+
+A workgroup with imported history cannot be deleted (archive it instead) until that history is removed.
+
+### Where the history shows
+
+Imported lines count as the workgroup's spending in the period of their date (the month, or the quarter for a workgroup budgeted by quarter), so they use up its [budget](/docs/budgets) for that period like a payout does. Those periods usually come before the workgroup's first budget; you can still [give them a budget](/docs/budgets#budget-setups) on the worksheet. On the [Dashboard](/docs/budgets#dashboard) they appear in the spending per workgroup, the budget table and **Spending detail** (marked **Previous wallet**), and the treasury spending chart and funding flow show them as paid from "*name* (previous wallet)". The contributors and tasks chart counts them too: lines of one workgroup with the same date and task text are one task (a task paid to two people is two lines), and each recipient is one contributor. A recipient is shown by name, and counted as that member, where exactly one known wallet of the community ends with those characters. They are not tasks on a board: they do not appear on boards, Payday or the transaction list.
+
+## Funding a treasury
+
+Send ADA or tokens to the treasury address from any wallet. The balance appears on the Treasury page as soon as the chain confirms it, and inflows are listed on [Incoming & reconciliation](/docs/reconciliation). Payouts need enough ADA for the amounts plus a fee, and token payouts each carry a small ADA minimum per output.
+
+## Several treasuries
+
+A community can have more than one treasury, for example a main wallet that receives the community's income and one wallet per workgroup that it funds. Use a workgroup's **Payment wallet** setting (see [Editing a workgroup](/docs/workgroups-boards#editing-a-workgroup)) to restrict that workgroup's payouts to one treasury, or pick the workgroup under **Used for** when [creating the treasury](/docs/treasury#creating-a-treasury); Payday then lists its tasks under that treasury and sets them apart when a different one is selected.
+
+To move money between your treasuries from inside the app, use the [Payments page](/docs/payments#transfers-between-your-treasuries) with **Another treasury** as the recipient. However it was sent, money that goes from one of the community's treasuries to another is recognised as an **internal transfer**: it is logged on [Incoming & reconciliation](/docs/reconciliation#how-inflows-are-found) without review, named as coming from the sending treasury, and the Dashboard's [Funding flow](/docs/budgets#dashboard) draws income → wallets → workgroups without counting the transfer as income or spending. A workgroup wallet can also receive money from elsewhere (a grant, for example); that shows as that wallet's own income.
+
+With [proposals](/docs/governance) on, several treasuries also limit what a spend against a vote can reach: keep most funds in a **reserve treasury** with a higher threshold or a wider signer set, route each workgroup to an **operating treasury**, and move only each voted budget there with **Fund this budget** on the applied budget proposal (see [Funding a voted budget](/docs/governance#funding-a-voted-budget)). Each such transfer cites the decision that put the money there.
+
+A workgroup's payment wallet can change over time. Each change is dated and takes effect at the start of a **budget period** (a month or a quarter, following the workgroup's [budget setup](/docs/budgets#budget-setups)): the next period, or the current one while nothing has been paid in it from another wallet yet. Payouts already made keep the wallet they came from, and a task from an earlier period is still paid from that period's wallet, so a period is never split across two wallets. The history of changes, with who made them and why, is kept with the workgroup.
+
+## Discord notifications
+
+Each treasury can announce its payouts in a Discord channel. Admins see a **Discord** row at the bottom of every treasury card on the Treasury page.
+
+1. In Discord, open the channel's settings → **Integrations** → **Webhooks** → **New Webhook**, and copy its URL.
+2. On the treasury card, click **Connect**, paste the URL and **Save**.
+
+Guild Vault immediately posts a short "connected" message to the channel; if that fails, the URL is rejected and nothing is saved. Afterwards only a masked form of the URL is shown (`…/webhooks/1234/••••ab12`) — the full URL is never displayed again, because anyone holding it can post to your channel — together with when the channel was **last posted** to. **Replace** swaps it for a new one, **Remove** disconnects the channel after a confirmation.
+
+From then on, every payout from that treasury is announced once it is [confirmed on-chain](/docs/transactions#confirmation-and-what-follows). The announcement is posted by the 15-minute background job, so it can arrive up to 15 minutes after the confirmation. The message carries the community's name, links to the transaction page, the [Dashboard](/docs/budgets#dashboard) and the explorer, and then:
+
+- **Total paid**, per asset;
+- **Spending by workgroup** — what each workgroup was paid in this transaction;
+- **Budget balance** — for each of those workgroups, what is left of its budget for the current month or quarter after this payout (or "no budget");
+- **Treasury balance** — the wallet's ADA and tokens after the payout, linked to the explorer;
+- the number of tasks and recipients, and the transaction hash;
+- a footer with the date and, if the community has one configured, an exchange rate (see [Discord exchange rate](/docs/members-roles#discord-exchange-rate)).
+
+Individual tasks and wallet addresses are not listed; the transaction page has them. Payouts confirmed before the webhook was connected are not announced, and mints, [payments](/docs/payments) or incoming funds never are.
+
+If Discord stops accepting the webhook (for example it was deleted in Discord), the error is shown on the card until you replace the webhook, and the payouts confirmed meanwhile are skipped rather than announced late.
+
+Related: [Signing transactions](/docs/transactions), [Payday](/docs/payday).

@@ -1,0 +1,91 @@
+A **workgroup** is a team or project inside a community, for example "Dev", "Marketing" or a single funded proposal. Each workgroup has a task board, an optional [budget](/docs/budgets), and can be routed to one [treasury](/docs/treasury).
+
+## Creating a workgroup
+
+On the [community overview](/docs/communities#community-overview), admins see an add card under **Workgroups & projects** (while new workgroups are not decided by vote). Type a name, choose a kind and click **Add**:
+
+- **App board** — a kanban run inside Guild Vault with a payable column. Tasks are created here. Best when the work is not tracked on GitHub.
+- **GitHub project** — a live mirror of a GitHub repository's project board. Issues sync in automatically. Choosing this takes you straight to [GitHub settings](/docs/github) to link a repository.
+
+An empty app board also offers both choices again to admins and that workgroup's leads (**Use app board** or **Open GitHub settings**, the latter for admins only), so you can decide later; everyone else sees "This board hasn't been set up yet."
+
+When the community decides new workgroups [by vote](/docs/governance#proposal-types), the card reads "New workgroups are created by a community vote." and those allowed to propose (any member by default; with "admins and leads of the workgroups concerned" only admins, since a new workgroup concerns no workgroup yet) see **Propose a workgroup**. The proposal names the workgroup, a description and its leads, who must be members, and the name must not match an existing workgroup's. If it passes, the workgroup is created as an app board with the default five columns, led by the proposed leads who are still members.
+
+## Editing a workgroup
+
+**Edit details** (admins only, on the overview card or the board header) opens a dialog with:
+
+- **Name** and **Description**.
+- **Payment wallet** — **Any wallet**, or one specific treasury. When set, this workgroup's tasks can only be paid from that treasury; on Payday they are listed under that treasury and set apart as "paid from other treasuries" when another one is selected. The overview shows it as "Paid from …". A change is saved with **Change wallet** and takes effect at a budget period boundary: **This period** is offered only while nothing has been paid in the current month or quarter (otherwise the dialog says so and only **Next period** remains), and the change can carry a **reason**. Until its period starts, a scheduled change is shown under **Wallet history**, where every past change is listed with who made it and when; choosing the current wallet again for the same period cancels it. Only one change can be scheduled ahead: while a later period already has one, the dialog refuses an earlier one ("A later wallet change is already scheduled"). A new treasury can also be given to a workgroup as it is created (see [Creating a treasury](/docs/treasury#creating-a-treasury)); that is recorded here like any other change. See [Several treasuries](/docs/treasury#several-treasuries) for how this keeps spending history whole.
+- **Archive / delete** (or **Restore / delete** once archived) at the bottom opens the lifecycle dialog with **Archive workgroup** / **Restore workgroup** and **Delete empty workgroup**, described below.
+
+An archived workgroup's name, description and wallet cannot be edited until it is restored.
+
+## Archiving and deleting a workgroup
+
+**Archive** pauses a workgroup: its board becomes read-only ("Archived — this board is read-only"), GitHub imports stop, and it disappears from the overview unless **Show archived** is ticked. Historical tasks, budgets and payments stay visible. A workgroup with payable or queued tasks, or a pending payout, must have those resolved before it can be archived. **Restore** brings it back.
+
+**Delete empty workgroup** is permanent and only possible for a workgroup with no tasks left at all (archived tasks included), no payment records and no imported payment history; otherwise the dialog says why. It does not need to be archived first. Type the exact name to confirm, then click **Delete permanently**. Remove eligible unpaid tasks through the task lifecycle first (archive, then delete); tasks with payment history cannot be removed, so such a workgroup can be archived but never deleted. Deleting clears its budget setup and GitHub links; a snapshot of the budget history is kept in the community's audit record. Archive, restore and delete all record who did it and when.
+
+## The app board
+
+An app board has five columns by default: **To Do**, **In Progress**, **Done**, **Audited** and **Paid**. Audited is the *payable* column: a task moved there becomes payable and shows up on [Payday](/docs/payday). Paid fills itself: when a payout transaction is confirmed on-chain, the tasks it paid move there with their transaction hash. Paid tasks cannot be dragged anywhere else, nothing can be dropped into Paid, and it has no **Add task…** box.
+
+Admins and the workgroup's leads can manage the board; everyone else sees it read-only.
+
+- **Add a task:** type a title in the **Add task…** box at the bottom of a column and press Enter. A task added straight into **Audited** is payable at once.
+- **Move a task:** drag its card to another column.
+- **Call attendance:** tasks named `Call: …` are created from the [Calls page](/docs/calls) and arrive in the payable column with their attendees as assignees.
+- **Open a task:** click the card. The task number (for example **#12**) is assigned per community, never changes, and is what the on-chain payout record cites.
+
+### Proposing a task
+
+When the community has turned on [task proposals](/docs/governance#proposal-types), members who may propose tasks see **Propose a task** in an app board's header (not on archived or GitHub boards). A proposal names the task, what needs doing and its bounty, and can assign the task to its proposer (if they are still a member when it passes). If it passes, the task appears in the board's first column that is neither the payable nor the paid one, not yet payable; admins and the workgroup's leads move it along like any other task. The task keeps a link to its proposal, and its payout's on-chain record cites it (see [Spend citations](/docs/governance#spend-citations-and-the-budget-check)).
+
+### Editing a task
+
+The task dialog has:
+
+- **Description** — free text.
+- **Assignees (each receives the full payout)** — pick members from the dropdown (by handle, GitHub username or address), or choose **Custom address…** to paste any wallet on the community's network (a preprod `addr_test…` address in a mainnet community, or the reverse, is refused: "This community pays on mainnet: use a mainnet address"). **+ Add assignee** adds more rows. A task with two assignees pays the bounty **twice**, once to each. Each wallet can be assigned once, and a task can have at most 20 assignees.
+- **Budget month** or **Budget quarter** — which budget this task's payout counts against, in the unit the workgroup is budgeted in. Defaults to the current period and is recorded on-chain. See [Budgets](/docs/budgets#budget-period).
+- **Bounty** — one row per token: pick **ADA** or any token the workgroup's payment wallet holds (every community treasury when it is set to **Any wallet**), or **Custom…** to type a ticker that will be matched to a treasury token at payout. Amounts are in display units (for example `150` ADA, not lovelace); ADA allows at most 6 decimal places; a ticker can appear only once. **+ Add token** adds a row.
+- **Archive task**, **Cancel**, **Save**.
+
+Once a task is queued in a payout or paid, its assignees are locked: **Save** is refused ("Assignees are locked once a payout has been queued or paid"). A paid task shows "Paid in tx …" with a link to the explorer.
+
+An [AI assistant](/docs/ai-assistants#preparing-tasks-calls-and-payouts) you connected with the **tasks:write** permission can create a task on an app board you manage, or edit the title, description, bounty or budget month of one that is not payable yet, after showing you the change and you confirm. It never moves a task between columns or makes it payable.
+
+### Imported tasks
+
+A task created by [importing an on-chain payout](/docs/treasury#importing-on-chain-payouts) sits in the **Paid** column with an **Imported** badge. Titles and descriptions are not written on-chain, so it is called **Imported task #N**; open it to give it its real **Title** and click **Save title** (the rest of a paid task stays as it was paid). It keeps the task number the on-chain record names. When that number already belonged to another task and an admin imported it under a new one, the badge reads **Imported, on-chain #N**. Task numbers continue after the highest one in use, so keeping an on-chain number can leave a gap.
+
+### Archived tasks
+
+**Archive task** removes a task from the board and from Payday while keeping its details and payment history. A task with a pending payout must be resolved first.
+
+The **Archived tasks (n)** button switches the board to the archive list. **Manage** on an archived task lets you **Restore task** (back to its previous column and payment status; if it was payable it reappears on Payday) or, when it has no payment history, **Delete task…** permanently after typing its exact title. Tasks that were paid or reconciled cannot be deleted.
+
+## GitHub boards
+
+A workgroup of kind **GitHub project** shows the linked project board live, column for column, with every item. Items that match the import rule (payable label **and** import column, see [GitHub integration](/docs/github)) are the ones that exist as tasks in Guild Vault; they show bounty amounts and assignee wallets. Tasks created in Guild Vault (tasks from before the repository was linked, `Call: …` attendance tasks, imported tasks) have no project item, so they are listed under **Created in Guild Vault** below the project columns; managers open them from there like any other card, and they are paid from Payday as usual. **Archived tasks** lists the workgroup's archived tasks on a GitHub board too.
+
+GitHub tasks are mirror data:
+
+- Title, description and amounts are managed on GitHub and overwritten by the sync. Editing them in Guild Vault is not possible.
+- GitHub assignees are managed on GitHub too. In the task dialog you set each GitHub assignee's **payout wallet** (it is filled in automatically when they have linked their GitHub account, and shows **Not linked** otherwise), and you can add extra **manual assignees** that the sync never touches.
+- Budget month is editable in Guild Vault.
+- There is no **Archive task** for GitHub tasks: remove the label or move the issue out of the import column on GitHub and the sync removes the task (unless it is settled or has payout rows, see [Which issues become tasks](/docs/github#which-issues-become-tasks)).
+- After payment, Guild Vault moves the issue to the repository's **Paid status** column (see [GitHub integration](/docs/github#what-happens-after-payment)) when the project has a column of that name; the task stays and keeps mirroring the issue.
+
+## Task lifecycle at a glance
+
+| Pay state | Meaning |
+|---|---|
+| none | Ordinary task, not payable yet. |
+| **payable** | In the Audited column (app board) or labelled and in the import column (GitHub). Shown on Payday. |
+| **queued** | Included in a payout transaction that is waiting for signatures. |
+| **paid** | The payout transaction is confirmed on-chain. The task sits in the Paid column (app board) or the Paid status (GitHub). |
+| **reconciled** | A refund for this payout was matched on the Incoming page. Stays in the Paid column. |
+
+Queued, paid and reconciled tasks are *settled*: their amounts are never re-read from GitHub, they are never removed by the sync, and they cannot be paid again.

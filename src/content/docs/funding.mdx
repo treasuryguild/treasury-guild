@@ -1,0 +1,52 @@
+Some communities are funded from outside: a large treasury that releases an allocation to several communities every month, [Project Catalyst](https://projectcatalyst.io) paying approved proposals, a sponsor. **Funding sources** records what each of them committed and compares it with what actually arrived in your treasuries, so you can see whether a funder is on plan, behind or ahead, and what is still to come.
+
+It is an overview, not a wallet: the money still arrives in your own treasuries as ordinary [inflows](/docs/reconciliation), and nothing new is read from the chain. An admin ties each inflow to its source.
+
+## The Funding page
+
+**Funding** (community sidebar) lists every funding source with its totals per token:
+
+- **Planned** — everything the source committed. A recurring commitment without an end date reads **Open-ended**.
+- **Due so far** — what should have arrived by now: one-off amounts whose expected month has come (or that have none), and every period of a recurring commitment or schedule up to the current one.
+- **Received** — the inflows tied to the source.
+- **Against the plan** — received minus due: **On plan**, an amount **over** (it arrived early or was more), or an amount **under** (it is late or was less).
+- **Still to receive** — planned minus received (**Nothing** once received reaches planned).
+
+Below the totals each **commitment** shows the same figures. **Periods** opens a recurring commitment or schedule month by month (or quarter by quarter): what was planned, what arrived in that period, and the running total against the plan. A release that comes a month late shows as under in the month it was due and back on plan when it arrives. Inflows tied to the source but to no commitment are listed as **Received without a commitment**, and **Show received inflows** lists every inflow behind the received amounts.
+
+Everyone in the community can see the page; only admins change it.
+
+## Funding sources and commitments
+
+Admins click **Add funding source** and give it a name (for example "Project Catalyst" or the treasury that funds you), an optional description and a link. **Edit** changes them; **Delete** removes the source and its commitments after you type its name. The inflows tied to it stay in your treasuries and are only untied.
+
+**Add commitment** records what a source promised. A commitment can plan several tokens, and is one of three kinds:
+
+- **One-off amount** — a single total, for example an approved Catalyst proposal of 50,000 ADA. **Expected in** is optional: until that month nothing is due.
+- **Recurring amount** — the same amount every month or quarter, from a **first period** to an optional **last period**.
+- **Schedule** — a different amount each period, for example a release plan that shrinks every month. After adding it, the schedule editor opens to load its periods.
+
+Amounts are entered in whole units with a dot for decimals (`20000`, `211800.72389063`). Choose the token from ADA, your payout tokens and the tokens your treasuries hold, or pick **Other token…** and enter its unit (policy id followed by the asset name, in hex), which is checked against the chain. Amounts are stored exactly, never rounded: more decimals than a token has are refused. **Edit** changes a commitment's name, dates, amounts, link and note (its kind and cadence stay); **Remove** deletes it, and its inflows stay tied to the source.
+
+## Loading a schedule from a CSV
+
+**Import CSV** on a funding source starts a new schedule commitment from a funder's release plan: name it, choose monthly or quarterly, and click **Add and import periods**. **Schedule** on an existing schedule opens the same editor. Choose the CSV file, or paste it:
+
+```
+month,sc_allocation,ambassador_allocation
+2021-07-01,225000,75000
+2021-08-01,221625,73875
+2021-09-01,218300.625,72766.875
+```
+
+1. **Date column** — the column holding each release's date, written `2021-07`, `2021-07-01` or `01.07.2021` (a day inside the month is fine). A column named month, date, period, release, release date, release month, month start or start, or whose every cell is a date, is chosen for you. If the file has no dates, choose **No date column** and the month of the **first row**: the rows are then consecutive months (or quarters) in file order.
+2. **Amount columns** — for each other column, the token it is paid in, or **Skip this column**. A funder's plan often lists several communities side by side: map yours and skip the others. Columns can be different tokens (for example one GVTT and one ADA column); a column whose name contains exactly one known ticker (`signius_ada`) is mapped to it for you (when two columns name the same ticker, you choose).
+3. **Preview** — the first periods with their amounts, how many periods from when to when, and the total per token. Problems are listed by line: a date that cannot be read, a month given twice, an amount with a comma, more decimals than the token has, two columns mapped to the same token, or, for a quarterly schedule, a month that does not start a quarter.
+
+**Use these amounts** fills the periods: the mapped tokens' earlier amounts are replaced, other tokens stay. You can then change, add or remove single periods, and **Download CSV** exports the schedule. **Save schedule** saves every period at once.
+
+## Tying inflows to a source
+
+On [Incoming & reconciliation](/docs/reconciliation#classifying-an-inflow), an admin opens **Details** on an inflow, picks the **Funding source** and, optionally, the **Commitment** it pays, and saves. The whole inflow counts as received, every token in it, in the period of the day it arrived. A transfer between the community's own wallets cannot be tied to a source, and an inflow later recognised as such a transfer loses its tag.
+
+On the [Dashboard](/docs/budgets#dashboard), the Funding flow draws a tagged inflow from its source by name, instead of from Contributions, Revenue or the other income kinds. A refund stays a refund: it never counts as income, tagged or not.

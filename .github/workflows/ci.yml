@@ -1,0 +1,86 @@
+# Runs on every pull request into main: typecheck, lint and the vitest unit
+# tests, plus the SQL fixtures in supabase/tests against a throwaway Postgres
+# (what scripts/seed-tests.ps1 does locally). Needs no secrets and never
+# touches the Supabase project.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # next-env.d.ts and .next/types are generated (and gitignored); tsc
+      # includes them, so create them without a full build.
+      - name: Generate Next.js types
+        run: npx next typegen
+
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+  sql-fixtures:
+    name: SQL fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Same image scripts/seed-tests.ps1 uses.
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      PGPASSWORD: test
+      DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install psql
+        run: command -v psql || (sudo apt-get update && sudo apt-get install -y postgresql-client)
+
+      # Each fixture builds the schema from the migrations, asserts and rolls
+      # back, so one database serves them all. Negative cases print ERROR
+      # lines on purpose; the exit code decides.
+      - name: Run supabase/tests/*.sql
+        run: |
+          failed=()
+          for t in supabase/tests/*.sql; do
+            echo "::group::$(basename "$t")"
+            if ! psql "$DATABASE_URL" -X -q -v ON_ERROR_STOP=1 -f "$t"; then
+              failed+=("$(basename "$t")")
+            fi
+            echo "::endgroup::"
+          done
+          if [ ${#failed[@]} -gt 0 ]; then
+            echo "::error::Failed SQL fixtures: ${failed[*]}"
+            exit 1
+          fi
+          echo "All SQL fixtures passed."

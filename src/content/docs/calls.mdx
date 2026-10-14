@@ -1,0 +1,149 @@
+**Calls** (community sidebar) rewards people for attending a community call, on Discord, Zoom, Google Meet or anywhere else. You create the call with a reward per attendee, collect who was there, and turn the list into a payable task. From there it is an ordinary payout: the task shows up on [Payday](/docs/payday), is paid from the workgroup's wallet and counts against the workgroup's budget.
+
+## Creating a call
+
+**New call** is shown to community admins and to workgroup leads (for the workgroups they lead). A call has:
+
+- **Title** and **platform**. Check-in works the same on every platform; a **Discord** call can also be [captured from its voice channel](#capturing-discord-voice-calls) and a **Zoom** or **Google Meet** call from the meeting itself ([Zoom](#capturing-zoom-meetings), [Meet](#capturing-google-meet-calls)).
+- **Workgroup**, which decides who manages the call, which [budget](/docs/budgets) the reward counts against and which treasury pays it. It cannot be changed afterwards.
+- **Starts** and **length**, which set when check-in is open.
+- **Reward per attendee**, one or more tokens by ticker (5 ADA, 10 GVTT). Every rewarded attendee receives the **full** amount, so 12 attendees at 5 ADA cost 60 ADA.
+
+Create the call before it starts, so the check-in code is ready to share.
+
+## Checking in
+
+Check-in is how attendees put themselves on the list with the right wallet, without anyone matching names afterwards.
+
+1. On the call's page, a manager presses **Create check-in code** and shares the **link** (or reads out the six-character **code**) in the call.
+2. Each attendee opens the link while signed in to Guild Vault and presses **Check in**. Their attendance is recorded for the wallet they are signed in with, and that wallet receives the reward.
+
+Check-in is open from 15 minutes before the start until the call ends. **New code** replaces the code at once (the old link stops working) and **Close check-in** removes it.
+
+<Callout title="The code is an invite">
+Anyone signed in who has the code can check in, including people who are not members yet: checking in joins them to the community as a member, which is what lets them see their reward. Share the code in the call, not in a public channel.
+</Callout>
+
+A wallet can be on a call's list only once, however it got there, so nobody is rewarded twice for one call.
+
+## Connecting a Discord server
+
+An admin connects the community's Discord server once, on **Call capture** in the community sidebar. **Connect Discord server** opens Discord, where you pick a server you manage and add the Guild Vault bot to it. The bot asks for one permission, **View Channels**. It never joins a call, listens, speaks or posts; it only reads who is in a voice channel.
+
+- The server you picked in Discord is the one that gets connected. One server per community; **Change server** repeats the step with another one.
+- A **private voice channel** is captured only if the bot's role is allowed to view it. Give the role access in the channel's permissions, or the channel is not offered when creating a call.
+- **Disconnect** stops capture and takes the bot out of the server (unless another community uses the same server). Attendees already captured stay on their calls.
+- Connecting a different server replaces the old one, and the bot leaves the old server under the same rule.
+- If you add the bot on Discord but the connection is never finished (the tab was closed, or Guild Vault refused it), the bot leaves that server by itself, within about an hour.
+
+## Capturing Discord voice calls
+
+With a server connected, creating or editing a Discord call offers two more fields:
+
+- **Voice channel**: the channel the call happens in. Leave it on **Not captured** to rely on check-in alone.
+- **Minimum snapshots**: how often someone must be seen to be rewarded (see below).
+
+While the call runs (from its start to its end), a **snapshot** of the channel is taken every 5 minutes: everyone in it at that moment is put on the attendee list, bots excepted. **Capture now** on the call's page takes one on the spot, from 15 minutes before the start, for example when everyone has just arrived. Snapshots cannot be taken faster than one every 30 seconds.
+
+Each person's row shows how many snapshots they were seen in. A captured attendee is rewarded once they were seen in **Minimum snapshots** of them: with a one hour call (about 12 snapshots) and a minimum of 6, someone needs to be around for roughly half of it. Below that the row reads **Below threshold**; a manager can still press **Confirm** to reward them anyway, or **Exclude** anyone.
+
+Who gets a wallet automatically:
+
+- People who [linked their Discord account](/docs/profile#linking-discord-and-google-accounts) on their Profile page arrive with their wallet, and join the community as members if they were not yet. Someone who links later gets their wallet on every open call they were captured in as soon as they link.
+- Someone who also **checked in** keeps a single row: their presence is counted on it.
+- Everyone else shows up under their Discord name with **No wallet**. Link them by hand, or ask them to link their Discord account.
+
+Members see the names on the list, never anyone's Discord account id.
+
+## Capturing Zoom meetings
+
+An admin connects the Zoom account that **hosts** the community's calls, once, under **Zoom account** on the **Call capture** page. Zoom only reports on meetings that account hosts, so run your rewarded calls from one shared account. **Disconnect** deletes the stored access; removing the app inside Zoom does the same.
+
+Creating or editing a Zoom call then offers:
+
+- **Meeting ID**: the 9 to 11 digit id of the meeting (spaces are fine). Leave it empty to rely on check-in. A recurring meeting or personal room reuses its id; Guild Vault takes the meeting that happens around the call's start and end.
+- **Minimum minutes**: how long someone must be present, between the call's start and end, to be rewarded.
+
+While the meeting runs, people appear on the attendee list as they join, with their minutes so far. Time before the start and after the end does not count, leaving and rejoining adds up, and nobody's minutes are counted twice. About 10 minutes after the call ends, Zoom's participant report is read and the minutes become final; the call's page says when that happened.
+
+### Linked meetings
+
+Most community calls are one recurring meeting, or a personal room, with an id that never changes. An admin can link that meeting to its workgroup once, under **Linked meetings** on the **Call capture** page: the **platform** (Zoom or Google Meet, whichever accounts are connected), the Zoom **Meeting ID** or the **Meet code or link**, the **workgroup** whose budget and wallet pay, a **call title**, the **reward per attendee**, the **minimum minutes** and the meeting's **usual length**.
+
+From then on nobody has to create the call. When the first person joins a linked Zoom meeting, a call creates itself in that workgroup with the link's title, reward and threshold, and fills up as people join. It starts when the meeting started; it ends after the usual length, moves out when people are still leaving later, and takes the real end once Zoom reports the meeting over. The call is marked **Linked meeting** on the Calls page and is an ordinary call from there on: edit it, link wallets, and create the attendance task whenever you like, the same day or at the end of the month.
+
+A linked Google Meet meeting works the same way, a little later: Google sends no notifications, so Guild Vault looks every 5 minutes for a new meeting under the linked code, and the call appears within about 5 minutes of the meeting starting, with everyone who was already there. Its end moves out while the meeting keeps running and becomes Google's end time once the meeting is over. A meeting that was over before anyone looked still gets its call, as long as it ended within the last hour. The connected Google account has to be the one that created the meeting.
+
+Editing a link changes the calls it creates next; removing it only stops new ones. A link in an archived workgroup is paused and cannot be edited or removed, and the workgroup's calls cannot be changed either ("Restore this workgroup before making changes"); restore the workgroup first. If you delete a call while its meeting is still running (for Google Meet: or ended less than an hour ago), it creates itself again.
+
+### Detected meetings
+
+A Zoom meeting you did not link and did not list is not lost straight away. Joins and leaves from the connected account's other meetings are kept until the cleanup job removes entries older than a day, and admins and workgroup leads see those meetings under **Detected meetings** at the top of the Calls page: the topic, when it started, the meeting id and how many people joined. Members never see this list, and it shows no names.
+
+**Create call** opens the usual form with the platform, title, meeting ID and the meeting's real start and length filled in. Choose the workgroup and the reward, and everyone who was already in the meeting appears on the list as soon as the call is saved. The same happens when you create a call by hand after its meeting started, or add the meeting ID later. Minutes still count only between the call's start and end, so keep those to when the meeting really ran.
+
+The background cleanup removes unclaimed attendance older than a day on its next successful run. A call that exists is never removed, so only the listing has to happen within the day; reviewing and rewarding can wait.
+
+<Callout title="The report needs a paid Zoom plan">
+On a free Zoom plan the report is not available. The live join and leave events still count, but if Zoom fails to deliver a "left" event, that person's minutes run to the end of the call. Check the list before rewarding.
+</Callout>
+
+Zoom attendees are mostly guests, known only by the name they typed. A name that matches exactly one member's handle or GitHub username, or a name you linked before with **Remember this name**, arrives with that wallet. Everyone else shows **No wallet** until you link them. A typed name proves little, so review the list; someone who also **checked in** keeps a single row.
+
+## Capturing Google Meet calls
+
+An admin connects the Google account that **creates** the community's Meet calls, once, under **Google Meet account** on the **Call capture** page. Google asks for one Meet permission, read access to the account's Meet conferences, which Guild Vault uses only to read who attended and when; tick it, or the connection is refused. Guild Vault reads no audio, video, chat, recordings, transcripts or calendar. Meet only reports a meeting to the account that created it, so create your rewarded calls from this one shared account. **Disconnect** deletes the stored access and revokes it at Google; connecting a different Google account does the same for the old one. Access is not revoked while another community is still connected to the same Google account, because revoking would cut that community off too.
+
+This is separate from the **Google account** link on your own Profile page, which only tells communities which Google account is yours.
+
+Creating or editing a Meet call then offers:
+
+- **Meet link or code**: paste the meeting link, or its code (`abc-mnop-xyz`). Leave it empty to rely on check-in. A recurring meeting reuses its code; Guild Vault takes the occurrence that overlaps the call's start and end.
+- **Minimum minutes**: how long someone must be present, between the call's start and end, to be rewarded.
+
+Google sends no notifications, so the list is refreshed every 5 minutes while the call runs and read once more about 10 minutes after it ends, when the times become final. Time outside the call does not count, leaving and rejoining adds up.
+
+- People signed in to Google who [linked their Google account](/docs/profile#linking-discord-and-google-accounts) arrive with their wallet: this match is exact, not by name. Someone who links their Google account after the call gets their wallet on it as soon as they link, as long as the call is not finalized.
+- Guests and dial-in participants are names only. A name that matches one member, or one you linked before with **Remember this name**, arrives with that wallet; the rest show **No wallet**.
+- Someone who also **checked in** keeps a single row.
+
+If a call stays empty, the usual reason is that the meeting was created by a different Google account than the connected one.
+
+A recurring Meet meeting can be [linked to its workgroup](#linked-meetings) so that its calls create themselves. There are no detected meetings for Google Meet: a Meet meeting that is neither listed nor linked is never read.
+
+## The attendee list
+
+Managers can also build the list by hand:
+
+- **Add a member** puts a community member on the list with their wallet.
+- **Paste a list** takes one name per line, for example copied from the Zoom or Meet participants panel. A name that matches exactly one member's handle or GitHub username arrives linked to that member's wallet. The rest show **No wallet**.
+- **Link wallet** on a row picks the member (or any address on the community's network) behind a name; it reads **Change wallet** once the row has one. With **Remember this name** ticked, the same name is linked by itself the next time it is pasted in this community. A checked-in row keeps the wallet that checked in.
+- The bin icon on a row removes it from the list.
+
+A typed name proves nothing about who was there, so look over a pasted list before rewarding it. Each row shows where it stands:
+
+- **Ready**: has a wallet and will be on the next attendance task.
+- **No wallet**: stays on the list until someone links it.
+- **Below threshold**: captured, but seen in too few snapshots (Discord) or present for too few minutes (Zoom, Meet). **Confirm** rewards them anyway.
+- **Excluded**: a manager pressed **Exclude**; never rewarded. **Include** undoes it.
+- **Task #N**: already on an attendance task. The row is locked, because the task is now the record.
+
+## Creating the attendance tasks
+
+**Create attendance task** turns every **Ready** attendee into an assignee of a new task in the call's workgroup, named `Call: <title>, <date>`, with the reward as its bounty and already payable. On an app board it appears in the payable column; on any workgroup it is listed on [Payday](/docs/payday#what-makes-a-task-payable), where a payout pays each assignee the full reward in one transaction.
+
+- A task holds at most **20** people. A bigger call is split into evenly sized tasks (41 people become 14 + 14 + 13), numbered `(1)`, `(2)`, `(3)`.
+- Attendees without a wallet stay on the list. Link them later and press the button again: only people who are not on a task yet get a new one, so pressing it twice never pays anyone twice.
+- The call shows **Finalized** once everyone who is not excluded is on a task.
+- The task counts against the [budget](/docs/budgets) period the **call took place in** (its quarter in a quarterly workgroup), whenever you create or pay it: a September call rewarded in October is still September spending. You can change the task's budget month on the board before it is paid.
+- The reward is locked from the first task on: the call's **Edit** dialog no longer changes it, and its **Delete** button is gone, since the call stays as the tasks' record. A manager acting on a page opened before then sees "The reward is locked once attendance tasks exist" or "This call already has attendance tasks and stays as their record". If another manager changes the reward while you press the button, it is refused ("The reward changed while finalizing: reload the call and try again"); reload and press it again.
+
+The tasks are normal tasks: a manager can still edit or archive one on the board before it is paid. Deleting an unpaid attendance task frees its attendees, who become **Ready** again.
+
+## Who can manage a call
+
+Community **admins** and the **leads of the call's workgroup** create and edit calls, manage the list and create the tasks. Every member can see the community's calls and attendee lists. Paying the tasks follows the [Payday rules](/docs/payday#who-can-build-a-payout).
+
+An [AI assistant](/docs/ai-assistants#preparing-tasks-calls-and-payouts) you connected with the **tasks:write** permission can create a call or create its attendance tasks for you, after showing you a preview you confirm, with the same checks as this page.
+
+Next: [Payday](/docs/payday).

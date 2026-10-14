@@ -1,0 +1,59 @@
+**Profile & settings** (titled **Settings** on the page itself) is reached from the sidebar or by clicking the settings icon next to your address in the top bar. It is tied to the wallet you are signed in with; each wallet has its own profile.
+
+## Your wallet address
+
+The **Wallet** card shows a shortened form of the address you signed in with. This address is:
+
+- your identity across every community you belong to,
+- the address that receives your payouts when you are assigned to a task,
+- what admins use to add you to a private community.
+
+Share it with a community admin if they need to add you or make you a treasury signer.
+
+## Display handle
+
+An optional name shown to other members instead of your address, for example in member lists and in the assignee dropdown on task boards. Type a handle and click **Save**. Handles must be unique; if you see "That handle is already taken.", pick another one.
+
+You do not need a GitHub account to have a handle.
+
+## Linking a GitHub account
+
+Click **Connect GitHub** in the **GitHub account** card. GitHub asks you to authorise Guild Vault and sends you back to the page you started from. Linking does two things:
+
+- **Payouts follow you.** When a GitHub issue assigned to your username is imported as a task, its payout goes to this wallet. Open tasks already assigned to you that have no payout wallet yet are updated immediately ("Open tasks assigned to you now point at this wallet."); a wallet an admin or lead already set on a task is kept.
+- **Auto-join.** You are added as a member to every community whose boards already have tasks assigned to your username, even private ones.
+
+A GitHub account can be linked to only one wallet at a time. If you see "That GitHub account is already linked to another wallet. Disconnect it there first.", sign in with the other wallet and click **Disconnect**, then link again here.
+
+The wallet that starts the link must still be signed in when GitHub sends you back. If you close GitHub's consent screen you see "GitHub connection cancelled."; if anything else goes wrong you see "GitHub connection failed. Please try again." with a short reason code in brackets. Either way, click **Connect GitHub** again.
+
+Disconnecting removes the link but does not touch any task: tasks whose payout wallet was already filled in, paid or not, keep this wallet. New GitHub assignments to your username show **Not linked** until an account is linked again.
+
+## Linking Discord and Google accounts
+
+The **Discord account** and **Google account** cards link the accounts you join community calls with, so that a community's [call rewards](/docs/calls) reach this wallet. Click **Connect Discord** or **Connect Google**, approve, and you are sent back to the page you started from. Both are optional, and you can link one without the other.
+
+Guild Vault asks each provider for the least it offers:
+
+- **Discord**: your user id and display name. No email, messages or server list.
+- **Google**: only the account's id. No email, name, contacts or files, which is why the card shows **Linked** and a date, not a name. Pick the Google account you actually use for Meet when Google asks.
+
+Only you can see which accounts your wallet is linked to; other members and community admins cannot (see the [privacy policy](/docs/privacy)).
+
+An account can be linked to only one wallet at a time. "That Discord account is already linked to another wallet. Disconnect it there first." means exactly that: sign in with the other wallet, click **Disconnect**, then link again here. To link a different account, click **Disconnect**, then connect the other one. If you close the provider's consent screen you see "connection cancelled"; any other failure shows "connection failed" with a short reason code in brackets, and the wallet that starts the link must still be signed in when the provider sends you back.
+
+**Disconnect** deletes the link at once. Rewards already assigned or paid to this wallet are not affected.
+
+Linking is not needed for [check-in](/docs/calls#checking-in), which already records your wallet.
+
+## AI assistants
+
+The **AI assistants** card lists every assistant (such as Claude) you approved to act for this wallet in Guild Vault, with when you connected it and, once it has been used, when it was last used. **Disconnect** removes the approval: the assistant loses access on its next request. Connecting one starts from the assistant itself; see [AI assistants](/docs/ai-assistants#connecting-an-assistant).
+
+An assistant reads what you can see as a member. With a write permission you ticked, it can also prepare changes you confirm first: proposals, tasks, calls and their attendance, and payout transactions ([Preparing tasks, calls and payouts](/docs/ai-assistants#preparing-tasks-calls-and-payouts)). It can never sign, submit, pay or vote.
+
+## Signing out
+
+**Sign out** in the top bar ends the session and disconnects the wallet from the site. Your profile, memberships and roles are kept; sign in again with the same wallet to get them back.
+
+Related: [Getting started](/docs/getting-started#wallets-and-signing-in), [Members & roles](/docs/members-roles).

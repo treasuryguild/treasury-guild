@@ -1,0 +1,49 @@
+**Mint** (community sidebar) lets a community create its own native tokens or NFTs. The minting policy is the treasury's own script, [template](/docs/treasury#treasury-templates) included, so a mint is approved exactly like a payout: the signers of the chosen spending path sign it in their wallets, and on a co-signer treasury the co-signer signs a mint too.
+
+## Who can mint
+
+The form is shown to community **admins** and to **treasury signers**. Anyone else sees "Only community admins or treasury signers can mint tokens." A base signer who is not an admin can only mint from a treasury they sign for ("Only admins or signers of this treasury can mint"); recovery signers and co-signers who are not admins cannot mint. The community also needs at least one treasury ("Create a multisig treasury first — its signers become the minting policy"), and your wallet must be on the community's network.
+
+## The mint form
+
+1. **Minting treasury (policy)** — which treasury's signers authorise this mint. Treasuries you sign for are marked "(you sign)"; a community with a single treasury has it preselected.
+2. **Token type** — **Fungible token** or **NFT**.
+3. The token details (below).
+4. **Policy** — see [Open or time-locked policies](#open-or-time-locked-policies).
+5. **Send minted tokens to** — defaults to the treasury address; paste another address on the community's network to mint straight to someone else.
+6. **Spending path** — shown only when the treasury offers a choice (on a co-signer treasury, **Co-signed** by default or **Bypass (every base signer)**; see [Spending paths](/docs/treasury#spending-paths)). A lock-until treasury cannot mint before its date and says so instead. Mints never use the recovery path.
+7. **Build mint transaction** — opens the [signing page](/docs/transactions).
+
+### Fungible token
+
+| Field | Notes |
+|---|---|
+| **Asset name** | The on-chain name, at most 32 bytes, with no leading or trailing spaces. |
+| **Ticker** | Short symbol, 1 to 9 letters or digits (typed in upper case), for example `GVT`. Used to match bounties later. |
+| **Decimals** | 0 to 12. `2` means the smallest unit is one hundredth. |
+| **Total supply** | In display units, honouring the decimals; must be greater than zero. |
+| **Logo** | Required. An image (PNG, JPEG, GIF or WebP up to 10 MB; SVG is not accepted) uploaded to IPFS; its `ipfs://` URI is shown once pinned. |
+| **Description**, **Website** | Optional metadata. |
+
+### NFT
+
+Add one or more NFTs — **+ Add another NFT (same transaction)**, up to 10 per transaction — each with a **Name** (the on-chain asset name, at most 32 bytes, unique within the transaction), an optional **Description**, a required **Image** (same formats and size as the logo, uploaded to IPFS) and optional **Traits** as key/value pairs. Every NFT is minted with quantity 1 in the same transaction.
+
+## Open or time-locked policies
+
+- **Open — treasury multisig script.** The policy ID is the treasury's script hash, its template included, so a templated treasury's policy differs from a plain multisig of the same signers and the lock, recovery branch or co-signer applies to every later mint under it. The signers can mint more of the same token later, or mint further NFTs under the same policy.
+- **Time-locked — fixed supply after a date.** The policy is the treasury script **and** a deadline. Nothing can be minted under it after that date, which makes the supply provably fixed. Choose **Locks at** (at least one hour in the future) for a new locked policy, or pick an existing locked policy of this treasury that has not expired yet to add to it. A time-locked mint transaction is only valid until the lock, so the signing page shows "Valid until slot … (policy time lock)": collect the signatures before that.
+
+## Signing and confirmation
+
+The mint transaction goes through the normal [signing flow](/docs/transactions#signing): each signer of its spending path approves in their wallet, the final signature submits, and the periodic check marks it confirmed. On a co-signer treasury a co-signed mint also needs the co-signer, who signs only when the [co-signer check](/docs/transactions#the-co-signer-check) finds that the mint forges exactly the recorded assets to the recorded recipient. A mint from a lock-until treasury is valid only from the lock date. The transaction page shows a **mint preview** with the token metadata and images.
+
+Token metadata follows CIP-25 (label 721); images are pinned on IPFS. The record is keyed by the policy ID, then by each asset name, and carries the `name`, `image` and `mediaType` of every token, its `description` and website `url` when entered, the `ticker` and `decimals` of a fungible token, and any NFT traits as further keys. Expanding **On-chain CIP-25 metadata** on the transaction page shows the raw record with a **what the keys mean** legend above it.
+
+## Minted assets
+
+Below the form, **Minted assets** lists every token the community has minted with its type (**FT** or **NFT**), quantity, date, transaction state, policy lock date if any, its unit (policy id + asset name) with a copy button, and a link to its transaction. For a fungible token, **CIP-26 draft ↓** downloads a draft entry for the Cardano token registry (`<unit>.json`, with the name, description, ticker, decimals, website and logo), so wallets and explorers can show the ticker, decimals and logo. The draft is unsigned: sign it with the policy keys (token-metadata-creator) before opening a registry pull request.
+
+## Using minted tokens
+
+Once confirmed, a minted token sits in the treasury like any other asset. It is discovered automatically: use its ticker in a task's bounty and Payday will match it to the treasury's balance. See [Payday](/docs/payday#tokens).

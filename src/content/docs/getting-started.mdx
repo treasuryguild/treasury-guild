@@ -1,0 +1,78 @@
+## What Guild Vault is
+
+Guild Vault is a treasury manager for Cardano communities. It brings three things into one place:
+
+- **A shared multisig wallet** (a *treasury*) that only moves funds when enough of its signers approve.
+- **Task boards** for bounty work, either run inside the app or mirrored from GitHub issues and project boards.
+- **Payday**, which pays every finished task in one batch transaction and writes a public record of who was paid for what into the transaction itself.
+
+Around them: budgets per workgroup and treasury, and, if the community chooses, decisions, budgets, new workgroups and tasks decided by a signed vote whose results are anchored on-chain (see [Proposals & voting](/docs/governance)).
+
+A typical loop looks like this:
+
+1. A contributor finishes a task with a bounty attached.
+2. A maintainer marks it as audited (on GitHub or on the app's board). The task becomes *payable*.
+3. Someone with the right role opens **Payday**, selects the payable tasks and builds one transaction.
+4. Enough treasury signers to meet its rule (for example 2 of 3) approve it from their own wallets; on a co-signer treasury the co-signer signs too. The signature that completes the rule submits it to the chain.
+5. Once the chain confirms it, the tasks flip to *paid* and move to the board's **Paid** column, GitHub issues get a comment with the transaction hash and a `paid` label and move to the project's Paid column, and anyone can verify the payout from the on-chain metadata.
+
+Everything in the app is organised under a **community**. Communities have members, one or more treasuries, and workgroups with their own boards and budgets.
+
+## Wallets and signing in
+
+There are no usernames or passwords. Your Cardano wallet is your identity and your payout address.
+
+You need a browser wallet that supports the CIP-30 standard, such as **Eternl** or **Lace**. If the **Connect wallet** menu says "No CIP-30 wallets found. Install Eternl or Lace.", install one of them as a browser extension and reload the page.
+
+To sign in:
+
+1. Click **Connect wallet** in the top bar and pick your wallet.
+2. Your wallet asks you to sign a short message. This proves you control the address. It costs nothing and moves no funds. Sign within 5 minutes; after that the message expires and you start again.
+3. You are now signed in. The top bar shows a settings icon (with a short version of your address on wide screens); click it to open your [profile](/docs/profile).
+
+If the automatic sign-in was declined or failed, the top bar shows **Sign in with (wallet name)**. Click it to try again. **Sign out** ends the session and disconnects the wallet.
+
+Your session and wallet connection are remembered across page reloads; a session lasts seven days before you need to sign in again. If the wallet could not be reconnected automatically (for example it was locked, or you declined the prompt), you stay signed in but the top bar shows **Reconnect wallet**. Signing a transaction needs the wallet, so click it and pick your wallet again; there is no need to sign out.
+
+### Switching accounts
+
+Your session belongs to the address that signed in, so changing the account inside your wallet extension does not change who you are signed in as. After you switch accounts, reload the page: the top bar shows **Switch account to (new address)**. Click it and sign the short message again to sign in as the new account. Until you do, the Sign button on transactions is disabled, because a signature from the other account would be rejected.
+
+<Callout title="Signing a message is not a transaction">
+Signing in never spends ADA and never asks your wallet to approve a transaction. The only time you approve a transaction is when you [sign a payout, payment or mint](/docs/transactions).
+</Callout>
+
+## Networks: mainnet and preprod
+
+Cardano has a production network (**mainnet**, real ADA) and test networks. Guild Vault supports mainnet and the **preprod** testnet.
+
+- Every community is created on one network and stays there forever. Its treasuries, payouts and mints all live on that network.
+- Preprod communities show a yellow **Preprod** badge and an amber strip under the top bar reminding you that nothing there has real value.
+- Your wallet must be set to the same network as the community you are working in. If it is not, a red alert appears under the top bar ("Your wallet is on preprod, but this community runs on mainnet…") and signing, building payouts and payments, minting, and creating or importing a treasury are disabled until you switch the account in your wallet.
+
+Use a preprod community to try the platform with test ADA before running a real one.
+
+## Home
+
+The **Home** page (**Home** in the sidebar) depends on whether you are signed in:
+
+- **Signed out:** a short introduction with links to browse public communities and to these docs.
+- **Signed in:** **Your communities**, one card per community you belong to. From here you can **Browse communities** or create a **New community**.
+
+## The welcome page
+
+The first time a new wallet signs in, Guild Vault opens the **Welcome** page. A wallet Guild Vault already knew (for example, added to a community or assigned to a task before it ever signed in) is not redirected; open `/welcome` yourself. It has two optional steps and a directory:
+
+1. **GitHub account** — link your GitHub account so tasks assigned to you on GitHub are paid to this wallet, and so you automatically join communities that already have tasks assigned to you. See [Profile & settings](/docs/profile#linking-a-github-account).
+2. **Display handle** — a short name shown to other members instead of your address.
+3. **Communities** — the same directory as **Discover**: join public communities, or see the private ones you were added to.
+
+You can come back to it any time at `/welcome`. If you do not use GitHub, skip that step; a community admin can add your wallet directly. **Go to dashboard** at the bottom takes you to Home, and **Read the getting started guide** opens this page.
+
+## Finding your way around
+
+- **Sidebar** — always shows Home, Discover, New community, Profile & settings and Docs. When you are inside a community, a second section lists that community's pages: Overview, Treasury, Budgets, Dashboard, Proposals, Payday, Payments, Calls, Mint, Incoming, Funding, GitHub, Call capture, Governance and Members. On desktop the sidebar can be collapsed; on phones it opens from the menu button.
+- **Top bar** — the current page's name, a **?** help icon that opens the documentation page for the screen you are on, and the wallet controls.
+- **Community pages** you cannot use yet show a short message instead: "Members only." means you need to join first, "Admin access required." means the page is for community admins. Some actions depend on a role: owner, admin, member, workgroup lead, or a treasury's base signer, recovery signer or co-signer. See [Members & roles](/docs/members-roles).
+
+Next: set up your [profile](/docs/profile), then find or create a [community](/docs/communities).

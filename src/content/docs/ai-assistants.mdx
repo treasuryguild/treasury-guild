@@ -1,0 +1,128 @@
+An AI assistant such as Claude can read Guild Vault for you: which communities you belong to, what their treasuries hold, which tasks are waiting to be paid, and how spending compares with the budget. If you allow it, it can also prepare changes for you to confirm: [proposals](/docs/governance), tasks and calls, and payouts for the signers to sign. You connect it once, approve it with your wallet, and can disconnect it at any time.
+
+<Callout title="Assistants cannot vote, sign or pay">
+Nothing an assistant does through Guild Vault can sign a transaction, pay anyone or vote. Every change goes through a preview, needs a permission you ticked, and the assistant is instructed to carry it out only after you agree to that preview in the conversation. A payout it prepares is only a draft transaction: the treasury's signers still sign it in the app with their wallets, and nothing is paid until they do.
+</Callout>
+
+## Connecting an assistant
+
+Guild Vault is a remote MCP server (Model Context Protocol, the standard AI assistants use to reach other apps). Its address is your Guild Vault address followed by `/api/mcp`, for example `https://guild-vault.example/api/mcp`.
+
+- **Claude (web and desktop)**: open **Settings → Connectors**, choose **Add custom connector**, give it a name such as "Guild Vault" and paste the address. Claude opens Guild Vault so you can approve it.
+- **Claude Code**: run `claude mcp add --transport http guild-vault https://guild-vault.example/api/mcp`, then `/mcp` inside Claude Code to sign in.
+- **Other assistants**: any client that supports remote MCP servers with OAuth sign-in works the same way; point it at the address above.
+
+There is no key to copy or paste. The assistant finds Guild Vault's sign-in page on its own and sends you there.
+
+## Approving a connection
+
+The assistant opens the **Connect an AI assistant** page in your browser.
+
+1. Sign in with your wallet if you are not already. The connection acts for the wallet you sign in with, and sees only the communities that wallet belongs to.
+2. Check who is asking. An assistant that publishes its identity shows **Identified by** and its domain (for example claude.ai). Otherwise the page says the name is **self-declared**: anyone can register an assistant under any name, so check that the address you return to belongs to the assistant you are connecting. Only approve an assistant you started connecting yourself.
+3. Choose the permissions and click **Approve**. **communities:read** is ticked for you. The others let the assistant prepare changes you confirm, and start unticked: tick only the ones you want.
+   - **proposals:write**: make proposals, and withdraw your own.
+   - **tasks:write**: create and edit tasks on app boards you manage, create calls and pay their attendance into tasks.
+   - **payouts:write**: prepare payout transactions for tasks ready to pay.
+
+   **Deny** sends the assistant away with nothing.
+
+You are then sent back to the assistant, which can start answering questions right away. If the page says the request is invalid or has expired, start connecting again from the assistant: a request is valid for ten minutes. If Guild Vault sees signs that an assistant's sign-in was copied and reused, it ends that connection at once; connect it again from the assistant. To add a permission later, disconnect the assistant and connect it again.
+
+## What an assistant can read
+
+With the **communities:read** permission an assistant can:
+
+- list your communities and your role in each,
+- list the transactions waiting for your signature, across all your communities: on which treasury, how many signatures they have and need, whether you already signed or rejected them, and whether they are ready to submit,
+- show each treasury's [template](/docs/treasury#treasury-templates) and lock date, its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
+- list transactions (payouts, payments and transfers, mints and anchors) with their treasury, state, on-chain hash, signatures and any budget problems found when they were built,
+- show one transaction in detail: who has signed and who still needs to, every payout or payment line (task, recipient, token, amount), minted tokens, the fee, the Guild Vault record it carries on chain and the co-signer's decisions. Ask it to check a transaction before you sign it in the app,
+- list what arrived in the treasuries: amounts, the sending treasury of a transfer, the type and whether it waits for review on the Incoming page,
+- show [funding sources](/docs/funding): what each funder committed, what has arrived and what is still due,
+- list workgroups with their description, leads and the treasury that pays them,
+- list members with their name, role, wallet, GitHub login and the workgroups they lead, as members see them in the app (never linked Discord or Google accounts),
+- list tasks with their reward, assignees, board column and payment state, including which ones are ready to pay,
+- list [calls](/docs/calls) with their reward and how their attendees stand, and one call's attendee list (names, minutes, status, the task that paid them; never the platform account ids),
+- compare budgets with spending for a month, a quarter or the recurring plan, and show recent spending,
+- list [proposals](/docs/governance): what each would change, how it is decided, turnout and deadlines, the result once voting closed and whether it was carried out, your own vote and whether you can vote now, and its on-chain evidence: the content, rules and voter-list fingerprints every ballot signs, the hash of the frozen signed tally, and the transaction hashes of its confirmed [anchors](/docs/governance#on-chain-anchors),
+- show one proposal in detail: its full text, its timeline, and every ballot with its reason once ballots are visible.
+
+An assistant cannot vote for you: a ballot needs your wallet's signature in the app. While voting runs it sees only turnout, as you do on a proposal whose ballots are hidden.
+
+It sees what you would see as a member of those communities, nothing more. Answers link back to the matching page in the app.
+
+Task titles, names and descriptions come from community members. A good assistant treats them as data, but read its answers with that in mind.
+
+## Making proposals
+
+With the **proposals:write** permission an assistant can make a proposal in your name:
+
+- a **decision** put to a vote,
+- a **task** with a bounty on an app board,
+- a **new workgroup**, its leads named the way the member list shows them (a name, an @GitHub login or a full wallet address; a member listed only by a shortened address is named by their full wallet; if a name fits more than one member, the assistant asks you which),
+- **budget changes** while [budget consent](/docs/governance#budget-consent) is on: for a workgroup or a treasury, either recurring amounts from a month on, or one month or quarter, in ADA or a token the community knows or the treasury holds. The amounts are what the Budgets page would have saved, and a change of a budget's setup (recurring or one period, monthly or quarterly) is marked as such in the preview.
+
+It always takes two steps:
+
+1. The assistant runs every check the app's own **New proposal** form runs, creates nothing, and shows you a **preview**: the title and text, what passing it would change, who votes and how it is decided, and when voting would open and close.
+2. Only after you say yes does it create the proposal. The preview is valid for 15 minutes and only for that assistant connection. If the community's proposal rules or anything else the proposal depends on changed in between (for a budget, someone else saving that budget), the assistant has to show you a new preview. Confirming the same preview again, even at the same moment, never makes a second proposal: it answers with the one already made.
+
+The proposal is then like any other: every member can read it, it may be announced on Discord, and its fingerprints go on the Cardano chain ([on-chain anchors](/docs/governance#on-chain-anchors)). The assistant can also **withdraw** one of your proposals while it is in discussion, again after showing you what that does. It cannot vote on it, or on anything else: a ballot needs your wallet's signature in the app. You can make at most 10 proposals an hour, in the app and through assistants together.
+
+Only confirm a preview you asked for. If an assistant suggests a proposal because of something it read, such as a task description, check what it says before you agree.
+
+## Preparing tasks, calls and payouts
+
+Every other change works the same way: the assistant shows you a **preview** first, made with the same checks as the app's own page, and carries it out only after you agree. A preview is valid for 15 minutes and only for that assistant connection; if anything it depends on changed in between, the assistant has to show you a new one, and confirming the same preview twice does it once.
+
+With **tasks:write**, on workgroups you lead (or any, as an admin):
+
+- **create a task** on an app board, with its description, reward per assignee and budget month. It starts in the board's first column, not payable: the leads move it on as usual,
+- **edit a task** that is not payable yet: its title, description, reward or budget month. The preview shows before and after. A task that is payable or past it (queued, paid, reconciled), an archived task and a task from a GitHub board are changed only in the app (or on GitHub), and an edit never moves a task to another column,
+- **create a [call](/docs/calls)** with its platform, times, reward and the channel or meeting attendance is read from,
+- **pay a call's attendance**: the preview lists who qualifies, the reward each gets and the attendance tasks it creates. Those tasks are created payable, ready for the next payout, and the call's reward is locked from then on. Attendees without a linked wallet stay on the list for a later payment. Confirming it again once everyone it paid has a task answers that nothing is left to pay, without listing the tasks again; if more attendees qualified in between, the assistant shows you a new preview.
+
+With **payouts:write**, as a signer, admin, or lead of every workgroup concerned:
+
+- **prepare a payout** of tasks ready to pay, the ones you name or all of them, from the treasury their workgroups are paid from. The preview shows each recipient and amount, the totals, how many signatures it needs and any problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) finds. Confirming creates the treasury's pending transaction, as **Build payout** on [Payday](/docs/payday) does: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected. Tokens a bounty names that Payday would ask you to connect by hand are left to Payday.
+
+Nothing is paid until the treasury's signers sign the transaction in the app with their wallets.
+
+## Disconnecting
+
+Every approved assistant is listed under **AI assistants** on the **Settings** page ([Profile & settings](/docs/profile#ai-assistants)), with when you connected it and when it was last used. **Disconnect** removes the approval: the assistant loses access on its next request, and has to be approved again to come back.
+
+## For developers: the REST API
+
+The same reads and writes are plain HTTP endpoints, returning the JSON the assistant tools return:
+
+| Endpoint | What it returns |
+|---|---|
+| `GET /api/v1/me` | The wallet, client and permissions of the request |
+| `GET /api/v1/communities` | Your communities and roles |
+| `GET /api/v1/me/signing-queue` | Pending transactions, in all your communities, that your signature counts on |
+| `GET /api/v1/communities/{slug}/treasuries` | Treasuries, balances (`?balances=false` skips the chain) and pending transactions |
+| `GET /api/v1/communities/{slug}/transactions` | Transactions; filters `treasury`, `kind`, `state`, `limit` |
+| `GET /api/v1/communities/{slug}/transactions/{id or hash}` | One transaction: signatures, what it pays, its on-chain record |
+| `GET /api/v1/communities/{slug}/incoming` | Inflows to the treasuries, newest first; `limit` |
+| `GET /api/v1/communities/{slug}/funding` | Funding sources, planned against received |
+| `GET /api/v1/communities/{slug}/workgroups` | Workgroups, leads and paying treasury; `includeArchived` |
+| `GET /api/v1/communities/{slug}/members` | Members, roles, wallets and the workgroups they lead |
+| `GET /api/v1/communities/{slug}/tasks` | Tasks; filters `workgroup`, `payState`, `includeArchived`, `limit` |
+| `GET /api/v1/communities/{slug}/calls` | Calls and their attendees by standing; `state`, `call` (an id, for its attendees), `limit` |
+| `GET /api/v1/communities/{slug}/budgets` | Budget against spending; `month=YYYY-MM`, `view=month`, `quarter` or `recurring` |
+| `GET /api/v1/communities/{slug}/proposals` | Proposals; `state=open`, `closed` or `all`, `limit` |
+| `GET /api/v1/communities/{slug}/proposals/{number}` | One proposal: full text, timeline, ballots once visible, frozen tally |
+| `POST /api/v1/communities/{slug}/proposals/preview` | Checks a proposal (JSON body: `kind`, `title`, `body`, optional `discussionUrl`, and `task` (with `assignSelf`), `workgroup` or `budget.changes`) and returns the preview and a `draftToken`; creates nothing |
+| `POST /api/v1/communities/{slug}/proposals/create` | Creates the previewed proposal from `{ "draftToken": "…" }` (an optional `community` must be the previewed one); repeating it answers with the same proposal |
+| `POST /api/v1/communities/{slug}/proposals/withdraw/preview` | Previews withdrawing your proposal `{ "proposal": N }` |
+| `POST /api/v1/communities/{slug}/tasks/preview` | Previews creating (`workgroup`, `title`) or editing (`task`) a task; optional `body`, `reward` (ticker → amount), `budgetMonth` (`YYYY-MM`), `null` clears one |
+| `POST /api/v1/communities/{slug}/calls/preview` | Previews creating a call (`workgroup`, `provider`, `title`, `startsAt`, `endsAt`, `reward`; optional `meeting`, `minSnapshots`, `minMinutes`) |
+| `POST /api/v1/communities/{slug}/calls/finalize/preview` | Previews paying a call's attendance `{ "call": id }` |
+| `POST /api/v1/communities/{slug}/payouts/preview` | Previews a payout (`tasks`, `treasury`, `workgroup`, all optional) |
+| `POST /api/v1/drafts/confirm` | Carries out any preview, a proposal's included, from `{ "draftToken": "…" }` (an optional `community` must be the previewed one); repeating it does the change once and answers `created: false` |
+
+A request authenticates with `Authorization: Bearer <access token>` from Guild Vault's OAuth sign-in (the flow an assistant runs), or with your browser session when you open the URL while signed in (a write then refuses a request sent from another site). Amounts are exact decimal strings in display units (ADA, not lovelace). Requests are rate limited per wallet.
+
+Related: [Profile & settings](/docs/profile), [Privacy policy](/docs/privacy#what-guild-vault-stores).

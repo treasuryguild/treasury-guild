@@ -1,0 +1,40 @@
+**Incoming** (community sidebar, titled **Incoming & reconciliation**) lists everything that arrives at the community's treasuries and lets you record what each inflow was. Its main job is to match **refunds**, for example an overpaid contributor sending ADA back, to the payout they relate to.
+
+## How inflows are found
+
+A background job scans every treasury address every 15 minutes, and opening this page or the [Treasury page](/docs/treasury#the-treasury-page) scans any treasury that was last checked more than two minutes ago (the **Chain checked** line shows when). Each incoming transaction is recorded with its amount (ADA and tokens), the sender's address, the treasury it went to and the block time. Both checks also confirm submitted transactions (payouts, payments, mints and anchors) and import outgoing transactions that carry a Guild Vault record; only the scheduled job applies workgroup wallet changes whose period has started, moves proposals along, freezes and publishes voting records, retries GitHub write-backs, posts Discord notifications and runs the Guild Vault co-signer, which the on-visit check never does. Outgoing transfers are not listed here; ones Guild Vault did not build appear as On-chain entries on the [Treasury page](/docs/treasury#the-treasury-page) (**Built outside Guild Vault** while budget consent is on).
+
+**Transfers between the community's own wallets** are recognised automatically: an inflow sent from another treasury of the same community is recorded as an **Internal transfer** from that wallet, marked as needing no reconciliation, and logged straight away, so it never waits in the review queue and never counts as income on the [Dashboard](/docs/budgets#dashboard). The card names the sending wallet instead of an address. A transaction that pays two of the community's wallets at once is recorded once, at the first wallet found. An admin can still change the type through **Details**; a manual classification is never overwritten, though the Dashboard keeps counting an inflow linked to a sending wallet as a transfer whatever its type, because the link is a chain fact.
+
+## The Incoming page
+
+The page lists the 50 most recent inflows across the community's treasuries, newest first. Three counters summarise that list: **Incoming** (all), **Needs review** and **Completed**. The filter at the top switches between **All incoming**, **Needs review** and **Completed**.
+
+Each card shows the amount, the short transaction hash, the treasury and sender, the date, an optional internal note, the **type**, and a status:
+
+| Status | Meaning |
+|---|---|
+| **needs review** | Marked as requiring reconciliation and not matched yet. |
+| **reconciled** | Matched to a payout, or recorded without one. |
+| **logged** | Marked as not needing reconciliation (a contribution, revenue, …). |
+
+Newly detected inflows start as **Unclassified** and needing review.
+
+## Classifying an inflow
+
+Admins see **Details** on every card. It opens a form with:
+
+- **Incoming type** — Unclassified, Refund, Contribution, Revenue, Internal transfer or Other. Contribution, Revenue, Other and Unclassified count as income on the Dashboard; a Refund is netted against the payout it returns; Internal transfer is money moved between the community's own wallets (set automatically when the sender is one of them).
+- **Reconciliation** — **Needs reconciliation** or **No reconciliation needed**.
+- **Funding source** and **Commitment** — shown once the community has a [funding source](/docs/funding): the outside funder this whole inflow came from and, optionally, which of its commitments it pays (for example a Catalyst proposal, or the monthly allocation). The card then shows the source as a badge, the inflow counts as received on the Funding page, and the Dashboard's Funding flow names the source. Not offered for a transfer between the community's own wallets.
+- **Internal note** — context for the next admin, for example "September membership contribution".
+
+**Save details** stores it. Marking an inflow as not needing reconciliation moves it to **logged**; an inflow that already has a reconciliation recorded stays **reconciled** whatever you choose.
+
+## Reconciling a refund
+
+**Reconcile** appears on inflows that need review, for **base signers of that treasury**. It shows **Suggested payouts**: up to ten confirmed payouts from that treasury, ranked with those paid to the sender's wallet first, then those whose amount in the same token equals the refund, then larger ones (a partial refund). For each suggestion, **Link refund** records that this inflow refunds that payout; the payout is marked *adjusted* and its task becomes **reconciled**. If nothing fits, choose **Record without payout** to close it anyway. The optional note is saved with either choice.
+
+Reconciliation notes and matches are kept for the community's records and feed the **Incoming** panel on the [Dashboard](/docs/budgets#dashboard).
+
+Related: [Treasury](/docs/treasury), [Signing transactions](/docs/transactions#confirmation-and-what-follows).

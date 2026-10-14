@@ -1,0 +1,122 @@
+## Messages you may see
+
+**"Sign in with your wallet first."** — The page needs a signed-in wallet. Click **Connect wallet** in the top bar. See [Wallets and signing in](/docs/getting-started#wallets-and-signing-in).
+
+**"Your wallet is not connected. Use Reconnect wallet in the top bar to sign."** — You are signed in, but the browser wallet is not connected to the page (it was locked, or declined the reconnect after a reload). Click **Reconnect wallet** in the top bar and pick your wallet. See [Wallets and signing in](/docs/getting-started#wallets-and-signing-in).
+
+**"The connected wallet is not the one you signed in with."** — You switched accounts in your wallet extension, but the session still belongs to the previous address. Click **Switch account** in the top bar and sign the message to sign in as the connected account. See [Switching accounts](/docs/getting-started#switching-accounts).
+
+**"No CIP-30 wallets found. Install Eternl or Lace."** — No compatible browser wallet extension is installed or enabled. Install one, reload, and try again. Mobile browsers without a wallet extension cannot sign in.
+
+**"Nonce expired"** — The sign-in message was not signed within 5 minutes, or was already used. Click **Sign in with (wallet name)** in the top bar and sign the new message. See [Wallets and signing in](/docs/getting-started#wallets-and-signing-in).
+
+**"Community not found."** — The link is wrong, or the community is private and you are not a member. Ask an admin to add your wallet, or link your GitHub account if you already have tasks assigned there.
+
+**"Members only."** — You can see the community but are not a member. Join it if it is public, or ask an admin.
+
+**"Admin access required."** — The page (GitHub, Call capture, New treasury, Import treasury, Payment history) is for admins.
+
+**"Too many requests. Please wait a moment and try again."** — Guild Vault limits how often some actions can be repeated (for example signing in, creating communities or entering a check-in code). Wait a minute and try again.
+
+**"Your wallet is on preprod, but this community runs on mainnet…"** (or the reverse) — Switch to an account on the right network in your wallet. Chain actions are disabled until then. See [Networks](/docs/getting-started#networks-mainnet-and-preprod).
+
+**"A pending transaction already exists for this treasury. Submit or reject it first."** — Only one transaction (payout, payment, mint or anchor) can wait for signatures per treasury. Open it from the Treasury page and submit, reject or delete it on the transaction page. See [Payday](/docs/payday#building).
+
+**"Transaction is no longer pending"** — It was submitted, rejected or deleted while you were looking at it. Reload the page.
+
+**"Only signers, admins, or leads of all selected workgroups can build payouts"** — Signers here means the treasury's base signers. See [Who can build a payout](/docs/payday#who-can-build-a-payout).
+
+**"Only admins or recovery signers can build on the recovery path"** — A clawback treasury's recovery path is built by admins or its recovery signers, from the lock date. See [Spending paths](/docs/treasury#spending-paths).
+
+**"This spend does not fit the voted budgets"** — Budget consent is on and set to refuse: the payout or payment needs a voted budget for its period with room left. See [Spend citations and the budget check](/docs/governance#spend-citations-and-the-budget-check).
+
+**"Proposals of this kind are off in this community. An admin can turn them on under Governance."** — See [Governance settings](/docs/governance#governance-settings).
+
+**"A workgroup named … already exists"** / **"Every proposed lead must be a member"** — A workgroup proposal needs a new name and leads who are already members. See [Creating a workgroup](/docs/workgroups-boards#creating-a-workgroup).
+
+**"Recovery signers must already be community members"** / **"The co-signer must already be community members"** — Add them under [Members](/docs/members-roles#adding-a-member) before creating the treasury.
+
+**"This community pays on mainnet: use a mainnet address"** (or preprod) — An assignee's custom address is on the other network. Paste an address of the community's network. See [Editing a task](/docs/workgroups-boards#editing-a-task).
+
+**"Restore this workgroup before making changes"** — The workgroup is archived, so its tasks, calls and linked meetings are frozen. An admin can restore it first.
+
+**"The reward is locked once attendance tasks exist"** / **"This call already has attendance tasks and stays as their record"** — A call with attendance tasks keeps its reward and cannot be deleted. See [Creating the attendance tasks](/docs/calls#creating-the-attendance-tasks).
+
+**"Connect a wallet token for: …"** — A bounty ticker did not match exactly one token in the treasury. Pick the token in the dropdown. See [Tokens](/docs/payday#tokens).
+
+**"Exceeds treasury balance: …"** — Fund the treasury or select fewer tasks.
+
+**"This community changes budgets by proposal"** — Budget consent is on: budgets change only when a budget proposal passes, so direct saves and resets are refused. See [Budget consent](/docs/governance#budget-consent).
+
+**"A budget proposal for … is already open. Wait for it to close."** — One open proposal per budget at a time. Vote on it, or ask its proposer to withdraw it during the discussion.
+
+**"You are not in this proposal's electorate"** — The proposal's voters were fixed when voting opened, by the rules it was made with. See [Who can vote](/docs/governance#who-can-vote).
+
+**"The signature does not match this ballot"** — The ballot was signed by a wallet other than the one you signed in with, or changed on the way. Sign with the wallet you signed in with (see **Switch account** in the top bar) and vote again.
+
+**"That GitHub account is already linked to another wallet."** — Disconnect it from the other wallet's profile first.
+
+## Common questions
+
+**A finished task is not on Payday.** Check that it is in the **Audited** column (app board), has the payable label *and* is in the import column (GitHub), or was created as a call attendance task. Neither the task nor its workgroup may be archived. A listed task that cannot be selected needs at least one assignee, a wallet for every assignee and a bounty. For GitHub assignees, link the account or have an admin or lead set the payout wallet. With several treasuries, select the wallet routed for the task's budget period.
+
+**A GitHub issue is not importing.** Both the label and the project column must match the repository's settings on the GitHub page, and the issue must be on a Projects v2 board that includes the repository. Click **Full sync** to force a refresh.
+
+**Someone signed and the page says a conflict happened.** Another signature landed first. The page reloads; click **Sign** again.
+
+**Can I edit a treasury's signers?** No. Create a new treasury and move the funds. A template (clawback, lock-until, co-signer) is fixed at creation the same way.
+
+**Can I change a community's network?** No. Create a new community.
+
+**Does Guild Vault hold my funds or keys?** No. Funds sit in the multisig address; keys stay in the signers' wallets. The app only builds transactions and collects signatures. The one exception is a [co-signer treasury](/docs/treasury#co-signer) whose co-signer is Guild Vault: the app holds that one encrypted key, which alone can never move funds.
+
+**Why is a task called "Imported task #12"?** It was rebuilt from a payout found on-chain that this community had no record of. The chain stores the task number, workgroup, period, amounts and recipient, but not the title. Open the task and give it one. See [Imported tasks](/docs/workgroups-boards#imported-tasks).
+
+**What does "Needs import review" mean?** A transaction found on-chain carries a Guild Vault payout or payment record, but something must be decided before it can be added: usually a workgroup this community does not have, or a task number that is already another task. Admins settle it on the Treasury page. See [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts).
+
+**How do I verify a payout or payment independently?** Open the transaction in an explorer and read metadata label 190001. See [On-chain metadata](/docs/transactions#on-chain-metadata) for payouts and [On-chain record](/docs/payments#on-chain-record) for payments and transfers; the transaction page in Guild Vault shows the same record with a legend of its keys.
+
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| **Admin** | A community role with full access. Treasury base signers are admins automatically; recovery signers and co-signers are not. |
+| **Anchor** | A proposal's fingerprints (proposed, voting opened, closed) written on-chain under label 190002. |
+| **Assignee** | A member (or any wallet address) attached to a task. Each assignee receives the full bounty. |
+| **Audited** | The payable column of an app board, and the default payable label on GitHub. |
+| **Block** | A consent vote against a proposal that stops it passing; it needs a reason. |
+| **Bounty** | The amounts a task pays, in ADA and/or tokens, per assignee. |
+| **Budget consent** | A setting under which budgets change only when a budget proposal passes. |
+| **Built outside Guild Vault** | An outgoing treasury transaction the app did not build, flagged on the Treasury page while budget consent is on. |
+| **Budget month** | The month a task's payout is attributed to (the quarter, for a workgroup budgeted by quarter); recorded on-chain as the budget period and used by the budget dashboard. |
+| **CIP-30** | The standard browser wallets implement to connect to sites and sign. |
+| **CIP-1854** | The convention Guild Vault uses to order signer keys so a treasury address is deterministic. |
+| **Citation** | A decision a payout or payment names in its on-chain record (the `g` key): the proposal behind a task or a period's budget. |
+| **Community** | The top-level organisation: members, treasuries, workgroups. |
+| **Consent** | A decision method: a proposal passes unless someone blocks it. |
+| **Co-signer** | The extra signer of a co-signer treasury: a member, or "Guild Vault co-signer" (the app-held key). It signs only what passes the co-signer check. |
+| **Electorate** | The members who may vote on a proposal, fixed when voting opens. |
+| **Frozen record** | A final proposal's signed tally, stored once with its hash and served unchanged from then on. |
+| **Import column** | The Projects v2 Status column an issue must be in to become a task. |
+| **Internal transfer** | Money moved between the community's own treasuries; neither income nor spending. |
+| **Label 190001** | The metadata label that carries the payout record (and the payment record, marked `t: "payment"`) on-chain. |
+| **Label 190002** | The metadata label that carries proposal anchors on-chain. |
+| **Lazy consensus** | A decision method: a proposal passes after its period unless it draws an objection. |
+| **Lead** | A member who manages the board and budget row of the workgroups they lead. |
+| **Lock date** | When a clawback treasury's recovery path opens, or when a lock-until treasury can first be spent. |
+| **Majority** | A decision method: a proposal passes with enough votes for it, given the quorum and threshold. |
+| **Payable** | A task that is ready to be paid and shows up on Payday. |
+| **Payday** | The page where payable tasks are batched into one transaction. |
+| **Proposal** | A decision, budget change, new workgroup or task put to the community's vote. |
+| **Preprod** | Cardano's test network. Test ADA only. |
+| **Quorum** | The share of the electorate that must vote for a proposal to be decided. |
+| **Queued** | A task included in a payout that is waiting for signatures. |
+| **Reconciled** | A task whose payout was matched to a refund. |
+| **Recovery signer** | A member who can move a clawback treasury's funds from its lock date. |
+| **Signer** | A wallet in one of a treasury's signer groups (base, recovery or co-signer); signs and rejects the transactions of its spending path. |
+| **Spending path** | The branch of a treasury's script a transaction is built for: base, recovery, co-signed or bypass. |
+| **Task number** | The permanent per-community number of a task, for example #12. |
+| **Template** | A treasury's fixed script shape: plain, clawback, lock-until or co-signer. |
+| **Threshold** | How many signers must approve, for example 2 of 3. |
+| **Treasury** | A community's multisig wallet. |
+| **Workgroup** | A team or project inside a community with its own board and budget. |
