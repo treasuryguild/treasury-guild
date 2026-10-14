@@ -83,7 +83,7 @@ nothing until members vote on it with their wallets.
   (kind on, `requireProposer`, payload, frozen rules, hashes, a budget's rolled-back dry
   run), writing nothing.
 - **The draft token** (`src/lib/mcp/draftToken.ts`) is a 15-minute JWT, `typ`
-  `gv_mcp_draft`, signed with a key derived from `MCP_TOKEN_SECRET` for this purpose only
+  `tg_mcp_draft`, signed with a key derived from `MCP_TOKEN_SECRET` for this purpose only
   and audience `${APP_URL}/mcp-draft`, so it is never an access token and an access token
   is never a draft. It carries the create body, the preview's fingerprint and rules hash
   and a random `jti` (the draft id), and is bound to the wallet, the OAuth client and the grant's `created_at`
@@ -256,7 +256,7 @@ Properties worth not regressing (tests in `src/lib/oauthServer/*.test.ts`,
   `${APP_URL}/api/mcp`.
 - **Access tokens are signed with `MCP_TOKEN_SECRET`**, never `SUPABASE_JWT_SECRET`, so
   an access token is never a PostgREST or session token and a session JWT is never an
-  access token. They are typed `typ: gv_mcp_at` with header `at+jwt`. The secret is
+  access token. They are typed `typ: tg_mcp_at` with header `at+jwt`. The secret is
   **required in production**: the CRON_SECRET-derived key is only a dev/test fallback.
   The cron triggers hold `CRON_SECRET`, and Claude's CIMD client_id is public, so that
   key in production would let a leaked cron secret mint read access for anyone who

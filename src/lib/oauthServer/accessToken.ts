@@ -5,7 +5,7 @@
 // They can never be confused with session JWTs. They are signed with their own
 // key (never SUPABASE_JWT_SECRET, so an access token is not a PostgREST or
 // session token and a session JWT is not an access token), carry `typ`
-// "gv_mcp_at", and are bound to this resource by `aud` (RFC 8707).
+// "tg_mcp_at", and are bound to this resource by `aud` (RFC 8707).
 import "server-only";
 
 import { randomBytes } from "node:crypto";
@@ -15,7 +15,7 @@ import { cronSecret, mcpTokenSecret } from "@/lib/env.server";
 import { parseApiScopes, type ApiScope } from "@/lib/mcp/scopes";
 import { ACCESS_TOKEN_TTL_SECONDS, issuerOrigin, resourceUrl } from "./config";
 
-export const ACCESS_TOKEN_TYPE = "gv_mcp_at";
+export const ACCESS_TOKEN_TYPE = "tg_mcp_at";
 /** RFC 9068 header type of a JWT access token. */
 const HEADER_TYPE = "at+jwt";
 

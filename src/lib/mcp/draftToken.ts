@@ -19,8 +19,8 @@ import { cronSecret, mcpTokenSecret } from "@/lib/env.server";
 import { BadRequestError, ForbiddenError } from "@/lib/errors";
 import { issuerOrigin } from "@/lib/oauthServer/config";
 
-export const DRAFT_TOKEN_TYPE = "gv_mcp_draft";
-const HEADER_TYPE = "gv-draft+jwt";
+export const DRAFT_TOKEN_TYPE = "tg_mcp_draft";
+const HEADER_TYPE = "tg-draft+jwt";
 export const DRAFT_TOKEN_TTL_SECONDS = 15 * 60;
 
 /** What a confirmed draft does; each has its preview tool and its write scope (src/lib/api/v1/drafts.ts). */

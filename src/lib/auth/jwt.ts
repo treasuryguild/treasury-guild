@@ -3,7 +3,7 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { supabaseJwtSecret } from "@/lib/env.server";
 
-const COOKIE_NAME = "gv_session";
+const COOKIE_NAME = "tg_session";
 const SESSION_DAYS = 7;
 
 export interface SessionClaims {

@@ -9,10 +9,10 @@ const request = (headers: Record<string, string> = {}) =>
   new Request("http://localhost/api/auth/logout", { method: "POST", headers });
 /** The session cookie a response sets: its value and its lower-cased attributes. */
 function sessionCookie(response: Response): { value: string; attributes: string[] } | null {
-  const header = response.headers.getSetCookie().find((c) => c.startsWith("gv_session="));
+  const header = response.headers.getSetCookie().find((c) => c.startsWith("tg_session="));
   if (!header) return null;
   const [pair, ...attributes] = header.split("; ");
-  return { value: pair!.slice("gv_session=".length), attributes: attributes.map((a) => a.toLowerCase()) };
+  return { value: pair!.slice("tg_session=".length), attributes: attributes.map((a) => a.toLowerCase()) };
 }
 
 beforeEach(() => {

@@ -86,7 +86,7 @@ describe("access tokens", () => {
 
   it("are refused for another audience or without the access-token type", async () => {
     const key = new TextEncoder().encode("mcp-secret");
-    const base = () => new SignJWT({ typ: "gv_mcp_at", cid: "c1", scope: "communities:read" })
+    const base = () => new SignJWT({ typ: "tg_mcp_at", cid: "c1", scope: "communities:read" })
       .setSubject("addr_w").setIssuer("http://localhost:3000").setIssuedAt().setExpirationTime("1h");
     const otherAudience = await base().setProtectedHeader({ alg: "HS256", typ: "at+jwt" })
       .setAudience("https://elsewhere.test/api/mcp").sign(key);

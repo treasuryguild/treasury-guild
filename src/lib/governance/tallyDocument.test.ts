@@ -29,7 +29,7 @@ const ELECTORATE_HASH = createHash("sha256").update(
 
 function signedVote(v: ReturnType<typeof voter>, choice: VoteChoice, signedAt: string, electorateHash: string | null = ELECTORATE_HASH) {
   const text = ballotText({
-    host: "guildvault.app", community: "guild", proposalNumber: 4, proposalId: "p4",
+    host: "app.treasuryguild.com", community: "guild", proposalNumber: 4, proposalId: "p4",
     contentHash: sha256(content), rulesHash: sha256(rules), electorateHash, choice, reason: null, voter: v.address, signedAt,
   });
   const sig = signData(text, { address: Address.fromBech32(v.address), key: v.key });
@@ -47,7 +47,7 @@ function document(electorateHash: string | null = ELECTORATE_HASH): TallyDocumen
     closes_at: "2026-09-30T10:00:00Z", closed_at: "2026-09-30T10:05:00Z", state: "passed", execution_state: "not_applicable",
     tally: tallyProposal(rules, 3, votes.map((v) => v.choice)),
   } as unknown as ProposalRow;
-  return buildTallyDocument({ app: "guildvault.app", community: "guild", proposal, votes, voters: seats });
+  return buildTallyDocument({ app: "app.treasuryguild.com", community: "guild", proposal, votes, voters: seats });
 }
 
 describe("tally documents", () => {

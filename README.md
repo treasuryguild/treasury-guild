@@ -211,9 +211,9 @@ preselected on the new-community form. `KOIOS_BASE_URL_MAINNET` /
 ### 3. GitHub App (optional, for GitHub boards)
 
 Create a GitHub App (Settings → Developer settings → GitHub Apps):
-- **Webhook URL**: `https://<your-app>/api/github/webhook`, with a secret →
+- **Webhook URL**: `https://app.treasuryguild.com/api/github/webhook`, with a secret →
   `GITHUB_WEBHOOK_SECRET`
-- **Setup URL**: `https://<your-app>/api/github/setup` (check "Redirect on
+- **Setup URL**: `https://app.treasuryguild.com/api/github/setup` (check "Redirect on
   update")
 - **Repository permissions**: Issues (read & write), Metadata (read)
 - **Organization permissions**: Projects (read & write — write moves paid
@@ -224,7 +224,7 @@ Create a GitHub App (Settings → Developer settings → GitHub Apps):
   `\n`), and set `GITHUB_APP_ID` + `GITHUB_APP_SLUG` (the install link is
   `https://github.com/apps/<slug>/installations/new`).
 - **Identifying and authorizing users**: callback URL
-  `https://<your-app>/api/github/oauth-callback`; the client id and secret
+  `https://app.treasuryguild.com/api/github/oauth-callback`; the client id and secret
   from the same page → `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`. Used only
   for the one-off GitHub-account ↔ wallet link on the Settings page (no
   scopes, public profile only).
@@ -260,22 +260,22 @@ Each platform is independent; leave its variables empty to go without it.
 
 - **Discord** — one application serves both uses. OAuth2 client →
   `DISCORD_CLIENT_ID` + `DISCORD_CLIENT_SECRET`, with the redirects
-  `https://<your-app>/api/discord/oauth-callback` (members link their account
+  `https://app.treasuryguild.com/api/discord/oauth-callback` (members link their account
   on the profile page, scope `identify`) and
-  `https://<your-app>/api/discord/guild-callback` (an admin adds the bot to
+  `https://app.treasuryguild.com/api/discord/guild-callback` (an admin adds the bot to
   the community's server). Bot token → `DISCORD_BOT_TOKEN`; voice capture
   needs no privileged intents.
 - **Zoom** — a General (OAuth, user-managed) app on marketplace.zoom.us →
   `ZOOM_CLIENT_ID` + `ZOOM_CLIENT_SECRET`, redirect
-  `https://<your-app>/api/zoom/oauth-callback`, scopes to read the user and
+  `https://app.treasuryguild.com/api/zoom/oauth-callback`, scopes to read the user and
   past meeting participants. Event subscription endpoint
-  `https://<your-app>/api/zoom/webhook` with participant joined, participant
+  `https://app.treasuryguild.com/api/zoom/webhook` with participant joined, participant
   left and meeting ended; its Secret Token → `ZOOM_WEBHOOK_SECRET_TOKEN`.
 - **Google** — one OAuth web client → `GOOGLE_CLIENT_ID` +
   `GOOGLE_CLIENT_SECRET`. Redirect
-  `https://<your-app>/api/google/oauth-callback` for the personal link (scope
+  `https://app.treasuryguild.com/api/google/oauth-callback` for the personal link (scope
   `openid` only). For Meet capture also register
-  `https://<your-app>/api/google/host-callback`, enable the Google Meet REST
+  `https://app.treasuryguild.com/api/google/host-callback`, enable the Google Meet REST
   API and add the scope `meetings.space.readonly` (sensitive: hosts see an
   "unverified app" notice until Google verifies the app).
 
@@ -371,7 +371,7 @@ with `Authorization: Bearer $CRON_SECRET`:
   approval whose callback never arrived), once the bot has been there an hour.
 
 Set the production Supabase URL, anon key, service-role key and legacy JWT
-secret, `APP_URL` (the deployed URL), and random `CRON_SECRET`,
+secret, `APP_URL` (`https://app.treasuryguild.com`), and random `CRON_SECRET`,
 `OAUTH_STATE_SECRET`, `MCP_TOKEN_SECRET` and `COSIGNER_KEY_SECRET` values in
 Netlify (`MCP_TOKEN_SECRET` is required: without it the AI-assistant
 endpoints refuse to issue tokens; `COSIGNER_KEY_SECRET` is required too and

@@ -6,10 +6,10 @@ Nothing an assistant does through Treasury Guild can sign a transaction, pay any
 
 ## Connecting an assistant
 
-Treasury Guild is a remote MCP server (Model Context Protocol, the standard AI assistants use to reach other apps). Its address is your Treasury Guild address followed by `/api/mcp`, for example `https://treasury-guild.example/api/mcp`.
+Treasury Guild is a remote MCP server (Model Context Protocol, the standard AI assistants use to reach other apps). Its address is your Treasury Guild address followed by `/api/mcp`, for example `https://app.treasuryguild.com/api/mcp`.
 
 - **Claude (web and desktop)**: open **Settings → Connectors**, choose **Add custom connector**, give it a name such as "Treasury Guild" and paste the address. Claude opens Treasury Guild so you can approve it.
-- **Claude Code**: run `claude mcp add --transport http treasury-guild https://treasury-guild.example/api/mcp`, then `/mcp` inside Claude Code to sign in.
+- **Claude Code**: run `claude mcp add --transport http treasury-guild https://app.treasuryguild.com/api/mcp`, then `/mcp` inside Claude Code to sign in.
 - **Other assistants**: any client that supports remote MCP servers with OAuth sign-in works the same way; point it at the address above.
 
 There is no key to copy or paste. The assistant finds Treasury Guild's sign-in page on its own and sends you there.

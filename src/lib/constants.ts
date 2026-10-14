@@ -475,7 +475,7 @@ export const MIN_LOCK_LEAD_MS = 60 * 60 * 1000;
 
 // --- Browser storage keys -------------------------------------------------
 
-export const SIDEBAR_STORAGE_KEY = "guild-vault-sidebar";
+export const SIDEBAR_STORAGE_KEY = "treasury-guild-sidebar";
 
 // --- Shared user-facing messages -----------------------------------------
 

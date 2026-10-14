@@ -34,10 +34,10 @@ export interface DiscordScenario {
 
 const AT = new Date("2026-09-15T12:00:00Z");
 const TX_HASH = "9f3c2e1d0b4a5968778695a4b3c2d1e0f1a2b3c4d5e6f708192a3b4c5d6e7f80";
-const APP = "https://guildvault.app";
+const APP = "https://app.treasuryguild.com";
 const SLUG = "guild-dao";
 const TREASURY = "Main treasury";
-const TREASURY_ADDR = "addr_test1qzguildvaulttreasury00000000000000000000000000000000000000000000000000000000000000000abc123";
+const TREASURY_ADDR = "addr_test1qztreasuryguildtreasury00000000000000000000000000000000000000000000000000000000000000000abc123";
 
 const ADA = { ticker: "ADA", decimals: 6 };
 const GVT = { ticker: "GVT", decimals: 2 };

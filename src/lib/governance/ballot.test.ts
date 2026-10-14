@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ballotText, isFreshBallot, normalizeReason } from "./ballot";
 
 const fields = {
-  host: "guildvault.app",
+  host: "app.treasuryguild.com",
   community: "guild",
   proposalNumber: 12,
   proposalId: "5b8c2c7e-0000-4000-8000-000000000012",
@@ -18,7 +18,7 @@ describe("ballotText", () => {
   it("is the exact multi-line text the wallet signs", () => {
     expect(ballotText(fields)).toBe([
       "Treasury Guild ballot",
-      "app: guildvault.app",
+      "app: app.treasuryguild.com",
       "community: guild",
       "proposal: #12 5b8c2c7e-0000-4000-8000-000000000012",
       `content: ${"a".repeat(64)}`,

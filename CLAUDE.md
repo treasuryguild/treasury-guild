@@ -530,7 +530,7 @@ Supabase (RLS, no ORM) + Netlify.
   Access tokens (`src/lib/oauthServer/accessToken.ts`) are signed with
   `mcpTokenSecret` (`MCP_TOKEN_SECRET`, **required in production**; the
   `CRON_SECRET`-derived key is dev/test only), **never
-  `SUPABASE_JWT_SECRET`**, typed `gv_mcp_at` / `at+jwt`, audience
+  `SUPABASE_JWT_SECRET`**, typed `tg_mcp_at` / `at+jwt`, audience
   `${APP_URL}/api/mcp`, issuer `APP_URL` (never the Host header). The
   authorization server (`src/lib/oauthServer/`, apart from the OAuth
   *client* plumbing in `src/lib/oauth/`) does CIMD (SSRF-guarded fetch) and
