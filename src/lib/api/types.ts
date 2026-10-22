@@ -616,6 +616,31 @@ export interface SyncRepoResponse {
   synced: number;
   deleted: number;
 }
+/** The editable fields of a GitHub issue, as the board's editors submit them. */
+export interface GithubIssueEditInput {
+  title?: string;
+  /** Null clears the issue body. */
+  body?: string | null;
+  /** The issue's complete label set. */
+  labels?: string[];
+  state?: "open" | "closed";
+  /** Project v2 Status option name to move the item to. */
+  status?: string;
+  /** Bounty number fields by project field name; "" clears a field. */
+  amounts?: Record<string, string>;
+}
+/** POST /api/github/issue: an in-app issue edit pushed to GitHub, then re-synced. */
+export interface GithubIssueUpdateResponse {
+  /** The Status option the item now sits in, when a move landed; null otherwise. */
+  movedToStatus: string | null;
+  /** Bounty field names the project has no such field for (nothing written for them). */
+  missingAmountFields: string[];
+  /** The sync that followed the write: tasks imported/updated, and removed. */
+  synced: number;
+  deleted: number;
+  /** The edited task no longer matches the import rule and was removed. */
+  taskRemoved: boolean;
+}
 export interface InstallUrlResponse {
   url: string;
 }

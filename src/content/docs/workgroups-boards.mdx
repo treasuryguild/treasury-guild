@@ -70,12 +70,12 @@ The **Archived tasks (n)** button switches the board to the archive list. **Mana
 
 A workgroup of kind **GitHub project** shows the linked project board live, column for column, with every item. Items that match the import rule (payable label **and** import column, see [GitHub integration](/docs/github)) are the ones that exist as tasks in Treasury Guild; they show bounty amounts and assignee wallets. Tasks created in Treasury Guild (tasks from before the repository was linked, `Call: …` attendance tasks, imported tasks) have no project item, so they are listed under **Created in Treasury Guild** below the project columns; managers open them from there like any other card, and they are paid from Payday as usual. **Archived tasks** lists the workgroup's archived tasks on a GitHub board too.
 
-GitHub tasks are mirror data:
+GitHub tasks mirror a GitHub issue, and admins and the workgroup's leads manage that issue from here (see [Managing issues from Treasury Guild](/docs/github#managing-issues-from-treasury-guild)):
 
-- Title, description and amounts are managed on GitHub and overwritten by the sync. Editing them in Treasury Guild is not possible.
-- GitHub assignees are managed on GitHub too. In the task dialog you set each GitHub assignee's **payout wallet** (it is filled in automatically when they have linked their GitHub account, and shows **Not linked** otherwise), and you can add extra **manual assignees** that the sync never touches.
-- Budget month is editable in Treasury Guild.
-- There is no **Archive task** for GitHub tasks: remove the label or move the issue out of the import column on GitHub and the sync removes the task (unless it is settled or has payout rows, see [Which issues become tasks](/docs/github#which-issues-become-tasks)).
+- Title, description, labels, project status and bounty amounts are edited in the task dialog and saved to GitHub; **dragging a card** between the board's columns moves the issue on GitHub too. Board items that are not tasks yet open the same kind of editor.
+- GitHub assignees are managed on GitHub. In the task dialog you set each GitHub assignee's **payout wallet** (it is filled in automatically when they have linked their GitHub account, and shows **Not linked** otherwise), and you can add extra **manual assignees** that the sync never touches.
+- Budget month is editable in Treasury Guild and never leaves it.
+- There is no **Archive task** for GitHub tasks: remove the payable label or move the issue out of the import column (here or on GitHub) and the sync removes the task (unless it is settled or has payout rows, see [Which issues become tasks](/docs/github#which-issues-become-tasks)).
 - After payment, Treasury Guild moves the issue to the repository's **Paid status** column (see [GitHub integration](/docs/github#what-happens-after-payment)) when the project has a column of that name; the task stays and keeps mirroring the issue.
 
 ## Task lifecycle at a glance

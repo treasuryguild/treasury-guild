@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   groupTasksByGhStatus,
   mergeLiveBoard,
   type BoardTask,
   type LiveProjectBoard,
   type MergedBoard,
+  type MergedBoardItem,
 } from "@/lib/boardTypes";
-import { TaskSource } from "@/lib/constants";
+import { SETTLED_PAY_STATES, TaskSource } from "@/lib/constants";
 import { Badge, LinkButton } from "@/components/ui";
 import { BoardColumn } from "./BoardColumn";
 import { LiveItemCard } from "./LiveItemCard";
@@ -97,6 +98,9 @@ export function GithubBoardView({
   isAdmin,
   settingsHref,
   onEdit,
+  onEditItem,
+  onMoveTaskStatus,
+  onMoveItemStatus,
   archived = false,
 }: {
   boards: LiveProjectBoard[] | null;
@@ -108,6 +112,12 @@ export function GithubBoardView({
   isAdmin: boolean;
   settingsHref: string;
   onEdit: (task: BoardTask) => void;
+  /** Open the editor for a live item that is not an imported task. */
+  onEditItem?: (item: MergedBoardItem, status: string) => void;
+  /** Drag a task's card to another project column (pushed to GitHub). */
+  onMoveTaskStatus?: (task: BoardTask, status: string) => void;
+  /** Drag a live item to another project column (pushed to GitHub). */
+  onMoveItemStatus?: (item: MergedBoardItem, status: string) => void;
   archived?: boolean;
 }) {
   const githubTasks = useMemo(() => tasks.filter((t) => t.source === TaskSource.Github), [tasks]);
@@ -131,6 +141,9 @@ export function GithubBoardView({
         isAdmin={isAdmin}
         settingsHref={settingsHref}
         onEdit={onEdit}
+        onEditItem={onEditItem}
+        onMoveTaskStatus={onMoveTaskStatus}
+        onMoveItemStatus={onMoveItemStatus}
         archived={archived}
       />
       <AppTasksSection tasks={appTasks} canManage={manage} onEdit={onEdit} />
@@ -149,6 +162,9 @@ function GithubColumns({
   isAdmin,
   settingsHref,
   onEdit,
+  onEditItem,
+  onMoveTaskStatus,
+  onMoveItemStatus,
   archived,
 }: {
   merged: MergedBoard[];
@@ -161,8 +177,17 @@ function GithubColumns({
   isAdmin: boolean;
   settingsHref: string;
   onEdit: (task: BoardTask) => void;
+  onEditItem?: (item: MergedBoardItem, status: string) => void;
+  onMoveTaskStatus?: (task: BoardTask, status: string) => void;
+  onMoveItemStatus?: (item: MergedBoardItem, status: string) => void;
   archived: boolean;
 }) {
+  // What is being dragged between project columns, and from which column.
+  const [dragging, setDragging] = useState<
+    | { kind: "task"; task: BoardTask; from: string }
+    | { kind: "item"; item: MergedBoardItem; from: string }
+    | null
+  >(null);
   if (archived) return <SyncedTasksView tasks={tasks} canManage={false} onEdit={onEdit} />;
   if (hasRepos === false) {
     return <NoRepoLinked isAdmin={isAdmin} settingsHref={settingsHref} />;
@@ -207,7 +232,22 @@ function GithubColumns({
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {board.columns.map((col) => (
-              <BoardColumn key={col.name} name={col.name}>
+              <BoardColumn
+                key={col.name}
+                name={col.name}
+                highlight={!!dragging && dragging.from !== col.name}
+                onDrop={
+                  canManage && dragging
+                    ? () => {
+                        if (dragging.from !== col.name) {
+                          if (dragging.kind === "task") onMoveTaskStatus?.(dragging.task, col.name);
+                          else onMoveItemStatus?.(dragging.item, col.name);
+                        }
+                        setDragging(null);
+                      }
+                    : undefined
+                }
+              >
                 {col.items.map((item) =>
                   item.task ? (
                     <TaskCard
@@ -215,9 +255,24 @@ function GithubColumns({
                       task={item.task}
                       canManage={canManage}
                       onEdit={onEdit}
+                      onDragStart={
+                        canManage && onMoveTaskStatus && !SETTLED_PAY_STATES.includes(item.task.pay_state)
+                          ? () => setDragging({ kind: "task", task: item.task!, from: col.name })
+                          : undefined
+                      }
                     />
                   ) : (
-                    <LiveItemCard key={item.itemNodeId} item={item} />
+                    <LiveItemCard
+                      key={item.itemNodeId}
+                      item={item}
+                      canManage={canManage}
+                      onEdit={(it) => onEditItem?.(it, col.name)}
+                      onDragStart={
+                        canManage && onMoveItemStatus
+                          ? (it) => setDragging({ kind: "item", item: it, from: col.name })
+                          : undefined
+                      }
+                    />
                   ),
                 )}
               </BoardColumn>

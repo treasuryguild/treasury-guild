@@ -59,6 +59,7 @@ Stack: Next.js (App Router) · MeshJS · Koios · Supabase (RLS) · Netlify.
 ## Documentation
 
 - [Product overview](docs/OVERVIEW.md) — concepts and the contributor payment flow.
+- [Contributing](CONTRIBUTING.md) — branch/PR workflow, setup and pre-PR checks.
 - User guides at `/docs` in the running app; source in [src/content/docs](src/content/docs).
 - [Development and database commands](scripts/README.md).
 - [Signius test seeds](supabase/seeds/README.md).
@@ -220,6 +221,13 @@ Create a GitHub App (Settings → Developer settings → GitHub Apps):
   issues to the repo's Paid status; existing installations must approve the
   upgraded permission before the move works)
 - **Events**: Issues, Projects v2 item, Installation
+- **Visibility**: make the app public — "Where can this GitHub App be
+  installed?" must be **Any account** (for an existing app: Advanced →
+  Make public). A private app can only be installed on the account that
+  owns it, so GitHub's install page would never offer a community's
+  organisation. Installing on an organisation must be done by an
+  organisation owner, because the app requests an Organization permission
+  (Projects) — repository admins cannot complete that install.
 - Generate a private key → `GITHUB_APP_PRIVATE_KEY` (replace newlines with
   `\n`), and set `GITHUB_APP_ID` + `GITHUB_APP_SLUG` (the install link is
   `https://github.com/apps/<slug>/installations/new`).

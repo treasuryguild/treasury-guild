@@ -2,7 +2,9 @@
 
 import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toMemberOptions, type BoardTask } from "@/lib/boardTypes";
+import { toMemberOptions, type BoardTask, type MergedBoardItem } from "@/lib/boardTypes";
+import { apiFetch } from "@/lib/api/client";
+import type { GithubIssueEditInput, GithubIssueUpdateResponse } from "@/lib/api/types";
 import { appNetwork, asNetwork } from "@/lib/config";
 import { ProposalKind, TaskSource } from "@/lib/constants";
 import { routes } from "@/lib/routes";
@@ -19,6 +21,8 @@ import { Button, ErrorText, LinkButton, NoticeText, PageMessage, PageTitle } fro
 import { WorkgroupDetailsDialog } from "@/components/workgroups/WorkgroupDetailsDialog";
 import { EmptyBoardChooser } from "@/components/board/EmptyBoardChooser";
 import { GithubBoardView } from "@/components/board/GithubBoardView";
+import { GithubItemModal } from "@/components/board/GithubItemModal";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { NativeBoardView } from "@/components/board/NativeBoardView";
 import { TaskModal } from "@/components/board/TaskModal";
 import { TaskLifecycleDialog } from "@/components/board/TaskLifecycleDialog";
@@ -53,6 +57,26 @@ export default function BoardPage({
     tasks: board.tasks,
     reload: board.reload,
   });
+  const githubAction = useAsyncAction("GitHub update failed");
+  const [editingItem, setEditingItem] = useState<{ item: MergedBoardItem; status: string } | null>(null);
+
+  // Push an issue edit to GitHub, then refresh both board views (the live
+  // columns and the synced tasks) so the import rule shows at once.
+  async function pushGithubEdit(body: Record<string, unknown>): Promise<boolean> {
+    const ok = await githubAction.run(async () => {
+      const result = await apiFetch<GithubIssueUpdateResponse>("/api/github/issue", { body });
+      board.reload();
+      live.reload();
+      return result;
+    });
+    if (ok && ok.missingAmountFields.length > 0) {
+      setTaskNotice(`Saved to GitHub, except the bounty field(s) ${ok.missingAmountFields.join(", ")}: the project has no field with that name.`);
+    } else if (ok?.taskRemoved) {
+      setTaskNotice("Saved to GitHub. The issue no longer matches the import rule, so its task was removed here.");
+    }
+    return !!ok;
+  }
+
   const [editing, setEditing] = useState<BoardTask | null>(null);
   const [managingTask, setManagingTask] = useState<BoardTask | null>(null);
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
@@ -62,6 +86,10 @@ export default function BoardPage({
   const memberOptions = useMemo(
     () => toMemberOptions(members.data ?? []),
     [members.data],
+  );
+  const githubStatusOptions = useMemo(
+    () => [...new Set((live.boards ?? []).flatMap((b) => b.statusOptions))],
+    [live.boards],
   );
 
   if (blocked) return blocked;
@@ -94,7 +122,7 @@ export default function BoardPage({
       {board.loaded && !board.workgroup && !board.error && <PageMessage>Workgroup not found.</PageMessage>}
       {board.workgroup?.description && <p className="mb-4 whitespace-pre-wrap break-words text-sm text-zinc-400">{board.workgroup.description}</p>}
       <NoticeText className="mb-4">{detailsSaved && "Workgroup / project details saved."}</NoticeText>
-      <ErrorText error={mutations.error ?? board.error} className="mb-4" />
+      <ErrorText error={mutations.error ?? githubAction.error ?? board.error} className="mb-4" />
       <NoticeText className="mb-4">{taskNotice}</NoticeText>
       {board.loaded && board.workgroup && <div className="mb-4 flex flex-wrap gap-2">
         <Button variant={showArchivedTasks ? "secondary" : "primary"} aria-pressed={!showArchivedTasks}
@@ -135,6 +163,9 @@ export default function BoardPage({
           isAdmin={isAdmin}
           settingsHref={settingsHref}
           onEdit={setEditing}
+          onEditItem={(item, status) => setEditingItem({ item, status })}
+          onMoveTaskStatus={(task, status) => void pushGithubEdit({ kind: "task", taskId: task.id, status })}
+          onMoveItemStatus={(item, status) => void pushGithubEdit({ kind: "item", workgroupId, itemNodeId: item.itemNodeId, status })}
           archived={archived}
         />
       ) : isEmptyNative ? (
@@ -165,15 +196,39 @@ export default function BoardPage({
           tokenTickers={tokenTickers}
           network={community ? asNetwork(community.network) : appNetwork()}
           budgetSetups={budgetSetups}
+          githubStatusOptions={githubStatusOptions}
           busy={mutations.busy}
           saveError={mutations.error}
           onArchive={() => { setManagingTask(editing); setEditing(null); }}
           onClose={() => setEditing(null)}
           onSave={(fields) =>
-            void mutations.saveTask(editing, fields).then((ok) => ok && setEditing(null))
+            void mutations.saveTask(editing, fields).then((ok) => {
+              if (ok) {
+                setEditing(null);
+                live.reload();
+              }
+            })
           }
           onRename={(title) =>
             void mutations.renameTask(editing, title).then((ok) => ok && setEditing(null))
+          }
+        />
+      )}
+      {editingItem && canManage && (
+        <GithubItemModal
+          item={editingItem.item}
+          status={editingItem.status}
+          statusOptions={githubStatusOptions}
+          busy={githubAction.busy}
+          saveError={githubAction.error}
+          onClose={() => setEditingItem(null)}
+          onSave={(edit: GithubIssueEditInput) =>
+            void pushGithubEdit({
+              kind: "item",
+              workgroupId,
+              itemNodeId: editingItem.item.itemNodeId,
+              ...edit,
+            }).then((ok) => ok && setEditingItem(null))
           }
         />
       )}

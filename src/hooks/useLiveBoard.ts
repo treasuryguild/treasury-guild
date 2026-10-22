@@ -6,7 +6,7 @@ import { useAsyncData } from "./useAsyncData";
 
 /** Live GitHub project board(s) for a github-kind workgroup. */
 export function useLiveBoard(workgroupId: string, enabled: boolean) {
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, reload } = useAsyncData(
     enabled ? `live-board:${workgroupId}` : null,
     () =>
       apiFetch<LiveBoardResponse>("/api/github/board", {
@@ -19,5 +19,6 @@ export function useLiveBoard(workgroupId: string, enabled: boolean) {
     partial: !!data?.partial,
     loading,
     error: error ? "Live board unavailable" : null,
+    reload,
   };
 }

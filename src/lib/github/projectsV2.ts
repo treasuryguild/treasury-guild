@@ -1,9 +1,10 @@
 // GraphQL helpers for GitHub Projects v2. projects_v2_item webhook payloads
 // are sparse (node ids only), so item details need a follow-up query. The
 // cron sweep uses the repo-wide query so it sees project columns and custom
-// number fields, which REST issue endpoints never expose. The one write is
-// setProjectItemStatus (post-payment move to the "Paid" column); it needs the
-// App's Projects permission at read & write.
+// number fields, which REST issue endpoints never expose. The writes are
+// setProjectItemStatus (post-payment move to the "Paid" column, and in-app
+// status moves) and setProjectItemNumberFields (in-app bounty edits); they
+// need the App's Projects permission at read & write.
 import "server-only";
 
 import { installationOctokit } from "./app";
@@ -465,6 +466,105 @@ export async function setProjectItemStatus(
     optionId: option.id,
   });
   return { outcome: "updated", status: option.name };
+}
+
+const ITEM_FIELDS_QUERY = `
+query($id: ID!) {
+  node(id: $id) {
+    ... on ProjectV2Item {
+      id
+      project {
+        id
+        fields(first: 50) {
+          nodes { ... on ProjectV2FieldCommon { id name } }
+        }
+      }
+    }
+  }
+}`;
+
+const SET_NUMBER_MUTATION = `
+mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+    value: { number: $number }
+  }) { projectV2Item { id } }
+}`;
+
+const CLEAR_FIELD_MUTATION = `
+mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!) {
+  clearProjectV2ItemFieldValue(input: {
+    projectId: $projectId, itemId: $itemId, fieldId: $fieldId
+  }) { projectV2Item { id } }
+}`;
+
+export interface SetNumberFieldsResult {
+  /** Field names written with a new value, in request order. */
+  updated: string[];
+  /** Field names cleared (a null value), in request order. */
+  cleared: string[];
+  /** Field names the project has no such field for; nothing was written for them. */
+  missing: string[];
+}
+
+/**
+ * Write an item's number fields by field name (the bounty edit from the app).
+ * Field ids are looked up per call, never stored. A null value clears the
+ * field. Fields the project does not have are reported in `missing` instead
+ * of failing the whole edit — creating project fields from the app would
+ * surprise board owners, so the caller surfaces the names.
+ */
+export async function setProjectItemNumberFields(
+  installationId: number,
+  itemNodeId: string,
+  values: Record<string, number | null>,
+): Promise<SetNumberFieldsResult> {
+  const result: SetNumberFieldsResult = { updated: [], cleared: [], missing: [] };
+  const names = Object.keys(values);
+  if (names.length === 0) return result;
+  const octokit = await installationOctokit(installationId);
+  const res = (await octokit.graphql(ITEM_FIELDS_QUERY, { id: itemNodeId })) as {
+    node: {
+      id?: string;
+      project?: {
+        id: string;
+        fields?: { nodes?: { id?: string; name?: string }[] } | null;
+      } | null;
+    } | null;
+  };
+  const node = res.node;
+  if (!node?.id || !node.project) {
+    return { ...result, missing: names };
+  }
+  const byName = new Map<string, string>();
+  for (const field of node.project.fields?.nodes ?? []) {
+    if (field.id && field.name) byName.set(field.name.toLowerCase(), field.id);
+  }
+  for (const name of names) {
+    const fieldId = byName.get(name.toLowerCase());
+    if (!fieldId) {
+      result.missing.push(name);
+      continue;
+    }
+    const value = values[name];
+    if (value === null || value === undefined) {
+      await octokit.graphql(CLEAR_FIELD_MUTATION, {
+        projectId: node.project.id,
+        itemId: node.id,
+        fieldId,
+      });
+      result.cleared.push(name);
+    } else {
+      await octokit.graphql(SET_NUMBER_MUTATION, {
+        projectId: node.project.id,
+        itemId: node.id,
+        fieldId,
+        number: value,
+      });
+      result.updated.push(name);
+    }
+  }
+  return result;
 }
 
 /** Projects a repo belongs to — discovery fallback when no link is stored. */
