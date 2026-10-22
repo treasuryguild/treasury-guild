@@ -3,11 +3,12 @@
 // Task editor. Native tasks get the full editor: description, assignees, and
 // a multi-token bounty (rows write tasks.amounts; the ADA row is mirrored into
 // bounty_lovelace with the same rules the GitHub sync uses).
-// GitHub tasks are mirror data the hourly sync overwrites, so title,
-// description and amounts are read-only here. Their GitHub assignees are
-// managed on GitHub (the sync adds and removes them); this editor sets each
-// one's payout wallet and can add extra manual assignees the sync never
-// touches. Every assignee receives the task's full amounts.
+// GitHub tasks edit the issue itself: title, description, labels, project
+// status and bounty fields are pushed to GitHub by /api/github/issue (and
+// mirrored back by the sync). Their GitHub assignees still come from GitHub
+// (the sync adds and removes them); this editor sets each one's payout
+// wallet and can add extra manual assignees the sync never touches. Every
+// assignee receives the task's full amounts.
 
 import { useState } from "react";
 import {
@@ -21,12 +22,13 @@ import {
   Textarea,
 } from "@/components/ui";
 import type { TaskAssigneeInput } from "@/lib/api/schemas";
+import type { GithubIssueEditInput } from "@/lib/api/types";
 import { contributorLabel, sortedAssignees } from "@/lib/assignees";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
 import { BUDGET_MONTH_RE, BudgetCadence, currentBudgetMonth, quarterStartMonth } from "@/lib/budgets";
 import { cadenceAt, type BudgetSetup } from "@/lib/budgetSetups";
 import type { Network } from "@/lib/config";
-import { TaskSource } from "@/lib/constants";
+import { SETTLED_PAY_STATES, TaskSource } from "@/lib/constants";
 import { errorMessage } from "@/lib/errors";
 import {
   amountRowsFromTask,
@@ -48,6 +50,8 @@ export interface TaskSaveFields {
   body?: string | null;
   amounts?: Record<string, string> | null;
   bounty_lovelace?: number | null;
+  /** GitHub tasks only: the issue edit to push to GitHub, when anything changed there. */
+  github?: GithubIssueEditInput;
 }
 
 
@@ -78,6 +82,7 @@ export function TaskModal({
   tokenTickers,
   network,
   budgetSetups = [],
+  githubStatusOptions = [],
   onClose,
   onSave,
   onRename,
@@ -96,6 +101,8 @@ export function TaskModal({
    * remind the editor which month a quarter-long task should use.
    */
   budgetSetups?: readonly Pick<BudgetSetup, "starts_on" | "cadence">[];
+  /** Project v2 Status options for a GitHub task's status picker; empty hides it (e.g. on Payday). */
+  githubStatusOptions?: readonly string[];
   onClose: () => void;
   onSave: (fields: TaskSaveFields) => void;
   /**
@@ -109,6 +116,9 @@ export function TaskModal({
   saveError?: string | null;
 }) {
   const isGithub = task.source === TaskSource.Github;
+  // A settled GitHub task's status, labels and bounty are part of its payment
+  // record: the API only still accepts title/description edits for it.
+  const settled = SETTLED_PAY_STATES.includes(task.pay_state);
   const tickerOptions = [
     "ADA",
     ...tokenTickers.filter((t) => t.toLowerCase() !== "ada"),
@@ -131,6 +141,9 @@ export function TaskModal({
   });
   const [nextKey, setNextKey] = useState(assigneeRows.length);
   const [body, setBody] = useState(task.body ?? "");
+  // GitHub issue fields, pushed to GitHub on save when changed.
+  const [ghLabels, setGhLabels] = useState((task.gh_labels ?? []).join(", "));
+  const [ghStatus, setGhStatus] = useState(task.gh_status ?? "");
   // Budget attribution is editable on every task (the GitHub sync never
   // touches it). Unset tasks default to the current month; the payout build
   // uses the same default, so what the user sees is what goes on chain.
@@ -205,6 +218,37 @@ export function TaskModal({
       assignees,
       budget_month: month ? `${month}-01` : null,
     };
+    if (isGithub) {
+      const github: GithubIssueEditInput = {};
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        setError("Give the issue a title");
+        return;
+      }
+      if (trimmedTitle !== task.title) github.title = trimmedTitle;
+      const nextBody = body.trim() || null;
+      if (nextBody !== (task.body ?? null)) github.body = nextBody;
+      const labels = ghLabels.split(",").map((l) => l.trim()).filter(Boolean);
+      if (labels.join("\n") !== (task.gh_labels ?? []).join("\n")) github.labels = labels;
+      if (ghStatus && ghStatus !== (task.gh_status ?? "")) github.status = ghStatus;
+      // Bounty rows name existing project fields; only changed values are sent.
+      const original = amountRowsFromTask(task);
+      const changedAmounts: Record<string, string> = {};
+      let amountsDirty = false;
+      for (const row of rows) {
+        const amount = row.amount.trim();
+        if (!amount || Number(amount) <= 0) {
+          setError(`Enter a positive amount for ${row.ticker}`);
+          return;
+        }
+        const before = original.find((r) => r.ticker === row.ticker);
+        if (!before || before.amount !== amount) amountsDirty = true;
+        changedAmounts[row.ticker] = amount;
+      }
+      if (rows.length !== original.length) amountsDirty = true;
+      if (amountsDirty) github.amounts = changedAmounts;
+      if (Object.keys(github).length > 0) fields.github = github;
+    }
     if (!isGithub) {
       let amounts: Record<string, string> | null;
       try {
@@ -262,12 +306,57 @@ export function TaskModal({
             </Field>
           )}
           {isGithub ? (
-            <p className="text-xs text-zinc-500">
-              Synced from GitHub — title, description and amounts are managed
-              on GitHub and overwritten by the hourly sync. GitHub assignees
-              are managed on GitHub too; their payout wallets and any extra
-              manual assignees are edited here.
-            </p>
+            <>
+              <p className="text-xs text-zinc-500">
+                This task is a GitHub issue. Changes to its title, description,
+                labels, status and bounty are saved to GitHub. GitHub assignees
+                are managed on GitHub too; their payout wallets and any extra
+                manual assignees are edited here.
+              </p>
+              <Field label="Title (on GitHub)">
+                <Input aria-label="Title (on GitHub)" value={title} maxLength={256} onChange={(e) => setTitle(e.target.value)} />
+              </Field>
+              <Field label="Description (on GitHub)">
+                <Textarea
+                  aria-label="Description (on GitHub)"
+                  rows={3}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="What needs to be done?"
+                />
+              </Field>
+              <Field label="Labels on GitHub (comma-separated)">
+                <Input
+                  aria-label="Labels on GitHub (comma-separated)"
+                  value={ghLabels}
+                  disabled={settled}
+                  onChange={(e) => setGhLabels(e.target.value)}
+                  placeholder="audited"
+                />
+              </Field>
+              {githubStatusOptions.length > 0 && (
+                <Field label="Project status (on GitHub)">
+                  <Select
+                    aria-label="Project status"
+                    value={ghStatus}
+                    disabled={settled}
+                    onChange={(e) => setGhStatus(e.target.value)}
+                  >
+                    {ghStatus && !githubStatusOptions.includes(ghStatus) && (
+                      <option value={ghStatus}>{ghStatus}</option>
+                    )}
+                    {githubStatusOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+              <p className="text-xs text-zinc-500">
+                {settled
+                  ? "This task is already queued or paid, so only its title and description can still be edited here."
+                  : "Moving the issue out of the import column, or removing its payable label, removes the unpaid task here — the same as doing it on GitHub."}
+              </p>
+            </>
           ) : (
             <Field label="Description">
               <Textarea
@@ -368,6 +457,32 @@ export function TaskModal({
                 value={budgetMonth}
                 onChange={(e) => setBudgetMonth(e.target.value)}
               />
+            </Field>
+          )}
+
+          {isGithub && (
+            <Field label="Bounty (the project's number fields on GitHub)">
+              {rows.length === 0 ? (
+                <p className="text-xs text-amber-500">
+                  No bounty fields on this issue yet — add a number field value on the GitHub project board.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {rows.map((row, i) => (
+                    <div key={i} className="flex min-w-0 items-center gap-2">
+                      <span className="w-24 shrink-0 text-sm text-zinc-400">{row.ticker}</span>
+                      <Input
+                        className="min-w-24 flex-1"
+                        aria-label={`Amount for ${row.ticker}`}
+                        value={row.amount}
+                        disabled={settled}
+                        onChange={(e) => setRow(i, { amount: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </Field>
           )}
 

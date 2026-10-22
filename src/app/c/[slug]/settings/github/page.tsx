@@ -143,6 +143,10 @@ export default function GithubSettings({
           <Button onClick={() => void install()} loading={action.busy}>
             {action.busy ? "Opening GitHub…" : "Install GitHub App"}
           </Button>
+          <p className="mt-3 text-sm text-zinc-500">
+            Don&apos;t see your organisation on GitHub? You need to be an
+            organisation owner to install there.
+          </p>
         </Card>
       )}
 
@@ -202,6 +206,10 @@ export default function GithubSettings({
           <Button variant="secondary" onClick={() => void install()} loading={action.busy}>
             {action.busy ? "Opening GitHub…" : "Add another organisation"}
           </Button>
+          <p className="mt-3 text-sm text-zinc-500">
+            Don&apos;t see your organisation on GitHub? You need to be an
+            organisation owner to install there.
+          </p>
 
           <ConfirmDialog
             open={confirmingInstallation !== null}

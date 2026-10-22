@@ -864,6 +864,14 @@ Supabase (RLS, no ORM) + Netlify.
   `BrowserWallet`), never `useWallet().wallet` directly.
 - GitHub webhooks are **not** the source of truth; the hourly cron sweep
   repairs drift. `projects_v2_item` payloads are sparse → GraphQL follow-up.
+- **In-app GitHub issue edits** (`POST /api/github/issue`, admins/leads of
+  the workgroup; `src/lib/github/issueWrite.ts` over `projectsV2.ts`'
+  status/number writers): title/body/labels/state, Project Status and
+  bounty number fields are written to GitHub first, mirrored locally
+  (`mirrorGithubTaskEdit`), then the repo is re-synced so the import rule
+  applies at once. Settled tasks accept title/body only. The other
+  GitHub writes stay the payout write-back above; GitHub remains the
+  source of truth for issue content either way.
 - **Minting** (`kind = 'mint'` transactions): the forge policy is the
   treasury's own multisig native script, optionally wrapped as
   `{all:[script,{before:slot}]}` for a time lock — never a fresh key, so the

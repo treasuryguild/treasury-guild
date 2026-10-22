@@ -8,6 +8,8 @@ A community can connect **several** GitHub organisations or accounts — use **A
 
 Finish on GitHub within 10 minutes, in the same browser and signed in with the same wallet: the return trip is tied to the admin who started it. An installation that already belongs to another community is never moved (the page says so), and an existing installation that no community holds is accepted only if it was installed or updated on GitHub in the last 15 minutes. If the page says the installation was not recent, open **Install GitHub App** again and save the installation on GitHub.
 
+If GitHub only offers your personal account and not the organisation, you are most likely not an owner of that organisation — because the app asks for organisation project access, only an organisation owner can install it there, so ask an owner to run the install (or to make you an owner). If you are an owner and the organisation is still not offered, the GitHub App itself is set to install only on the account that owns it; on the hosted app, contact the Treasury Guild operator, and on your own deployment set the app to **Any account** (make it public) in its GitHub App settings.
+
 The app needs read and write access to issues (to comment the payment back later) and to project boards (to move paid issues to the Paid column).
 
 ## Disconnecting or changing organisation
@@ -55,6 +57,16 @@ Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet li
 - **Webhooks** update tasks within seconds of a change on GitHub.
 - An **hourly sweep** re-syncs linked repositories that were never synced or not synced in the last six hours (up to five per run) and repairs anything a webhook missed. Webhooks are never the only source of truth.
 - **Full sync** on a repository card runs the same full re-read for that repository right now.
+
+## Managing issues from Treasury Guild
+
+Admins and a workgroup's leads can also edit issues without leaving Treasury Guild; every change is saved to GitHub first and then synced back, so the two never disagree about which is newer.
+
+- **Open an imported task** (its card on the board, or on Payday) to edit the issue's **title**, **description**, **labels** and — when the project's columns are loaded — its **project status**, plus the values of its **bounty number fields**. Only the fields you changed are sent. The payout wallets of GitHub assignees, extra manual assignees and the budget month work exactly as before.
+- **Drag a card between project columns** on the board to move the issue to that Status on GitHub.
+- **Open a board item that is not a task yet** to edit its title, labels, open/closed state, status and bounty fields. Draft issues and pull requests cannot be edited here.
+- The import rule applies in both directions: moving an issue out of the import column or removing its payable label removes its unpaid task here, and giving an issue both the payable label and the import column imports it as a task.
+- Once a task is queued in a payout or paid, only its title and description can still be edited here — its status, labels, state and bounty are part of the payment record. Anyone can still change them on GitHub, and the sync mirrors the text from there.
 
 ## What happens after payment
 

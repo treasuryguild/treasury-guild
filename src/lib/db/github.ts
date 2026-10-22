@@ -265,6 +265,58 @@ export async function loadInstallationWorkgroupIds(installationId: number): Prom
   return [...new Set([...repos.map((r) => r.workgroup_id), ...projects.map((p) => p.workgroup_id)].filter((id): id is string => !!id))];
 }
 
+export interface GithubTaskEditTarget {
+  id: string;
+  workgroup_id: string;
+  pay_state: string;
+  title: string;
+  body: string | null;
+  gh_repo_id: number | null;
+  gh_issue_number: number | null;
+  gh_project_item_node_id: string | null;
+  gh_status: string | null;
+  gh_labels: string[] | null;
+  amounts: Record<string, string> | null;
+  bounty_lovelace: number | null;
+}
+
+/** A GitHub-source task with everything an in-app issue edit needs, or null. */
+export async function loadGithubTaskEditTarget(
+  taskId: string,
+): Promise<GithubTaskEditTarget | null> {
+  return maybe<GithubTaskEditTarget>(
+    await serviceClient()
+      .from("tasks")
+      .select("id, workgroup_id, pay_state, title, body, gh_repo_id, gh_issue_number, gh_project_item_node_id, gh_status, gh_labels, amounts, bounty_lovelace")
+      .eq("id", taskId)
+      .eq("source", TaskSource.Github)
+      .maybeSingle(),
+    "load github task",
+  );
+}
+
+/**
+ * Mirror an in-app issue edit into the task row right away (the webhook and
+ * sweep re-apply the same values from GitHub). Only the fields the edit
+ * named are touched, so a racing sync is never rolled back.
+ */
+export async function mirrorGithubTaskEdit(
+  taskId: string,
+  patch: {
+    title?: string; body?: string | null; gh_status?: string; gh_labels?: string[];
+    amounts?: Record<string, string> | null; bounty_lovelace?: number | null;
+  },
+): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
+  check(
+    await serviceClient()
+      .from("tasks")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", taskId),
+    "mirror github edit",
+  );
+}
+
 /** The task mirroring a GitHub issue, or null when the issue was never imported. */
 export async function loadGithubIssueTask(
   repoId: number,

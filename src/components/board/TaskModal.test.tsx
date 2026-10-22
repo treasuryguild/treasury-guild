@@ -21,10 +21,14 @@ function task(over: Partial<BoardTask>): BoardTask {
   };
 }
 
-function setup(t: BoardTask, budgetSetups: { starts_on: string; cadence: "monthly" | "quarterly" }[] = []) {
+function setup(
+  t: BoardTask,
+  budgetSetups: { starts_on: string; cadence: "monthly" | "quarterly" }[] = [],
+  githubStatusOptions: string[] = [],
+) {
   const onSave = vi.fn();
   render(
-    <TaskModal task={t} members={members} tokenTickers={[]} network={0 as Network} budgetSetups={budgetSetups} onClose={() => {}} onSave={onSave} />,
+    <TaskModal task={t} members={members} tokenTickers={[]} network={0 as Network} budgetSetups={budgetSetups} githubStatusOptions={githubStatusOptions} onClose={() => {}} onSave={onSave} />,
   );
   return { user: userEvent.setup(), onSave };
 }
@@ -104,6 +108,53 @@ describe("TaskModal assignees", () => {
         ],
       }),
     );
+  });
+});
+
+describe("TaskModal GitHub issue editing", () => {
+  it("sends changed title, labels, status and bounty to GitHub, untouched fields nowhere", async () => {
+    const { user, onSave } = setup(
+      task({
+        source: "github", title: "Old title", body: "Old body", gh_labels: ["audited"],
+        gh_status: "In review", amounts: { ADA: "10" },
+      }),
+      [],
+      ["In review", "Done"],
+    );
+    const title = screen.getByLabelText("Title (on GitHub)");
+    await user.clear(title);
+    await user.type(title, "New title");
+    await user.type(screen.getByLabelText("Labels on GitHub (comma-separated)"), ", reviewed");
+    await user.selectOptions(screen.getByLabelText("Project status"), "Done");
+    const amount = screen.getByLabelText("Amount for ADA");
+    await user.clear(amount);
+    await user.type(amount, "12.5");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      github: {
+        title: "New title",
+        labels: ["audited", "reviewed"],
+        status: "Done",
+        amounts: { ADA: "12.5" },
+      },
+    }));
+    // The description did not change, so it is not part of the GitHub edit.
+    const sent = onSave.mock.calls[0]?.[0] as { github?: Record<string, unknown> } | undefined;
+    expect(sent?.github).not.toHaveProperty("body");
+  });
+
+  it("sends no GitHub edit when only the payout wallet changed", async () => {
+    const { user, onSave } = setup(
+      task({
+        source: "github",
+        task_assignees: [
+          { id: "ga", source: "github", gh_login: "carol", wallet_address: null, position: 0, contributors: null },
+        ],
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Wallet for @carol"), "addr1alice");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledWith(expect.not.objectContaining({ github: expect.anything() }));
   });
 });
 

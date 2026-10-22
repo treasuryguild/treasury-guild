@@ -131,6 +131,9 @@ export interface MergedBoardItem {
   draft: boolean;
   isPullRequest: boolean;
   assigneeLogins: string[];
+  labels: string[];
+  /** Issue state as GitHub spells it ("OPEN" / "CLOSED"); null for drafts and PRs. */
+  state: string | null;
   amounts: Record<string, number>;
   /** Synced task for this item, when the import filter matched it. */
   task: BoardTask | null;
@@ -187,6 +190,8 @@ export function mergeLiveBoard(
       draft: item.kind === "draft",
       isPullRequest: item.kind === "pull_request",
       assigneeLogins: item.assigneeLogins,
+      labels: item.labels,
+      state: item.state,
       amounts: item.numbers,
       task,
     };
