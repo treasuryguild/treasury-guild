@@ -10,25 +10,28 @@ Supabase (RLS, no ORM) + Netlify.
 - `npm run typecheck` / `npm run lint`
 - **Local-first database**: `npm run db:start` / `db:stop` / `db:status` / `db:reset`
   (migrate from scratch + load snapshot) / `db:snapshot` (copy remote data to
-  the gitignored `supabase/seeds/local/`) / `db:env` (point `.env` at the
-  local stack; remote values live in `.env.remote`). `npm run dev` uses
-  Next.js env loading (local after `db:env`, unless overridden);
-  `npm run dev:remote` overlays `.env.remote`. Local DB commands never write
-  to the remote; `.\scripts\supa.ps1 db push` deploys schema changes
-  (`supa.ps1` is gitignored: a fresh clone must recreate it, template in
-  `scripts/README.md`), while
-  the remote app and seed commands also write data. See `scripts/README.md`.
+  the gitignored `supabase/seeds/local/`) are thin aliases over the Supabase
+  CLI (`supabase start` / `stop` / `status` / `db reset --local` / `db dump
+  --linked`); there are no helper scripts — everything database-related goes
+  through the bare `supabase` CLI (`supabase login` + `supabase link` once
+  per machine). Point `.env` at the local stack by copying `supabase status
+  -o env` values by hand (mapping in `scripts/README.md`); remote values
+  live in `.env.remote`, loaded manually when running the app against the
+  remote. Local DB commands never write to the remote; `supabase db push`
+  deploys schema changes, while running the app or seeds against the remote
+  also writes data. See `scripts/README.md`.
 - `npm run seed:sandbox` (wipe + reseed build-only Signius test tasks) /
   `npm run seed:live` (append one real payout batch to each of the two live
   workgroups: monthly on the mint treasury, quarterly on a second treasury)
-  target the **local** stack; `seed:sandbox:remote` / `seed:live:remote` the remote.
-  `npm run seed:test` runs the three Signius seed fixtures (sandbox, live,
-  head schema) in a throwaway Docker Postgres (`.\scripts\seed-tests.ps1` with no `-Filter` runs every
-  `supabase/tests/*.sql`; `-Port` picks the host port, default 54330). See
-  `supabase/seeds/README.md`.
+  target the **local** stack via `psql`; seeding the remote is a manual
+  `supabase db query --linked -f …` (no npm alias, no confirmation prompt —
+  check the link target first). The three Signius seed fixtures (sandbox,
+  live, head schema) run in a throwaway Docker Postgres with `psql`
+  (commands in `scripts/README.md`; CI runs every `supabase/tests/*.sql`
+  the same way). See `supabase/seeds/README.md`.
 - **CI** (`.github/workflows/ci.yml`, PRs into `main`): typecheck / lint /
   vitest (after `npx next typegen`) plus every `supabase/tests/*.sql` against
-  a `postgres:17` service, like `seed-tests.ps1` with no `-Filter`. No
+  a `postgres:17` service. No
   secrets, never touches the Supabase project; a new SQL fixture must pass there.
 
 ## Code layout rules

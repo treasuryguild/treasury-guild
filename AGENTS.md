@@ -13,5 +13,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Code layout rules and hard invariants: `CLAUDE.md`. Read it before changing code.
 - What the product is: `docs/OVERVIEW.md`. Design and fix plans:
   `docs/onchain-anchoring-estimate.md`, `docs/test-findings-fix-plan.md`.
-- Database and seed scripts: `scripts/README.md`, `supabase/seeds/README.md`.
+- Database (Supabase CLI only, no helper scripts) and seeds: `scripts/README.md`, `supabase/seeds/README.md`.
 - Agent API (MCP, `/api/v1`, OAuth server): `src/app/api/mcp/README.md`.

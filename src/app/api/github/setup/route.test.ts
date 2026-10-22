@@ -82,6 +82,15 @@ describe("GET /api/github/setup", () => {
       expect(mocks.save).not.toHaveBeenCalled();
     });
 
+    it("binds a second, different installation to a community that already has one", async () => {
+      // The community may already hold installation 77 for another org; a
+      // fresh, unclaimed installation inserts alongside it.
+      expect(outcome(await installed())).toEqual({ path: RETURN_TO, query: { install: "connected" } });
+      expect(mocks.save).toHaveBeenCalledWith("insert", {
+        installation_id: 42, community_id: COMMUNITY, account_login: "guild-org", account_type: "Organization",
+      });
+    });
+
     it("refreshes one this community already holds, however old", async () => {
       mocks.owner.mockResolvedValue({ community_id: COMMUNITY });
       mocks.getInstallation.mockResolvedValue(installation({ created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }));

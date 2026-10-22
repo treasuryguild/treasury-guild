@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import type {
+  GithubInstallationOption,
   GithubRepoOption,
   GithubReposResponse,
   InstallUrlResponse,
@@ -17,6 +18,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   EmptyState,
   ErrorText,
   NoticeText,
@@ -40,6 +42,8 @@ export default function GithubSettings({
   const workgroups = useWorkgroups(community?.id, true);
   const installOutcome = useOAuthOutcome("install");
   const action = useAsyncAction();
+  const disconnect = useAsyncAction("Could not disconnect GitHub");
+  const [confirmingInstallation, setConfirmingInstallation] = useState<GithubInstallationOption | null>(null);
   const [busyRepo, setBusyRepo] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -64,11 +68,12 @@ export default function GithubSettings({
     }
   }
 
-  async function linkRepo(repo: GithubRepoOption, fields: RepoLinkFields) {
+  async function linkRepo(installation: GithubInstallationOption, repo: GithubRepoOption, fields: RepoLinkFields) {
     await withRepo(repo.id, async () => {
       await apiFetch("/api/github/repos", {
         body: {
           communityId: community!.id,
+          installationId: installation.installationId,
           repoId: repo.id,
           workgroupId: fields.workgroupId,
           payableLabel: fields.label,
@@ -80,6 +85,22 @@ export default function GithubSettings({
     });
   }
 
+  async function disconnectNow() {
+    const installation = confirmingInstallation;
+    if (!installation) return;
+    const ok = await disconnect.run(() =>
+      apiFetch("/api/github/installation", {
+        method: "DELETE",
+        body: { communityId: community!.id, installationId: installation.installationId },
+      }),
+    );
+    if (ok) {
+      setConfirmingInstallation(null);
+      setNotice(null);
+      repos.reload();
+    }
+  }
+
   async function syncRepo(repoId: number) {
     await withRepo(repoId, async () => {
       const result = await apiFetch<SyncRepoResponse>("/api/github/sync", {
@@ -89,7 +110,7 @@ export default function GithubSettings({
     });
   }
 
-  const installed = repos.data?.installed ?? null;
+  const installations = repos.data?.installations ?? null;
   const error = repos.error ?? action.error;
 
   return (
@@ -109,7 +130,7 @@ export default function GithubSettings({
         }}
       />
 
-      {installed === false && (
+      {installations !== null && installations.length === 0 && (
         <Card>
           <p className="mb-4 text-zinc-400">
             Install the Treasury Guild GitHub App on your organization to sync
@@ -125,40 +146,85 @@ export default function GithubSettings({
         </Card>
       )}
 
-      {installed && (
+      {installations !== null && installations.length > 0 && (
         <>
           <p className="mb-4 text-sm text-zinc-400">
-            Installed on{" "}
-            <span className="font-medium">{repos.data?.accountLogin}</span>.
             Map repositories to workgroups — only issues sitting in the import
             column of a project board <em>and</em> carrying the payable label
             are imported. They sync in near-real-time via webhooks, with an
             hourly sweep as backup; issues that leave the column or lose the
-            label are removed unless already paid.
+            label are removed unless already paid. Repositories from any
+            connected organisation can be linked to any workgroup.
           </p>
           <ErrorText error={error} className="mb-3" />
           <NoticeText className="mb-3">{notice}</NoticeText>
-          <div className="space-y-3">
-            {(repos.data?.repos ?? []).map((repo) => (
-              <RepoCard
-                key={repo.id}
-                repo={repo}
-                workgroups={workgroups.data ?? []}
-                busy={busyRepo === repo.id}
-                onLink={(fields) => void linkRepo(repo, fields)}
-                onSync={() => void syncRepo(repo.id)}
-              />
-            ))}
-            {repos.data?.repos.length === 0 && (
-              <EmptyState>
-                No repositories accessible to the installation.
-              </EmptyState>
-            )}
-          </div>
+
+          {installations.map((installation) => (
+            <section key={installation.installationId} className="mb-6">
+              <Card className="mb-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="min-w-0 flex-1 text-sm">
+                    Installed on{" "}
+                    <span className="font-medium">{installation.accountLogin}</span>
+                    {installation.accountType && (
+                      <span className="text-zinc-500"> ({installation.accountType})</span>
+                    )}
+                  </p>
+                  <Button variant="ghost" onClick={() => setConfirmingInstallation(installation)}>
+                    Disconnect
+                  </Button>
+                </div>
+              </Card>
+              {installation.error ? (
+                <ErrorText error={installation.error} className="mb-3" />
+              ) : (
+                <div className="space-y-3">
+                  {installation.repos.map((repo) => (
+                    <RepoCard
+                      key={repo.id}
+                      repo={repo}
+                      workgroups={workgroups.data ?? []}
+                      busy={busyRepo === repo.id}
+                      onLink={(fields) => void linkRepo(installation, repo, fields)}
+                      onSync={() => void syncRepo(repo.id)}
+                    />
+                  ))}
+                  {installation.repos.length === 0 && (
+                    <EmptyState>
+                      No repositories accessible to the installation.
+                    </EmptyState>
+                  )}
+                </div>
+              )}
+            </section>
+          ))}
+
+          <Button variant="secondary" onClick={() => void install()} loading={action.busy}>
+            {action.busy ? "Opening GitHub…" : "Add another organisation"}
+          </Button>
+
+          <ConfirmDialog
+            open={confirmingInstallation !== null}
+            busy={disconnect.busy}
+            error={disconnect.error}
+            title="Disconnect GitHub?"
+            confirmLabel="Disconnect"
+            onCancel={() => setConfirmingInstallation(null)}
+            onConfirm={() => void disconnectNow()}
+          >
+            The Treasury Guild app is uninstalled from{" "}
+            {confirmingInstallation?.accountLogin ?? "this GitHub account"} and
+            this community&apos;s repository and project links for it are
+            removed, so sync and payment write-back stop for that organisation.
+            Other connected organisations are unaffected. Tasks already
+            imported and their payment history stay, frozen — they are no
+            longer updated from GitHub — and workgroups fed only by this
+            organisation become app boards again.
+          </ConfirmDialog>
         </>
       )}
 
-      {installed === null && !repos.loading && <ErrorText error={error} />}
+      {installations === null && !repos.loading && <ErrorText error={error} />}
     </div>
   );
 }

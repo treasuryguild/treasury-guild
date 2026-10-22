@@ -4,9 +4,23 @@ The **GitHub** page (community sidebar → GitHub) connects a community to GitHu
 
 If the community has no installation yet, the page shows **Install GitHub App**. Click it, choose the GitHub organisation or account and the repositories it may access, and you are sent back here. The page then shows "Installed on …" and lists every repository the installation can see.
 
+A community can connect **several** GitHub organisations or accounts — use **Add another organisation** and repeat the install for each one. This is for workgroups whose code lives in different organisations but which are all paid from the same treasury: repositories from any connected organisation can be linked to any workgroup, including a workgroup fed by two organisations at once.
+
 Finish on GitHub within 10 minutes, in the same browser and signed in with the same wallet: the return trip is tied to the admin who started it. An installation that already belongs to another community is never moved (the page says so), and an existing installation that no community holds is accepted only if it was installed or updated on GitHub in the last 15 minutes. If the page says the installation was not recent, open **Install GitHub App** again and save the installation on GitHub.
 
 The app needs read and write access to issues (to comment the payment back later) and to project boards (to move paid issues to the Paid column).
+
+## Disconnecting or changing organisation
+
+Each connected organisation has its own **Disconnect** beside its "Installed on …" heading. Click it and confirm. Disconnecting one organisation:
+
+- uninstalls the Treasury Guild app from that GitHub organisation or account (on GitHub as well, not just here),
+- removes this community's repository and project links for that organisation, so its syncing and payment write-back stop, and
+- turns workgroups that were fed only by that organisation back into app boards (a workgroup still fed by another organisation stays a GitHub board).
+
+Other connected organisations are unaffected. Tasks already imported and their payment history **stay** — they are frozen: they are no longer updated from GitHub, but nothing is deleted and anything already payable stays payable. Disconnecting also works when the app was already uninstalled on GitHub; uninstalling it there yourself has the same effect here.
+
+To change an organisation: disconnect it, then click **Install GitHub App** (or **Add another organisation**) again, choose the correct organisation and repositories, re-link each repository to its workgroup and click **Full sync**.
 
 ## Linking a repository to a workgroup
 

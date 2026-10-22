@@ -601,10 +601,16 @@ export interface GithubRepoOption {
   /** "" when the paid-status move is disabled for this repo. */
   paidStatus: string | null;
 }
-export interface GithubReposResponse {
-  installed: boolean;
-  accountLogin?: string;
+export interface GithubInstallationOption {
+  installationId: number;
+  accountLogin: string;
+  accountType: string | null;
+  /** Set when GitHub could not list this installation's repos; the rest still load. */
+  error?: string;
   repos: GithubRepoOption[];
+}
+export interface GithubReposResponse {
+  installations: GithubInstallationOption[];
 }
 export interface SyncRepoResponse {
   synced: number;

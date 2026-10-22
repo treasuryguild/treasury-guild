@@ -90,9 +90,8 @@ role delete unsettled GitHub tasks that have no payout rows).
 The database (`supabase/migrations/0021_task_lifecycle.sql`) enforces
 permissions, archive immutability, and payout/deletion guards, including
 payout builds using stale task data. `supabase/tests/task_lifecycle.sql`
-verifies the migrations and the task lifecycle protections; run it with
-`.\scripts\seed-tests.ps1 -Filter task_lifecycle` (a throwaway Postgres
-container, see [SQL fixtures](#sql-fixtures)).
+verifies the migrations and the task lifecycle protections; run it in a
+throwaway Postgres container (see [SQL fixtures](#sql-fixtures)).
 
 ## Workgroup lifecycle
 
@@ -113,7 +112,7 @@ retained lifecycle events (`workgroup_events`), activity tracking
 deleted before that migration cannot be reconstructed) and the database
 guards for concurrent writes. GitHub repositories and issues are never
 deleted. `supabase/tests/workgroup_lifecycle.sql` verifies the lifecycle rules
-and permissions (`.\scripts\seed-tests.ps1 -Filter workgroup_lifecycle`).
+and permissions (see [SQL fixtures](#sql-fixtures)).
 
 ## Several treasuries and funding flow
 
@@ -159,30 +158,30 @@ The reset lives in `supabase/migrations/0022_budget_reset.sql`
 (`reset_workgroup_budgets`, service-role only, called by
 `POST /api/budgets/reset`). `supabase/tests/budget_reset.sql` checks
 reset/deletion, audit retention, payment blockers, permissions, legacy
-migration, and revision conflicts (`.\scripts\seed-tests.ps1 -Filter budget_reset`).
+migration, and revision conflicts (see [SQL fixtures](#sql-fixtures)).
 
 ## Setup
 
-Use **Node.js 22 or newer** (Netlify uses 22), npm, PowerShell, Docker
-Desktop and the Supabase CLI on your PATH. The database helper scripts use
-PowerShell; seeds and SQL fixtures also need `psql`, and remote snapshots
-use `pg_dump` when a database connection string is supplied. Use PostgreSQL
-17 client tools to match the local database.
+Use **Node.js 22 or newer** (Netlify uses 22), npm, Docker
+Desktop and the Supabase CLI on your PATH. There are no database helper
+scripts: the `npm run db:*` / `seed:*` commands are thin aliases over the
+Supabase CLI and `psql`. Seeds and SQL fixtures need `psql` (PostgreSQL
+17 client tools to match the local database).
 
 ### 1. Supabase
 
 Day-to-day development runs against a **local Supabase stack** in Docker
 (`npm run db:start`), built from `supabase/migrations/` and seeded with a data
 snapshot of the remote project when available. Local database commands never
-write to the remote; `db push` deploys schema changes, while `dev:remote` and
-remote seed commands can also write remote data. See
+write to the remote; `supabase db push` deploys schema changes, while running
+the app or seeds against the remote can also write remote data. See
 [`scripts/README.md`](scripts/README.md) for the whole loop.
 
 For the remote project: create it, then apply the migrations in
-`supabase/migrations/` in order (via `.\scripts\supa.ps1 db push` with the
-CLI, or paste into the SQL editor). All CLI calls in this repo go through that
-wrapper for authenticated remote CLI commands; it is gitignored and must be
-created on a fresh clone using the instructions in `scripts/README.md`.
+`supabase/migrations/` in order with the Supabase CLI (`supabase login`,
+`supabase link --project-ref <ref>`, `supabase db push`), or paste them into
+the SQL editor. All database work uses the bare CLI — there is no wrapper
+script to create on a fresh clone.
 
 Collect (these go into `.env.remote`; `.env` holds the local stack's values):
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
@@ -191,8 +190,9 @@ Collect (these go into `.env.remote`; `.env` holds the local stack's values):
   On new projects using signing keys, enable the legacy secret; the app mints
   wallet-session JWTs with it so RLS policies can read the `wallet` claim.
 - `SUPABASE_DB_URL` — the database connection string (Project Settings →
-  Database), scripts only, so `npm run db:snapshot` can copy the remote data
-  locally without a Supabase CLI account.
+  Database), only if you want a direct `pg_dump`/`psql` connection by hand;
+  `npm run db:snapshot` dumps the **linked** project and needs no connection
+  string.
 
 ### 2. Koios
 
@@ -289,7 +289,7 @@ in the privacy policy (`src/content/docs/privacy.mdx`).
 Copy-Item .env.example .env  # first setup only; configure CRON_SECRET and the integrations you use
 npm ci
 npm run db:start             # local Supabase stack (Docker Desktop running)
-npm run db:env               # .env -> local stack; previous Supabase values -> .env.remote
+# copy the Supabase values from `supabase status -o env` into .env (mapping in scripts/README.md)
 npm run dev                  # http://localhost:3000 against the local stack
 ```
 
@@ -298,16 +298,18 @@ community and set up its treasury and workgroups. To use the existing
 Signius test scenarios instead, stop the dev server and run:
 
 ```powershell
-npm run db:snapshot          # copy the remote data locally (needs SUPABASE_DB_URL in .env.remote)
+npm run db:snapshot          # copy the remote data locally (dumps the linked project)
 npm run db:reset             # replaces local data: migrate from scratch + load the snapshot
 npm run seed:sandbox         # needs Signius members and its GVTT mint in the snapshot
 npm run dev                  # http://localhost:3000 against the local stack
 ```
 
-`npm run dev` uses Next.js environment loading; it targets the local stack
-after `db:env`, unless process variables or a higher-priority env file such
-as `.env.local` override it. `npm run dev:remote` overlays the non-empty
-values in `.env.remote` and runs against that project. Both can submit real
+`npm run dev` uses Next.js environment loading; it targets whatever `.env`
+points at (the local stack once you have copied the `supabase status -o env`
+values in), unless process variables or a higher-priority env file such as
+`.env.local` override it. To run against the remote project, load the values
+from `.env.remote` into the process environment first (snippet in
+`scripts/README.md`). Both can submit real
 transactions on each community's network.
 
 `npm test` runs Vitest tests for library logic, API routes, hooks, components
@@ -324,10 +326,11 @@ project).
 `supabase/tests/*.sql` are self-contained fixtures: each loads the migrations
 it needs into an empty database, asserts, and rolls everything back. Some
 fixtures deliberately stop at an older schema to test that migration stage.
-`.\scripts\seed-tests.ps1` runs them all in a throwaway `postgres:17` Docker
-container (port 54330, separate from the local stack, never the remote);
-`-Filter <text>` runs only the files whose name contains it. `npm run seed:test`
-is `seed-tests.ps1 -Filter signius`, i.e. the two seed fixtures plus
+CI runs them all; locally, run them with `psql` against a throwaway
+`postgres:17` Docker container (port 54330, separate from the local stack,
+never the remote) — the exact commands are in
+[`scripts/README.md`](scripts/README.md#sql-fixtures). The seed fixtures are
+`signius_sandbox_seed.sql`, `signius_live_seed.sql` and
 `signius_seeds_head.sql`, which checks both seeds on the head schema (the
 `head_*.sql` fixtures likewise test current behaviour on every migration).
 
@@ -378,7 +381,7 @@ endpoints refuse to issue tokens; `COSIGNER_KEY_SECRET` is required too and
 must be backed up: it encrypts the app-held co-signer keys, and without it
 only the bypass path moves a co-signer treasury's funds).
 Add the variables for the integrations you use from `.env.example`;
-`SUPABASE_DB_URL` is for local scripts and is not needed by the deployed app.
+`SUPABASE_DB_URL` is for local tooling only and is not needed by the deployed app.
 The schedules never
 reach localhost; run the jobs by hand from `/dev` (a `DEV_WALLETS` wallet) or
 with `curl -X POST -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3000/api/cron/reconcile`.
@@ -418,8 +421,7 @@ period boundaries, history, revisions and service-only access; the older
 `supabase/tests/dated_budgets.sql` fixture covers migrations through 0018,
 `supabase/tests/treasury_budgets.sql` the treasury-owned setups and
 `supabase/tests/budget_backfill.sql` the backfill. Run them (and
-`budget_reset.sql`) with `.\scripts\seed-tests.ps1 -Filter budget` (see
-[SQL fixtures](#sql-fixtures)).
+`budget_reset.sql`) as described in [SQL fixtures](#sql-fixtures).
 
 ## Proposals and voting
 
@@ -436,7 +438,7 @@ Proposals move on deadlines through the reconcile cron (and a nudge from the
 open proposal page), so on a local stack run the reconcile job from `/dev`.
 The code is in `src/lib/governance/` and migrations 0055-0057;
 `supabase/tests/governance.sql` and `governance_workgroups_tasks.sql` cover
-the RPCs (`.\scripts\seed-tests.ps1 -Filter governance`). The user guide is
+the RPCs (see [SQL fixtures](#sql-fixtures)). The user guide is
 `src/content/docs/governance.mdx`.
 
 Migrations 0059-0060 add the on-chain side: a final proposal's tally is

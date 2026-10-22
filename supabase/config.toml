@@ -70,8 +70,8 @@ schema_paths = []
 enabled = true
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-# Only the gitignored remote data snapshot written by `scripts/local.ps1
-# snapshot`. The Signius seeds in ./seeds are run on demand (npm run seed:*).
+# Only the gitignored remote data snapshot written by `npm run db:snapshot`
+# (supabase db dump --linked). The Signius seeds in ./seeds run on demand (npm run seed:*).
 sql_paths = ["./seeds/local/*.sql"]
 
 [db.network_restrictions]

@@ -35,16 +35,17 @@ export async function unlinkGithubAccount(wallet: string): Promise<void> {
   );
 }
 
-export async function communityInstallation(
+/** Every GitHub App installation a community holds (one per GitHub account), by login. */
+export async function communityInstallations(
   communityId: string,
-): Promise<GithubInstallationRow | null> {
-  return maybe<GithubInstallationRow>(
+): Promise<GithubInstallationRow[]> {
+  return rows<GithubInstallationRow>(
     await serviceClient()
       .from("github_installations")
       .select("installation_id, community_id, account_login, account_type")
       .eq("community_id", communityId)
-      .maybeSingle(),
-    "load github installation",
+      .order("account_login"),
+    "load github installations",
   );
 }
 
@@ -241,6 +242,27 @@ export async function deleteInstallation(installationId: number): Promise<void> 
     await serviceClient().from("github_installations").delete().eq("installation_id", installationId),
     "delete installation",
   );
+}
+
+/** Distinct workgroups an installation feeds, via its repo and project links. */
+export async function loadInstallationWorkgroupIds(installationId: number): Promise<string[]> {
+  const [repos, projects] = await Promise.all([
+    rows<{ workgroup_id: string | null }>(
+      await serviceClient()
+        .from("github_repos")
+        .select("workgroup_id")
+        .eq("installation_id", installationId),
+      "load installation repo workgroups",
+    ),
+    rows<{ workgroup_id: string }>(
+      await serviceClient()
+        .from("github_project_links")
+        .select("workgroup_id")
+        .eq("installation_id", installationId),
+      "load installation project workgroups",
+    ),
+  ]);
+  return [...new Set([...repos.map((r) => r.workgroup_id), ...projects.map((p) => p.workgroup_id)].filter((id): id is string => !!id))];
 }
 
 /** The task mirroring a GitHub issue, or null when the issue was never imported. */

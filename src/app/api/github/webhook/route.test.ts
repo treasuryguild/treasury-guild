@@ -2,14 +2,15 @@ import { sign } from "@octokit/webhooks-methods";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  record: vi.fn(), processed: vi.fn(), deleteInstallation: vi.fn(), repoLink: vi.fn(), issueTask: vi.fn(),
+  record: vi.fn(), processed: vi.fn(), remove: vi.fn(), repoLink: vi.fn(), issueTask: vi.fn(),
   projectItem: vi.fn(), syncIssue: vi.fn(), projectLink: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 vi.mock("@/lib/db/github", () => ({
-  recordWebhookDelivery: mocks.record, markWebhookProcessed: mocks.processed, deleteInstallation: mocks.deleteInstallation,
+  recordWebhookDelivery: mocks.record, markWebhookProcessed: mocks.processed,
   loadRepoLink: mocks.repoLink, loadGithubIssueTask: mocks.issueTask,
 }));
+vi.mock("@/lib/github/disconnect", () => ({ removeInstallation: mocks.remove }));
 vi.mock("@/lib/github/projectsV2", () => ({ fetchProjectItem: mocks.projectItem }));
 vi.mock("@/lib/github/sync", () => ({ syncGithubIssue: mocks.syncIssue, upsertProjectLink: mocks.projectLink }));
 import { POST } from "./route";
@@ -94,7 +95,7 @@ describe("POST /api/github/webhook", () => {
         expect(await response.json()).toEqual({ error: "Invalid signature" });
       }
       expect(mocks.record).not.toHaveBeenCalled();
-      expect(mocks.deleteInstallation).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("refuses a signed delivery with no delivery id", async () => {
@@ -102,7 +103,7 @@ describe("POST /api/github/webhook", () => {
       expect(response.status).toBe(400);
       expect(await response.json()).toEqual({ error: "Missing delivery id" });
       expect(mocks.record).not.toHaveBeenCalled();
-      expect(mocks.deleteInstallation).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
     });
   });
 
@@ -129,7 +130,7 @@ describe("POST /api/github/webhook", () => {
       mocks.record.mockRejectedValue(new Error("record webhook delivery: connection refused"));
       const response = await POST(await delivery("installation", { action: "deleted", installation: { id: 77 } }), context);
       expect(response.status).toBe(500);
-      expect(mocks.deleteInstallation).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
       expect(mocks.processed).not.toHaveBeenCalled();
     });
 
@@ -139,7 +140,7 @@ describe("POST /api/github/webhook", () => {
       const response = await POST(await delivery("installation", { action: "deleted", installation: { id: 77 } }), context);
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true });
-      expect(mocks.deleteInstallation).toHaveBeenCalledWith(77);
+      expect(mocks.remove).toHaveBeenCalledWith(77);
       expect(logged).toHaveBeenCalled();
     });
   });
@@ -151,7 +152,7 @@ describe("POST /api/github/webhook", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true });
       expect(mocks.record).toHaveBeenCalledWith({ deliveryId: "d-1", event: "installation", action: "deleted", payload });
-      expect(mocks.deleteInstallation).toHaveBeenCalledWith(77);
+      expect(mocks.remove).toHaveBeenCalledWith(77);
       expect(mocks.processed).toHaveBeenCalledWith("d-1", null);
     });
 
@@ -160,7 +161,7 @@ describe("POST /api/github/webhook", () => {
       const response = await POST(await delivery("installation", { action: "deleted", installation: { id: 77 } }), context);
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true, duplicate: true });
-      expect(mocks.deleteInstallation).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
       expect(mocks.processed).not.toHaveBeenCalled();
     });
 
@@ -175,7 +176,7 @@ describe("POST /api/github/webhook", () => {
       expect(mocks.record).toHaveBeenCalledTimes(3);
       expect(mocks.record).toHaveBeenLastCalledWith(expect.objectContaining({ event: "ping", action: null }));
       expect(mocks.processed).toHaveBeenCalledTimes(3);
-      expect(mocks.deleteInstallation).not.toHaveBeenCalled();
+      expect(mocks.remove).not.toHaveBeenCalled();
       expect(mocks.syncIssue).not.toHaveBeenCalled();
     });
 

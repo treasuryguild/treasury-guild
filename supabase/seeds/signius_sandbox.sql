@@ -4,8 +4,8 @@
 -- that pays them) and reseeds the same deterministic scenarios, so a tester
 -- can edit, assign, build and delete freely and then start over.
 --
--- Run:  npm run seed:sandbox            (scripts/seed.ps1 -> psql, LOCAL stack)
---       npm run seed:sandbox:remote     (the remote project; rare)
+-- Run:  npm run seed:sandbox            (psql, LOCAL stack)
+--       supabase db query --linked -f supabase/seeds/signius_sandbox.sql  (the remote project; rare, see seeds/README.md)
 --   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_sandbox.sql
 -- Requires migrations through 0033 and the Signius "Test Token" (GVTT) mint.
 -- One atomic statement: any error rolls back the whole run. The reset refuses

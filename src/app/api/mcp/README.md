@@ -323,5 +323,5 @@ The `/api/v1` routes also answer in a browser tab signed in to the app.
 
 ```bash
 npx vitest run src/app/api/mcp src/lib/mcp src/lib/api/v1 src/lib/oauthServer
-.\scripts\seed-tests.ps1 -Filter mcp_oauth
+# SQL fixture supabase/tests/mcp_oauth.sql: see "SQL fixtures" in scripts/README.md
 ```

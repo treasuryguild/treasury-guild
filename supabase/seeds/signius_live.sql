@@ -8,8 +8,8 @@
 -- different treasuries when Signius has a second preprod one, so a payout can
 -- be pending on each. Nothing is ever deleted or reset here.
 --
--- Run:  npm run seed:live               (scripts/seed.ps1 -> psql, LOCAL stack)
---       npm run seed:live:remote        (the remote project; rare)
+-- Run:  npm run seed:live               (psql, LOCAL stack)
+--       supabase db query --linked -f supabase/seeds/signius_live.sql  (the remote project; rare, see seeds/README.md)
 --   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_live.sql
 -- Requires migrations through 0035, the Signius "Test Token" (GVTT) mint, and
 -- each workgroup's routed treasury holding some tADA plus GVTT (fund the second

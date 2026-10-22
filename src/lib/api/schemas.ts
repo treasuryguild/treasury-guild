@@ -830,12 +830,17 @@ export const connectQuerySchema = z.object({ returnTo: text(200).optional() });
 /** The repo's name is read from GitHub by the route, never taken from the body. */
 export const linkRepoSchema = z.object({
   communityId: id,
+  installationId: z.number().int().positive(),
   repoId: z.number().int().positive(),
   workgroupId: id,
   payableLabel: text(100).optional(),
   importStatus: text(100).optional(),
   /** Status paid issues move to; "" disables, undefined keeps the default. */
   paidStatus: text(100).optional(),
+});
+export const disconnectInstallationSchema = z.object({
+  communityId: id,
+  installationId: z.number().int().positive(),
 });
 export const syncRepoSchema = z.object({ repoId: z.number().int().positive() });
 export const githubSetupQuerySchema = z.object({

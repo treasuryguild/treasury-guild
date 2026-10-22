@@ -2,7 +2,6 @@ import { verify } from "@octokit/webhooks-methods";
 import { publicRoute } from "@/lib/api/route";
 import { SETTLED_PAY_STATES } from "@/lib/constants";
 import {
-  deleteInstallation,
   loadGithubIssueTask,
   loadRepoLink,
   markWebhookProcessed,
@@ -10,6 +9,7 @@ import {
 } from "@/lib/db/github";
 import { githubWebhookSecret } from "@/lib/env.server";
 import { BadRequestError, errorMessage, UnauthorizedError } from "@/lib/errors";
+import { removeInstallation } from "@/lib/github/disconnect";
 import { fetchProjectItem } from "@/lib/github/projectsV2";
 import { syncGithubIssue, upsertProjectLink } from "@/lib/github/sync";
 import { matchesImportFilter } from "@/lib/github/syncRules";
@@ -74,7 +74,7 @@ async function processEvent(
 ): Promise<void> {
   if (event === "installation" && action === "deleted") {
     const installation = payload.installation as { id: number };
-    await deleteInstallation(installation.id);
+    await removeInstallation(installation.id);
     return;
   }
 

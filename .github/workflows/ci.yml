@@ -1,6 +1,6 @@
 # Runs on every pull request into main: typecheck, lint and the vitest unit
 # tests, plus the SQL fixtures in supabase/tests against a throwaway Postgres
-# (what scripts/seed-tests.ps1 does locally). Needs no secrets and never
+# (run locally as described in scripts/README.md, "SQL fixtures"). Needs no secrets and never
 # touches the Supabase project.
 name: CI
 
@@ -46,7 +46,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        # Same image scripts/seed-tests.ps1 uses.
+        # Same image the local fixture commands in scripts/README.md use.
         image: postgres:17
         env:
           POSTGRES_PASSWORD: test

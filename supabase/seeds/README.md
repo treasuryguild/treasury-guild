@@ -15,17 +15,15 @@ payout-building practice never rewrites real transaction history:
 ## Running (local stack, the default)
 
 ```powershell
-npm run seed:sandbox     # or: .\scripts\seed.ps1 sandbox
-npm run seed:live        # or: .\scripts\seed.ps1 live
+npm run seed:sandbox
+npm run seed:live
 ```
 
-`scripts/seed.ps1` runs the file with `psql` against the local Supabase
-database (`SUPABASE_DB_URL` in `.env`, written by `npm run db:env`; default
-`postgresql://postgres:postgres@127.0.0.1:54322/postgres`). Without `-Remote`,
-it ignores a non-local URL and falls back to the local default;
-`-DbUrl <connection string>` overrides the env file (still local-only
-unless `-Remote` is given). It fails fast when the stack is not
-running (`npm run db:start`). Output: the seed's `NOTICE` line plus one
+The npm commands run the file with `psql` against the local Supabase
+database (`postgresql://postgres:postgres@127.0.0.1:54322/postgres`, the
+local stack's DB port from `supabase/config.toml`). Start the stack first
+(`npm run db:start`); `psql` fails to connect when it is not running.
+Output: the seed's `NOTICE` line plus one
 summary row, `this_run` (what the seed just did) and the current state of the
 seeded workgroup.
 
@@ -40,21 +38,22 @@ on preprod; the transaction record then lives only in the local database.
 
 ## Seeding the remote project (rare)
 
+There is deliberately no npm alias and no confirmation prompt for this any
+more — run the file through the Supabase CLI against the **linked** project
+by hand, and double-check `supabase migration list` shows the Treasury
+Guild project as the remote before you do (the sandbox seed wipes the
+remote `[TEST]` workgroups, the live seed appends real history):
+
 ```powershell
-npm run seed:sandbox:remote     # or: .\scripts\seed.ps1 sandbox -Remote
-npm run seed:live:remote        # or: .\scripts\seed.ps1 live -Remote
+supabase db query --linked -f supabase/seeds/signius_sandbox.sql
+supabase db query --linked -f supabase/seeds/signius_live.sql
 ```
 
-Both prompt for the word `remote` before writing anything (the sandbox seed
-wipes the remote `[TEST]` workgroups, the live seed appends real history).
-`-Yes` skips the prompt for automation; the npm scripts never pass it.
-
-With `SUPABASE_DB_URL` set in `.env.remote` (Project Settings → Database
-connection string) the runner uses `psql`, prints the notices and needs no
-Supabase CLI account. Without it, the file goes through
-`scripts/supa.ps1 db query --linked` (Management API, token scoped to that
-call; `NOTICE` lines are dropped). The service-role key cannot run SQL, so
-it is not an alternative.
+This goes over the Management API (`NOTICE` lines are dropped). To see the
+notices, use `psql` with the remote connection string instead (Project
+Settings → Database, e.g. kept as `SUPABASE_DB_URL` in `.env.remote`):
+`psql <connection string> -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_sandbox.sql`.
+The service-role key cannot run SQL, so it is not an alternative.
 
 Both seeds are a single atomic statement: any error rolls the whole run back.
 They only target `signius` on testnet and refuse missing or ambiguous mints,
@@ -214,17 +213,13 @@ community's GVTT column to skip. In the app: **Funding → Add funding source**,
 
 ## Verifying the seeds
 
-```powershell
-npm run seed:test        # or: .\scripts\seed-tests.ps1 -Filter signius
-```
-
-`scripts/seed-tests.ps1` starts a throwaway `postgres:17` container with
-Docker (port 54330, separate from the local Supabase stack; `-Port` and
-`-Image` override), runs the matching `supabase/tests/*.sql` fixtures
-(`signius_sandbox_seed.sql`, `signius_live_seed.sql`,
-`signius_seeds_head.sql`) against it with the
-local `psql`, and removes the container. Without `-Filter` it runs every SQL
-fixture in the repository.
+Run the seed fixtures with `psql` against a throwaway `postgres:17`
+container with Docker (port 54330, separate from the local Supabase stack) —
+the exact commands are in
+[`scripts/README.md`](../../scripts/README.md#sql-fixtures). The seed
+fixtures are `signius_sandbox_seed.sql`, `signius_live_seed.sql` and
+`signius_seeds_head.sql` in `supabase/tests/`; CI runs every SQL fixture in
+the repository on each PR.
 The first two fixtures load the migrations their seed requires (through
 `0033` for the sandbox, `0035` for the live seed), seed, assert the scenarios, rerun to
 check reset/append behaviour, exercise the expected rejections, and roll

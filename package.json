@@ -7,23 +7,18 @@
   },
   "scripts": {
     "dev": "next dev",
-    "dev:remote": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1 -Remote",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 start",
-    "db:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 stop",
-    "db:reset": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 reset",
-    "db:snapshot": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 snapshot",
-    "db:env": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 env",
-    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local.ps1 status",
-    "seed:sandbox": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed.ps1 sandbox",
-    "seed:live": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed.ps1 live",
-    "seed:sandbox:remote": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed.ps1 sandbox -Remote",
-    "seed:live:remote": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed.ps1 live -Remote",
-    "seed:test": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/seed-tests.ps1 -Filter signius"
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset --local",
+    "db:snapshot": "supabase db dump --linked --data-only -s public -x public.auth_nonces,public.webhook_events -f supabase/seeds/local/remote_snapshot.sql",
+    "db:status": "supabase status",
+    "seed:sandbox": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_sandbox.sql",
+    "seed:live": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_live.sql"
   },
   "overrides": {
     "@utxos/sdk": {

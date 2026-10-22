@@ -41,9 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# supabase CLI wrapper holds a personal access token
-scripts/supa.ps1
 supabase/.temp
-# data snapshot of the remote project (real member wallets), see scripts/local.ps1
+# data snapshot of the remote project (real member wallets), see scripts/README.md
 supabase/seeds/local/
 
