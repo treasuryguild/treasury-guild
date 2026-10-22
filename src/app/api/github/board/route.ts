@@ -20,6 +20,9 @@ const CACHE_TTL_MS = 60_000;
 
 export const GET = sessionRoute(async (req, { session }) => {
   const { workgroupId } = parseQuery(req, workgroupIdQuerySchema);
+  // `?fresh=1`: an explicit reload after an in-app edit must not be served
+  // the pre-edit board from the cache (it refills the cache instead).
+  const fresh = new URL(req.url).searchParams.get("fresh") === "1";
 
   const communityId = await requireWorkgroupCommunity(workgroupId);
   await requireMember(communityId, session.wallet);
@@ -62,7 +65,7 @@ export const GET = sessionRoute(async (req, { session }) => {
   const boards: LiveProjectBoard[] = [];
   let failures = 0;
   for (const link of links) {
-    const cached = boardCache.get(link.project_node_id);
+    const cached = fresh ? undefined : boardCache.get(link.project_node_id);
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       boards.push(cached.board);
       continue;

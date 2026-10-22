@@ -164,8 +164,8 @@ export default function BoardPage({
           settingsHref={settingsHref}
           onEdit={setEditing}
           onEditItem={(item, status) => setEditingItem({ item, status })}
-          onMoveTaskStatus={(task, status) => void pushGithubEdit({ kind: "task", taskId: task.id, status })}
-          onMoveItemStatus={(item, status) => void pushGithubEdit({ kind: "item", workgroupId, itemNodeId: item.itemNodeId, status })}
+          onMoveTaskStatus={(task, status) => pushGithubEdit({ kind: "task", taskId: task.id, status })}
+          onMoveItemStatus={(item, status) => pushGithubEdit({ kind: "item", workgroupId, itemNodeId: item.itemNodeId, status })}
           archived={archived}
         />
       ) : isEmptyNative ? (

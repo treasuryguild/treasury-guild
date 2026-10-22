@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { BoardTask, LiveProjectBoard } from "@/lib/boardTypes";
 import { GithubBoardView } from "./GithubBoardView";
 
@@ -65,5 +65,31 @@ describe("GithubBoardView", () => {
   it("has no section when every task comes from GitHub", () => {
     renderView({ tasks: [githubTask] });
     expect(screen.queryByRole("region", { name: "Created in Treasury Guild" })).toBeNull();
+  });
+
+  it("moves a dragged card at once, and returns it when the GitHub move fails", async () => {
+    let finish: (ok: boolean) => void = () => {};
+    const onMoveTaskStatus = vi.fn(
+      () => new Promise<boolean>((resolve) => { finish = resolve; }),
+    );
+    renderView({ canManage: true, tasks: [githubTask], onMoveTaskStatus });
+    const columnOf = (name: string) =>
+      screen.getByRole("heading", { name }).closest(".glass-panel") as HTMLElement;
+    const card = screen.getByText("Fix the login bug").closest("[draggable]") as HTMLElement;
+
+    fireEvent.dragStart(card);
+    fireEvent.drop(columnOf("Todo"));
+
+    // Optimistic: the card is already in Todo with a saving note, and the
+    // move was asked for — GitHub has not answered yet.
+    expect(onMoveTaskStatus).toHaveBeenCalledWith(githubTask, "Todo");
+    expect(within(columnOf("Todo")).getByText("Fix the login bug")).toBeTruthy();
+    expect(within(columnOf("Todo")).getByText("Saving to GitHub…")).toBeTruthy();
+
+    finish(false);
+    await waitFor(() => {
+      expect(within(columnOf("In review")).getByText("Fix the login bug")).toBeTruthy();
+    });
+    expect(screen.queryByText("Saving to GitHub…")).toBeNull();
   });
 });
