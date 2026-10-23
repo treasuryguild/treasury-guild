@@ -20,7 +20,7 @@ import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { usePayableTasks } from "@/hooks/usePayableTasks";
 import { useTaskSave } from "@/hooks/useTaskSave";
 import { useTreasuries } from "@/hooks/useTreasuries";
-import { useTreasuryTokenTickers } from "@/hooks/useTreasuryTokenTickers";
+import { useTreasuryWalletTokens } from "@/hooks/useTreasuryTokenTickers";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useCommunityBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
@@ -63,7 +63,15 @@ export default function PaydayPage({
   const canManageAny = isAdmin || roles.ledWorkgroupIds.size > 0;
   const members = useCommunityMembers(canManageAny ? community?.id : null);
   const memberOptions = useMemo(() => toMemberOptions(members.data ?? []), [members.data]);
-  const tokenTickers = useTreasuryTokenTickers(community?.id, null, canManageAny);
+  const walletTokens = useTreasuryWalletTokens(community?.id, null, canManageAny);
+  const tokenTickers = useMemo(() => {
+    const byLower = new Map<string, string>();
+    for (const t of walletTokens) {
+      if (!t.ticker) continue;
+      if (!byLower.has(t.ticker.toLowerCase())) byLower.set(t.ticker.toLowerCase(), t.ticker);
+    }
+    return [...byLower.values()].sort();
+  }, [walletTokens]);
   // Setups are also what resolves a task's wallet for its budget period.
   const budgetSetupsByWorkgroup = useCommunityBudgetSetups(community?.id, true);
   const assignmentsByWorkgroup = useWorkgroupTreasuryAssignments(community?.id);
@@ -241,6 +249,7 @@ export default function PaydayPage({
           task={editing}
           members={memberOptions}
           tokenTickers={tokenTickers}
+          walletTokens={walletTokens}
           network={community ? asNetwork(community.network) : appNetwork()}
           budgetSetups={budgetSetupsByWorkgroup.get(editing.workgroup_id) ?? []}
           busy={save.busy}

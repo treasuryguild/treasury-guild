@@ -3,9 +3,10 @@
 // cron sweep uses the repo-wide query so it sees project columns and custom
 // number fields, which REST issue endpoints never expose. The writes are
 // addProjectItemByContentId (in-app create), setProjectItemStatus (post-payment
-// move to the "Paid" column, and in-app status moves) and
-// setProjectItemNumberFields (in-app bounty edits); they need the App's
-// Projects permission at read & write.
+// move to the "Paid" column, and in-app status moves),
+// setProjectItemNumberFields (in-app bounty edits) and
+// ensureProjectNumberField (create a bounty NUMBER field from a wallet token);
+// they need the App's Projects permission at read & write.
 import "server-only";
 
 import { installationOctokit } from "./app";
@@ -590,8 +591,8 @@ export interface SetNumberFieldsResult {
  * Write an item's number fields by field name (the bounty edit from the app).
  * Field ids are looked up per call, never stored. A null value clears the
  * field. Fields the project does not have are reported in `missing` instead
- * of failing the whole edit — creating project fields from the app would
- * surprise board owners, so the caller surfaces the names.
+ * of failing the whole edit — create fields explicitly via
+ * `ensureProjectNumberField` (POST /api/github/project-field).
  */
 export async function setProjectItemNumberFields(
   installationId: number,
@@ -660,4 +661,85 @@ export async function fetchRepoProjects(
     } | null;
   };
   return res.repository?.projectsV2.nodes ?? [];
+}
+
+const PROJECT_FIELDS_QUERY = `
+query($id: ID!) {
+  node(id: $id) {
+    ... on ProjectV2 {
+      id
+      fields(first: 50) {
+        nodes {
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const CREATE_NUMBER_FIELD_MUTATION = `
+mutation($projectId: ID!, $name: String!) {
+  createProjectV2Field(input: {
+    projectId: $projectId, dataType: NUMBER, name: $name
+  }) {
+    projectV2Field {
+      ... on ProjectV2Field {
+        id
+        name
+        dataType
+      }
+    }
+  }
+}`;
+
+export interface EnsureNumberFieldResult {
+  /** Canonical field name on the project (existing spelling when reused). */
+  fieldName: string;
+  /** False when a NUMBER field with this name already existed. */
+  created: boolean;
+}
+
+/**
+ * Ensure the project has a NUMBER field with this name (bounty create flow).
+ * Reuses an existing field when the name matches case-insensitively.
+ */
+export async function ensureProjectNumberField(
+  installationId: number,
+  projectNodeId: string,
+  name: string,
+): Promise<EnsureNumberFieldResult> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Field name is required");
+  const octokit = await installationOctokit(installationId);
+  const listed = (await octokit.graphql(PROJECT_FIELDS_QUERY, { id: projectNodeId })) as {
+    node: {
+      id?: string;
+      fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
+    } | null;
+  };
+  if (!listed.node?.id) throw new Error("GitHub project not found");
+  const want = trimmed.toLowerCase();
+  for (const field of listed.node.fields?.nodes ?? []) {
+    if (!field?.name || field.dataType !== "NUMBER") continue;
+    if (field.name.toLowerCase() === want) {
+      return { fieldName: field.name, created: false };
+    }
+  }
+  const created = (await octokit.graphql(CREATE_NUMBER_FIELD_MUTATION, {
+    projectId: projectNodeId,
+    name: trimmed,
+  })) as {
+    createProjectV2Field?: {
+      projectV2Field?: { id?: string; name?: string; dataType?: string } | null;
+    } | null;
+  };
+  const field = created.createProjectV2Field?.projectV2Field;
+  if (!field?.name || field.dataType !== "NUMBER") {
+    throw new Error("GitHub did not return the new number field");
+  }
+  return { fieldName: field.name, created: true };
 }

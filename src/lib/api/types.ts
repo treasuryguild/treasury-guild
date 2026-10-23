@@ -665,6 +665,13 @@ export interface GithubEditorOptionsResponse {
   assignableLogins: string[];
   numberFieldNames: string[];
 }
+/** POST /api/github/project-field: ensure a bounty NUMBER field on the project. */
+export interface GithubProjectFieldResponse {
+  fieldName: string;
+  created: boolean;
+  /** On-chain unit when created from a wallet token; null for ADA. */
+  unit: string | null;
+}
 export interface InstallUrlResponse {
   url: string;
 }

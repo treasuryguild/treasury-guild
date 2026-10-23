@@ -854,6 +854,29 @@ export const githubEditorOptionsQuerySchema = z.union([
   z.object({ workgroupId: id, itemNodeId: nonEmpty.max(200) }),
 ]);
 /**
+ * Create (or reuse) a GitHub Projects NUMBER field for bounties, from ADA or
+ * a token held by a community treasury. Target is an imported task or a live
+ * project item (same shape as editor-options).
+ */
+const githubProjectFieldTarget = z.union([
+  z.object({ taskId: id }),
+  z.object({ workgroupId: id, itemNodeId: nonEmpty.max(200) }),
+]);
+const githubProjectFieldName = z.string().trim().min(1).max(32);
+export const githubProjectFieldSchema = z.intersection(
+  githubProjectFieldTarget,
+  z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("ada"), fieldName: githubProjectFieldName }),
+    z.object({
+      kind: z.literal("token"),
+      fieldName: githubProjectFieldName,
+      unit: z.string().regex(ASSET_UNIT_RE, "Invalid token unit"),
+      treasuryId: id,
+    }),
+  ]),
+);
+export type GithubProjectFieldBody = z.infer<typeof githubProjectFieldSchema>;
+/**
  * Create or edit a GitHub issue from the app; pushed to GitHub by
  * /api/github/issue. A `create` opens a new issue on a linked repo and adds
  * it to a project Status column. A `task` edit names an imported task, an

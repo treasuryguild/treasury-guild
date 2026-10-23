@@ -19,7 +19,7 @@ import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useLiveBoard } from "@/hooks/useLiveBoard";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useGovernanceSettings } from "@/hooks/useProposals";
-import { useTreasuryTokenTickers } from "@/hooks/useTreasuryTokenTickers";
+import { useTreasuryWalletTokens } from "@/hooks/useTreasuryTokenTickers";
 import { useWorkgroupBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { Button, ErrorText, LinkButton, NoticeText, PageMessage, PageTitle } from "@/components/ui";
 import { WorkgroupDetailsDialog } from "@/components/workgroups/WorkgroupDetailsDialog";
@@ -48,11 +48,19 @@ export default function BoardPage({
   const live = useLiveBoard(workgroupId, isMember && board.loaded && isGithubBoard && !archived);
   const members = useCommunityMembers(isMember ? community?.id : null);
   const roles = useMyTreasuryRoles(community?.id);
-  const tokenTickers = useTreasuryTokenTickers(
+  const walletTokens = useTreasuryWalletTokens(
     community?.id,
     board.workgroup?.treasury_id ?? null,
     isMember && board.loaded,
   );
+  const tokenTickers = useMemo(() => {
+    const byLower = new Map<string, string>();
+    for (const t of walletTokens) {
+      if (!t.ticker) continue;
+      if (!byLower.has(t.ticker.toLowerCase())) byLower.set(t.ticker.toLowerCase(), t.ticker);
+    }
+    return [...byLower.values()].sort();
+  }, [walletTokens]);
   const budgetSetups = useWorkgroupBudgetSetups(workgroupId, isMember && board.loaded);
   const governance = useGovernanceSettings(isMember ? community?.id : null);
   const mutations = useBoardMutations({
@@ -209,6 +217,7 @@ export default function BoardPage({
           task={editing}
           members={memberOptions}
           tokenTickers={tokenTickers}
+          walletTokens={walletTokens}
           network={community ? asNetwork(community.network) : appNetwork()}
           budgetSetups={budgetSetups}
           githubStatusOptions={githubStatusOptions}
@@ -235,6 +244,7 @@ export default function BoardPage({
           workgroupId={workgroupId}
           status={editingItem.status}
           statusOptions={githubStatusOptions}
+          walletTokens={walletTokens}
           busy={githubAction.busy}
           saveError={githubAction.error}
           onClose={() => setEditingItem(null)}

@@ -7,10 +7,14 @@
 // GitHub.
 
 import { useState } from "react";
+import {
+  GithubBountyFieldPicker,
+} from "@/components/board/GithubBountyFieldPicker";
 import { Button, ErrorText, Field, Input, Modal, Select } from "@/components/ui";
 import type { GithubIssueEditInput } from "@/lib/api/types";
 import type { MergedBoardItem } from "@/lib/boardTypes";
 import { useGithubEditorOptions } from "@/hooks/useGithubEditorOptions";
+import type { TreasuryWalletToken } from "@/hooks/useTreasuryTokenTickers";
 
 /** GitHub's per-issue assignee cap. */
 const MAX_GITHUB_ASSIGNEES = 10;
@@ -27,6 +31,7 @@ export function GithubItemModal({
   workgroupId,
   status,
   statusOptions,
+  walletTokens = [],
   busy = false,
   saveError,
   onClose,
@@ -37,6 +42,8 @@ export function GithubItemModal({
   /** The Status column the item currently sits in. */
   status: string;
   statusOptions: readonly string[];
+  /** Tokens held by paying treasury wallet(s), for creating bounty fields. */
+  walletTokens?: readonly TreasuryWalletToken[];
   busy?: boolean;
   saveError?: string | null;
   onClose: () => void;
@@ -55,7 +62,6 @@ export function GithubItemModal({
   const [nextStatus, setNextStatus] = useState(status);
   const [assignees, setAssignees] = useState<string[]>(() => [...item.assigneeLogins]);
   const [addGithubLogin, setAddGithubLogin] = useState("");
-  const [addBountyField, setAddBountyField] = useState("");
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
     Object.fromEntries(Object.entries(item.amounts).map(([k, v]) => [k, String(v)])),
   );
@@ -66,9 +72,6 @@ export function GithubItemModal({
     (login) => !chosenLogins.has(login.toLowerCase()),
   );
   const usedBountyFields = new Set(Object.keys(amounts).map((n) => n.toLowerCase()));
-  const availableBountyFields = numberFieldNames.filter(
-    (name) => !usedBountyFields.has(name.toLowerCase()),
-  );
 
   function addGithubAssignee(login: string) {
     if (!login) return;
@@ -85,7 +88,6 @@ export function GithubItemModal({
     if (!fieldName) return;
     if (usedBountyFields.has(fieldName.toLowerCase())) return;
     setAmounts((a) => ({ ...a, [fieldName]: "" }));
-    setAddBountyField("");
   }
 
   function save() {
@@ -217,9 +219,8 @@ export function GithubItemModal({
         <Field label="Bounty (the project's number fields on GitHub)">
           {Object.keys(amounts).length === 0 ? (
             <p className="text-xs text-amber-500">
-              {availableBountyFields.length > 0 || editorOptions.loading
-                ? "No bounty fields on this issue yet — add one below."
-                : "No bounty fields on this issue yet — add a number field on the GitHub project board first."}
+              No bounty fields on this issue yet — add an existing project field
+              below, or create one from a wallet token.
             </p>
           ) : (
             <div className="space-y-2">
@@ -251,28 +252,14 @@ export function GithubItemModal({
               ))}
             </div>
           )}
-          <Select
-            className="mt-2"
-            aria-label="Add bounty field"
-            value={addBountyField}
-            disabled={editorOptions.loading || availableBountyFields.length === 0}
-            onChange={(e) => {
-              const name = e.target.value;
-              setAddBountyField(name);
-              if (name) addBountyRow(name);
-            }}
-          >
-            <option value="">
-              {editorOptions.loading
-                ? "Loading project fields…"
-                : availableBountyFields.length === 0
-                  ? "No more number fields on the project"
-                  : "+ Add bounty field…"}
-            </option>
-            {availableBountyFields.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </Select>
+          <GithubBountyFieldPicker
+            target={{ workgroupId, itemNodeId: item.itemNodeId }}
+            numberFieldNames={numberFieldNames}
+            usedFieldNames={usedBountyFields}
+            walletTokens={walletTokens}
+            loading={editorOptions.loading}
+            onAddField={addBountyRow}
+          />
         </Field>
         <ErrorText error={error ?? saveError} />
         <div className="flex flex-wrap justify-end gap-2">

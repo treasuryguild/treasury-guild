@@ -58,7 +58,7 @@ Filters change what is listed, never what is paid. A selected task a filter hide
 
 ## Tokens
 
-Bounties can be in ADA and in native tokens. Treasury Guild does not need tokens to be registered anywhere: it reads what the selected treasury holds and matches each bounty's ticker to a token in the wallet.
+Bounties can be in ADA and in native tokens. Treasury Guild does not need tokens to be registered anywhere: it reads what the selected treasury holds and matches each bounty's ticker to a token in the wallet. Creating a GitHub bounty field from a wallet token in the task dialog also remembers that mapping before the first payout.
 
 - Tickers that match exactly one wallet token are connected automatically.
 - If a ticker matches nothing, or several tokens share it, the summary shows "Connect a wallet token for: …" with a dropdown per ticker. Choose the right token before building. That choice is remembered for the community so later displays use the same name, and a remembered connection wins over auto-matching next time. If the remembered token is no longer in the selected treasury the dropdown reappears as a warning ("mapped token not in this wallet") but does not block the build on its own. `ADA` is built in and cannot be reconnected.

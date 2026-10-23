@@ -834,11 +834,13 @@ Supabase (RLS, no ORM) + Netlify.
   paying wallet (`src/lib/cardano/walletAssets.ts`, Koios `/asset_info` — never
   Mesh's `fetchAssetMetadata`, it is CIP-25-only) and matched to GitHub bounty
   field names by ticker (`src/lib/tokenMatch.ts`). `community_assets` rows are
-  written only by `persistPayout` (`src/lib/payout/build.ts`: the
+  written by `persistPayout` (`src/lib/payout/build.ts`: the
   build-payout route and the agent API's payout confirm; auto-matches +
-  manual Payday connections) and by the chain import (a ticker found among the imported
+  manual Payday connections), by the chain import (a ticker found among the imported
   transaction's own output tokens, only when the registry has no such field
-  name), so post-payout displays keep stable tickers. Previous-wallet history
+  name), and by `POST /api/github/project-field` when an admin/lead creates a
+  GitHub bounty NUMBER field from a wallet-held unit (ADA never written), so
+  post-payout displays keep stable tickers. Previous-wallet history
   keeps its own ticker and decimals per amount and never writes the registry.
 - Signature appends use the `add_signature` RPC (optimistic concurrency on
   signature count, migration 0002; 0058 made a lost race return `false`

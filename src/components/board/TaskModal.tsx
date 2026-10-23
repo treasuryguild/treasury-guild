@@ -9,6 +9,8 @@
 // are edited here. Every assignee receives the task's full amounts.
 
 import { useState } from "react";
+import { GithubBountyFieldPicker } from "@/components/board/GithubBountyFieldPicker";
+import { QuarterSelect } from "@/components/budgets/QuarterSelect";
 import {
   Button,
   ErrorText,
@@ -36,8 +38,8 @@ import {
   type MemberOption,
 } from "@/lib/boardTypes";
 import { shortAddress } from "@/lib/format";
-import { QuarterSelect } from "@/components/budgets/QuarterSelect";
 import { useGithubEditorOptions } from "@/hooks/useGithubEditorOptions";
+import type { TreasuryWalletToken } from "@/hooks/useTreasuryTokenTickers";
 
 export type { MemberOption };
 
@@ -100,6 +102,7 @@ export function TaskModal({
   task,
   members,
   tokenTickers,
+  walletTokens = [],
   network,
   budgetSetups = [],
   githubStatusOptions = [],
@@ -114,6 +117,8 @@ export function TaskModal({
   members: MemberOption[];
   /** Tickers of tokens held by the paying treasury wallet(s), sans ADA. */
   tokenTickers: string[];
+  /** Tokens held by paying treasury wallet(s), for creating GitHub bounty fields. */
+  walletTokens?: readonly TreasuryWalletToken[];
   /** For the explorer link once the task has been paid. */
   network: Network;
   /**
@@ -164,7 +169,6 @@ export function TaskModal({
   });
   const [nextKey, setNextKey] = useState(assigneeRows.length);
   const [addGithubLogin, setAddGithubLogin] = useState("");
-  const [addBountyField, setAddBountyField] = useState("");
   const [body, setBody] = useState(task.body ?? "");
   // GitHub issue fields, pushed to GitHub on save when changed.
   const [ghLabels, setGhLabels] = useState((task.gh_labels ?? []).join(", "));
@@ -205,9 +209,6 @@ export function TaskModal({
     (login) => !chosenGithubLogins.has(login.toLowerCase()),
   );
   const usedBountyFields = new Set(rows.map((r) => r.ticker.toLowerCase()));
-  const availableBountyFields = numberFieldNames.filter(
-    (name) => !usedBountyFields.has(name.toLowerCase()),
-  );
 
   function setAssignee(key: number, patch: Partial<AssigneeEditorRow>) {
     setAssigneeRows((list) =>
@@ -250,7 +251,6 @@ export function TaskModal({
     if (!fieldName || settled) return;
     if (usedBountyFields.has(fieldName.toLowerCase())) return;
     setRows((r) => [...r, { ticker: fieldName, amount: "", custom: false }]);
-    setAddBountyField("");
   }
 
   function setRow(i: number, patch: Partial<EditorRow>) {
@@ -605,9 +605,8 @@ export function TaskModal({
             <Field label="Bounty (the project's number fields on GitHub)">
               {rows.length === 0 ? (
                 <p className="text-xs text-amber-500">
-                  {availableBountyFields.length > 0 || editorOptions.loading
-                    ? "No bounty fields on this issue yet — add one below."
-                    : "No bounty fields on this issue yet — add a number field on the GitHub project board first."}
+                  No bounty fields on this issue yet — add an existing project field
+                  below, or create one from a wallet token.
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -637,28 +636,14 @@ export function TaskModal({
                 </div>
               )}
               {!settled && (
-                <Select
-                  className="mt-2"
-                  aria-label="Add bounty field"
-                  value={addBountyField}
-                  disabled={editorOptions.loading || availableBountyFields.length === 0}
-                  onChange={(e) => {
-                    const name = e.target.value;
-                    setAddBountyField(name);
-                    if (name) addBountyRow(name);
-                  }}
-                >
-                  <option value="">
-                    {editorOptions.loading
-                      ? "Loading project fields…"
-                      : availableBountyFields.length === 0
-                        ? "No more number fields on the project"
-                        : "+ Add bounty field…"}
-                  </option>
-                  {availableBountyFields.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </Select>
+                <GithubBountyFieldPicker
+                  target={{ taskId: task.id }}
+                  numberFieldNames={numberFieldNames}
+                  usedFieldNames={usedBountyFields}
+                  walletTokens={walletTokens}
+                  loading={editorOptions.loading}
+                  onAddField={addBountyRow}
+                />
               )}
             </Field>
           )}
