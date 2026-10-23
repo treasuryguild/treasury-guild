@@ -308,16 +308,31 @@ export const buildPaymentSchema = z.object({
   memo: z.string().trim().max(MAX_PAYMENT_MEMO_BYTES, `Memo must be at most ${MAX_PAYMENT_MEMO_BYTES} characters`).optional(),
   /** A passed and applied budget proposal of the community the payment carries out (cited on-chain). */
   proposalId: id.optional(),
+  /**
+   * Empty the paying treasury into the single recipient: every held asset is
+   * moved (ADA after the fee). Client amounts are ignored; the route reads
+   * the wallet.
+   */
+  drain: z.boolean().optional(),
   recipients: z
     .array(z.object({
       address: walletAddress,
-      /** unit ("lovelace" or policyId+assetNameHex) -> amount in display units. */
+      /** unit ("lovelace" or policyId+assetNameHex) -> amount in display units. Empty when draining. */
       amounts: z
         .record(text(200), displayAmount)
-        .refine((a) => Object.keys(a).length <= 50, "Too many tokens for one recipient"),
+        .refine((a) => Object.keys(a).length <= 50, "Too many tokens for one recipient")
+        .default({}),
     }))
     .min(1, "Add at least one recipient")
     .max(MAX_PAYOUT_CONTRIBUTORS, `At most ${MAX_PAYOUT_CONTRIBUTORS} recipients per payment`),
+}).superRefine((body, ctx) => {
+  if (body.drain && body.recipients.length !== 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Move all assets pays one recipient",
+      path: ["recipients"],
+    });
+  }
 });
 
 export const mintAssetInputSchema = z.object({

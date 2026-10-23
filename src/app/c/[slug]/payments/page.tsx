@@ -14,7 +14,8 @@ import { currentBudgetMonth } from "@/lib/budgets";
 import { taskBudgetPeriod } from "@/lib/budgetSetups";
 import { asNetwork } from "@/lib/config";
 import {
-  budgetLines, draftProblems, draftToRequest, draftTotals, newRecipient, overBalance, walletTokens, type RecipientDraft,
+  budgetLines, drainAmounts, draftProblems, draftToRequest, draftTotals, newRecipient, overBalance, walletTokens,
+  type RecipientDraft,
 } from "@/lib/payments/form";
 import { parsePaymentPrefill } from "@/lib/payments/prefill";
 import { routes } from "@/lib/routes";
@@ -56,6 +57,7 @@ export default function PaymentsPage({ params, searchParams }: {
   const { treasuryId, setTreasuryId, selectedTreasury } = useTreasuryChoice(treasuriesQuery.data);
   const [rows, setRows] = useState<RecipientDraft[]>([newRecipient(0)]);
   const [nextKey, setNextKey] = useState(1);
+  const [drain, setDrain] = useState(false);
   const [month, setMonth] = useState(prefill?.month ?? currentBudgetMonth());
   const [memo, setMemo] = useState("");
   const [path, setPath] = useState<SpendingPath | "">("");
@@ -96,11 +98,13 @@ export default function PaymentsPage({ params, searchParams }: {
       transfers: transferRows.length,
       over: overBalance(totals, tokens),
       problems: selectedTreasury && community
-        ? draftProblems(rows, tokens, { treasuryAddress: selectedTreasury.address, network: asNetwork(community.network) })
+        ? draftProblems(rows, tokens, {
+          treasuryAddress: selectedTreasury.address, network: asNetwork(community.network), drain,
+        })
         : [],
       budgets: budgetLines(budgetsQuery.data?.budgets ?? [], treasuryId, spendTotals),
     };
-  }, [rows, tokens, siblings, selectedTreasury, community, budgetsQuery.data, treasuryId]);
+  }, [rows, tokens, siblings, selectedTreasury, community, budgetsQuery.data, treasuryId, drain]);
 
   if (blocked) return blocked;
 
@@ -117,6 +121,19 @@ export default function PaymentsPage({ params, searchParams }: {
 
   function updateRow(key: number, patch: Partial<RecipientDraft>) {
     setRows((list) => list.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function startDrain(key: number) {
+    setRows((list) => {
+      const row = list.find((r) => r.key === key);
+      if (!row) return list;
+      return [{ ...row, amounts: drainAmounts(tokens) }];
+    });
+    setDrain(true);
+  }
+
+  function clearDrain() {
+    setDrain(false);
   }
 
   return (
@@ -145,7 +162,10 @@ export default function PaymentsPage({ params, searchParams }: {
         treasuries={treasuries}
         workgroups={workgroupsQuery.data ?? []}
         value={treasuryId}
-        onChange={setTreasuryId}
+        onChange={(id) => {
+          setTreasuryId(id);
+          setDrain(false);
+        }}
         wallet={wallet}
       />
 
@@ -154,16 +174,21 @@ export default function PaymentsPage({ params, searchParams }: {
       <div className="mb-6 space-y-3">
         {rows.map((row, index) => (
           <RecipientRow key={row.key} row={row} index={index} members={memberOptions} treasuries={siblings}
-            tokens={tokens} disabled={busy || !treasuryId}
+            tokens={tokens} disabled={busy || !treasuryId} drain={drain}
+            canDrain={!!row.address.trim() && tokens.some((t) => t.held > 0n)}
             onChange={(patch) => updateRow(row.key, patch)}
-            onRemove={rows.length > 1 ? () => setRows((list) => list.filter((r) => r.key !== row.key)) : undefined} />
+            onDrain={() => startDrain(row.key)}
+            onClearDrain={clearDrain}
+            onRemove={rows.length > 1 && !drain ? () => setRows((list) => list.filter((r) => r.key !== row.key)) : undefined} />
         ))}
-        <Button variant="secondary" disabled={busy || !treasuryId} onClick={() => {
-          setRows((list) => [...list, newRecipient(nextKey)]);
-          setNextKey((k) => k + 1);
-        }}>
-          <Plus className="h-4 w-4" />Add recipient
-        </Button>
+        {!drain && (
+          <Button variant="secondary" disabled={busy || !treasuryId} onClick={() => {
+            setRows((list) => [...list, newRecipient(nextKey)]);
+            setNextKey((k) => k + 1);
+          }}>
+            <Plus className="h-4 w-4" />Add recipient
+          </Button>
+        )}
       </div>
 
       <div className="mb-6">
@@ -181,10 +206,11 @@ export default function PaymentsPage({ params, searchParams }: {
         transfers={model.transfers}
         totals={model.totals}
         tokens={tokens}
-        overBalance={model.over}
+        overBalance={drain ? [] : model.over}
         budgets={model.budgets}
         budgetsLoading={budgetsQuery.loading}
         problems={model.problems}
+        drain={drain}
         memo={memo}
         onMemoChange={setMemo}
         canBuild={canBuild}
@@ -194,6 +220,7 @@ export default function PaymentsPage({ params, searchParams }: {
         onBuild={() =>
           void build<BuildPaymentResponse>("/api/tx/build-payment", {
             treasuryId, path: chosenPath, budgetMonth: month, memo: memo.trim() || undefined, recipients: draftToRequest(rows),
+            ...(drain ? { drain: true } : {}),
             ...(prefill && receiving ? { proposalId: prefill.proposalId } : {}),
           })
         }

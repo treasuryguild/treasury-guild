@@ -7,7 +7,7 @@ import { Button, Card, ErrorText, Field, Input, WarningText } from "@/components
 
 /** Totals, balance and budget checks, the memo and the build button. */
 export function PaymentSummary({
-  recipients, transfers, totals, tokens, overBalance, budgets, budgetsLoading, problems, memo, onMemoChange,
+  recipients, transfers, totals, tokens, overBalance, budgets, budgetsLoading, problems, drain = false, memo, onMemoChange,
   canBuild, busy, error, blockedReason = null, onBuild,
 }: {
   recipients: number;
@@ -21,6 +21,8 @@ export function PaymentSummary({
   budgetsLoading: boolean;
   /** Client-side checks that stop the build. */
   problems: string[];
+  /** Every held asset is being moved; ADA shown is before the fee. */
+  drain?: boolean;
   memo: string;
   onMemoChange: (memo: string) => void;
   canBuild: boolean;
@@ -40,10 +42,15 @@ export function PaymentSummary({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-zinc-400">
-            {plural(recipients, "recipient")}
+            {drain ? "Moving all assets" : plural(recipients, "recipient")}
             {transfers > 0 && ` · ${plural(transfers, "transfer")} between your treasuries`}
           </p>
           <p className="mt-1 text-xl font-semibold">{lines.length > 0 ? lines.join(" + ") : "Nothing entered yet"}</p>
+          {drain && (
+            <p className="mt-1 text-xs text-zinc-500">
+              The network fee is taken from ADA when the transaction is built; the paying treasury is left empty.
+            </p>
+          )}
           {budgets.length > 0 && (
             <ul className="mt-2 space-y-1 text-sm">
               {budgets.map((line) => (
@@ -68,7 +75,7 @@ export function PaymentSummary({
               {problems.map((problem) => <li key={problem}>{problem}</li>)}
             </ul>
           )}
-          {tokens.length > 1 && (
+          {!drain && tokens.length > 1 && (
             <p className="mt-1 text-xs text-zinc-500">
               Token-only outputs carry a small ADA amount (~1.2–1.5 ₳), the ledger minimum per output.
             </p>

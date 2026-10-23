@@ -4,7 +4,7 @@
 
 import type { BuildPaymentBody } from "@/lib/api/schemas";
 import type { BudgetSummary, WalletAssetsResponse } from "@/lib/api/types";
-import { ADA_ASSET, addQuantity, LOVELACE, scaleDecimal } from "@/lib/assets";
+import { ADA_ASSET, addQuantity, formatQuantity, LOVELACE, scaleDecimal } from "@/lib/assets";
 import { budgetTokenLabel } from "@/lib/budgets";
 import { addressToNetwork, checkValidAddress } from "@/lib/cardano/multisigSDK";
 import type { Network } from "@/lib/config";
@@ -29,6 +29,16 @@ export interface DraftToken {
   decimals: number;
   /** Base units held by the treasury. */
   held: bigint;
+}
+
+/**
+ * Display amounts for every unit the wallet holds (ADA included). Used to
+ * preview a drain; the build subtracts the fee from ADA on the server.
+ */
+export function drainAmounts(tokens: readonly DraftToken[]): Record<string, string> {
+  return Object.fromEntries(
+    tokens.filter((t) => t.held > 0n).map((t) => [t.unit, formatQuantity(t.held, t.decimals)]),
+  );
 }
 
 export function newRecipient(key: number, kind: RecipientKind = "member"): RecipientDraft {
@@ -84,14 +94,24 @@ export function overBalance(totals: ReadonlyMap<string, bigint>, tokens: readonl
 /**
  * What stops the build, in row order: every recipient needs a valid address
  * on the community's network that is not the paying treasury, and at least
- * one well-formed positive amount.
+ * one well-formed positive amount. A drain pays one recipient every held
+ * asset (ADA after the fee); amount fields are preview only.
  */
 export function draftProblems(
   rows: readonly RecipientDraft[],
   tokens: readonly DraftToken[],
-  ctx: { treasuryAddress: string; network: Network },
+  ctx: { treasuryAddress: string; network: Network; drain?: boolean },
 ): string[] {
   const problems: string[] = [];
+  if (ctx.drain) {
+    if (rows.length !== 1) {
+      problems.push("Move all assets pays one recipient");
+      return problems;
+    }
+    if (tokens.every((t) => t.held <= 0n)) {
+      problems.push("The paying treasury holds nothing to move");
+    }
+  }
   const decimals = new Map(tokens.map((t) => [t.unit, t]));
   rows.forEach((row, index) => {
     const who = `Recipient ${index + 1}`;
@@ -112,6 +132,7 @@ export function draftProblems(
       problems.push(`${who}: this is the paying treasury itself`);
       return;
     }
+    if (ctx.drain) return;
     let paid = false;
     for (const [unit, raw] of Object.entries(row.amounts)) {
       const amount = raw.trim();

@@ -6,13 +6,14 @@
 import "server-only";
 
 import { MeshTxBuilder } from "@meshsdk/core";
-import type { IFetcher } from "@meshsdk/common";
+import type { IFetcher, UTxO } from "@meshsdk/common";
 import { resolveTxHash } from "@meshsdk/core-cst";
 import { networkName, type Network } from "@/lib/config";
-import { ADA_ASSET, LOVELACE } from "@/lib/assets";
+import { ADA_ASSET, addQuantity, LOVELACE } from "@/lib/assets";
 import type { UnitDisplay } from "@/lib/assetRegistry";
 import { shortUnit } from "@/lib/format";
 import { ANCHOR_METADATA_LABEL, fitAnchorEntries, type AnchorEntry } from "./anchorMetadata";
+import { decodeTxFee, decodeTxOutputs } from "./cborMetadata";
 import {
   assertPayoutMetadataFits,
   buildMessageMetadata,
@@ -29,7 +30,8 @@ import {
   type PlannedOutput,
   type TaskPayment,
 } from "./payoutOutputs";
-import { selectUtxos } from "./utxoSelect";
+import { assetNameByteLength, splitUnit } from "./units";
+import { minLovelaceForOutput, selectUtxos } from "./utxoSelect";
 
 export type { PayoutRecipient, TaskPayment, UnitDisplay };
 
@@ -149,6 +151,147 @@ export async function completeTreasuryTx(opts: {
   const unsignedTxHex = await txBuilder.complete();
   const txHash = resolveTxHash(unsignedTxHex);
   return { unsignedTxHex, txHash };
+}
+
+/** Starting fee guess for a drain; the loop replaces it with the built fee. */
+const DRAIN_FEE_GUESS = 500_000n;
+const DRAIN_FEE_MAX_ITERS = 5;
+
+/** Sum every unit across the treasury's UTxOs. */
+export function sumUtxoAssets(utxos: readonly UTxO[]): Map<string, bigint> {
+  const totals = new Map<string, bigint>();
+  for (const utxo of utxos) {
+    for (const a of utxo.output.amount) {
+      addQuantity(totals, a.unit, BigInt(a.quantity));
+    }
+  }
+  return totals;
+}
+
+/**
+ * Empty a treasury into one address: every UTxO is spent, change goes to the
+ * recipient (so the paying wallet is left with nothing), and metadata is
+ * rebuilt each fee iteration so the recorded ADA matches the output after fee.
+ */
+export async function completeDrainTx(opts: {
+  treasuryAddress: string;
+  scriptCbor: string;
+  network: Network;
+  provider: IFetcher;
+  recipientAddress: string;
+  /**
+   * Rebuild metadata for the provisional output amounts (ADA = total − fee,
+   * tokens from the same UTxOs). Called each fee iteration so the on-chain
+   * record matches the single output.
+   */
+  metadataFor: (amounts: { unit: string; quantity: bigint }[]) => [label: string, value: object][];
+  unitDisplay?: UnitDisplay;
+  validFromSlot?: number | null;
+}): Promise<{
+  unsignedTxHex: string;
+  txHash: string;
+  /** The single planned output (recipient gets every asset after the fee). */
+  output: PlannedOutput;
+  totalByUnit: Map<string, bigint>;
+  fee: bigint;
+}> {
+  const { treasuryAddress, scriptCbor, network, provider, recipientAddress, validFromSlot } = opts;
+
+  const utxos = await provider.fetchAddressUTxOs(treasuryAddress);
+  if (utxos.length === 0) {
+    throw new Error("Insufficient treasury funds: the wallet holds nothing to move");
+  }
+  const holdings = sumUtxoAssets(utxos);
+  const totalLovelace = holdings.get(LOVELACE) ?? 0n;
+  const tokens = [...holdings.entries()].filter(([unit, qty]) => unit !== LOVELACE && qty > 0n);
+  if (totalLovelace <= 0n && tokens.length === 0) {
+    throw new Error("Insufficient treasury funds: the wallet holds nothing to move");
+  }
+
+  const policies = new Set(tokens.map(([u]) => splitUnit(u).policyId));
+  const nameBytes = tokens.reduce((sum, [u]) => sum + assetNameByteLength(u), 0);
+  const minLovelace = minLovelaceForOutput({
+    policies: policies.size, assets: tokens.length, totalNameBytes: nameBytes,
+  });
+
+  const amountsFor = (lovelaceOut: bigint) => [
+    { unit: LOVELACE, quantity: lovelaceOut },
+    ...tokens.map(([unit, quantity]) => ({ unit, quantity })),
+  ];
+
+  const buildOnce = async (lovelaceOut: bigint) => {
+    const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: false });
+    txBuilder.setNetwork(networkName(network));
+    for (const utxo of utxos) {
+      txBuilder
+        .txIn(
+          utxo.input.txHash,
+          utxo.input.outputIndex,
+          utxo.output.amount,
+          utxo.output.address,
+        )
+        .txInScript(scriptCbor);
+    }
+    // No planned outputs: Mesh puts every leftover asset (after the fee) on
+    // the change address — the recipient — so the paying treasury is emptied.
+    for (const [label, value] of opts.metadataFor(amountsFor(lovelaceOut))) {
+      txBuilder.metadataValue(label, value);
+    }
+    txBuilder.changeAddress(recipientAddress);
+    if (validFromSlot !== undefined && validFromSlot !== null) {
+      txBuilder.invalidBefore(validFromSlot);
+    }
+    return txBuilder.complete();
+  };
+
+  let fee = DRAIN_FEE_GUESS;
+  let unsignedTxHex = "";
+
+  for (let i = 0; i < DRAIN_FEE_MAX_ITERS; i++) {
+    const lovelaceOut = totalLovelace - fee;
+    if (lovelaceOut < minLovelace) {
+      throw new Error(
+        `Insufficient treasury funds: need at least ${minLovelace.toString()} lovelace after the fee to carry the assets`,
+      );
+    }
+
+    unsignedTxHex = await buildOnce(lovelaceOut);
+    const feeStr = decodeTxFee(unsignedTxHex);
+    if (!feeStr) throw new Error("Failed to read the drain transaction fee");
+    const actualFee = BigInt(feeStr);
+    if (actualFee === fee) break;
+    fee = actualFee;
+    if (i === DRAIN_FEE_MAX_ITERS - 1) {
+      throw new Error("Could not balance the drain transaction fee");
+    }
+  }
+
+  const bodyOutputs = decodeTxOutputs(unsignedTxHex);
+  if (bodyOutputs.length !== 1 || bodyOutputs[0]!.address !== recipientAddress) {
+    throw new Error("Drain transaction did not produce a single output to the recipient");
+  }
+  const out = bodyOutputs[0]!;
+  const actualLovelace = BigInt(out.lovelace);
+  if (actualLovelace !== totalLovelace - fee) {
+    // Mesh's fee and change must agree with our accounting; refuse rather than
+    // record a mismatched payment amount.
+    throw new Error("Drain transaction ADA output does not match the fee balance");
+  }
+
+  const assets: PlannedOutput["assets"] = [
+    { unit: LOVELACE, quantity: actualLovelace },
+    ...out.assets.map((a) => ({ unit: a.unit, quantity: BigInt(a.quantity) })),
+  ];
+  const totalByUnit = new Map<string, bigint>();
+  for (const a of assets) addQuantity(totalByUnit, a.unit, a.quantity);
+
+  return {
+    unsignedTxHex,
+    txHash: resolveTxHash(unsignedTxHex),
+    output: { address: recipientAddress, assets },
+    totalByUnit,
+    fee,
+  };
 }
 
 export async function buildPayoutTx(opts: {

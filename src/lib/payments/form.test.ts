@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BudgetSummary } from "@/lib/api/types";
 import {
-  budgetLines, draftProblems, draftToRequest, draftTotals, newRecipient, overBalance, walletTokens, type DraftToken,
+  budgetLines, drainAmounts, draftProblems, draftToRequest, draftTotals, newRecipient, overBalance, walletTokens,
+  type DraftToken,
 } from "./form";
 
 const GVTT = `${"a".repeat(56)}47565454`;
@@ -65,6 +66,29 @@ describe("payment form", () => {
       `Recipient 10: the paying treasury holds no ${"b".repeat(12)}… to pay 3 of it`,
       "Recipient 10: enter an amount",
     ]);
+  });
+
+  it("fills every held unit for a drain preview and skips amount checks while draining", () => {
+    expect(drainAmounts(tokens)).toEqual({ lovelace: "10", [GVTT]: "5" });
+    expect(drainAmounts([{ unit: "lovelace", ticker: "ADA", decimals: 6, held: 0n }])).toEqual({});
+    expect(draftProblems(
+      [{ ...newRecipient(0), address: ALICE, amounts: {} }],
+      tokens,
+      { ...ctx, drain: true },
+    )).toEqual([]);
+    expect(draftProblems(
+      [
+        { ...newRecipient(0), address: ALICE, amounts: drainAmounts(tokens) },
+        { ...newRecipient(1), address: OUTSIDE, amounts: {} },
+      ],
+      tokens,
+      { ...ctx, drain: true },
+    )).toEqual(["Move all assets pays one recipient"]);
+    expect(draftProblems(
+      [{ ...newRecipient(0), address: ALICE, amounts: {} }],
+      [{ unit: "lovelace", ticker: "ADA", decimals: 6, held: 0n }],
+      { ...ctx, drain: true },
+    )).toEqual(["The paying treasury holds nothing to move"]);
   });
 
   it("shows the treasury's budgets with the balance after this payment", () => {

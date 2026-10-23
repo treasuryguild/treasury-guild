@@ -7,12 +7,12 @@ import { parseJson, sessionRoute } from "@/lib/api/route";
 import { buildPaymentSchema } from "@/lib/api/schemas";
 import type { BuildPaymentResponse } from "@/lib/api/types";
 import type { UnitDisplay } from "@/lib/assetRegistry";
-import { ADA_ASSET } from "@/lib/assets";
+import { ADA_ASSET, formatQuantity, LOVELACE } from "@/lib/assets";
 import { budgetTokenLabel, currentBudgetMonth } from "@/lib/budgets";
 import { budgetOwnerLabel, taskBudgetPeriod } from "@/lib/budgetSetups";
 import { buildPaymentTx } from "@/lib/cardano/paymentBuilder";
 import { getProvider } from "@/lib/cardano/provider";
-import { fetchWalletAssets } from "@/lib/cardano/walletAssets";
+import { fetchWalletAssets, type WalletAssets } from "@/lib/cardano/walletAssets";
 import { TxKind } from "@/lib/constants";
 import { recordProposalAnchors } from "@/lib/db/anchors";
 import { loadBudgetSetupsForTreasury, loadBudgetSources } from "@/lib/db/budgetSetups";
@@ -30,9 +30,23 @@ import { resolveTreasuryScript } from "@/lib/treasury";
 import { builtTickers, builtTxResponse, loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor } from "@/lib/tx";
 import { paymentDescription } from "@/lib/txDescription";
 
+/** Display amounts for every unit the wallet holds (provisional ADA; the drain subtracts the fee). */
+function walletDrainAmounts(wallet: WalletAssets): Record<string, string> {
+  const amounts: Record<string, string> = {};
+  if (wallet.lovelace > 0n) amounts[LOVELACE] = formatQuantity(wallet.lovelace, ADA_ASSET.decimals);
+  for (const token of wallet.tokens) {
+    if (token.quantity > 0n) {
+      amounts[token.unit] = formatQuantity(token.quantity, token.decimals);
+    }
+  }
+  return amounts;
+}
+
 export const POST = sessionRoute(async (req, { session }) => {
   const { wallet } = session;
-  const { treasuryId, path: requestedPath, budgetMonth, memo, proposalId, recipients: inputs } = await parseJson(req, buildPaymentSchema);
+  const {
+    treasuryId, path: requestedPath, budgetMonth, memo, proposalId, drain, recipients: rawInputs,
+  } = await parseJson(req, buildPaymentSchema);
 
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
@@ -46,7 +60,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const [walletAssets, siblingTreasuries, members, setups, budgetSources, namedProposal] = await Promise.all([
     fetchWalletAssets(network, treasury.address),
     loadSiblingTreasuries(treasury.community_id, treasuryId),
-    loadMemberLabels(treasury.community_id, inputs.map((r) => r.address)),
+    loadMemberLabels(treasury.community_id, rawInputs.map((r) => r.address)),
     loadBudgetSetupsForTreasury(treasuryId),
     loadBudgetSources([ownerKey]),
     proposalId ? loadAppliedBudgetProposal(treasury.community_id, proposalId) : null,
@@ -63,6 +77,16 @@ export const POST = sessionRoute(async (req, { session }) => {
     ...walletAssets.tokens.map((token): [string, { ticker: string; decimals: number }] =>
       [token.unit, { ticker: budgetTokenLabel(token), decimals: token.decimals }]),
   ]);
+  // A drain ignores client amounts and moves every held asset (ADA after fee).
+  const inputs = drain
+    ? (() => {
+      const amounts = walletDrainAmounts(walletAssets);
+      if (Object.keys(amounts).length === 0) {
+        throw new BadRequestError("The paying treasury holds nothing to move");
+      }
+      return [{ address: rawInputs[0]!.address, amounts }];
+    })()
+    : rawInputs;
   const { recipients, problems } = resolvePaymentRecipients(inputs, {
     network,
     treasuryAddress: treasury.address,
@@ -112,11 +136,14 @@ export const POST = sessionRoute(async (req, { session }) => {
     unitDisplay,
     anchors,
     validFromSlot: validFromSlotFor(treasury, path),
+    drain: !!drain,
   });
   const carried = built.anchorsCarried as typeof anchors;
+  // Drain adjusts ADA for the fee; always persist the amounts the builder recorded.
+  const paid = built.recipients;
 
   const tickers = builtTickers(built, unitDisplay);
-  const transfers = recipients.filter((r) => r.treasuryId !== null).length;
+  const transfers = paid.filter((r) => r.treasuryId !== null).length;
   const txRow = await withTransactionRow(
     {
       treasury_id: treasuryId,
@@ -124,13 +151,13 @@ export const POST = sessionRoute(async (req, { session }) => {
       spending_path: path,
       tx_cbor: built.unsignedTxHex,
       tx_hash: built.txHash,
-      description: paymentDescription({ memo: trimmedMemo, recipients: recipients.length, transfers, tickers }),
+      description: paymentDescription({ memo: trimmedMemo, recipients: paid.length, transfers, tickers }),
       created_by: wallet,
       spend_problems: spendProblems,
     },
     async (tx) => {
       // One row per (recipient, unit); transfers carry no budget month.
-      await insertPayments(recipients.flatMap((r) =>
+      await insertPayments(paid.flatMap((r) =>
         r.amounts.map((a) => ({
           transaction_id: tx.id,
           community_id: treasury.community_id,
