@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   groupTasksByGhStatus,
   mergeLiveBoard,
@@ -114,10 +114,10 @@ export function GithubBoardView({
   onEdit: (task: BoardTask) => void;
   /** Open the editor for a live item that is not an imported task. */
   onEditItem?: (item: MergedBoardItem, status: string) => void;
-  /** Drag a task's card to another project column (pushed to GitHub). */
-  onMoveTaskStatus?: (task: BoardTask, status: string) => void;
-  /** Drag a live item to another project column (pushed to GitHub). */
-  onMoveItemStatus?: (item: MergedBoardItem, status: string) => void;
+  /** Drag a task's card to another project column (pushed to GitHub); resolves false when the move failed. */
+  onMoveTaskStatus?: (task: BoardTask, status: string) => Promise<boolean>;
+  /** Drag a live item to another project column (pushed to GitHub); resolves false when the move failed. */
+  onMoveItemStatus?: (item: MergedBoardItem, status: string) => Promise<boolean>;
   archived?: boolean;
 }) {
   const githubTasks = useMemo(() => tasks.filter((t) => t.source === TaskSource.Github), [tasks]);
@@ -151,6 +151,39 @@ export function GithubBoardView({
   );
 }
 
+/** A card's optimistic-move key: its task, else its project item. */
+function itemKey(item: MergedBoardItem): string {
+  return item.task ? `task:${item.task.id}` : `item:${item.itemNodeId}`;
+}
+
+/** Re-home cards with an optimistic move into their target column. */
+function applyOptimisticMoves(
+  boards: MergedBoard[],
+  moves: Record<string, string>,
+): MergedBoard[] {
+  if (Object.keys(moves).length === 0) return boards;
+  return boards.map((board) => {
+    const moving: { item: MergedBoardItem; target: string; from: string }[] = [];
+    const columns = board.columns.map((col) => ({
+      ...col,
+      items: col.items.filter((item) => {
+        const target = moves[itemKey(item)];
+        if (target && target !== col.name) {
+          moving.push({ item, target, from: col.name });
+          return false;
+        }
+        return true;
+      }),
+    }));
+    for (const move of moving) {
+      const target = columns.find((c) => c.name === move.target)
+        ?? columns.find((c) => c.name === move.from);
+      target?.items.push(move.item);
+    }
+    return { ...board, columns };
+  });
+}
+
 function GithubColumns({
   merged,
   boards,
@@ -178,8 +211,8 @@ function GithubColumns({
   settingsHref: string;
   onEdit: (task: BoardTask) => void;
   onEditItem?: (item: MergedBoardItem, status: string) => void;
-  onMoveTaskStatus?: (task: BoardTask, status: string) => void;
-  onMoveItemStatus?: (item: MergedBoardItem, status: string) => void;
+  onMoveTaskStatus?: (task: BoardTask, status: string) => Promise<boolean>;
+  onMoveItemStatus?: (item: MergedBoardItem, status: string) => Promise<boolean>;
   archived: boolean;
 }) {
   // What is being dragged between project columns, and from which column.
@@ -188,6 +221,71 @@ function GithubColumns({
     | { kind: "item"; item: MergedBoardItem; from: string }
     | null
   >(null);
+  // Optimistic moves: card key -> the column it was dropped on. The card
+  // renders there at once (dimmed, "Saving to GitHub…") while the write and
+  // re-sync run; the entry clears when the live board catches up, and is
+  // dropped (the card returns) when the move reports failure.
+  const [optimistic, setOptimistic] = useState<Record<string, string>>({});
+  useEffect(() => {
+    setOptimistic((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const done = new Set<string>();
+      const present = new Set<string>();
+      for (const board of merged) {
+        for (const col of board.columns) {
+          for (const item of col.items) {
+            present.add(itemKey(item));
+            if (prev[itemKey(item)] === col.name) done.add(itemKey(item));
+          }
+        }
+      }
+      // Done when the live board shows the card in its new column; also done
+      // when the card left the board entirely (the move un-imported its
+      // task, or it now renders as the other card kind under another key).
+      for (const key of keys) {
+        if (!present.has(key)) done.add(key);
+      }
+      if (done.size === 0) return prev;
+      const next = { ...prev };
+      for (const key of done) delete next[key];
+      return next;
+    });
+  }, [merged]);
+  const displayed = useMemo(
+    () => applyOptimisticMoves(merged, optimistic),
+    [merged, optimistic],
+  );
+
+  function startMove(
+    drag: NonNullable<typeof dragging>,
+    target: string,
+  ): void {
+    const key = drag.kind === "task" ? `task:${drag.task.id}` : `item:${drag.item.itemNodeId}`;
+    const move = drag.kind === "task"
+      ? onMoveTaskStatus?.(drag.task, target)
+      : onMoveItemStatus?.(drag.item, target);
+    if (!move) return;
+    setOptimistic((prev) => ({ ...prev, [key]: target }));
+    void move.then(
+      (ok) => {
+        if (!ok) {
+          setOptimistic((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+          });
+        }
+      },
+      () => {
+        setOptimistic((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      },
+    );
+  }
   if (archived) return <SyncedTasksView tasks={tasks} canManage={false} onEdit={onEdit} />;
   if (hasRepos === false) {
     return <NoRepoLinked isAdmin={isAdmin} settingsHref={settingsHref} />;
@@ -217,7 +315,7 @@ function GithubColumns({
           Some project boards could not be loaded.
         </p>
       )}
-      {merged.map((board) => (
+      {displayed.map((board) => (
         <div key={board.projectId}>
           <div className="mb-3 flex items-center gap-2">
             <a
@@ -239,19 +337,16 @@ function GithubColumns({
                 onDrop={
                   canManage && dragging
                     ? () => {
-                        if (dragging.from !== col.name) {
-                          if (dragging.kind === "task") onMoveTaskStatus?.(dragging.task, col.name);
-                          else onMoveItemStatus?.(dragging.item, col.name);
-                        }
+                        if (dragging.from !== col.name) startMove(dragging, col.name);
                         setDragging(null);
                       }
                     : undefined
                 }
               >
-                {col.items.map((item) =>
-                  item.task ? (
+                {col.items.map((item) => {
+                  const saving = itemKey(item) in optimistic;
+                  const card = item.task ? (
                     <TaskCard
-                      key={item.itemNodeId}
                       task={item.task}
                       canManage={canManage}
                       onEdit={onEdit}
@@ -263,7 +358,6 @@ function GithubColumns({
                     />
                   ) : (
                     <LiveItemCard
-                      key={item.itemNodeId}
                       item={item}
                       canManage={canManage}
                       onEdit={(it) => onEditItem?.(it, col.name)}
@@ -273,8 +367,18 @@ function GithubColumns({
                           : undefined
                       }
                     />
-                  ),
-                )}
+                  );
+                  return (
+                    <div key={item.itemNodeId} className={saving ? "opacity-60" : undefined}>
+                      {card}
+                      {saving && (
+                        <p role="status" className="mt-1 text-xs text-zinc-500">
+                          Saving to GitHub…
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </BoardColumn>
             ))}
           </div>

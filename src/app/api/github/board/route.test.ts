@@ -66,6 +66,18 @@ describe("GET /api/github/board", () => {
     expect(mocks.requireMember).toHaveBeenCalledTimes(2);
   });
 
+  it("refetches instead of serving the cache when asked for a fresh board", async () => {
+    const a = project("a");
+    mocks.links.mockResolvedValue([linkOf(a)]);
+    await get();
+    const response = await get(`workgroupId=${WORKGROUP}&fresh=1`);
+    expect(await response.json()).toEqual({ boards: [boardOf(a)], hasRepos: true });
+    expect(mocks.board).toHaveBeenCalledTimes(2);
+    // And the fresh fetch refills the cache for the next plain read.
+    await get();
+    expect(mocks.board).toHaveBeenCalledTimes(2);
+  });
+
   describe("who reads it", () => {
     it("refuses no session, a malformed id, an unknown workgroup and a non-member before reading anything", async () => {
       expect((await get("workgroupId=nope")).status).toBe(400);

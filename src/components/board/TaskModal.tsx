@@ -1,8 +1,8 @@
 "use client";
 
-// Task editor. Native tasks get the full editor: description, assignees, and
-// a multi-token bounty (rows write tasks.amounts; the ADA row is mirrored into
-// bounty_lovelace with the same rules the GitHub sync uses).
+// Task editor. Native tasks get the full editor: title, description,
+// assignees, and a multi-token bounty (rows write tasks.amounts; the ADA row
+// is mirrored into bounty_lovelace with the same rules the GitHub sync uses).
 // GitHub tasks edit the issue itself: title, description, labels, project
 // status and bounty fields are pushed to GitHub by /api/github/issue (and
 // mirrored back by the sync). Their GitHub assignees still come from GitHub
@@ -47,6 +47,8 @@ export interface TaskSaveFields {
   assignees: TaskAssigneeInput[];
   /** "YYYY-MM-DD" (first of month) or null. */
   budget_month?: string | null;
+  /** Native tasks only; GitHub titles go through `github`. */
+  title?: string;
   body?: string | null;
   amounts?: Record<string, string> | null;
   bounty_lovelace?: number | null;
@@ -250,6 +252,11 @@ export function TaskModal({
       if (Object.keys(github).length > 0) fields.github = github;
     }
     if (!isGithub) {
+      const trimmedTitle = title.trim();
+      if (!trimmedTitle) {
+        setError("Give the task a title");
+        return;
+      }
       let amounts: Record<string, string> | null;
       try {
         amounts = amountsFromRows(rows);
@@ -258,6 +265,7 @@ export function TaskModal({
         return;
       }
       const lovelace = adaLovelaceFromAmounts(amounts);
+      if (trimmedTitle !== task.title) fields.title = trimmedTitle;
       fields.body = body.trim() || null;
       fields.amounts = amounts;
       fields.bounty_lovelace = lovelace ? Number(lovelace) : null;
@@ -358,14 +366,26 @@ export function TaskModal({
               </p>
             </>
           ) : (
-            <Field label="Description">
-              <Textarea
-                rows={3}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="What needs to be done?"
-              />
-            </Field>
+            <>
+              {!(task.chain_number !== null && onRename) && (
+                <Field label="Title">
+                  <Input
+                    aria-label="Title"
+                    value={title}
+                    maxLength={200}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </Field>
+              )}
+              <Field label="Description">
+                <Textarea
+                  rows={3}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="What needs to be done?"
+                />
+              </Field>
+            </>
           )}
 
           <Field label="Assignees (each receives the full payout)">
