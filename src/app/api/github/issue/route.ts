@@ -1,6 +1,6 @@
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { githubIssueEditSchema, type GithubIssueEditBody } from "@/lib/api/schemas";
-import type { GithubIssueUpdateResponse } from "@/lib/api/types";
+import type { GithubAssigneeSyncRow, GithubIssueUpdateResponse } from "@/lib/api/types";
 import { requireWorkgroupManager } from "@/lib/authz";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
 import { SETTLED_PAY_STATES } from "@/lib/constants";
@@ -12,6 +12,7 @@ import {
   mirrorGithubTaskEdit,
   type GithubTaskEditTarget,
 } from "@/lib/db/github";
+import { loadTaskAssignees } from "@/lib/db/taskAssignees";
 import { requireActiveWorkgroup, requireWorkgroupCommunity } from "@/lib/db/workgroups";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import { updateGithubIssue, type GithubIssueEdit } from "@/lib/github/issueWrite";
@@ -19,22 +20,23 @@ import { fetchProjectItem } from "@/lib/github/projectsV2";
 import { fullSyncRepo, type RepoLink } from "@/lib/github/sync";
 
 // POST /api/github/issue — edit a GitHub issue from the app and push the
-// change to GitHub (title, body, labels, open/closed, Project v2 Status and
-// bounty number fields). Admins and the workgroup's leads only. The repo is
-// re-synced afterwards so the board reflects the import rule at once: moving
-// an issue out of the import column or dropping its payable label removes
-// its unpaid task here too, as the next webhook/sweep would.
+// change to GitHub (title, body, labels, open/closed, assignees, Project v2
+// Status and bounty number fields). Admins and the workgroup's leads only. The
+// repo is re-synced afterwards so the board reflects the import rule at once:
+// moving an issue out of the import column or dropping its payable label
+// removes its unpaid task here too, as the next webhook/sweep would.
 
 type EditFields = Omit<GithubIssueEditBody, "kind" | "taskId" | "workgroupId" | "itemNodeId">;
 
 function editOf(body: GithubIssueEditBody): GithubIssueEdit {
-  const { title, body: issueBody, labels, state, status, amounts } = body as EditFields;
+  const { title, body: issueBody, labels, state, status, assignees, amounts } = body as EditFields;
   return {
     ...(title !== undefined ? { title } : {}),
     ...(issueBody !== undefined ? { body: issueBody } : {}),
     ...(labels !== undefined ? { labels } : {}),
     ...(state !== undefined ? { state } : {}),
     ...(status !== undefined ? { status } : {}),
+    ...(assignees !== undefined ? { assignees } : {}),
     ...(amounts !== undefined ? { amounts } : {}),
   };
 }
@@ -42,7 +44,10 @@ function editOf(body: GithubIssueEditBody): GithubIssueEdit {
 /** Settled tasks are payment history: only their text may still be edited from the app. */
 function assertSettledEditAllowed(task: Pick<GithubTaskEditTarget, "pay_state">, edit: GithubIssueEdit): void {
   if (!SETTLED_PAY_STATES.includes(task.pay_state)) return;
-  if (edit.status !== undefined || edit.amounts !== undefined || edit.labels !== undefined || edit.state !== undefined) {
+  if (
+    edit.status !== undefined || edit.amounts !== undefined || edit.labels !== undefined ||
+    edit.state !== undefined || edit.assignees !== undefined
+  ) {
     throw new ConflictError("This task is already queued or paid, so only its title and description can be edited here");
   }
 }
@@ -149,11 +154,20 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   const taskRemoved = task ? (await loadGithubTaskEditTarget(task.id)) === null : false;
 
+  let githubAssignees: GithubAssigneeSyncRow[] | undefined;
+  if (edit.assignees !== undefined && task && !taskRemoved) {
+    const rows = await loadTaskAssignees(task.id);
+    githubAssignees = rows
+      .filter((a) => a.source === "github" && a.gh_login)
+      .map((a) => ({ id: a.id, ghLogin: a.gh_login as string, wallet: a.wallet_address }));
+  }
+
   return {
     movedToStatus: result.movedToStatus,
     missingAmountFields: result.missingAmountFields,
     synced,
     deleted,
     taskRemoved,
+    ...(githubAssignees !== undefined ? { githubAssignees } : {}),
   } satisfies GithubIssueUpdateResponse;
 });

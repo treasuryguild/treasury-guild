@@ -843,9 +843,19 @@ export const disconnectInstallationSchema = z.object({
   installationId: z.number().int().positive(),
 });
 export const syncRepoSchema = z.object({ repoId: z.number().int().positive() });
+/** A GitHub login (assignee picker / issue assignee write). */
+const githubLogin = z.string().trim().min(1).max(39).regex(/^[A-Za-z0-9-]+$/, "Invalid GitHub login");
+/**
+ * Picker data for the in-app GitHub issue editor: assignable users for the
+ * issue's repo and the project's number field names (bounty fields).
+ */
+export const githubEditorOptionsQuerySchema = z.union([
+  z.object({ taskId: id }),
+  z.object({ workgroupId: id, itemNodeId: nonEmpty.max(200) }),
+]);
 /**
  * Edit a GitHub issue from the app (title, body, labels, state, project
- * status, bounty fields); pushed to GitHub by /api/github/issue. A `task`
+ * status, bounty fields, assignees); pushed to GitHub by /api/github/issue. A `task`
  * edit names an imported task, an `item` edit a live project item that was
  * never imported. At least one editable field must be present.
  */
@@ -855,6 +865,8 @@ const githubIssueEditFields = {
   labels: z.array(nonEmpty.max(50)).max(100).optional(),
   state: z.enum(["open", "closed"]).optional(),
   status: nonEmpty.max(100).optional(),
+  /** Complete GitHub assignee login set (max 10); [] clears. */
+  assignees: z.array(githubLogin).max(10).optional(),
   amounts: z
     .record(nonEmpty.max(64), z.string().trim().max(60).regex(/^\d+(?:\.\d+)?$/, "Enter a positive number").or(z.literal("")))
     .refine((a) => Object.keys(a).length <= 50, "Too many bounty fields")
@@ -862,7 +874,8 @@ const githubIssueEditFields = {
 };
 const hasGithubEdit = (b: Record<string, unknown>) =>
   b.title !== undefined || b.body !== undefined || b.labels !== undefined ||
-  b.state !== undefined || b.status !== undefined || b.amounts !== undefined;
+  b.state !== undefined || b.status !== undefined || b.assignees !== undefined ||
+  b.amounts !== undefined;
 export const githubIssueEditSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("task"), taskId: id, ...githubIssueEditFields })
     .refine(hasGithubEdit, { message: "Nothing to update" }),

@@ -626,8 +626,16 @@ export interface GithubIssueEditInput {
   state?: "open" | "closed";
   /** Project v2 Status option name to move the item to. */
   status?: string;
+  /** Complete GitHub assignee login set; [] clears. */
+  assignees?: string[];
   /** Bounty number fields by project field name; "" clears a field. */
   amounts?: Record<string, string>;
+}
+/** One github task_assignees row after an assignee edit + re-sync. */
+export interface GithubAssigneeSyncRow {
+  id: string;
+  ghLogin: string;
+  wallet: string | null;
 }
 /** POST /api/github/issue: an in-app issue edit pushed to GitHub, then re-synced. */
 export interface GithubIssueUpdateResponse {
@@ -640,6 +648,16 @@ export interface GithubIssueUpdateResponse {
   deleted: number;
   /** The edited task no longer matches the import rule and was removed. */
   taskRemoved: boolean;
+  /**
+   * Fresh github assignee rows after a sync that followed an assignees edit
+   * (ids change when logins are added). Absent when assignees were not edited.
+   */
+  githubAssignees?: GithubAssigneeSyncRow[];
+}
+/** GET /api/github/editor-options: assignable users + project number fields. */
+export interface GithubEditorOptionsResponse {
+  assignableLogins: string[];
+  numberFieldNames: string[];
 }
 export interface InstallUrlResponse {
   url: string;

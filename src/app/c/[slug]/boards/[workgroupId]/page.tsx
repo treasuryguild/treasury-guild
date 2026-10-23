@@ -217,6 +217,7 @@ export default function BoardPage({
       {editingItem && canManage && (
         <GithubItemModal
           item={editingItem.item}
+          workgroupId={workgroupId}
           status={editingItem.status}
           statusOptions={githubStatusOptions}
           busy={githubAction.busy}

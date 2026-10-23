@@ -6,6 +6,19 @@ import type { BoardTask, MemberOption } from "@/lib/boardTypes";
 import type { Network } from "@/lib/config";
 import { TaskModal } from "./TaskModal";
 
+vi.mock("@/hooks/useGithubEditorOptions", () => ({
+  useGithubEditorOptions: () => ({
+    data: {
+      assignableLogins: ["carol", "dave", "alice"],
+      numberFieldNames: ["ADA", "SIGN"],
+    },
+    loading: false,
+    error: null,
+    reload: () => {},
+    setData: () => {},
+  }),
+}));
+
 const members: MemberOption[] = [
   { wallet: "addr1alice", handle: "alice", githubUsername: "alice" },
   { wallet: "addr1bob", handle: null, githubUsername: "bobby" },
@@ -49,8 +62,8 @@ describe("TaskModal assignees", () => {
     expect(screen.getByText("@carol")).toBeTruthy();
     const carol = screen.getByLabelText("Wallet for @carol") as HTMLSelectElement;
     expect(carol.value).toBe("");
-    // GitHub rows cannot be removed here; the manual one can.
-    expect(screen.getAllByRole("button", { name: "Remove assignee" })).toHaveLength(1);
+    // GitHub and manual rows can both be removed on an unpaid GitHub task.
+    expect(screen.getAllByRole("button", { name: "Remove assignee" })).toHaveLength(2);
 
     await user.selectOptions(carol, "addr1alice");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -61,6 +74,39 @@ describe("TaskModal assignees", () => {
       ],
       budget_month: "2026-09-01",
     });
+  });
+
+  it("adds a GitHub assignee and sends the new login set to GitHub", async () => {
+    const { user, onSave } = setup(
+      task({
+        source: "github",
+        task_assignees: [
+          { id: "ga", source: "github", gh_login: "carol", wallet_address: "addr1alice", position: 0, contributors: null },
+        ],
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Add GitHub assignee"), "dave");
+    expect(screen.getByText("@dave")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledWith({
+      // Assignees POST carries only manuals until sync remaps github ids.
+      assignees: [],
+      budget_month: "2026-09-01",
+      github: { assignees: ["carol", "dave"] },
+      githubWalletsByLogin: { carol: "addr1alice", dave: null },
+    });
+  });
+
+  it("adds an unused project number field as a bounty row", async () => {
+    const { user, onSave } = setup(
+      task({ source: "github", amounts: { ADA: "10" } }),
+    );
+    await user.selectOptions(screen.getByLabelText("Add bounty field"), "SIGN");
+    await user.type(screen.getByLabelText("Amount for SIGN"), "5");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      github: { amounts: { ADA: "10", SIGN: "5" } },
+    }));
   });
 
   it("adds several manual assignees, including a custom address, on native tasks", async () => {

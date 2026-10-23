@@ -50,7 +50,7 @@ Imported tasks are immediately *payable*. When an issue loses the label or leave
 
 Bounties come from the project board's **number fields**: every number field with a positive value is stored as a bounty amount under the field's name. At payout the field name is matched to a token by ticker, case-insensitively: `ADA` is built in, a field whose name matches the ticker of exactly one token the treasury holds is connected automatically, and anything else has to be connected by hand on [Payday](/docs/payday#tokens).
 
-Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet linked to that GitHub account (see [linking a GitHub account](/docs/profile#linking-a-github-account)); until they link, the task shows **Not linked** and cannot be paid. The linked wallet is filled in only while the assignee's wallet is empty, so a wallet set by hand in the task dialog is never overwritten by the sync. Admins and leads can additionally add manual assignees in the task dialog.
+Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet linked to that GitHub account (see [linking a GitHub account](/docs/profile#linking-a-github-account)); until they link, the task shows **Not linked** and cannot be paid. The linked wallet is filled in only while the assignee's wallet is empty, so a wallet set by hand in the task dialog is never overwritten by the sync. Admins and leads can change GitHub assignees from the task dialog (from people assignable on the issue's repository) and can additionally add manual assignees the sync never touches.
 
 ## How syncing works
 
@@ -62,11 +62,11 @@ Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet li
 
 Admins and a workgroup's leads can also edit issues without leaving Treasury Guild; every change is saved to GitHub first and then synced back, so the two never disagree about which is newer.
 
-- **Open an imported task** (its card on the board, or on Payday) to edit the issue's **title**, **description**, **labels** and — when the project's columns are loaded — its **project status**, plus the values of its **bounty number fields**. Only the fields you changed are sent. The payout wallets of GitHub assignees, extra manual assignees and the budget month work exactly as before.
+- **Open an imported task** (its card on the board, or on Payday) to edit the issue's **title**, **description**, **labels**, **assignees** and — when the project's columns are loaded — its **project status**, plus its **bounty number fields** (including adding another of the project's unused number fields as a bounty token). Only the fields you changed are sent. Payout wallets, extra manual assignees and the budget month are edited here as before.
 - **Drag a card between project columns** on the board to move the issue to that Status on GitHub. The card moves straight away and shows **Saving to GitHub…** while the change is written; if GitHub cannot be updated, the card returns to its column.
-- **Open a board item that is not a task yet** to edit its title, labels, open/closed state, status and bounty fields. Draft issues and pull requests cannot be edited here.
+- **Open a board item that is not a task yet** to edit its title, labels, open/closed state, assignees, status and bounty fields. Draft issues and pull requests cannot be edited here.
 - The import rule applies in both directions: moving an issue out of the import column or removing its payable label removes its unpaid task here, and giving an issue both the payable label and the import column imports it as a task.
-- Once a task is queued in a payout or paid, only its title and description can still be edited here — its status, labels, state and bounty are part of the payment record. Anyone can still change them on GitHub, and the sync mirrors the text from there.
+- Once a task is queued in a payout or paid, only its title and description can still be edited here — its status, labels, state, assignees and bounty are part of the payment record. Anyone can still change them on GitHub, and the sync mirrors the text from there.
 
 ## What happens after payment
 

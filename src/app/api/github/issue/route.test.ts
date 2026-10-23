@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(), manager: vi.fn(), community: vi.fn(), active: vi.fn(),
   taskTarget: vi.fn(), repoLink: vi.fn(), projectLinks: vi.fn(), fetchItem: vi.fn(),
   issueTask: vi.fn(), mirror: vi.fn(), updateIssue: vi.fn(), fullSync: vi.fn(),
+  loadAssignees: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireWorkgroupManager: mocks.manager }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/db/github", () => ({
   loadGithubIssueTask: mocks.issueTask,
   mirrorGithubTaskEdit: mocks.mirror,
 }));
+vi.mock("@/lib/db/taskAssignees", () => ({ loadTaskAssignees: mocks.loadAssignees }));
 vi.mock("@/lib/db/workgroups", () => ({
   requireWorkgroupCommunity: mocks.community,
   requireActiveWorkgroup: mocks.active,
@@ -54,6 +56,7 @@ beforeEach(() => {
   mocks.mirror.mockResolvedValue(undefined);
   mocks.updateIssue.mockResolvedValue({ movedToStatus: null, missingAmountFields: [] });
   mocks.fullSync.mockResolvedValue({ synced: 1, deleted: 0 });
+  mocks.loadAssignees.mockResolvedValue([]);
 });
 
 describe("POST /api/github/issue (task)", () => {
@@ -90,14 +93,37 @@ describe("POST /api/github/issue (task)", () => {
     expect(await response.json()).toMatchObject({ synced: 0, deleted: 0, taskRemoved: false });
   });
 
-  it("refuses amounts, labels, state and status edits on a settled task, but allows text", async () => {
+  it("refuses amounts, labels, state, status and assignee edits on a settled task, but allows text", async () => {
     mocks.taskTarget.mockResolvedValue(task({ pay_state: "paid" }));
-    for (const edit of [{ status: "Done" }, { amounts: { ADA: "5" } }, { labels: ["audited"] }, { state: "closed" }]) {
+    for (const edit of [
+      { status: "Done" }, { amounts: { ADA: "5" } }, { labels: ["audited"] },
+      { state: "closed" }, { assignees: ["alice"] },
+    ]) {
       expect((await POST(request({ kind: "task", taskId: TASK, ...edit }), context)).status).toBe(409);
     }
     expect(mocks.updateIssue).not.toHaveBeenCalled();
     expect((await POST(request({ kind: "task", taskId: TASK, title: "Retitled" }), context)).status).toBe(200);
     expect(mocks.updateIssue).toHaveBeenCalledTimes(1);
+  });
+
+  it("pushes assignees to GitHub and returns the synced github rows", async () => {
+    mocks.loadAssignees.mockResolvedValue([
+      { id: "ga", source: "github", gh_login: "alice", wallet_address: "addr1a", position: 0 },
+      { id: "ma", source: "manual", gh_login: null, wallet_address: "addr1b", position: 1 },
+    ]);
+    const response = await POST(
+      request({ kind: "task", taskId: TASK, assignees: ["alice"] }),
+      context,
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      movedToStatus: null, missingAmountFields: [], synced: 1, deleted: 0, taskRemoved: false,
+      githubAssignees: [{ id: "ga", ghLogin: "alice", wallet: "addr1a" }],
+    });
+    expect(mocks.updateIssue).toHaveBeenCalledWith(expect.objectContaining({
+      edit: { assignees: ["alice"] },
+    }));
+    expect(mocks.loadAssignees).toHaveBeenCalledWith(TASK);
   });
 
   it("answers 404 for a missing or non-GitHub task without touching GitHub", async () => {

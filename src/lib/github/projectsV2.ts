@@ -476,12 +476,52 @@ query($id: ID!) {
       project {
         id
         fields(first: 50) {
-          nodes { ... on ProjectV2FieldCommon { id name } }
+          nodes {
+            ... on ProjectV2Field {
+              id
+              name
+              dataType
+            }
+          }
         }
       }
     }
   }
 }`;
+
+type ItemProjectField = { id?: string; name?: string; dataType?: string };
+
+/** Number-field names on the project that owns this item (bounty picker). */
+export async function listProjectNumberFieldNames(
+  installationId: number,
+  itemNodeId: string,
+): Promise<string[]> {
+  const fields = await loadItemProjectNumberFields(installationId, itemNodeId);
+  return fields.map((f) => f.name);
+}
+
+async function loadItemProjectNumberFields(
+  installationId: number,
+  itemNodeId: string,
+): Promise<{ id: string; name: string }[]> {
+  const octokit = await installationOctokit(installationId);
+  const res = (await octokit.graphql(ITEM_FIELDS_QUERY, { id: itemNodeId })) as {
+    node: {
+      id?: string;
+      project?: {
+        id: string;
+        fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
+      } | null;
+    } | null;
+  };
+  const out: { id: string; name: string }[] = [];
+  for (const field of res.node?.project?.fields?.nodes ?? []) {
+    if (!field?.id || !field.name) continue;
+    if (field.dataType !== "NUMBER") continue;
+    out.push({ id: field.id, name: field.name });
+  }
+  return out;
+}
 
 const SET_NUMBER_MUTATION = `
 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
@@ -528,7 +568,7 @@ export async function setProjectItemNumberFields(
       id?: string;
       project?: {
         id: string;
-        fields?: { nodes?: { id?: string; name?: string }[] } | null;
+        fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
       } | null;
     } | null;
   };
@@ -538,7 +578,8 @@ export async function setProjectItemNumberFields(
   }
   const byName = new Map<string, string>();
   for (const field of node.project.fields?.nodes ?? []) {
-    if (field.id && field.name) byName.set(field.name.toLowerCase(), field.id);
+    if (!field?.id || !field.name || field.dataType !== "NUMBER") continue;
+    byName.set(field.name.toLowerCase(), field.id);
   }
   for (const name of names) {
     const fieldId = byName.get(name.toLowerCase());
