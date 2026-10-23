@@ -4,7 +4,11 @@ import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toMemberOptions, type BoardTask, type MergedBoardItem } from "@/lib/boardTypes";
 import { apiFetch } from "@/lib/api/client";
-import type { GithubIssueEditInput, GithubIssueUpdateResponse } from "@/lib/api/types";
+import type {
+  GithubIssueCreateResponse,
+  GithubIssueEditInput,
+  GithubIssueUpdateResponse,
+} from "@/lib/api/types";
 import { appNetwork, asNetwork } from "@/lib/config";
 import { ProposalKind, TaskSource } from "@/lib/constants";
 import { routes } from "@/lib/routes";
@@ -156,6 +160,7 @@ export default function BoardPage({
         <GithubBoardView
           boards={live.boards}
           hasRepos={live.hasRepos}
+          repos={live.repos}
           partial={live.partial}
           error={live.error}
           tasks={activeTasks}
@@ -166,6 +171,16 @@ export default function BoardPage({
           onEditItem={(item, status) => setEditingItem({ item, status })}
           onMoveTaskStatus={(task, status) => pushGithubEdit({ kind: "task", taskId: task.id, status })}
           onMoveItemStatus={(item, status) => pushGithubEdit({ kind: "item", workgroupId, itemNodeId: item.itemNodeId, status })}
+          onAdd={(projectId, status, title, repoId) =>
+            githubAction.run(async () => {
+              await apiFetch<GithubIssueCreateResponse>("/api/github/issue", {
+                body: { kind: "create", workgroupId, projectId, repoId, title, status },
+              });
+              board.reload();
+              live.reload();
+              return true;
+            }).then((ok) => !!ok)
+          }
           archived={archived}
         />
       ) : isEmptyNative ? (

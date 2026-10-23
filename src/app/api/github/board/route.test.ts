@@ -25,6 +25,7 @@ let run = 0;
 const project = (name: string) => `PVT_${run}_${name}`;
 const linkOf = (id: string) => ({ project_node_id: id, installation_id: INSTALLATION });
 const boardOf = (id: string) => ({ id, title: `Board ${id}`, url: `https://github.com/orgs/guild/projects/${id}`, statusOptions: ["Todo"], items: [] });
+const defaultRepos = [{ id: 5, fullName: "guild/app" }];
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -46,7 +47,7 @@ describe("GET /api/github/board", () => {
     mocks.links.mockResolvedValue([linkOf(a), linkOf(b)]);
     const response = await get();
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ boards: [boardOf(a), boardOf(b)], hasRepos: true });
+    expect(await response.json()).toEqual({ boards: [boardOf(a), boardOf(b)], hasRepos: true, repos: defaultRepos });
     expect(mocks.community).toHaveBeenCalledWith(WORKGROUP);
     expect(mocks.requireMember).toHaveBeenCalledWith("community", "member");
     expect(mocks.repos).toHaveBeenCalledWith(WORKGROUP);
@@ -61,7 +62,7 @@ describe("GET /api/github/board", () => {
     mocks.links.mockResolvedValue([linkOf(a)]);
     await get();
     const again = await get();
-    expect(await again.json()).toEqual({ boards: [boardOf(a)], hasRepos: true });
+    expect(await again.json()).toEqual({ boards: [boardOf(a)], hasRepos: true, repos: defaultRepos });
     expect(mocks.board).toHaveBeenCalledTimes(1);
     expect(mocks.requireMember).toHaveBeenCalledTimes(2);
   });
@@ -71,7 +72,7 @@ describe("GET /api/github/board", () => {
     mocks.links.mockResolvedValue([linkOf(a)]);
     await get();
     const response = await get(`workgroupId=${WORKGROUP}&fresh=1`);
-    expect(await response.json()).toEqual({ boards: [boardOf(a)], hasRepos: true });
+    expect(await response.json()).toEqual({ boards: [boardOf(a)], hasRepos: true, repos: defaultRepos });
     expect(mocks.board).toHaveBeenCalledTimes(2);
     // And the fresh fetch refills the cache for the next plain read.
     await get();
@@ -105,7 +106,7 @@ describe("GET /api/github/board", () => {
       mocks.active.mockResolvedValue(false);
       const response = await get();
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ boards: [], hasRepos: true });
+      expect(await response.json()).toEqual({ boards: [], hasRepos: true, repos: [] });
       expect(mocks.active).toHaveBeenCalledWith(WORKGROUP);
       expect(mocks.repos).not.toHaveBeenCalled();
       expect(mocks.board).not.toHaveBeenCalled();
@@ -113,13 +114,13 @@ describe("GET /api/github/board", () => {
 
     it("says so when no repo feeds the workgroup", async () => {
       mocks.repos.mockResolvedValue([]);
-      expect(await (await get()).json()).toEqual({ boards: [], hasRepos: false });
+      expect(await (await get()).json()).toEqual({ boards: [], hasRepos: false, repos: [] });
       expect(mocks.links).not.toHaveBeenCalled();
       expect(mocks.repoProjects).not.toHaveBeenCalled();
     });
 
     it("has repos but no project", async () => {
-      expect(await (await get()).json()).toEqual({ boards: [], hasRepos: true });
+      expect(await (await get()).json()).toEqual({ boards: [], hasRepos: true, repos: defaultRepos });
       expect(mocks.repoProjects).toHaveBeenCalledWith(INSTALLATION, "guild", "app");
       expect(mocks.board).not.toHaveBeenCalled();
     });
@@ -136,7 +137,11 @@ describe("GET /api/github/board", () => {
         ? [{ id: shared, title: "Shared", closed: false }, { id: closed, title: "Old", closed: true }]
         : [{ id: shared, title: "Shared", closed: false }, { id: own, title: "Docs", closed: false }]);
       const response = await get();
-      expect(await response.json()).toEqual({ boards: [boardOf(shared), boardOf(own)], hasRepos: true });
+      expect(await response.json()).toEqual({
+        boards: [boardOf(shared), boardOf(own)],
+        hasRepos: true,
+        repos: [{ id: 5, fullName: "guild/app" }, { id: 6, fullName: "guild/docs" }],
+      });
       expect(mocks.repoProjects.mock.calls).toEqual([[INSTALLATION, "guild", "app"], [INSTALLATION, "guild", "docs"]]);
       expect(mocks.upsertLink).toHaveBeenCalledWith(shared, INSTALLATION, WORKGROUP);
       expect(mocks.upsertLink).toHaveBeenCalledWith(own, INSTALLATION, WORKGROUP);
@@ -154,7 +159,11 @@ describe("GET /api/github/board", () => {
       mocks.repoProjects.mockResolvedValueOnce([{ id: own, title: "Docs", closed: false }]);
       const response = await get();
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ boards: [boardOf(own)], hasRepos: true });
+      expect(await response.json()).toEqual({
+        boards: [boardOf(own)],
+        hasRepos: true,
+        repos: [{ id: 5, fullName: "guild/app" }, { id: 6, fullName: "guild/docs" }],
+      });
     });
   });
 
@@ -164,7 +173,7 @@ describe("GET /api/github/board", () => {
       mocks.links.mockResolvedValue([linkOf(gone), linkOf(kept)]);
       mocks.board.mockImplementation(async (_installation: number, id: string) => (id === gone ? null : boardOf(id)));
       const response = await get();
-      expect(await response.json()).toEqual({ boards: [boardOf(kept)], hasRepos: true });
+      expect(await response.json()).toEqual({ boards: [boardOf(kept)], hasRepos: true, repos: defaultRepos });
       expect(mocks.deleteLink).toHaveBeenCalledTimes(1);
       expect(mocks.deleteLink).toHaveBeenCalledWith(gone);
     });
@@ -178,7 +187,7 @@ describe("GET /api/github/board", () => {
       });
       const response = await get();
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ boards: [boardOf(kept)], hasRepos: true, partial: true });
+      expect(await response.json()).toEqual({ boards: [boardOf(kept)], hasRepos: true, repos: defaultRepos, partial: true });
       expect(mocks.deleteLink).not.toHaveBeenCalled();
     });
 

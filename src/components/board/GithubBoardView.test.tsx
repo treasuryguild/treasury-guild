@@ -92,4 +92,61 @@ describe("GithubBoardView", () => {
     });
     expect(screen.queryByText("Saving to GitHub…")).toBeNull();
   });
+
+  it("offers Add issue… when managing, and calls onAdd with the column Status and repo", async () => {
+    const onAdd = vi.fn().mockResolvedValue(true);
+    renderView({
+      canManage: true,
+      tasks: [githubTask],
+      repos: [{ id: 5, fullName: "x/repo" }],
+      onAdd,
+    });
+    const columnOf = (name: string) =>
+      screen.getByRole("heading", { name }).closest(".glass-panel") as HTMLElement;
+    const todo = columnOf("Todo");
+    expect(within(todo).queryByRole("combobox")).toBeNull();
+    const input = within(todo).getByPlaceholderText("Add issue…");
+    fireEvent.change(input, { target: { value: "New bug" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(onAdd).toHaveBeenCalledWith("P_1", "Todo", "New bug", 5);
+    });
+    await waitFor(() => {
+      expect((input as HTMLInputElement).value).toBe("");
+    });
+  });
+
+  it("shows a repository picker only when more than one repo is linked", async () => {
+    const onAdd = vi.fn().mockResolvedValue(true);
+    renderView({
+      canManage: true,
+      tasks: [githubTask],
+      repos: [
+        { id: 5, fullName: "x/repo" },
+        { id: 6, fullName: "x/docs" },
+      ],
+      onAdd,
+    });
+    const columnOf = (name: string) =>
+      screen.getByRole("heading", { name }).closest(".glass-panel") as HTMLElement;
+    const todo = columnOf("Todo");
+    const select = within(todo).getByRole("combobox");
+    fireEvent.change(select, { target: { value: "6" } });
+    const input = within(todo).getByPlaceholderText("Add issue…");
+    fireEvent.change(input, { target: { value: "Docs fix" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => {
+      expect(onAdd).toHaveBeenCalledWith("P_1", "Todo", "Docs fix", 6);
+    });
+  });
+
+  it("hides Add issue… when the viewer cannot manage", () => {
+    renderView({
+      canManage: false,
+      tasks: [githubTask],
+      repos: [{ id: 5, fullName: "x/repo" }],
+      onAdd: vi.fn(),
+    });
+    expect(screen.queryByPlaceholderText("Add issue…")).toBeNull();
+  });
 });

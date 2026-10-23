@@ -1,6 +1,10 @@
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { githubIssueEditSchema, type GithubIssueEditBody } from "@/lib/api/schemas";
-import type { GithubAssigneeSyncRow, GithubIssueUpdateResponse } from "@/lib/api/types";
+import type {
+  GithubAssigneeSyncRow,
+  GithubIssueCreateResponse,
+  GithubIssueUpdateResponse,
+} from "@/lib/api/types";
 import { requireWorkgroupManager } from "@/lib/authz";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
 import { SETTLED_PAY_STATES } from "@/lib/constants";
@@ -14,21 +18,28 @@ import {
 } from "@/lib/db/github";
 import { loadTaskAssignees } from "@/lib/db/taskAssignees";
 import { requireActiveWorkgroup, requireWorkgroupCommunity } from "@/lib/db/workgroups";
-import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
-import { updateGithubIssue, type GithubIssueEdit } from "@/lib/github/issueWrite";
-import { fetchProjectItem } from "@/lib/github/projectsV2";
+import { BadRequestError, ConflictError, NotFoundError, UpstreamError } from "@/lib/errors";
+import { createGithubIssue, updateGithubIssue, type GithubIssueEdit } from "@/lib/github/issueWrite";
+import { addProjectItemByContentId, fetchProjectItem } from "@/lib/github/projectsV2";
 import { fullSyncRepo, type RepoLink } from "@/lib/github/sync";
 
-// POST /api/github/issue — edit a GitHub issue from the app and push the
-// change to GitHub (title, body, labels, open/closed, assignees, Project v2
-// Status and bounty number fields). Admins and the workgroup's leads only. The
-// repo is re-synced afterwards so the board reflects the import rule at once:
-// moving an issue out of the import column or dropping its payable label
-// removes its unpaid task here too, as the next webhook/sweep would.
+// POST /api/github/issue — create or edit a GitHub issue from the app and push
+// the change to GitHub. Admins and the workgroup's leads only.
+//
+// kind=create opens an issue on a linked repo, adds it to a project Status
+// column (no payable label — the import rule still decides when it becomes a
+// task), then best-effort re-syncs the repo.
+//
+// kind=task|item edits title, body, labels, open/closed, assignees, Project v2
+// Status and bounty number fields. The repo is re-synced afterwards so the
+// board reflects the import rule at once: moving an issue out of the import
+// column or dropping its payable label removes its unpaid task here too, as
+// the next webhook/sweep would.
 
-type EditFields = Omit<GithubIssueEditBody, "kind" | "taskId" | "workgroupId" | "itemNodeId">;
+type EditBody = Exclude<GithubIssueEditBody, { kind: "create" }>;
+type EditFields = Omit<EditBody, "kind" | "taskId" | "workgroupId" | "itemNodeId">;
 
-function editOf(body: GithubIssueEditBody): GithubIssueEdit {
+function editOf(body: EditBody): GithubIssueEdit {
   const { title, body: issueBody, labels, state, status, assignees, amounts } = body as EditFields;
   return {
     ...(title !== undefined ? { title } : {}),
@@ -52,8 +63,67 @@ function assertSettledEditAllowed(task: Pick<GithubTaskEditTarget, "pay_state">,
   }
 }
 
-export const POST = sessionRoute(async (req, { session }) => {
-  const body = await parseJson(req, githubIssueEditSchema);
+async function createIssue(
+  body: Extract<GithubIssueEditBody, { kind: "create" }>,
+  wallet: string,
+) {
+  const communityId = await requireWorkgroupCommunity(body.workgroupId);
+  await requireWorkgroupManager(communityId, body.workgroupId, wallet,
+    "Only admins and workgroup leads can create GitHub issues");
+  await requireActiveWorkgroup(body.workgroupId);
+
+  const link = await loadRepoLink(body.repoId);
+  if (!link?.community_id || link.community_id !== communityId || link.workgroup_id !== body.workgroupId) {
+    throw new BadRequestError("Repository is not linked to this workgroup");
+  }
+  const project = (await loadProjectLinks(body.workgroupId))
+    .find((p) => p.project_node_id === body.projectId);
+  if (!project) throw new NotFoundError("Project not found");
+
+  const created = await createGithubIssue({
+    installationId: link.installation_id,
+    repoFullName: link.full_name,
+    title: body.title,
+  });
+
+  let added;
+  try {
+    added = await addProjectItemByContentId(
+      project.installation_id,
+      body.projectId,
+      created.nodeId,
+      body.status,
+    );
+  } catch (err) {
+    console.error("github add project item failed", err);
+    throw new UpstreamError(
+      "The issue was created on GitHub, but it could not be added to the project. Add it on GitHub, or try again.",
+    );
+  }
+  if (added.outcome === "no_option") {
+    throw new BadRequestError(`The project has no "${body.status}" column.`);
+  }
+  if (added.outcome !== "added") {
+    throw new BadRequestError("The issue could not be placed in that project column.");
+  }
+
+  try {
+    await fullSyncRepo(link);
+  } catch (err) {
+    console.error(`re-sync after issue create failed for ${link.full_name}:`, err);
+  }
+
+  return {
+    number: created.number,
+    url: created.htmlUrl,
+    itemNodeId: added.itemNodeId,
+  } satisfies GithubIssueCreateResponse;
+}
+
+async function editIssue(
+  body: EditBody,
+  wallet: string,
+) {
   const edit = editOf(body);
 
   let workgroupId: string;
@@ -69,7 +139,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     }
     workgroupId = task.workgroup_id;
     const communityId = await requireWorkgroupCommunity(workgroupId);
-    await requireWorkgroupManager(communityId, workgroupId, session.wallet,
+    await requireWorkgroupManager(communityId, workgroupId, wallet,
       "Only admins and workgroup leads can edit GitHub issues");
     await requireActiveWorkgroup(workgroupId);
     const link = await loadRepoLink(task.gh_repo_id);
@@ -82,7 +152,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   } else {
     workgroupId = body.workgroupId;
     const communityId = await requireWorkgroupCommunity(workgroupId);
-    await requireWorkgroupManager(communityId, workgroupId, session.wallet,
+    await requireWorkgroupManager(communityId, workgroupId, wallet,
       "Only admins and workgroup leads can edit GitHub issues");
     await requireActiveWorkgroup(workgroupId);
 
@@ -170,4 +240,12 @@ export const POST = sessionRoute(async (req, { session }) => {
     taskRemoved,
     ...(githubAssignees !== undefined ? { githubAssignees } : {}),
   } satisfies GithubIssueUpdateResponse;
+}
+
+export const POST = sessionRoute(async (req, { session }) => {
+  const body = await parseJson(req, githubIssueEditSchema);
+  if (body.kind === "create") {
+    return createIssue(body, session.wallet);
+  }
+  return editIssue(body, session.wallet);
 });

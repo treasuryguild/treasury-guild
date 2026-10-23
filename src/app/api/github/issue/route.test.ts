@@ -4,8 +4,8 @@ import { ConflictError, ForbiddenError, UnauthorizedError, UpstreamError } from 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), manager: vi.fn(), community: vi.fn(), active: vi.fn(),
   taskTarget: vi.fn(), repoLink: vi.fn(), projectLinks: vi.fn(), fetchItem: vi.fn(),
-  issueTask: vi.fn(), mirror: vi.fn(), updateIssue: vi.fn(), fullSync: vi.fn(),
-  loadAssignees: vi.fn(),
+  issueTask: vi.fn(), mirror: vi.fn(), updateIssue: vi.fn(), createIssue: vi.fn(),
+  addItem: vi.fn(), fullSync: vi.fn(), loadAssignees: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireWorkgroupManager: mocks.manager }));
@@ -21,8 +21,14 @@ vi.mock("@/lib/db/workgroups", () => ({
   requireWorkgroupCommunity: mocks.community,
   requireActiveWorkgroup: mocks.active,
 }));
-vi.mock("@/lib/github/issueWrite", () => ({ updateGithubIssue: mocks.updateIssue }));
-vi.mock("@/lib/github/projectsV2", () => ({ fetchProjectItem: mocks.fetchItem }));
+vi.mock("@/lib/github/issueWrite", () => ({
+  updateGithubIssue: mocks.updateIssue,
+  createGithubIssue: mocks.createIssue,
+}));
+vi.mock("@/lib/github/projectsV2", () => ({
+  fetchProjectItem: mocks.fetchItem,
+  addProjectItemByContentId: mocks.addItem,
+}));
 vi.mock("@/lib/github/sync", () => ({ fullSyncRepo: mocks.fullSync }));
 import { POST } from "./route";
 
@@ -55,6 +61,10 @@ beforeEach(() => {
   mocks.issueTask.mockResolvedValue(null);
   mocks.mirror.mockResolvedValue(undefined);
   mocks.updateIssue.mockResolvedValue({ movedToStatus: null, missingAmountFields: [] });
+  mocks.createIssue.mockResolvedValue({
+    number: 42, nodeId: "I_42", htmlUrl: "https://github.com/guild/app/issues/42", title: "Ship it",
+  });
+  mocks.addItem.mockResolvedValue({ outcome: "added", itemNodeId: "PVTI_new", status: "Todo" });
   mocks.fullSync.mockResolvedValue({ synced: 1, deleted: 0 });
   mocks.loadAssignees.mockResolvedValue([]);
 });
@@ -191,5 +201,58 @@ describe("POST /api/github/issue (item)", () => {
     mocks.fetchItem.mockResolvedValue({ ...item, issue: null });
     expect((await POST(request({ kind: "item", workgroupId: WG, itemNodeId: "PVTI_9", title: "X" }), context)).status).toBe(400);
     expect(mocks.updateIssue).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/github/issue (create)", () => {
+  const createBody = {
+    kind: "create" as const,
+    workgroupId: WG,
+    projectId: "PVT_1",
+    repoId: 5,
+    title: "Ship it",
+    status: "Todo",
+  };
+
+  it("creates the issue, adds it to the project Status column and re-syncs", async () => {
+    const response = await POST(request(createBody), context);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      number: 42,
+      url: "https://github.com/guild/app/issues/42",
+      itemNodeId: "PVTI_new",
+    });
+    expect(mocks.manager).toHaveBeenCalledWith("community", WG, "lead", expect.any(String));
+    expect(mocks.createIssue).toHaveBeenCalledWith({
+      installationId: 99, repoFullName: "guild/app", title: "Ship it",
+    });
+    expect(mocks.addItem).toHaveBeenCalledWith(99, "PVT_1", "I_42", "Todo");
+    expect(mocks.fullSync).toHaveBeenCalledWith(repo);
+    expect(mocks.updateIssue).not.toHaveBeenCalled();
+  });
+
+  it("refuses a repo or project that is not linked to the workgroup", async () => {
+    mocks.repoLink.mockResolvedValueOnce({ ...repo, workgroup_id: "other" });
+    expect((await POST(request(createBody), context)).status).toBe(400);
+    expect(mocks.createIssue).not.toHaveBeenCalled();
+
+    mocks.projectLinks.mockResolvedValueOnce([]);
+    expect((await POST(request(createBody), context)).status).toBe(404);
+    expect(mocks.createIssue).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 when the Status column does not exist on the project", async () => {
+    mocks.addItem.mockResolvedValue({ outcome: "no_option" });
+    const response = await POST(request(createBody), context);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.stringContaining("Todo") });
+    expect(mocks.createIssue).toHaveBeenCalled();
+  });
+
+  it("surfaces a project-add failure as 502 after the issue was created", async () => {
+    mocks.addItem.mockRejectedValue(new Error("forbidden"));
+    const response = await POST(request(createBody), context);
+    expect(response.status).toBe(502);
+    expect(mocks.fullSync).not.toHaveBeenCalled();
   });
 });

@@ -60,8 +60,9 @@ Assignees mirror the issue's GitHub assignees. Each one is paid to the wallet li
 
 ## Managing issues from Treasury Guild
 
-Admins and a workgroup's leads can also edit issues without leaving Treasury Guild; every change is saved to GitHub first and then synced back, so the two never disagree about which is newer.
+Admins and a workgroup's leads can also create and edit issues without leaving Treasury Guild; every change is saved to GitHub first and then synced back, so the two never disagree about which is newer.
 
+- **Add an issue** from a project column's **Add issue…** box (title only, Enter to create). The new issue opens on the linked repository and lands in that column's Status on the project. When the workgroup has more than one linked repository, pick which one in the column footer first. Creating an issue does **not** apply the payable label: it becomes a payable task here only once it also matches the [import rule](#which-issues-become-tasks). Description, labels, assignees and bounty fields are edited afterwards in the dialog.
 - **Open an imported task** (its card on the board, or on Payday) to edit the issue's **title**, **description**, **labels**, **assignees** and — when the project's columns are loaded — its **project status**, plus its **bounty number fields** (including adding another of the project's unused number fields as a bounty token). Only the fields you changed are sent. Payout wallets, extra manual assignees and the budget month are edited here as before.
 - **Drag a card between project columns** on the board to move the issue to that Status on GitHub. The card moves straight away and shows **Saving to GitHub…** while the change is written; if GitHub cannot be updated, the card returns to its column.
 - **Open a board item that is not a task yet** to edit its title, labels, open/closed state, assignees, status and bounty fields. Draft issues and pull requests cannot be edited here.

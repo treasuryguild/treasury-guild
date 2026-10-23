@@ -1,8 +1,9 @@
-// In-app edits of a GitHub issue, pushed back to GitHub: title, body, labels,
-// open/closed state and assignees go through the REST issue endpoint, the
-// Project v2 Status through setProjectItemStatus and bounty number fields
-// through setProjectItemNumberFields. The webhook / hourly sweep then mirrors
-// the result back into `tasks`, exactly as if the edit had been made on GitHub.
+// In-app creates and edits of a GitHub issue, pushed back to GitHub: create
+// opens an issue via REST; edits push title, body, labels, open/closed state
+// and assignees through the REST issue endpoint, Project v2 Status through
+// setProjectItemStatus and bounty number fields through setProjectItemNumberFields.
+// The webhook / hourly sweep then mirrors the result into `tasks`, exactly as
+// if the change had been made on GitHub.
 import "server-only";
 
 import { UpstreamError } from "@/lib/errors";
@@ -35,9 +36,50 @@ export interface GithubIssueEditResult {
   missingAmountFields: string[];
 }
 
-function upstream(err: unknown): UpstreamError {
-  console.error("github issue update failed", err);
-  return new UpstreamError("GitHub could not be updated. Try again, or edit the issue on GitHub.");
+function upstream(err: unknown, action: "create" | "update" = "update"): UpstreamError {
+  console.error(action === "create" ? "github issue create failed" : "github issue update failed", err);
+  return new UpstreamError(
+    action === "create"
+      ? "GitHub could not create the issue. Try again, or open it on GitHub."
+      : "GitHub could not be updated. Try again, or edit the issue on GitHub.",
+  );
+}
+
+export interface CreatedGithubIssue {
+  number: number;
+  /** GraphQL node id — contentId for addProjectV2ItemById. */
+  nodeId: string;
+  htmlUrl: string;
+  title: string;
+}
+
+/** Open a new issue in the linked repository. Throws UpstreamError on any GitHub failure. */
+export async function createGithubIssue(opts: {
+  installationId: number;
+  repoFullName: string;
+  title: string;
+}): Promise<CreatedGithubIssue> {
+  const { owner, repo } = splitRepoFullName(opts.repoFullName);
+  try {
+    const octokit = await installationOctokit(opts.installationId);
+    const { data } = await octokit.rest.issues.create({
+      owner,
+      repo,
+      title: opts.title,
+    });
+    if (!data.node_id) {
+      throw new Error("GitHub create response missing node_id");
+    }
+    return {
+      number: data.number,
+      nodeId: data.node_id,
+      htmlUrl: data.html_url,
+      title: data.title,
+    };
+  } catch (err) {
+    if (err instanceof UpstreamError) throw err;
+    throw upstream(err, "create");
+  }
 }
 
 /** Apply an edit to one issue (and its project item). Throws UpstreamError on any GitHub failure. */

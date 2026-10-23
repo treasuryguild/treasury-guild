@@ -854,10 +854,11 @@ export const githubEditorOptionsQuerySchema = z.union([
   z.object({ workgroupId: id, itemNodeId: nonEmpty.max(200) }),
 ]);
 /**
- * Edit a GitHub issue from the app (title, body, labels, state, project
- * status, bounty fields, assignees); pushed to GitHub by /api/github/issue. A `task`
- * edit names an imported task, an `item` edit a live project item that was
- * never imported. At least one editable field must be present.
+ * Create or edit a GitHub issue from the app; pushed to GitHub by
+ * /api/github/issue. A `create` opens a new issue on a linked repo and adds
+ * it to a project Status column. A `task` edit names an imported task, an
+ * `item` edit a live project item that was never imported. Edits need at
+ * least one editable field.
  */
 const githubIssueEditFields = {
   title: nonEmpty.max(256).optional(),
@@ -881,6 +882,14 @@ export const githubIssueEditSchema = z.discriminatedUnion("kind", [
     .refine(hasGithubEdit, { message: "Nothing to update" }),
   z.object({ kind: z.literal("item"), workgroupId: id, itemNodeId: nonEmpty.max(200), ...githubIssueEditFields })
     .refine(hasGithubEdit, { message: "Nothing to update" }),
+  z.object({
+    kind: z.literal("create"),
+    workgroupId: id,
+    projectId: nonEmpty.max(200),
+    repoId: z.number().int().positive(),
+    title: nonEmpty.max(256),
+    status: nonEmpty.max(100),
+  }),
 ]);
 export type GithubIssueEditBody = z.infer<typeof githubIssueEditSchema>;
 export const githubSetupQuerySchema = z.object({

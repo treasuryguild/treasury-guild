@@ -2,9 +2,10 @@
 // are sparse (node ids only), so item details need a follow-up query. The
 // cron sweep uses the repo-wide query so it sees project columns and custom
 // number fields, which REST issue endpoints never expose. The writes are
-// setProjectItemStatus (post-payment move to the "Paid" column, and in-app
-// status moves) and setProjectItemNumberFields (in-app bounty edits); they
-// need the App's Projects permission at read & write.
+// addProjectItemByContentId (in-app create), setProjectItemStatus (post-payment
+// move to the "Paid" column, and in-app status moves) and
+// setProjectItemNumberFields (in-app bounty edits); they need the App's
+// Projects permission at read & write.
 import "server-only";
 
 import { installationOctokit } from "./app";
@@ -422,10 +423,48 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
   }) { projectV2Item { id } }
 }`;
 
+const ADD_ITEM_MUTATION = `
+mutation($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+    item { id }
+  }
+}`;
+
 export type SetStatusResult =
   /** `status` is the option's name as GitHub spells it. */
   | { outcome: "updated" | "unchanged"; status: string }
   | { outcome: "no_item" | "no_status_field" | "no_option" };
+
+export type AddProjectItemResult =
+  | { outcome: "added"; itemNodeId: string; status: string }
+  | { outcome: "no_item" | "no_status_field" | "no_option" };
+
+/**
+ * Add an issue (or other ProjectV2 content) to a project and move it to the
+ * named Status column. Throws on transport/permission errors; returns
+ * `no_option` / `no_status_field` / `no_item` when the status write cannot
+ * land so the caller can map them to a 400.
+ */
+export async function addProjectItemByContentId(
+  installationId: number,
+  projectId: string,
+  contentId: string,
+  statusName: string,
+): Promise<AddProjectItemResult> {
+  const octokit = await installationOctokit(installationId);
+  const res = (await octokit.graphql(ADD_ITEM_MUTATION, { projectId, contentId })) as {
+    addProjectV2ItemById?: { item?: { id?: string } | null } | null;
+  };
+  const itemNodeId = res.addProjectV2ItemById?.item?.id;
+  if (!itemNodeId) {
+    throw new Error("GitHub addProjectV2ItemById returned no item id");
+  }
+  const moved = await setProjectItemStatus(installationId, itemNodeId, statusName);
+  if (moved.outcome === "updated" || moved.outcome === "unchanged") {
+    return { outcome: "added", itemNodeId, status: moved.status };
+  }
+  return { outcome: moved.outcome };
+}
 
 /**
  * Move a project item to the Status option named `statusName` (matched

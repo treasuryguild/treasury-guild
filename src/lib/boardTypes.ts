@@ -115,10 +115,18 @@ export interface LiveProjectBoard {
   truncated: boolean;
 }
 
+/** Linked repo offered as a create-issue target on the live board. */
+export interface LiveBoardRepo {
+  id: number;
+  fullName: string;
+}
+
 export interface LiveBoardResponse {
   boards: LiveProjectBoard[];
   /** False when the workgroup has no linked repos at all. */
   hasRepos: boolean;
+  /** Repos linked to the workgroup (for the in-app create-issue picker). */
+  repos: LiveBoardRepo[];
   /** True when some (but not all) projects failed to fetch. */
   partial?: boolean;
 }

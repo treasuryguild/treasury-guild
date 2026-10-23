@@ -654,6 +654,12 @@ export interface GithubIssueUpdateResponse {
    */
   githubAssignees?: GithubAssigneeSyncRow[];
 }
+/** POST /api/github/issue kind=create: a new issue opened on GitHub and added to the project. */
+export interface GithubIssueCreateResponse {
+  number: number;
+  url: string;
+  itemNodeId: string;
+}
 /** GET /api/github/editor-options: assignable users + project number fields. */
 export interface GithubEditorOptionsResponse {
   assignableLogins: string[];
