@@ -40,7 +40,10 @@ const TARGET = { ownerKey: WG_KEY, ownerType: "workgroup", ownerId: WG, periodMo
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.settings.mockResolvedValue({ enabled: true });
-  mocks.communitySettings.mockResolvedValue({ documentStore: null, documentStoreSince: null, spendCheck: SpendCheckMode.Warn });
+  mocks.communitySettings.mockResolvedValue({
+    documentStore: null, documentStoreSince: null,
+    documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: SpendCheckMode.Warn,
+  });
   mocks.spent.mockResolvedValue([]);
 });
 
@@ -114,7 +117,10 @@ describe("guardSpend", () => {
   });
 
   it("refuse mode: throws the build error (400) naming every problem", async () => {
-    mocks.communitySettings.mockResolvedValue({ documentStore: null, documentStoreSince: null, spendCheck: SpendCheckMode.Refuse });
+    mocks.communitySettings.mockResolvedValue({
+      documentStore: null, documentStoreSince: null,
+      documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: SpendCheckMode.Refuse,
+    });
     mocks.spent.mockResolvedValue([spent(50_000_000n)]);
     const call = guardSpend("c-1", [
       line({ amount: 60_000_000n }), line({ amount: 3n, ownerKey: OTHER_KEY, ownerId: OTHER, ownerName: "Ops" }),
@@ -133,7 +139,10 @@ describe("guardSpend", () => {
   });
 
   it("refuse mode: lets a fitting spend through", async () => {
-    mocks.communitySettings.mockResolvedValue({ documentStore: null, documentStoreSince: null, spendCheck: SpendCheckMode.Refuse });
+    mocks.communitySettings.mockResolvedValue({
+      documentStore: null, documentStoreSince: null,
+      documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: SpendCheckMode.Refuse,
+    });
     expect(await guardSpend("c-1", [line({ amount: 100_000_000n })], sources())).toEqual([]);
   });
 });

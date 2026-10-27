@@ -535,6 +535,8 @@ describe("governance schemas", () => {
       saveGovernanceCommunitySettingsSchema.safeParse({ communityId: COMMUNITY, ...body }).success;
     expect(ok({ documentStore: "ipfs", spendCheck: "warn" })).toBe(true);
     expect(ok({ documentStore: null, spendCheck: "refuse" })).toBe(true);
+    expect(ok({ documentStore: "github", documentArchiveRepoId: 42, spendCheck: "warn" })).toBe(true);
+    expect(ok({ documentStore: "github", spendCheck: "warn" })).toBe(false);
     expect(ok({ documentStore: "arweave", spendCheck: "warn" })).toBe(false);
     expect(ok({ documentStore: null, spendCheck: "ignore" })).toBe(false);
     expect(ok({ documentStore: null })).toBe(false);

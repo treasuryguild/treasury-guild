@@ -136,22 +136,33 @@ export const SpendCheckMode = {
 } as const;
 export type SpendCheckMode = (typeof SpendCheckMode)[keyof typeof SpendCheckMode];
 
-/** The community-level governance settings (0059), one row per community; a missing row is these defaults. */
+/** The community-level governance settings (0059 / 0067), one row per community; a missing row is these defaults. */
 export interface GovernanceCommunitySettings {
   /** Where new frozen tally documents are published; null keeps them in the database only. */
   documentStore: DocumentStoreName | null;
   /** When the current store was chosen: only documents frozen from then on are published. */
   documentStoreSince: string | null;
+  /** GitHub archive repository when documentStore is github (0067). */
+  documentArchiveRepoId: number | null;
+  documentArchiveFullName: string | null;
   spendCheck: SpendCheckMode;
 }
 
 export const DEFAULT_COMMUNITY_SETTINGS: GovernanceCommunitySettings = {
-  documentStore: null, documentStoreSince: null, spendCheck: SpendCheckMode.Warn,
+  documentStore: null, documentStoreSince: null,
+  documentArchiveRepoId: null, documentArchiveFullName: null,
+  spendCheck: SpendCheckMode.Warn,
 };
 
 export function communitySettingsFromRow(row: GovernanceCommunitySettingsRow | null | undefined): GovernanceCommunitySettings {
   if (!row) return DEFAULT_COMMUNITY_SETTINGS;
-  return { documentStore: row.document_store, documentStoreSince: row.document_store_since, spendCheck: row.spend_check };
+  return {
+    documentStore: row.document_store,
+    documentStoreSince: row.document_store_since,
+    documentArchiveRepoId: row.document_archive_repo_id == null ? null : Number(row.document_archive_repo_id),
+    documentArchiveFullName: row.document_archive_full_name,
+    spendCheck: row.spend_check,
+  };
 }
 
 /** True when two frozen rule sets hash the same (key order does not matter). */

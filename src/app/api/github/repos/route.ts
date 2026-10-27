@@ -17,8 +17,9 @@ import {
   workgroupHasRepos,
 } from "@/lib/db/github";
 import { requireActiveWorkgroup, setWorkgroupKind, workgroupCommunityId } from "@/lib/db/workgroups";
-import { BadRequestError, ConflictError, UpstreamError } from "@/lib/errors";
+import { BadRequestError, ConflictError } from "@/lib/errors";
 import { installationOctokit } from "@/lib/github/app";
+import { installationRepoName } from "@/lib/github/repoAccess";
 
 // List every installation's accessible repos (from GitHub) merged with link state.
 export const GET = sessionRoute(async (req, { session }) => {
@@ -129,21 +130,3 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   return { ok: true } satisfies OkResponse;
 });
-
-/** The repo's full name as the installation sees it; 400 when it cannot see it. */
-async function installationRepoName(installationId: number, repoId: number): Promise<string> {
-  const octokit = await installationOctokit(installationId);
-  try {
-    const { data } = await octokit.request("GET /repositories/{repository_id}", {
-      repository_id: repoId,
-    });
-    return (data as { full_name: string }).full_name;
-  } catch (err) {
-    const status = (err as { status?: number }).status;
-    if (status === 404 || status === 403) {
-      throw new BadRequestError("This repository is not available to this community's GitHub installation");
-    }
-    console.error(`looking up repo ${repoId} for installation ${installationId} failed`, err);
-    throw new UpstreamError("GitHub repository lookup failed");
-  }
-}

@@ -1,18 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
+import { BadRequestError, ForbiddenError, UnauthorizedError } from "@/lib/errors";
 
-const mocks = vi.hoisted(() => ({ session: vi.fn(), member: vi.fn(), admin: vi.fn(), load: vi.fn(), save: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  session: vi.fn(), member: vi.fn(), admin: vi.fn(), load: vi.fn(), save: vi.fn(), resolveRepo: vi.fn(),
+}));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.session, requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireMember: mocks.member, requireAdmin: mocks.admin }));
 vi.mock("@/lib/db/governance", () => ({
   loadGovernanceCommunitySettings: mocks.load, saveGovernanceCommunitySettings: mocks.save,
 }));
+vi.mock("@/lib/github/repoAccess", () => ({ resolveCommunityRepo: mocks.resolveRepo }));
 
 import { GET, POST } from "./route";
 
 const WALLET = "addr_test1admin";
 const COMMUNITY = "10000000-0000-4000-8000-000000000001";
-const settings = { documentStore: null, documentStoreSince: null, spendCheck: "warn" };
+const settings = {
+  documentStore: null, documentStoreSince: null,
+  documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: "warn",
+};
 const get = (query = `?communityId=${COMMUNITY}`) =>
   GET(new Request(`http://localhost/api/governance/community-settings${query}`), { params: Promise.resolve({}) });
 const post = (body: object, headers: Record<string, string> = {}) =>
@@ -28,6 +34,7 @@ beforeEach(() => {
   mocks.admin.mockResolvedValue("admin");
   mocks.load.mockResolvedValue(settings);
   mocks.save.mockResolvedValue(undefined);
+  mocks.resolveRepo.mockResolvedValue({ installationId: 7, fullName: "guild/archive" });
 });
 
 describe("GET /api/governance/community-settings", () => {
@@ -65,6 +72,7 @@ describe("POST /api/governance/community-settings", () => {
     expect((await post(body({ documentStore: "s3" }))).status).toBe(400);
     expect((await post(body({ spendCheck: "ignore" }))).status).toBe(400);
     expect((await post(body({ documentStore: undefined }))).status).toBe(400);
+    expect((await post(body({ documentStore: "github" }))).status).toBe(400);
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
@@ -77,9 +85,27 @@ describe("POST /api/governance/community-settings", () => {
 
   it("saves as the session wallet, null store included", async () => {
     expect((await post(body())).status).toBe(200);
-    expect(mocks.save).toHaveBeenCalledWith(COMMUNITY, { documentStore: "ipfs", spendCheck: "refuse" }, WALLET);
+    expect(mocks.save).toHaveBeenCalledWith(COMMUNITY, {
+      documentStore: "ipfs", documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: "refuse",
+    }, WALLET);
     const res = await post(body({ documentStore: null, spendCheck: "warn" }));
     expect(await res.json()).toEqual({ ok: true });
-    expect(mocks.save).toHaveBeenLastCalledWith(COMMUNITY, { documentStore: null, spendCheck: "warn" }, WALLET);
+    expect(mocks.save).toHaveBeenLastCalledWith(COMMUNITY, {
+      documentStore: null, documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: "warn",
+    }, WALLET);
+  });
+
+  it("resolves the archive repo against the community's installations for GitHub", async () => {
+    expect((await post(body({ documentStore: "github", documentArchiveRepoId: 42, spendCheck: "warn" }))).status).toBe(200);
+    expect(mocks.resolveRepo).toHaveBeenCalledWith(COMMUNITY, 42);
+    expect(mocks.save).toHaveBeenCalledWith(COMMUNITY, {
+      documentStore: "github", documentArchiveRepoId: 42, documentArchiveFullName: "guild/archive", spendCheck: "warn",
+    }, WALLET);
+  });
+
+  it("surfaces a repo the installation cannot see", async () => {
+    mocks.resolveRepo.mockRejectedValue(new BadRequestError("This repository is not available to this community's GitHub installation"));
+    expect((await post(body({ documentStore: "github", documentArchiveRepoId: 99 }))).status).toBe(400);
+    expect(mocks.save).not.toHaveBeenCalled();
   });
 });

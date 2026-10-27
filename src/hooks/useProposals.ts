@@ -8,14 +8,15 @@ import type { AnchorsDueResponse, IpfsGatewayResponse } from "@/lib/api/types";
 import { browserClient } from "@/lib/supabase/browser";
 import { ProposalKind } from "@/lib/constants";
 import {
-  GOVERNANCE_SETTING_CHANGE_COLUMNS, GOVERNANCE_SETTINGS_COLUMNS, PROPOSAL_ANCHOR_WITH_TX_COLUMNS,
-  PROPOSAL_BUDGET_OWNER_COLUMNS, PROPOSAL_COLUMNS,
+  GOVERNANCE_COMMUNITY_SETTINGS_COLUMNS, GOVERNANCE_SETTING_CHANGE_COLUMNS, GOVERNANCE_SETTINGS_COLUMNS,
+  PROPOSAL_ANCHOR_WITH_TX_COLUMNS, PROPOSAL_BUDGET_OWNER_COLUMNS, PROPOSAL_COLUMNS,
   PROPOSAL_DOCUMENT_COPY_COLUMNS, PROPOSAL_EVENT_COLUMNS, PROPOSAL_VOTE_COLUMNS, type DocumentStoreName,
-  type GovernanceSettingChangeRow, type GovernanceSettingsRow, type ProposalAnchorWithTx, type ProposalBudgetOwnerRow,
-  type ProposalDocumentCopyRow, type ProposalEventRow, type ProposalRow, type ProposalVoteRow, type ProposalVoterRow,
+  type GovernanceCommunitySettingsRow, type GovernanceSettingChangeRow, type GovernanceSettingsRow,
+  type ProposalAnchorWithTx, type ProposalBudgetOwnerRow, type ProposalDocumentCopyRow, type ProposalEventRow,
+  type ProposalRow, type ProposalVoteRow, type ProposalVoterRow,
 } from "@/lib/db/types";
 import { settingsFromRow, type GovernanceSettings } from "@/lib/governance/rules";
-import { copyUrl } from "@/lib/storage/locator";
+import { copyUrl, parseGithubLocator } from "@/lib/storage/locator";
 import { useAsyncData, type AsyncData } from "./useAsyncData";
 
 function unwrap<T>(res: { data: unknown; error: { message: string } | null }): T {
@@ -97,20 +98,40 @@ export interface TallyRecord {
 export function useTallyRecord(proposalId: string | null | undefined): AsyncData<TallyRecord | null> {
   return useAsyncData(proposalId, async () => {
     const db = browserClient();
-    const frozen = await db.from("proposal_tally_documents").select("hash, frozen_at").eq("proposal_id", proposalId).maybeSingle();
+    const frozen = await db.from("proposal_tally_documents")
+      .select("hash, frozen_at, community_id").eq("proposal_id", proposalId).maybeSingle();
     if (frozen.error) throw new Error(frozen.error.message);
     if (!frozen.data) return null;
-    const [copies, gateway] = await Promise.all([
+    const record = frozen.data as { hash: string; frozen_at: string; community_id: string };
+    const [copies, gateway, settings] = await Promise.all([
       db.from("proposal_document_copies").select(PROPOSAL_DOCUMENT_COPY_COLUMNS).eq("proposal_id", proposalId).order("stored_at"),
       apiFetch<IpfsGatewayResponse>("/api/ipfs/gateway"),
+      db.from("governance_community_settings").select(GOVERNANCE_COMMUNITY_SETTINGS_COLUMNS)
+        .eq("community_id", record.community_id).maybeSingle(),
     ]);
-    const record = frozen.data as { hash: string; frozen_at: string };
+    if (settings.error) throw new Error(settings.error.message);
+    const row = settings.data as GovernanceCommunitySettingsRow | null;
+    const githubFullNameByRepoId: Record<string, string> = {};
+    if (row?.document_archive_repo_id != null && row.document_archive_full_name) {
+      githubFullNameByRepoId[String(row.document_archive_repo_id)] = row.document_archive_full_name;
+    }
+    const copyRows = unwrap<ProposalDocumentCopyRow[]>(copies);
+    // Current settings cover today's archive; older github copies still link if
+    // the locator's repo id matches (same community often keeps one archive).
+    for (const c of copyRows) {
+      if (c.store !== "github") continue;
+      const parsed = parseGithubLocator(c.locator);
+      if (parsed && !githubFullNameByRepoId[String(parsed.repoId)] && row?.document_archive_full_name
+        && Number(row.document_archive_repo_id) === parsed.repoId) {
+        githubFullNameByRepoId[String(parsed.repoId)] = row.document_archive_full_name;
+      }
+    }
     return {
       hash: record.hash,
       frozenAt: record.frozen_at,
-      copies: unwrap<ProposalDocumentCopyRow[]>(copies).map((c) => ({
+      copies: copyRows.map((c) => ({
         store: c.store, locator: c.locator, storedAt: c.stored_at,
-        url: copyUrl(c.store, c.locator, { ipfsGateway: gateway.gateway }),
+        url: copyUrl(c.store, c.locator, { ipfsGateway: gateway.gateway, githubFullNameByRepoId }),
       })),
     };
   });

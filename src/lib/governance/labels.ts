@@ -150,6 +150,11 @@ export function describeSettingChange(change: GovernanceSettingChangeRow, actor:
     const details: string[] = [];
     if ((before?.document_store ?? null) !== after.document_store) {
       details.push(after.document_store ? `documents published to ${STORE_LABELS[after.document_store]}` : "publication off");
+    } else if (
+      after.document_store === "github"
+      && (before?.document_archive_repo_id ?? null) !== (after.document_archive_repo_id ?? null)
+    ) {
+      details.push(`GitHub archive ${after.document_archive_full_name ?? after.document_archive_repo_id}`);
     }
     if ((before?.spend_check ?? "warn") !== after.spend_check) {
       details.push(`failed budget checks ${SPEND_CHECK_LABELS[after.spend_check] ?? after.spend_check}`);

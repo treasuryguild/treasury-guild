@@ -39,22 +39,37 @@ export async function loadGovernanceCommunitySettings(communityId: string): Prom
 
 /** Upsert the community-level settings and log the change (save_governance_community_settings). */
 export async function saveGovernanceCommunitySettings(
-  communityId: string, settings: Pick<GovernanceCommunitySettings, "documentStore" | "spendCheck">, actor: string,
+  communityId: string,
+  settings: Pick<GovernanceCommunitySettings, "documentStore" | "documentArchiveRepoId" | "documentArchiveFullName" | "spendCheck">,
+  actor: string,
 ): Promise<void> {
   rpc<null>(await serviceClient().rpc("save_governance_community_settings", {
     p_community_id: communityId,
-    p_settings: { document_store: settings.documentStore, spend_check: settings.spendCheck },
+    p_settings: {
+      document_store: settings.documentStore,
+      document_archive_repo_id: settings.documentArchiveRepoId,
+      document_archive_full_name: settings.documentArchiveFullName,
+      spend_check: settings.spendCheck,
+    },
     p_actor: actor,
   }), { [PgCode.CheckViolation]: BadRequestError });
 }
 
+/** A community that publishes frozen documents (0059 / 0067). */
+export interface PublishingCommunity {
+  community_id: string;
+  document_store: DocumentStoreName;
+  document_store_since: string;
+  document_archive_repo_id: number | null;
+  document_archive_full_name: string | null;
+}
+
 /** Every community that publishes its frozen documents somewhere. */
-export async function listPublishingCommunities(): Promise<
-  { community_id: string; document_store: DocumentStoreName; document_store_since: string }[]
-> {
+export async function listPublishingCommunities(): Promise<PublishingCommunity[]> {
   return rows(
     await serviceClient().from("governance_community_settings")
-      .select("community_id, document_store, document_store_since").not("document_store", "is", null),
+      .select("community_id, document_store, document_store_since, document_archive_repo_id, document_archive_full_name")
+      .not("document_store", "is", null),
     "load publishing communities",
   );
 }

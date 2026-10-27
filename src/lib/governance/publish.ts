@@ -1,5 +1,5 @@
 // Publishing frozen tally documents to the store a community chose
-// (governance_community_settings.document_store, migration 0059), and
+// (governance_community_settings.document_store, migration 0059 / 0067), and
 // keeping the copies alive: the reconcile sweep publishes every frozen
 // document since the store was chosen that lacks a copy there, retries what
 // failed last time, and periodically checks that existing copies still
@@ -8,10 +8,10 @@
 import "server-only";
 
 import {
-  listCopiesToCheck, listDocumentsToPublish, listPublishingCommunities, markCopyChecked, recordDocumentCopy,
+  listCopiesToCheck, listDocumentsToPublish, listPublishingCommunities, markCopyChecked,
+  recordDocumentCopy, type PublishingCommunity,
 } from "@/lib/db/governance";
-import type { DocumentStoreName } from "@/lib/db/types";
-import { documentStore, type DocumentStore } from "@/lib/storage";
+import { documentStoreFor, type DocumentStore } from "@/lib/storage";
 import { parseTallyDocument } from "./tallyDocument";
 
 /** How long a copy goes unchecked before the sweep looks again. */
@@ -25,6 +25,12 @@ export interface PublishSweepResult {
   failed: number;
   checked: number;
 }
+
+/** Build the store for a community (and optional existing copy locator). */
+export type StoreFactory = (
+  community: Pick<PublishingCommunity, "community_id" | "document_store" | "document_archive_repo_id" | "document_archive_full_name">,
+  locator?: string,
+) => DocumentStore | Promise<DocumentStore>;
 
 /** The published file's name: what a person sees in the store, no title or wallet in it. */
 export function documentFilename(document: string, proposalId: string): string {
@@ -45,12 +51,21 @@ async function publishOne(
 
 export async function publishTallyDocuments(
   now: Date,
-  stores: (name: DocumentStoreName) => DocumentStore = documentStore,
+  stores: StoreFactory = documentStoreFor,
 ): Promise<PublishSweepResult> {
   const result: PublishSweepResult = { published: 0, republished: 0, failed: 0, checked: 0 };
+  const byCommunity = new Map<string, PublishingCommunity>();
 
   for (const community of await listPublishingCommunities()) {
-    const store = stores(community.document_store);
+    byCommunity.set(community.community_id, community);
+    let store: DocumentStore;
+    try {
+      store = await stores(community);
+    } catch (err) {
+      console.error(`document store for ${community.community_id} failed`, err);
+      result.failed += 1;
+      continue;
+    }
     let due;
     try {
       due = await listDocumentsToPublish(community.community_id, community.document_store_since);
@@ -74,8 +89,15 @@ export async function publishTallyDocuments(
   // Copies not looked at for a week: still there, or gone and put back.
   const before = new Date(now.getTime() - COPY_CHECK_INTERVAL_MS).toISOString();
   for (const copy of await listCopiesToCheck(before, CHECKS_PER_RUN)) {
-    const store = stores(copy.store);
+    const community = byCommunity.get(copy.community_id) ?? {
+      community_id: copy.community_id,
+      document_store: copy.store,
+      document_store_since: "",
+      document_archive_repo_id: null,
+      document_archive_full_name: null,
+    };
     try {
+      const store = await stores(community, copy.locator);
       if (await store.resolves(copy.locator)) {
         await markCopyChecked(copy.id);
       } else {

@@ -41,6 +41,7 @@ Requires Node.js 22+, npm, Docker Desktop, the Supabase CLI and `psql`
 Copy-Item .env.example .env   # first setup only
 npm ci
 npm run db:start              # local Supabase stack in Docker
+npm run db:migrate            # apply pending migrations (keeps local data)
 # copy values from `supabase status -o env` into .env (mapping in scripts/README.md)
 npm run dev                   # http://localhost:3000 against the local stack
 ```

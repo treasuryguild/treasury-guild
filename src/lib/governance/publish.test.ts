@@ -39,7 +39,10 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   store = fakeStore();
-  mocks.communities.mockResolvedValue([{ community_id: "c-1", document_store: "ipfs", document_store_since: "2026-09-01T00:00:00Z" }]);
+  mocks.communities.mockResolvedValue([{
+    community_id: "c-1", document_store: "ipfs", document_store_since: "2026-09-01T00:00:00Z",
+    document_archive_repo_id: null, document_archive_full_name: null,
+  }]);
   mocks.documents.mockResolvedValue([]);
   mocks.toCheck.mockResolvedValue([]);
 });

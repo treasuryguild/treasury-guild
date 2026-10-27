@@ -40,6 +40,7 @@ $env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # Account → Access Tokens; the CLI re
 | `npm run db:stop` (`supabase stop`) | Stops the local containers (volumes kept). | no |
 | `npm run db:status` (`supabase status`) | Local URLs and keys. `-o env` prints them as `KEY=value` for `.env`. | no |
 | `npm run db:reset` (`supabase db reset --local`) | Drops the local DB, applies every migration from scratch, loads the snapshot from `supabase/seeds/local/` (config.toml `[db.seed].sql_paths`). The check that a new migration applies cleanly. | no |
+| `npm run db:migrate` (`supabase migration up --local`) | Applies only pending migrations to the running local DB (keeps data). | no |
 | `npm run db:snapshot` (`supabase db dump --linked --data-only …`) | Dumps the remote **data** (not schema) to the gitignored `supabase/seeds/local/remote_snapshot.sql`, so Signius, its treasury, members and the GVTT mint exist locally. Skips `auth_nonces` and the raw GitHub `webhook_events`. Needs the linked project (above). Read only. | read only |
 | `npm run seed:sandbox` / `seed:live` | Signius seeds against the **local** DB via `psql` (NOTICEs shown). Remote seeding is a manual CLI command — see [`supabase/seeds/README.md`](../supabase/seeds/README.md). | no |
 | `npm run dev` | App against local (`.env`). Running against the remote is a manual env overlay — see below. | no |
@@ -161,7 +162,7 @@ Typical flow for a schema change:
 
 ```powershell
 # 1. write supabase/migrations/00NN_<name>.sql by hand
-supabase migration up --local   # 2. applies only the pending file(s) to the running local DB
+npm run db:migrate              # 2. applies only the pending file(s) to the running local DB
 #    (npm run db:reset also proves it applies from scratch, but wipes any
 #     local-only transaction history — see "Things to keep in mind" above)
 npm run seed:sandbox            # 3. test in the app on npm run dev
