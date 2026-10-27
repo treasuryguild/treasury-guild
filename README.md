@@ -39,7 +39,7 @@ task boards, batch payouts anchored on-chain, and refund reconciliation.
 - **Proposals & voting** — decisions, budget changes (budget consent), new
   workgroups and tasks put to a vote; every ballot is a CIP-30 signature, and
   a closed vote downloads as a signed tally anyone can re-verify. Final
-  tallies are frozen (optionally published to IPFS), each proposal's
+  tallies are frozen (optionally published to IPFS or a GitHub archive), each proposal's
   fingerprints are **anchored** on-chain (label `190002`), payouts and
   payments cite the decisions behind them and are checked against the voted
   budgets.
@@ -216,7 +216,10 @@ Create a GitHub App (Settings → Developer settings → GitHub Apps):
   `GITHUB_WEBHOOK_SECRET`
 - **Setup URL**: `https://app.treasuryguild.com/api/github/setup` (check "Redirect on
   update")
-- **Repository permissions**: Issues (read & write), Metadata (read)
+- **Repository permissions**: Issues (read & write), Metadata (read),
+  Contents (read & write — publishes frozen tally records to a community's
+  chosen archive repository when Governance settings use GitHub; existing
+  installations must approve the upgraded permission before publish works)
 - **Organization permissions**: Projects (read & write — write moves paid
   issues to the repo's Paid status; existing installations must approve the
   upgraded permission before the move works)
@@ -246,8 +249,9 @@ presigned upload URLs (`/api/ipfs/sign-upload`; the browser uploads straight
 to Pinata). Create an API key with the **Files: write** scope →
 `PINATA_JWT` (server-only). `PINATA_GATEWAY` optionally names your dedicated
 gateway host; empty falls back to `gateway.pinata.cloud`. The same account
-publishes frozen tally records when a community turns publication on under
-Governance settings (`src/lib/storage/`).
+can publish frozen tally records when a community chooses IPFS under
+Governance settings (`src/lib/storage/`). Communities may instead publish
+to a dedicated GitHub archive repository on their App installation.
 
 ### Discord notifications (optional)
 
@@ -450,7 +454,7 @@ the RPCs (see [SQL fixtures](#sql-fixtures)). The user guide is
 `src/content/docs/governance.mdx`.
 
 Migrations 0059-0060 add the on-chain side: a final proposal's tally is
-frozen once (`proposal_tally_documents`, optionally published to IPFS
+frozen once (`proposal_tally_documents`, optionally published to IPFS or GitHub
 through `src/lib/storage/`), every payout and payment cites the proposals
 behind it (`g` in its record) and is checked against the voted budgets
 (`src/lib/governance/spendCheck.ts`; **warn** stores the problems on the

@@ -85,6 +85,8 @@ export const createCommunitySchema = z.object({
   description: z.string().trim().max(1000).optional(),
   // Chosen once: treasury addresses and on-chain history are bound to it.
   network,
+  // Defaults private (same as the column default); changeable later on Members.
+  visibility: z.enum([Visibility.Public, Visibility.Private]).default(Visibility.Private),
 });
 
 /** CoinGecko coin id as it appears in the coin's page URL ("cardano", "singularitynet"). */
@@ -770,11 +772,21 @@ export const saveGovernanceSettingsSchema = z.object({
   kind: z.enum(ProposalKind),
   settings: governanceSettingsInput,
 });
-/** The community-level settings (governance_community_settings, 0059): publication store and spending-check mode. */
+/** The community-level settings (governance_community_settings, 0059 / 0067): publication store and spending-check mode. */
 export const saveGovernanceCommunitySettingsSchema = z.object({
   communityId: id,
-  documentStore: z.enum(["ipfs"]).nullable(),
+  documentStore: z.enum(["ipfs", "github"]).nullable(),
+  /** Required when documentStore is github; ignored otherwise (server clears it). */
+  documentArchiveRepoId: z.number().int().positive().nullable().optional(),
   spendCheck: z.enum(SpendCheckMode),
+}).superRefine((value, ctx) => {
+  if (value.documentStore === "github" && value.documentArchiveRepoId == null) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Pick a GitHub archive repository",
+      path: ["documentArchiveRepoId"],
+    });
+  }
 });
 
 const proposalText = {

@@ -104,7 +104,7 @@ A quarter is written as the quarter itself (`2026-Q2`), never as one of its mont
 
 - `"proposed"`, then the content fingerprint and the rules fingerprint every ballot signs (sha256 of their canonical JSON),
 - `"opened"`, then the fingerprint of the fixed voter list,
-- `"closed"`, then the final state; for a proposal that reached a vote also the blake2b-256 hash of its frozen signed tally, `[voters, ballots, [[choice, count], …]]`, and, when the record was published, `[store, locator]` of the copy (for IPFS, the CID).
+- `"closed"`, then the final state; for a proposal that reached a vote also the blake2b-256 hash of its frozen signed tally, `[voters, ballots, [[choice, count], …]]`, and, when the record was published, `[store, locator]` of the copy (for IPFS, the CID; for GitHub, `{repoId}/{blobSha}`).
 
 ```json
 {

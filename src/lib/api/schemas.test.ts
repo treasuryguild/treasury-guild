@@ -172,7 +172,12 @@ describe("schemas", () => {
   it("enforces the community slug shape, trims names and requires a network", () => {
     expect(
       createCommunitySchema.parse({ slug: "my-dao", name: "  DAO  ", network: 0 }),
-    ).toEqual({ slug: "my-dao", name: "DAO", network: 0 });
+    ).toEqual({ slug: "my-dao", name: "DAO", network: 0, visibility: "private" });
+    expect(
+      createCommunitySchema.parse({
+        slug: "my-dao", name: "DAO", network: 1, visibility: "public",
+      }),
+    ).toEqual({ slug: "my-dao", name: "DAO", network: 1, visibility: "public" });
     expect(
       createCommunitySchema.safeParse({ slug: "My DAO", name: "x", network: 1 }).success,
     ).toBe(false);
@@ -180,6 +185,11 @@ describe("schemas", () => {
     expect(createCommunitySchema.safeParse({ slug: "my-dao", name: "x" }).success).toBe(false);
     expect(
       createCommunitySchema.safeParse({ slug: "my-dao", name: "x", network: 2 }).success,
+    ).toBe(false);
+    expect(
+      createCommunitySchema.safeParse({
+        slug: "my-dao", name: "x", network: 0, visibility: "secret",
+      }).success,
     ).toBe(false);
   });
 
@@ -525,6 +535,8 @@ describe("governance schemas", () => {
       saveGovernanceCommunitySettingsSchema.safeParse({ communityId: COMMUNITY, ...body }).success;
     expect(ok({ documentStore: "ipfs", spendCheck: "warn" })).toBe(true);
     expect(ok({ documentStore: null, spendCheck: "refuse" })).toBe(true);
+    expect(ok({ documentStore: "github", documentArchiveRepoId: 42, spendCheck: "warn" })).toBe(true);
+    expect(ok({ documentStore: "github", spendCheck: "warn" })).toBe(false);
     expect(ok({ documentStore: "arweave", spendCheck: "warn" })).toBe(false);
     expect(ok({ documentStore: null, spendCheck: "ignore" })).toBe(false);
     expect(ok({ documentStore: null })).toBe(false);

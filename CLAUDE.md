@@ -8,13 +8,14 @@ Supabase (RLS, no ORM) + Netlify.
 - `npm run dev` / `npm run build`
 - `npm test` — vitest unit tests
 - `npm run typecheck` / `npm run lint`
-- **Local-first database**: `npm run db:start` / `db:stop` / `db:status` / `db:reset`
-  (migrate from scratch + load snapshot) / `db:snapshot` (copy remote data to
-  the gitignored `supabase/seeds/local/`) are thin aliases over the Supabase
-  CLI (`supabase start` / `stop` / `status` / `db reset --local` / `db dump
-  --linked`); there are no helper scripts — everything database-related goes
-  through the bare `supabase` CLI (`supabase login` + `supabase link` once
-  per machine). Point `.env` at the local stack by copying `supabase status
+- **Local-first database**: `npm run db:start` / `db:stop` / `db:status` /
+  `db:migrate` (pending migrations only) / `db:reset` (migrate from scratch +
+  load snapshot) / `db:snapshot` (copy remote data to the gitignored
+  `supabase/seeds/local/`) are thin aliases over the Supabase CLI
+  (`supabase start` / `stop` / `status` / `migration up --local` /
+  `db reset --local` / `db dump --linked`); there are no helper scripts —
+  everything database-related goes through the bare `supabase` CLI
+  (`supabase login` + `supabase link` once per machine). Point `.env` at the local stack by copying `supabase status
   -o env` values by hand (mapping in `scripts/README.md`); remote values
   live in `.env.remote`, loaded manually when running the app against the
   remote. Local DB commands never write to the remote; `supabase db push`
@@ -817,10 +818,13 @@ Supabase (RLS, no ORM) + Netlify.
   `freeze_proposal_tally` RPC into `proposal_tally_documents`
   (member-readable); the tally route then serves that text byte for byte.
   Outside copies are one interface (`src/lib/storage/`: `DocumentStore`,
-  registry `documentStore(name)`, IPFS through Pinata first, locator = bare
-  CID, URLs from the client-safe `storage/locator.ts`) and one
-  `proposal_document_copies` row per (proposal, store).
-  `governance_community_settings.document_store` (+ `document_store_since`)
+  `documentStoreFor` for a community — IPFS through Pinata, or GitHub
+  Contents into an archive repo on the community's App installation —
+  locators are a bare CID or `{repoId}/{blobSha}`; URLs from the
+  client-safe `storage/locator.ts`) and one `proposal_document_copies`
+  row per (proposal, store).
+  `governance_community_settings.document_store` (+ `document_store_since`,
+  and for GitHub `document_archive_repo_id` / `document_archive_full_name`)
   chooses where new documents go; the sweep's `publishTallyDocuments`
   publishes documents frozen since then that lack a copy, re-checks copies
   weekly and republishes from the database when one is gone; switching or

@@ -723,20 +723,23 @@ export interface GovernanceSettingChangeRow {
 export const GOVERNANCE_SETTING_CHANGE_COLUMNS = "id, community_id, kind, actor, before_value, after_value, changed_at";
 
 /** Where frozen tally documents are published (proposal_document_copies.store). */
-export type DocumentStoreName = "ipfs";
+export type DocumentStoreName = "ipfs" | "github";
 
-/** One row per community (0059); a missing row = no publication, warn on a failed budget check. */
+/** One row per community (0059 / 0067); a missing row = no publication, warn on a failed budget check. */
 export interface GovernanceCommunitySettingsRow {
   community_id: string;
   document_store: DocumentStoreName | null;
   document_store_since: string | null;
+  /** GitHub archive repo id when document_store is github (0067). */
+  document_archive_repo_id: number | null;
+  document_archive_full_name: string | null;
   spend_check: "warn" | "refuse";
   updated_by: string;
   updated_at: string;
 }
 
 export const GOVERNANCE_COMMUNITY_SETTINGS_COLUMNS =
-  "community_id, document_store, document_store_since, spend_check, updated_by, updated_at";
+  "community_id, document_store, document_store_since, document_archive_repo_id, document_archive_full_name, spend_check, updated_by, updated_at";
 
 /** A proposal's frozen tally document (0059): the exact canonical JSON that was hashed. */
 export interface ProposalTallyDocumentRow {

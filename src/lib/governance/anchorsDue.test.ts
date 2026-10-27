@@ -25,8 +25,14 @@ const H = (c: string) => c.repeat(64);
 const COMMUNITY = "c-1";
 const NOW = Date.parse("2026-10-01T12:00:00Z");
 const FROZEN_AT = "2026-10-01T00:00:00Z";
-const OFF: GovernanceCommunitySettings = { documentStore: null, documentStoreSince: null, spendCheck: "warn" };
-const PUBLISHING: GovernanceCommunitySettings = { documentStore: "ipfs", documentStoreSince: "2026-09-01T00:00:00Z", spendCheck: "warn" };
+const OFF: GovernanceCommunitySettings = {
+  documentStore: null, documentStoreSince: null,
+  documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: "warn",
+};
+const PUBLISHING: GovernanceCommunitySettings = {
+  documentStore: "ipfs", documentStoreSince: "2026-09-01T00:00:00Z",
+  documentArchiveRepoId: null, documentArchiveFullName: null, spendCheck: "warn",
+};
 const TALLY = { counts: { yes: 2, no: 1 }, ballots: 3, electorate: 5, quorumMet: true, state: "passed" as const, reason: "passed" as const };
 
 function link(proposalId: string, step: ProposalAnchorWithTx["step"], state: number, patch: Partial<{ id: string; block_time: string | null }> = {}): ProposalAnchorWithTx {

@@ -1,6 +1,6 @@
 This page explains what Treasury Guild knows about you, why, and what you can do about it. Treasury Guild is operated by **André Diamond**. For any privacy question or request, write to [andruzkas@gmail.com](mailto:andruzkas@gmail.com).
 
-Last updated: 1 October 2026 (changes an AI assistant makes for you after you confirm them, the draft id they keep and that members can see it, and what is kept with an assistant's sign-in codes and renewal tokens; sign-in challenges and their retention, sign-in counted by IP address only, Google access revoked only when no other community uses the account, why a co-signer signature failed; treasury templates: signer groups, the app-held co-signer key and its decision log; earlier: frozen and published tally records, decisions cited on-chain, outside-spend alerts, on-chain proposal anchors).
+Last updated: 27 October 2026 (GitHub archive repository as a second place admins can publish frozen tally records; earlier: changes an AI assistant makes for you after you confirm them, the draft id they keep and that members can see it, and what is kept with an assistant's sign-in codes and renewal tokens; sign-in challenges and their retention, sign-in counted by IP address only, Google access revoked only when no other community uses the account, why a co-signer signature failed; treasury templates: signer groups, the app-held co-signer key and its decision log; frozen and published tally records, decisions cited on-chain, outside-spend alerts, on-chain proposal anchors).
 
 ## The short version
 
@@ -53,7 +53,8 @@ Treasury Guild shares data with other services only as far as running the app re
 - **Supabase** hosts the database and **Netlify** hosts the app. Both process the data above on Treasury Guild's behalf.
 - **Koios** (a Cardano API) receives wallet and treasury addresses and transactions, to read balances and submit payments.
 - **GitHub, Discord, Google and Zoom** are contacted when you link an account, or when a community connects its own organisation, server or meeting account.
-- **Pinata (IPFS)** stores token images that a community uploads when minting and, when a community's admins turn publication on, its frozen tally records (voter addresses and ballots included). IPFS content is public and permanent.
+- **Pinata (IPFS)** stores token images that a community uploads when minting and, when a community's admins choose IPFS publication, its frozen tally records (voter addresses and ballots included). IPFS content is public and permanent.
+- **GitHub** (the community's App installation) receives the same frozen tally records when admins choose a GitHub archive repository under Governance settings. Those commits are as public as the archive repository.
 - **CoinGecko** is asked for exchange rates. No personal data is sent.
 - A community may connect a **Discord webhook**, which posts payout summaries (workgroup names, totals, budget and treasury balances, transaction hash and links; no individual handles or wallet addresses) to a channel that community chose. It may also connect one for proposal announcements (title, kind, deadlines, turnout, counts, the reason given for a withdrawal or cancellation, why a passed proposal could not be applied, and links; never who voted or how), which, while the community decides budgets by vote, also receives a note about each treasury transaction that was not built in Treasury Guild (the treasury, the amounts and the transaction link; never who received it).
 

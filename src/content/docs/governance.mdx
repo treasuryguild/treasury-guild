@@ -79,7 +79,7 @@ Developers can run these checks with `checkTallyDocument` in the Treasury Guild 
 
 Once a proposal that reached a vote is final (passed, rejected, no quorum, or cancelled during voting), its signed tally is **frozen**: built once, stored with its hash, and served byte for byte from then on. Every later download is the same file, whatever happens to the proposal afterwards (carrying out a passed budget change is not part of it). The results show when the record was frozen and its hash. A proposal withdrawn or cancelled before voting opened has no ballots to record and no frozen record.
 
-Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Treasury Guild. The one store today is [IPFS](https://ipfs.tech/), through Pinata. Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. The results link every published copy, and Treasury Guild checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
+Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Treasury Guild. The stores today are [IPFS](https://ipfs.tech/) (through Pinata) and a dedicated **GitHub** archive repository on the community's [GitHub App](/docs/github) installation (files under `tallies/`). Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. Prefer a public archive repo that is not a workgroup board. The results link every published copy, and Treasury Guild checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
 
 ## On-chain anchors
 
@@ -89,7 +89,7 @@ A community that votes and has a treasury gets each proposal's fingerprints writ
 |---|---|---|
 | **Proposed** | when the proposal is made | the content and rules fingerprints every ballot signs |
 | **Voting opened** | when voting opens | the fingerprint of the fixed voter list (sha256 of the sorted voters, recusals marked), which every ballot signs too, so the list cannot change once a ballot exists |
-| **Closed** | when the proposal is final | the final state and, for a proposal that reached a vote, the hash of its [frozen record](#the-frozen-record), the counts and, once [published](#the-frozen-record), where the copy is (for IPFS, its CID) |
+| **Closed** | when the proposal is final | the final state and, for a proposal that reached a vote, the hash of its [frozen record](#the-frozen-record), the counts and, once [published](#the-frozen-record), where the copy is (for IPFS, its CID; for GitHub, `{repoId}/{blobSha}`) |
 
 Anchors are metadata under label **190002** (see [On-chain metadata](/docs/transactions#on-chain-metadata)). They get on-chain in two ways:
 
@@ -173,7 +173,7 @@ A proposal keeps the rules it was made with, through discussion and voting. Whoe
 
 **Records and checks** holds two settings for the whole community, logged under **Changes** like the others:
 
-- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Treasury Guild only (the default), or also publish new ones to IPFS. Turning publication on asks for confirmation, because a published copy cannot be taken back.
+- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Treasury Guild only (the default), or also publish new ones to IPFS or a GitHub archive repository. Turning publication on asks for confirmation, because a published copy cannot be taken back.
 - **A spend that does not fit the voted budgets**: warn the signers on the transaction page (the default) or refuse to build it. See [the budget check](#spend-citations-and-the-budget-check).
 
 Defaults for budgets: proposed by admins and leads, decided by consent of all members with a 25% quorum, 24 hours of discussion and 72 hours of voting. New workgroups and decisions: any member proposes, majority vote above 50% with a 20% quorum, 48 hours of discussion and five days of voting. Tasks: any member proposes, lazy consensus of the people of the workgroup (one objection rejects), no discussion period and three days of voting. The people of a new workgroup with no leads or history yet are nobody, and so is any electorate that the membership age or recusal empties. A proposal nobody could vote on is refused, with the reason, instead of being made and then cancelled: change who votes, how long a member must have belonged, or who is recused, or add people to that group first.
