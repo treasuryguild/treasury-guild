@@ -90,7 +90,7 @@ export function PaymentSummary({
             {busy ? "Building transaction…" : "Build payment transaction"}
           </Button>
           <WarningText small>{blockedReason}</WarningText>
-          {!canBuild && <WarningText small>Only admins or signers of this treasury can build payments</WarningText>}
+          {!canBuild && <WarningText small>Only signers of this treasury can build payments</WarningText>}
         </div>
       </div>
       <ErrorText error={error} className="mt-3" />

@@ -61,9 +61,13 @@ export async function requireTreasuryAdmin(treasuryId: string, wallet: string): 
   return treasury;
 }
 
-/** Admins and treasury signers may start treasury transactions. */
-export function isTreasuryActor(role: string | null, isSigner: boolean): boolean {
-  return isAdminRole(role) || isSigner;
+/**
+ * Who may start a spend from a treasury: its base signers only. Community
+ * admin is not enough — that role manages the community, not every wallet.
+ * `role` is unused (kept so call sites stay stable).
+ */
+export function isTreasuryActor(_role: string | null, isSigner: boolean): boolean {
+  return isSigner;
 }
 
 export function requireTreasuryActor(

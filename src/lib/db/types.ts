@@ -44,10 +44,15 @@ export interface CommunityRow {
   discord_rate_currency: string;
   /** Main budget/spending token: "lovelace" or policyId + assetNameHex. Charted first on the Dashboard. */
   spending_unit: string;
+  /**
+   * The treasury whose base signers are community admins (null until the
+   * first treasury exists). Other treasuries' signers are not auto-promoted.
+   */
+  primary_treasury_id: string | null;
 }
 
 export const COMMUNITY_COLUMNS =
-  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit";
+  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit, primary_treasury_id";
 
 export interface CommunityMemberRow {
   community_id: string;

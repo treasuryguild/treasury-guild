@@ -1,14 +1,16 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import type { CreateTreasuryResponse } from "@/lib/api/types";
+import { CosignerKind, TreasuryTemplate } from "@/lib/constants";
 import { templateLabel } from "@/lib/cardano/spendingPaths";
 import { describeThreshold } from "@/lib/cardano/thresholds";
-import { TreasuryTemplate } from "@/lib/constants";
 import { routes } from "@/lib/routes";
+import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
@@ -23,6 +25,7 @@ import {
   type SignerDraft,
   type TemplateDraft,
 } from "@/components/treasury/TemplateFields";
+import { SignerMemberPick } from "@/components/treasury/SignerMemberPick";
 import {
   COMMUNITY_TREASURY,
   TreasuryCreatedNotice,
@@ -50,10 +53,32 @@ export default function NewTreasury({
   const [created, setCreated] = useState<CreateTreasuryResponse | null>(null);
   const workgroups = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
+  const leads = useAsyncData(community?.id, async () => {
+    const { data } = await browserClient()
+      .from("workgroup_leads")
+      .select("wallet_address, workgroups!inner(community_id)")
+      .eq("workgroups.community_id", community!.id);
+    return new Set((data ?? []).map((r) => r.wallet_address as string));
+  });
   const { run, busy, error } = useAsyncAction("Failed to create treasury");
   // The creator must be a signer of the first treasury, and every signer
   // address must be on the community's network — so the wallet must be too.
   const { reason: networkReason } = useNetworkGate(community?.network);
+  const usedWallets = useMemo(() => {
+    const used = new Set<string>();
+    for (const s of signers) {
+      const a = s.address.trim();
+      if (a) used.add(a);
+    }
+    for (const s of draft.recoverySigners) {
+      const a = s.address.trim();
+      if (a) used.add(a);
+    }
+    if (draft.cosignerKind === CosignerKind.Member && draft.cosignerAddress.trim()) {
+      used.add(draft.cosignerAddress.trim());
+    }
+    return used;
+  }, [signers, draft.recoverySigners, draft.cosignerKind, draft.cosignerAddress]);
 
   if (blocked) return blocked;
 
@@ -74,6 +99,8 @@ export default function NewTreasury({
   const filled = signers.filter((s) => s.address.trim());
   const baseRule = describeThreshold("atLeast", required, filled.length);
   const plain = draft.template === TreasuryTemplate.Plain;
+  const becomesPrimary = !community?.primary_treasury_id;
+  const leadWallets = leads.data ?? new Set<string>();
 
   function updateSigner(i: number, patch: Partial<SignerDraft>) {
     setSigners((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -124,24 +151,45 @@ export default function NewTreasury({
           />
         )}
 
-        <Field label={plain ? "Signers (payment addresses)" : "Base signers (payment addresses)"}>
+        <Field
+          label={plain ? "Signers (payment addresses)" : "Base signers (payment addresses)"}
+          hint={
+            becomesPrimary
+              ? "This is the community's primary treasury: each base signer becomes a community admin. Pick a member or paste a payment address."
+              : "Base signers can spend from this treasury only; they are not made community admins. Pick a member or paste a payment address."
+          }
+        >
           <div className="space-y-2">
-            {signers.map((s, i) => (
-              <div key={i} className="flex flex-col gap-2 sm:flex-row">
-                <Input
-                  className="font-mono text-xs"
-                  value={s.address}
-                  onChange={(e) => updateSigner(i, { address: e.target.value })}
-                  placeholder="addr… / addr_test…"
-                />
-                <Input
-                  className="sm:max-w-32"
-                  value={s.name}
-                  onChange={(e) => updateSigner(i, { name: e.target.value })}
-                  placeholder="Name"
-                />
-              </div>
-            ))}
+            {signers.map((s, i) => {
+              const exclude = new Set(usedWallets);
+              if (s.address.trim()) exclude.delete(s.address.trim());
+              return (
+                <div key={i} className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+                  <SignerMemberPick
+                    ariaLabel={`Base signer ${i + 1} member`}
+                    members={members.data ?? []}
+                    leadWallets={leadWallets}
+                    exclude={exclude}
+                    disabled={busy}
+                    onPick={(draftSigner) => updateSigner(i, draftSigner)}
+                  />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      className="font-mono text-xs"
+                      value={s.address}
+                      onChange={(e) => updateSigner(i, { address: e.target.value })}
+                      placeholder="addr… / addr_test…"
+                    />
+                    <Input
+                      className="sm:max-w-32"
+                      value={s.name}
+                      onChange={(e) => updateSigner(i, { name: e.target.value })}
+                      placeholder="Name"
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <Button
             variant="ghost"
@@ -166,6 +214,8 @@ export default function NewTreasury({
           draft={draft}
           onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))}
           members={members.data ?? []}
+          leadWallets={leadWallets}
+          usedWallets={usedWallets}
           disabled={busy}
         />
 

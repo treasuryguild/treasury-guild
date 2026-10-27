@@ -25,34 +25,45 @@ import {
 } from "@/components/ui";
 
 /** Lead assignments and signer wallets across the whole community. */
-function useCommunityRoles(communityId: string | undefined) {
-  return useAsyncData(communityId, async () => {
-    const db = browserClient();
-    const [{ data: leadRows }, { data: signerRows }] = await Promise.all([
-      db
-        .from("workgroup_leads")
-        .select("workgroup_id, wallet_address, workgroups!inner(community_id)")
-        .eq("workgroups.community_id", communityId),
-      db
-        .from("treasury_signers")
-        .select("wallet_address, signer_group, treasuries!inner(community_id)")
-        .eq("treasuries.community_id", communityId),
-    ]);
-    const leads = new Map<string, Set<string>>();
-    for (const l of leadRows ?? []) {
-      const set = leads.get(l.wallet_address) ?? new Set<string>();
-      set.add(l.workgroup_id);
-      leads.set(l.wallet_address, set);
-    }
-    return {
-      leads,
-      signerGroups: (signerRows ?? []).reduce((map, s) => {
-        const set = map.get(s.wallet_address as string) ?? new Set<string>();
+function useCommunityRoles(communityId: string | undefined, primaryTreasuryId: string | null | undefined) {
+  return useAsyncData(
+    communityId ? `${communityId}:${primaryTreasuryId ?? ""}` : null,
+    async () => {
+      const db = browserClient();
+      const [{ data: leadRows }, { data: signerRows }] = await Promise.all([
+        db
+          .from("workgroup_leads")
+          .select("workgroup_id, wallet_address, workgroups!inner(community_id)")
+          .eq("workgroups.community_id", communityId),
+        db
+          .from("treasury_signers")
+          .select("wallet_address, signer_group, treasury_id, treasuries!inner(community_id)")
+          .eq("treasuries.community_id", communityId),
+      ]);
+      const leads = new Map<string, Set<string>>();
+      for (const l of leadRows ?? []) {
+        const set = leads.get(l.wallet_address) ?? new Set<string>();
+        set.add(l.workgroup_id);
+        leads.set(l.wallet_address, set);
+      }
+      const primaryBaseSigners = new Set<string>();
+      const signerGroups = new Map<string, Set<string>>();
+      for (const s of signerRows ?? []) {
+        const wallet = s.wallet_address as string;
+        const set = signerGroups.get(wallet) ?? new Set<string>();
         set.add(s.signer_group as string);
-        return map.set(s.wallet_address as string, set);
-      }, new Map<string, Set<string>>()),
-    };
-  });
+        signerGroups.set(wallet, set);
+        if (
+          primaryTreasuryId &&
+          s.treasury_id === primaryTreasuryId &&
+          s.signer_group === "base"
+        ) {
+          primaryBaseSigners.add(wallet);
+        }
+      }
+      return { leads, signerGroups, primaryBaseSigners };
+    },
+  );
 }
 
 export default function MembersSettings({
@@ -64,7 +75,7 @@ export default function MembersSettings({
   const { community, isAdmin, sessionWallet, blocked, reload: reloadCommunity } = useCommunityGate(slug);
   const members = useCommunityMembers(community?.id);
   const workgroups = useWorkgroups(community?.id);
-  const roles = useCommunityRoles(community?.id);
+  const roles = useCommunityRoles(community?.id, community?.primary_treasury_id);
   const action = useAsyncAction();
   const [newMemberWallet, setNewMemberWallet] = useState("");
   const [visibility, setVisibility] = useState<string | null>(null);
@@ -124,6 +135,7 @@ export default function MembersSettings({
   const busy = action.busy;
   const leads = roles.data?.leads ?? new Map<string, Set<string>>();
   const signerGroups = roles.data?.signerGroups ?? new Map<string, Set<string>>();
+  const primaryBaseSigners = roles.data?.primaryBaseSigners ?? new Set<string>();
   const workgroupList = workgroups.data ?? [];
   const memberList = members.data ?? [];
 
@@ -186,6 +198,7 @@ export default function MembersSettings({
         {memberList.map((m) => {
           const groups = signerGroups.get(m.wallet_address) ?? new Set<string>();
           const isSigner = groups.has("base");
+          const isPrimarySigner = primaryBaseSigners.has(m.wallet_address);
           const memberLeads = leads.get(m.wallet_address) ?? new Set<string>();
           const isSelf = m.wallet_address === sessionWallet;
           return (
@@ -226,10 +239,10 @@ export default function MembersSettings({
                   {isAdmin && !isSelf && m.role === Role.Admin && (
                     <Button
                       variant="secondary"
-                      disabled={busy || isSigner}
+                      disabled={busy || isPrimarySigner}
                       title={
-                        isSigner
-                          ? "Treasury signers must remain admins"
+                        isPrimarySigner
+                          ? "Primary treasury signers must remain admins"
                           : undefined
                       }
                       onClick={() => void setRole(m.wallet_address, Role.Member)}

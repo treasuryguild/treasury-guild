@@ -19,6 +19,7 @@ import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, short
 import { routes } from "@/lib/routes";
 import { browserClient } from "@/lib/supabase/browser";
 import { useAssetRegistry } from "@/hooks/useAssetRegistry";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useChainImportQueue } from "@/hooks/useChainImportQueue";
 import { useChainSync } from "@/hooks/useChainSync";
@@ -55,10 +56,11 @@ export default function TreasuryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const { community, isAdmin, blocked } = useCommunityGate(slug);
+  const { community, isAdmin, blocked, reload: reloadCommunity } = useCommunityGate(slug);
   const treasuries = useTreasuries(community?.id);
   const list = treasuries.data ?? [];
   const treasuryIds = list.map((t) => t.id);
+  const setPrimary = useAsyncAction("Failed to set primary treasury");
 
   const txs = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
@@ -182,21 +184,25 @@ export default function TreasuryPage({
         Treasury
       </PageTitle>
 
-      <ErrorText error={discord.error} className="mb-3" />
+      <ErrorText error={discord.error ?? setPrimary.error} className="mb-3" />
       <div className="mb-8 grid gap-4 lg:grid-cols-2">
         {list.map((t) => {
           const balance = balances.data?.[t.address];
+          const isPrimary = community?.primary_treasury_id === t.id;
           return (
             <Card key={t.id}>
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="min-w-0 truncate font-medium">{t.name}</h3>
+                  <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
+                    <span className="min-w-0 truncate">{t.name}</span>
+                    {isPrimary && <Badge tone="blue">Primary</Badge>}
+                  </h3>
                   <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
                     {shortAddress(t.address)}
                     <CopyButton value={t.address} />
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
                   <Button
                     variant="secondary"
@@ -205,6 +211,21 @@ export default function TreasuryPage({
                   >
                     Details
                   </Button>
+                  {isAdmin && !isPrimary && (
+                    <Button
+                      variant="secondary"
+                      disabled={setPrimary.busy}
+                      title="Base signers of the primary treasury are community admins"
+                      onClick={() => void setPrimary.run(async () => {
+                        await apiFetch("/api/treasury/primary", {
+                          body: { communityId: community!.id, treasuryId: t.id },
+                        });
+                        reloadCommunity();
+                      })}
+                    >
+                      Set as primary
+                    </Button>
+                  )}
                 </div>
               </div>
               <p className="mt-4 text-2xl font-semibold">

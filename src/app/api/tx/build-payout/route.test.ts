@@ -81,7 +81,7 @@ const treasury = (overrides: object = {}) => ({
   ...overrides,
 });
 const buildContext = (overrides: object = {}, treasuryOverrides: object = {}) => ({
-  treasury: treasury(treasuryOverrides), signers: [], role: "admin", isSigner: false,
+  treasury: treasury(treasuryOverrides), signers: [], role: "admin", isSigner: true,
   callerGroups: new Set(), communitySlug: "guild", network: 0, ...overrides,
 });
 const assignee = (wallet: string | null, position = 0, gh_login: string | null = null) => ({
@@ -185,12 +185,12 @@ describe("build-payout API", () => {
   });
 
   describe("who may build", () => {
-    it("refuses a member who is neither admin, base signer nor lead of every selected workgroup", async () => {
+    it("refuses a member who is neither base signer nor lead of every selected workgroup", async () => {
       mocks.context.mockResolvedValue(buildContext({ role: "member", isSigner: false }));
       mocks.tasks.mockResolvedValue([task(), taskB()]);
       const response = await POST(request(body({ taskIds: [TASK_A, TASK_B] })), context);
       expect(response.status).toBe(403);
-      expect(await response.json()).toEqual({ error: "Only signers, admins, or leads of all selected workgroups can build payouts" });
+      expect(await response.json()).toEqual({ error: "Only signers of this treasury, or leads of all selected workgroups, can build payouts" });
       expect(mocks.leads).toHaveBeenCalledWith("admin", [WG_A, WG_B]);
       expect(mocks.build).not.toHaveBeenCalled();
       expect(mocks.withTx).not.toHaveBeenCalled();
@@ -206,12 +206,13 @@ describe("build-payout API", () => {
       expect(mocks.withTx).toHaveBeenCalledWith(expect.objectContaining({ created_by: "lead" }), expect.any(Function));
     });
 
-    it("never consults the leads for an admin or a base signer", async () => {
+    it("never consults the leads for a base signer; refuses an admin who does not sign", async () => {
       mocks.context.mockResolvedValue(buildContext({ role: "member", isSigner: true }));
       expect((await POST(request(body()), context)).status).toBe(200);
-      mocks.context.mockResolvedValue(buildContext({ role: "admin", isSigner: false }));
-      expect((await POST(request(body()), context)).status).toBe(200);
       expect(mocks.leads).not.toHaveBeenCalled();
+      mocks.context.mockResolvedValue(buildContext({ role: "admin", isSigner: false }));
+      mocks.leads.mockResolvedValue(false);
+      expect((await POST(request(body()), context)).status).toBe(403);
     });
   });
 

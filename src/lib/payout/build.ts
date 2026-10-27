@@ -76,9 +76,10 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   const { treasuryId, path: requestedPath, taskIds, connections } = input;
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
-  // Signers and admins can build for any workgroup; a workgroup lead can
-  // build only when every selected task is in a workgroup they lead
-  // (checked below, once tasks are loaded). Signing stays signer-only.
+  // Base signers of this treasury can build for any workgroup; a workgroup
+  // lead can build only when every selected task is in a workgroup they
+  // lead (checked below, once tasks are loaded). Community admin alone is
+  // not enough. Signing stays signer-only.
   const canBuildAnywhere = isTreasuryActor(ctx.role, ctx.isSigner);
   // Payouts never take the recovery path, so the path only picks the rule.
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Payout);
@@ -98,7 +99,7 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
     const wgIds = tasks.map((t) => t.workgroup_id);
     if (!(await leadsAllWorkgroups(wallet, wgIds))) {
       throw new ForbiddenError(
-        "Only signers, admins, or leads of all selected workgroups can build payouts",
+        "Only signers of this treasury, or leads of all selected workgroups, can build payouts",
       );
     }
   }

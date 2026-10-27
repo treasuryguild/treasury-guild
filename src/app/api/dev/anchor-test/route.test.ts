@@ -160,15 +160,16 @@ describe("POST /api/dev/anchor-test", () => {
       mocks.context.mockResolvedValue(buildContext({ isSigner: false, callerGroups: new Set(groups) }));
       const res = await post();
       expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({ error: "Only community admins or treasury signers can build from this treasury" });
+      expect(await res.json()).toEqual({ error: "Only treasury signers can build from this treasury" });
     }
     expect(mocks.noPending).not.toHaveBeenCalled();
     nothingBuilt();
   });
 
-  it("lets an admin who signs nothing build", async () => {
+  it("refuses an admin who signs nothing", async () => {
     mocks.context.mockResolvedValue(buildContext({ role: "admin", isSigner: false, callerGroups: new Set() }));
-    expect((await post()).status).toBe(200);
+    expect((await post()).status).toBe(403);
+    nothingBuilt();
   });
 
   it("passes on the one-pending-transaction conflict", async () => {

@@ -11,7 +11,7 @@ export function validateMintForm(
   ctx: { canMintHere: boolean; now: number },
 ): string | null {
   if (!form.treasuryId) return "Choose a treasury";
-  if (!ctx.canMintHere) return "Only admins or signers of this treasury can mint";
+  if (!ctx.canMintHere) return "Only signers of this treasury can mint";
 
   if (form.kind === "ft") {
     const n = validateAssetName(form.ftName);

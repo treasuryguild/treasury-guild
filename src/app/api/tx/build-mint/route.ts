@@ -84,7 +84,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
   const path = resolveSpendingPath(ctx, body.path, TxKind.Mint);
-  requirePathBuilder(ctx, path, "Only community admins or treasury signers can start a mint");
+  requirePathBuilder(ctx, path, "Only treasury signers can start a mint");
   await assertNoPendingTx(treasuryId);
 
   // ---- recipient

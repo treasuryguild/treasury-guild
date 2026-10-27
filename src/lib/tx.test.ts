@@ -144,9 +144,9 @@ describe("spending paths of a build", () => {
     const build = (path: Parameters<typeof requirePathBuilder>[1], role: Role, groups: SignerGroup[] = []) =>
       () => requirePathBuilder(ctx({ template: "clawback" }, role, groups), path, "Only admins or signers can build");
 
-    it("lets admins and base signers build on every path but recovery", () => {
-      expect(build("base", "admin")).not.toThrow();
-      expect(build("base", "owner")).not.toThrow();
+    it("lets only base signers build on every path but recovery", () => {
+      expect(build("base", "admin")).toThrow(ForbiddenError);
+      expect(build("base", "owner")).toThrow(ForbiddenError);
       expect(build("base", "member", [SignerGroup.Base])).not.toThrow();
       expect(build("cosigned", "member", [SignerGroup.Base])).not.toThrow();
       expect(build("bypass", "member", [SignerGroup.Base])).not.toThrow();
@@ -158,10 +158,10 @@ describe("spending paths of a build", () => {
       expect(build("cosigned", "member", [SignerGroup.Cosigner])).toThrow(ForbiddenError);
     });
 
-    it("lets admins and recovery signers, not base signers, build on the recovery path", () => {
-      expect(build("recovery", "admin")).not.toThrow();
+    it("lets only recovery signers build on the recovery path", () => {
+      expect(build("recovery", "admin")).toThrow("Only recovery signers can build on the recovery path");
       expect(build("recovery", "member", [SignerGroup.Recovery])).not.toThrow();
-      expect(build("recovery", "member", [SignerGroup.Base])).toThrow("Only admins or recovery signers can build on the recovery path");
+      expect(build("recovery", "member", [SignerGroup.Base])).toThrow("Only recovery signers can build on the recovery path");
       expect(build("recovery", "member")).toThrow(ForbiddenError);
     });
   });

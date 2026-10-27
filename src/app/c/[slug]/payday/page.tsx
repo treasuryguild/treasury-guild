@@ -129,7 +129,6 @@ export default function PaydayPage({
   const offered = selectedTreasury ? offeredPaths(selectedTreasury, TxKind.Payout, nowMs) : { paths: [], blocked: null };
   const chosenPath = path && offered.paths.includes(path) ? path : offered.paths[0];
   const canBuild = !!chosenPath && canBuildPayout({
-    isAdmin,
     treasuryId,
     signerTreasuryIds: roles.signerTreasuryIds,
     ledWorkgroupIds: roles.ledWorkgroupIds,

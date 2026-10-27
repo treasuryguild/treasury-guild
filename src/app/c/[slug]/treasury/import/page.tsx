@@ -126,7 +126,8 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
               <div className="space-y-4">
                 <p className="text-sm text-zinc-400">
                   Match each key to its payment address. Known community wallets are filled in automatically.
-                  Every base signer becomes a community admin; recovery signers and a co-signer must already be members.
+                  Base signers of the community&apos;s first (primary) treasury become community admins; later
+                  treasuries add them as members only. Recovery signers and a co-signer must already be members.
                   You must be a base signer of the first treasury.
                 </p>
                 {signers.map((signer, i) => (

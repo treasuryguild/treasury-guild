@@ -37,7 +37,7 @@ export default function MintPage({
 
   const treasuryList = treasuries.data ?? [];
   const mintList = mints.data ?? [];
-  const canMintAnywhere = isAdmin || roles.signerTreasuryIds.size > 0;
+  const canMintAnywhere = roles.signerTreasuryIds.size > 0;
   const ready = !treasuries.loading && !roles.loading;
 
   async function downloadCip26(row: MintWithTx) {
@@ -61,7 +61,7 @@ export default function MintPage({
       />
 
       {!ready ? null : !canMintAnywhere ? (
-        <EmptyState>Only community admins or treasury signers can mint tokens.</EmptyState>
+        <EmptyState>Only treasury signers can mint tokens.</EmptyState>
       ) : treasuryList.length === 0 ? (
         <EmptyState>
           Create a multisig treasury first — its signers become the minting
@@ -77,7 +77,6 @@ export default function MintPage({
           communityId={community!.id}
           treasuries={treasuryList}
           signerTreasuryIds={roles.signerTreasuryIds}
-          isAdmin={isAdmin}
           mints={mintList}
           gateway={gateway}
           busy={busy}

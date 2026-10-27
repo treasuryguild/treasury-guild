@@ -33,7 +33,7 @@ export const POST = devRoute(async (req, { session }) => {
   const { treasuryId, path: requestedPath } = await parseJson(req, devAnchorTestSchema);
   const ctx = await loadBuildContext(treasuryId, session.wallet);
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Anchor);
-  requirePathBuilder(ctx, path, "Only community admins or treasury signers can build from this treasury");
+  requirePathBuilder(ctx, path, "Only treasury signers can build from this treasury");
   await assertNoPendingTx(treasuryId);
 
   const record = buildAnchorTestMetadata(ctx.communitySlug);

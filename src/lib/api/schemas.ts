@@ -251,6 +251,12 @@ export const discordWebhookUrl = z
 /** GET /api/treasury: the details dialog. */
 export const treasuryIdQuerySchema = z.object({ treasuryId: id });
 
+/** POST /api/treasury/primary: which wallet's base signers are community admins. */
+export const setPrimaryTreasurySchema = z.object({
+  communityId: id,
+  treasuryId: id,
+});
+
 export const setTreasuryDiscordWebhookSchema = z.object({
   treasuryId: id,
   url: discordWebhookUrl,
