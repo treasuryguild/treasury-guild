@@ -14,11 +14,11 @@ import {
   loadTreasuryBudgetOwner, loadWorkgroupBudgetOwner, resolveBudgetAmounts, type BudgetOwnerContext,
 } from "@/lib/db/budgetSave";
 import {
-  checkBudgetProposal, createProposal, electorateWallets, loadBudgetRevisions, loadGovernanceSettings, loadProposalWorkgroup, nonMembers,
-  workgroupLeadWallets, workgroupNameTaken, type NewProposal,
+  checkBudgetProposal, createProposal, electorateWallets, loadBudgetRevisions, loadGovernanceSettings, loadProposal,
+  loadProposalWorkgroup, nonMembers, workgroupLeadWallets, workgroupNameTaken, type NewProposal,
 } from "@/lib/db/governance";
 import { requireActiveWorkgroup } from "@/lib/db/workgroups";
-import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { eligibleVoterCount, noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";
 import {
@@ -95,12 +95,17 @@ export async function prepareProposal(input: CreateProposalInput, proposer: stri
   );
   if (reason) throw new BadRequestError(reason);
 
+  const replaces = input.replacesProposalId
+    ? await replacesTarget(input.replacesProposalId, input.communityId, input.kind, proposer)
+    : null;
+
   const content = {
     kind: input.kind,
     title: input.title.trim(),
     body: input.body,
     discussionUrl: input.discussionUrl ?? null,
     payload,
+    replaces: replaces?.number ?? null,
   };
   return {
     communityId: input.communityId,
@@ -112,7 +117,20 @@ export async function prepareProposal(input: CreateProposalInput, proposer: stri
     beneficiaries,
     proposer,
     budgetOwners,
+    replacesProposalId: replaces?.id ?? null,
   };
+}
+
+/** The discussion proposal this create revises, or a refusal. */
+async function replacesTarget(
+  id: string, communityId: string, kind: ProposalKind, proposer: string,
+): Promise<{ id: string; number: number }> {
+  const old = await loadProposal(id);
+  if (old.community_id !== communityId) throw new BadRequestError("That proposal belongs to another community");
+  if (old.proposer !== proposer) throw new ForbiddenError("Only the proposer can revise a proposal");
+  if (old.state !== "discussion") throw new ConflictError("A proposal can be revised only before voting opens");
+  if (old.kind !== kind) throw new BadRequestError("A revision must keep the same proposal kind");
+  return { id: old.id, number: old.number };
 }
 
 /** A new native workgroup with the default board; its name must be free now (and again when applied). */

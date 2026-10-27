@@ -93,8 +93,8 @@ export async function listTreasuriesForWallet(wallet: string): Promise<WalletTre
 
 /**
  * Whether the wallet signs for any of the community's treasuries, in any
- * group by default or only in the given ones (base signers are the admins;
- * recovery signers and co-signers are not).
+ * group by default or only in the given ones (primary base signers are the
+ * admins; recovery signers and co-signers are not).
  */
 export async function isCommunityTreasurySigner(
   communityId: string,
@@ -109,6 +109,38 @@ export async function isCommunityTreasurySigner(
   if (groups) query = query.in("signer_group", [...groups]);
   const hits = rows<{ treasury_id: string }>(await query.limit(1), "check treasury signer");
   return hits.length > 0;
+}
+
+/**
+ * Whether the wallet is a base signer of the community's primary treasury
+ * (the group that must remain community admins).
+ */
+export async function isPrimaryTreasuryBaseSigner(
+  communityId: string,
+  wallet: string,
+): Promise<boolean> {
+  const community = maybe<{ primary_treasury_id: string | null }>(
+    await serviceClient()
+      .from("communities")
+      .select("primary_treasury_id")
+      .eq("id", communityId)
+      .maybeSingle(),
+    "load primary treasury",
+  );
+  if (!community?.primary_treasury_id) return false;
+  return isTreasurySigner(community.primary_treasury_id, wallet);
+}
+
+/** Base signer wallets of a treasury (for promoting primary signers to admin). */
+export async function loadBaseSignerWallets(treasuryId: string): Promise<string[]> {
+  return rows<{ wallet_address: string }>(
+    await serviceClient()
+      .from("treasury_signers")
+      .select("wallet_address")
+      .eq("treasury_id", treasuryId)
+      .eq("signer_group", SignerGroup.Base),
+    "load base signers",
+  ).map((r) => r.wallet_address);
 }
 
 export async function countCommunityTreasuries(

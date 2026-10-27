@@ -23,7 +23,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const { treasuryId, path: requestedPath } = await parseJson(req, buildAnchorSchema);
   const ctx = await loadBuildContext(treasuryId, session.wallet);
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Anchor);
-  requirePathBuilder(ctx, path, "Only community admins or treasury signers can build an anchor transaction");
+  requirePathBuilder(ctx, path, "Only treasury signers can build an anchor transaction");
   await assertNoPendingTx(treasuryId);
 
   const due = await loadDueAnchors(ctx.treasury.community_id);

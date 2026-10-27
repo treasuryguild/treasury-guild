@@ -29,7 +29,6 @@ export function MintForm({
   communityId,
   treasuries,
   signerTreasuryIds,
-  isAdmin,
   mints,
   gateway,
   busy,
@@ -40,7 +39,6 @@ export function MintForm({
   communityId: string;
   treasuries: TreasurySummary[];
   signerTreasuryIds: Set<string>;
-  isAdmin: boolean;
   mints: MintWithTx[];
   gateway: string | null;
   busy: boolean;
@@ -62,7 +60,7 @@ export function MintForm({
 
   const selectedTreasury = treasuries.find((t) => t.id === form.treasuryId) ?? null;
   const canMintHere =
-    !!selectedTreasury && actsForTreasury({ isAdmin, signerTreasuryIds }, selectedTreasury.id);
+    !!selectedTreasury && actsForTreasury({ signerTreasuryIds }, selectedTreasury.id);
   // A lock-until treasury mints nothing before its date; a co-signer
   // treasury offers the co-signed path (default) or the bypass.
   const [path, setPath] = useState<SpendingPath | "">("");

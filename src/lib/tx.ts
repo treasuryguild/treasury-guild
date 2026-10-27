@@ -17,7 +17,6 @@ import type {
 import { isTreasuryActor, requireMember } from "./authz";
 import { isUuid } from "./guards";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "./errors";
-import { isAdminRole } from "./roles";
 
 export interface TxContext {
   tx: TransactionRow;
@@ -155,14 +154,14 @@ export function resolveSpendingPath(
 }
 
 /**
- * Who may build on a path: admins or base signers on every path but
- * recovery, which admins or recovery signers build (only recovery signers
- * sign it).
+ * Who may build on a path: base signers on every path but recovery, which
+ * only recovery signers build (and only they sign it). Community admin is
+ * not enough on either path.
  */
 export function requirePathBuilder(ctx: BuildContext, path: SpendingPath, message: string): void {
   if (path === SpendingPath.Recovery) {
-    if (!isAdminRole(ctx.role) && !ctx.callerGroups.has(SignerGroup.Recovery)) {
-      throw new ForbiddenError("Only admins or recovery signers can build on the recovery path");
+    if (!ctx.callerGroups.has(SignerGroup.Recovery)) {
+      throw new ForbiddenError("Only recovery signers can build on the recovery path");
     }
     return;
   }

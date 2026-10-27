@@ -19,6 +19,7 @@ import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, short
 import { routes } from "@/lib/routes";
 import { browserClient } from "@/lib/supabase/browser";
 import { useAssetRegistry } from "@/hooks/useAssetRegistry";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useChainImportQueue } from "@/hooks/useChainImportQueue";
 import { useChainSync } from "@/hooks/useChainSync";
@@ -55,10 +56,11 @@ export default function TreasuryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const { community, isAdmin, blocked } = useCommunityGate(slug);
+  const { community, isAdmin, blocked, reload: reloadCommunity } = useCommunityGate(slug);
   const treasuries = useTreasuries(community?.id);
   const list = treasuries.data ?? [];
   const treasuryIds = list.map((t) => t.id);
+  const setPrimary = useAsyncAction("Failed to set primary treasury");
 
   const txs = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
@@ -69,6 +71,20 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .order("created_at", { ascending: false })
         .limit(RECENT_TX_LIMIT);
+      return (data ?? []) as TransactionSummary[];
+    },
+  );
+  // Pending txs are loaded separately so they never fall out of the recent
+  // limit(20) window (at most one pending per treasury).
+  const pendingTxs = useAsyncData(
+    treasuryIds.length > 0 ? `pending:${treasuryIds.join(",")}` : null,
+    async () => {
+      const { data } = await browserClient()
+        .from("transactions")
+        .select(TRANSACTION_SUMMARY_COLUMNS)
+        .in("treasury_id", treasuryIds)
+        .eq("state", TxState.Pending)
+        .order("created_at", { ascending: false });
       return (data ?? []) as TransactionSummary[];
     },
   );
@@ -97,13 +113,15 @@ export default function TreasuryPage({
   // Poll the chain for treasuries not checked in the last two minutes, in the
   // background; the lists reload if anything was polled. Balances are live.
   const reloadTxs = txs.reload;
+  const reloadPending = pendingTxs.reload;
   const reloadExternals = externals.reload;
   const reloadQueue = importQueue.reload;
   const reloadActivity = useCallback(() => {
     reloadTxs();
+    reloadPending();
     reloadExternals();
     reloadQueue();
-  }, [reloadTxs, reloadExternals, reloadQueue]);
+  }, [reloadTxs, reloadPending, reloadExternals, reloadQueue]);
   const sync = useChainSync(community?.id, reloadActivity);
   const balances = useWalletAssetsMany(list.map((t) => t.address));
   // Which treasury's details dialog is open (native script, CBOR, signers).
@@ -122,9 +140,33 @@ export default function TreasuryPage({
   // Network is per community (every treasury matches it), so explorer links
   // take it from the community row.
   const network = asNetwork(community?.network ?? 0);
-  const activity = recentTreasuryActivity(txs.data ?? [], externals.data ?? [], RECENT_TX_LIMIT);
+  const pending = pendingTxs.data ?? [];
+  // Pending rows have their own section; keep them out of the recent feed.
+  const activity = recentTreasuryActivity(
+    (txs.data ?? []).filter((t) => t.state !== TxState.Pending),
+    externals.data ?? [],
+    RECENT_TX_LIMIT,
+  );
   const treasuryName = (id: string) => list.find((t) => t.id === id)?.name ?? "Unknown wallet";
   const activityLoading = txs.loading || externals.loading;
+  const appTxCard = (tx: TransactionSummary) => (
+    <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
+      <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <p className="text-sm">{tx.description ?? "Transaction"}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+            {formatDate(tx.created_at, "datetime")} ·{" "}
+            {tx.signed_addresses.length} signature(s)
+          </p>
+        </div>
+        <span className="flex flex-wrap items-center gap-2">
+          <TxKindBadge kind={tx.kind} />
+          <TxStateBadge state={tx.state} />
+        </span>
+      </Card>
+    </Link>
+  );
 
   return (
     <div>
@@ -142,21 +184,25 @@ export default function TreasuryPage({
         Treasury
       </PageTitle>
 
-      <ErrorText error={discord.error} className="mb-3" />
+      <ErrorText error={discord.error ?? setPrimary.error} className="mb-3" />
       <div className="mb-8 grid gap-4 lg:grid-cols-2">
         {list.map((t) => {
           const balance = balances.data?.[t.address];
+          const isPrimary = community?.primary_treasury_id === t.id;
           return (
             <Card key={t.id}>
               <div className="flex min-w-0 items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="min-w-0 truncate font-medium">{t.name}</h3>
+                  <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
+                    <span className="min-w-0 truncate">{t.name}</span>
+                    {isPrimary && <Badge tone="blue">Primary</Badge>}
+                  </h3>
                   <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
                     {shortAddress(t.address)}
                     <CopyButton value={t.address} />
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
                   <Button
                     variant="secondary"
@@ -165,6 +211,21 @@ export default function TreasuryPage({
                   >
                     Details
                   </Button>
+                  {isAdmin && !isPrimary && (
+                    <Button
+                      variant="secondary"
+                      disabled={setPrimary.busy}
+                      title="Base signers of the primary treasury are community admins"
+                      onClick={() => void setPrimary.run(async () => {
+                        await apiFetch("/api/treasury/primary", {
+                          body: { communityId: community!.id, treasuryId: t.id },
+                        });
+                        reloadCommunity();
+                      })}
+                    >
+                      Set as primary
+                    </Button>
+                  )}
                 </div>
               </div>
               <p className="mt-4 text-2xl font-semibold">
@@ -232,30 +293,19 @@ export default function TreasuryPage({
         </div>
       )}
 
+      {pending.length > 0 && (
+        <div className="mb-8">
+          <SectionTitle>Pending</SectionTitle>
+          <div className="space-y-3">{pending.map(appTxCard)}</div>
+        </div>
+      )}
+
       <SectionTitle>Transactions</SectionTitle>
       <ChainSyncStatus {...sync} className="-mt-2 mb-3" />
       <div className="space-y-3">
         {activity.map((item) => {
           if (item.kind === "app") {
-            const tx = item.tx;
-            return (
-              <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
-                <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
-                  <div className="min-w-0">
-                    <p className="text-sm">{tx.description ?? "Transaction"}</p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
-                      {formatDate(tx.created_at, "datetime")} ·{" "}
-                      {tx.signed_addresses.length} signature(s)
-                    </p>
-                  </div>
-                  <span className="flex flex-wrap items-center gap-2">
-                    <TxKindBadge kind={tx.kind} />
-                    <TxStateBadge state={tx.state} />
-                  </span>
-                </Card>
-              </Link>
-            );
+            return appTxCard(item.tx);
           }
           // An outgoing tx seen on-chain without an app record: no signing
           // page to open, so it links to the explorer.

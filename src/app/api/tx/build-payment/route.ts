@@ -50,10 +50,10 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
-  // The path decides who builds: admins or base signers, or on a clawback
-  // treasury's recovery path (from its lock date) admins or recovery signers.
+  // The path decides who builds: base signers, or on a clawback treasury's
+  // recovery path (from its lock date) recovery signers only.
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Payment);
-  requirePathBuilder(ctx, path, "Only community admins or treasury signers can start a payment");
+  requirePathBuilder(ctx, path, "Only treasury signers can start a payment");
   await assertNoPendingTx(treasuryId);
 
   const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId });

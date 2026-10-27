@@ -8,7 +8,9 @@ A **treasury** is a Cardano multisig wallet owned by the community. Its address 
 - the signing rule, for example **2 of 3**, with the template's addition (**· recovery from** or **· locked until** a date, or **+ co-signer**), and a **Details** button (see [Wallet details](/docs/treasury#wallet-details)),
 - the current **ADA balance** and every native token the wallet holds, read live from the chain.
 
-Below the cards, **Transactions** lists the 20 most recent entries across all treasuries (transactions built in the app and the On-chain entries described below, newest first). A transaction shows its description, a **Mint**, **Payment** or **Anchor** badge (payouts have none), its state (Pending, Submitted, Confirmed, Rejected), date and number of signatures, and the wallet's name when the community has several treasuries. Click one to open its [signing page](/docs/transactions).
+Below the cards, any transaction still waiting for signatures appears in a **Pending** section of its own (at most one per treasury), so it is not buried in the recent history. Click one to open its [signing page](/docs/transactions).
+
+**Transactions** lists the 20 most recent entries across all treasuries after that (submitted, confirmed and rejected transactions built in the app, plus the On-chain entries described below, newest first). A transaction shows its description, a **Mint**, **Payment** or **Anchor** badge (payouts have none), its state, date and number of signatures, and the wallet's name when the community has several treasuries.
 
 The same list shows **On-chain** entries: outgoing transactions found at a treasury address that Treasury Guild did not build, or no longer has a record of (for example a transfer made from the multisig with another tool). They show what left the wallet, the date and the transaction hash, and open the explorer instead of a signing page. When such a transaction carries Treasury Guild payout metadata, the entry names the workgroups and the number of tasks it paid; when it carries a payment record, the entry counts its outputs and transfers and shows the memo or budget period. Such a transaction does not stay an On-chain entry: it is imported as an ordinary payout or payment (see [Importing on-chain payouts](/docs/treasury#importing-on-chain-payouts)), and carries a **Needs import review** badge while an admin has something to settle first. While the community decides budgets by vote, the entries that stay read **Built outside Treasury Guild** instead of On-chain, because such a spend cites no decision and was checked against no budget; each is also announced once in the community's proposal channel (see [Spend citations and the budget check](/docs/governance#spend-citations-and-the-budget-check)).
 
@@ -54,7 +56,7 @@ Only admins can create a treasury, and their wallet must be on the community's n
 1. Click **New treasury**.
 2. **Name** it, for example "Main treasury".
 3. Choose what it is **Used for**. **Community treasury** (the default) ties it to nothing: any workgroup or project can be paid from it. Picking a workgroup or project makes the new treasury that workgroup's **payment wallet** (see [Several treasuries](/docs/treasury#several-treasuries)). The field only appears once the community has a workgroup, and archived workgroups are not listed.
-4. Under **Signers (payment addresses)** (**Base signers (payment addresses)** once a template is chosen), paste each signer's **payment address** (`addr…` on mainnet, `addr_test…` on preprod) and give them a name. The form starts with two rows; **+ Add signer** adds more, and rows left blank are ignored. Every address must be on the community's network and listed once. When you create the community's first treasury, you must be one of its base signers.
+4. Under **Signers (payment addresses)** (**Base signers (payment addresses)** once a template is chosen), pick a community member to fill name and address (admins, then workgroup leads, then members), or paste each signer's **payment address** (`addr…` on mainnet, `addr_test…` on preprod) and give them a name. The form starts with two rows; **+ Add signer** adds more, and rows left blank are ignored. Every address must be on the community's network and listed once. When you create the community's first treasury, you must be one of its base signers.
 5. Set **Required signatures**, the number of signers that must approve each transaction; the label reads back the rule, for example **2 of 3**.
 6. Choose a **Template**: **Plain multisig** (the default) or one of the [treasury templates](/docs/treasury#treasury-templates) below, which add a lock date, recovery signers or a co-signer. Depending on the template, set the **Lock date** (at least one hour from now), the **Recovery signers (payment addresses)** with their **Recovery rule** (any, all or at least N of them), or the **Co-signer**: **A member** you pick from the member list, or **Treasury Guild (app-held key)**.
 7. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
@@ -63,7 +65,7 @@ When you linked a workgroup, the page then tells you when the link starts: from 
 
 The signers you list here are the treasury's **base signers**, under the *at least N of M* rule (`atLeast` in the native script). The multisig address is derived deterministically from the script (keys in CIP-1854 ordering within each group), so the same signers, threshold and template always produce the same address — creating a second treasury with exactly the same script is refused. Signers, the threshold and the template cannot be edited afterwards; create a new treasury instead.
 
-Every base signer automatically becomes a community **admin** (see [Members & roles](/docs/members-roles#roles)). Recovery signers and a co-signer are not promoted; they must already be members.
+The community's **first** treasury becomes its **primary** treasury: each of its base signers becomes a community **admin** (see [Members & roles](/docs/members-roles#roles) and [Primary treasury](/docs/treasury#primary-treasury)). Base signers of later treasuries are added as **members** only — they can spend from that wallet, but are not made community admins. Recovery signers and a co-signer are never promoted; they must already be members.
 
 ## Treasury templates
 
@@ -99,7 +101,7 @@ Every transaction is built for one **spending path**, the branch of the script i
 - **Co-signed**: the base rule plus the co-signer (the default on a co-signer treasury).
 - **Bypass (every base signer)**: every base signer, without the co-signer.
 
-The Payments, Payday, Mint and anchor builds show a **Spending path** choice when the treasury offers more than one right now; a treasury that offers none (locked until a date) says so instead. Admins or base signers build on every path but recovery, which admins or recovery signers build (for payouts, also leads of every workgroup paid; payouts and mints never take the recovery path); only the path's signers can sign or reject, and the transaction page names the path and its rule under the title. A transaction on the recovery path, or from a lock-until treasury, is valid only from the lock date, as its script demands.
+The Payments, Payday, Mint and anchor builds show a **Spending path** choice when the treasury offers more than one right now; a treasury that offers none (locked until a date) says so instead. **Base signers** of that treasury build on every path but recovery, which only its **recovery signers** build (for payouts, also leads of every workgroup paid; payouts and mints never take the recovery path). Community admin alone is not enough to start a spend. Only the path's signers can sign or reject, and the transaction page names the path and its rule under the title. A transaction on the recovery path, or from a lock-until treasury, is valid only from the lock date, as its script demands.
 
 <Callout title="Signers use ordinary browser wallets">
 Each signer approves with their own CIP-30 wallet (Eternl, Lace…). Make sure the address you paste is the payment address of the account they will use to sign, on the right network.
@@ -116,7 +118,7 @@ Admins can import an existing treasury from its payment **native script CBOR hex
 
 Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. The preview names the template, each group's rule and the lock date, and lists every key with its group, so recovery signers and a co-signer are matched like the base signers. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
 
-As with new treasuries, every base signer becomes a community admin (recovery signers and a co-signer must already be members), and you must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
+As with new treasuries, base signers of the first (primary) treasury become community admins; later imports add them as members only (recovery signers and a co-signer must already be members). You must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
 
 ## Payment history from a previous wallet
 
@@ -173,6 +175,10 @@ Imported lines count as the workgroup's spending in the period of their date (th
 ## Funding a treasury
 
 Send ADA or tokens to the treasury address from any wallet. The balance appears on the Treasury page as soon as the chain confirms it, and inflows are listed on [Incoming & reconciliation](/docs/reconciliation). Payouts need enough ADA for the amounts plus a fee, and token payouts each carry a small ADA minimum per output.
+
+## Primary treasury
+
+One treasury per community is **primary**: its base signers are community admins and cannot be demoted while they remain so. The first treasury created (or imported) becomes primary automatically. Admins can **Set as primary** on another treasury card; that promotes its base signers to admin and does not auto-demote the previous primary's signers — review [Members](/docs/members-roles) afterwards if you want to demote them. Signing a non-primary treasury never grants community-wide admin powers.
 
 ## Several treasuries
 

@@ -120,15 +120,16 @@ describe("build-mint API", () => {
         mocks.context.mockResolvedValue(buildContext({}, { isSigner: false, callerGroups: new Set(groups) }));
         const response = await POST(request(ft()), context);
         expect(response.status).toBe(403);
-        expect(await error(response)).toBe("Only community admins or treasury signers can start a mint");
+        expect(await error(response)).toBe("Only treasury signers can start a mint");
       }
       expect(mocks.noPending).not.toHaveBeenCalled();
       expect(mocks.build).not.toHaveBeenCalled();
     });
 
-    it("lets an admin who signs nothing build", async () => {
+    it("refuses an admin who signs nothing", async () => {
       mocks.context.mockResolvedValue(buildContext({}, { role: "admin", isSigner: false, callerGroups: new Set() }));
-      expect((await POST(request(ft()), context)).status).toBe(200);
+      expect((await POST(request(ft()), context)).status).toBe(403);
+      expect(mocks.build).not.toHaveBeenCalled();
     });
 
     it("takes the co-signed path of a co-signer treasury by default, and the bypass when asked", async () => {

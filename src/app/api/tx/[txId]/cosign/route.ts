@@ -14,7 +14,7 @@ import { loadTxContext } from "@/lib/tx";
 export const POST = sessionRoute<{ txId: string }>(async (_req, { params, session }) => {
   const { tx, treasury, callerSigner } = await loadTxContext(params.txId, session.wallet);
   const role = await memberRole(treasury.community_id, session.wallet);
-  requireTreasuryActor(role ?? "", callerSigner?.signer_group === SignerGroup.Base, "Only community admins or treasury signers can ask the co-signer to check again");
+  requireTreasuryActor(role ?? "", callerSigner?.signer_group === SignerGroup.Base, "Only treasury signers can ask the co-signer to check again");
   if (treasury.cosigner_kind !== CosignerKind.App) {
     throw new BadRequestError("This treasury's co-signer is a member: they sign on this page like any signer");
   }

@@ -11,7 +11,9 @@ function describe(event: ProposalEventRow, name: (wallet: string) => string): st
   const reason = typeof detail.reason === "string" ? detail.reason : null;
   switch (event.action) {
     case "created":
-      return `Proposed by ${event.actor ? name(event.actor) : "a member"}`;
+      return typeof detail.replaces === "number"
+        ? `Proposed by ${event.actor ? name(event.actor) : "a member"} (revises #${detail.replaces})`
+        : `Proposed by ${event.actor ? name(event.actor) : "a member"}`;
     case "voting_opened":
       return typeof detail.electorate === "number" ? `Voting opened for ${plural(detail.electorate, "voter")}` : "Voting opened";
     case "closed":
@@ -21,7 +23,9 @@ function describe(event: ProposalEventRow, name: (wallet: string) => string): st
     case "execution_failed":
       return `Could not be applied: ${typeof detail.message === "string" ? detail.message : "error"}`;
     case "withdrawn":
-      return `Withdrawn by ${event.actor ? name(event.actor) : "the proposer"}`;
+      return typeof detail.revisedAs === "number"
+        ? `Withdrawn by ${event.actor ? name(event.actor) : "the proposer"} (revised as #${detail.revisedAs})`
+        : `Withdrawn by ${event.actor ? name(event.actor) : "the proposer"}`;
     case "cancelled":
       return event.actor ? `Cancelled by ${name(event.actor)}${reason ? `: ${reason}` : ""}` : `Cancelled: ${reason ?? ""}`;
     default:

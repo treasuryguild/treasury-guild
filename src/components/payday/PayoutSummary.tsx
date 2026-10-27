@@ -116,7 +116,7 @@ export function PayoutSummary({
           <WarningText small>{blockedReason}</WarningText>
           {!canBuild && summary.count > 0 && (
             <WarningText small>
-              Only signers, admins, or leads of all selected workgroups can
+              Only signers of this treasury, or leads of all selected workgroups, can
               build payouts
             </WarningText>
           )}

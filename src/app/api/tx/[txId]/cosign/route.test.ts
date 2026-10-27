@@ -57,7 +57,7 @@ describe("POST /api/tx/[txId]/cosign", () => {
     expect((await post()).status).toBe(403);
   });
 
-  it("refuses a member who is neither an admin nor a base signer", async () => {
+  it("refuses a caller who is not a base signer", async () => {
     mocks.context.mockResolvedValue({ tx, treasury, signers: [], callerSigner: { wallet_address: WALLET, signer_group: "recovery" } });
     const res = await post();
     expect(res.status).toBe(403);
@@ -65,11 +65,13 @@ describe("POST /api/tx/[txId]/cosign", () => {
     expect(mocks.cosign).not.toHaveBeenCalled();
   });
 
-  it("lets an admin who signs nothing ask", async () => {
+  it("refuses an admin who signs nothing", async () => {
     mocks.context.mockResolvedValue({ tx, treasury, signers: [], callerSigner: null });
     mocks.role.mockResolvedValue("admin");
-    expect((await post()).status).toBe(200);
-    expect(mocks.cosign).toHaveBeenCalledWith(TX, "manual");
+    const res = await post();
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/Only treasury signers/);
+    expect(mocks.cosign).not.toHaveBeenCalled();
   });
 
   it("answers 400 when the co-signer is a member, who signs on the page", async () => {

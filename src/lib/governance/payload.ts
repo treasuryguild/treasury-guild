@@ -118,3 +118,40 @@ export function switchStartsTooEarly(
   const endMonth = votingEndsAt.toISOString().slice(0, 7);
   return steps.find((step) => step.confirm && step.startsOn.slice(0, 7) < endMonth)?.startsOn.slice(0, 7) ?? null;
 }
+
+/**
+ * Rebuild the create-API budget saves from a proposal's stored steps, using
+ * each owner's current base revision (from its open proposal_budget_owners
+ * row, or a fresh load). Used when revising a budget proposal without the
+ * Budgets worksheet (0068).
+ */
+export function savesFromBudgetSteps(
+  steps: readonly BudgetStep[],
+  revisions: ReadonlyMap<string, number>,
+): {
+  workgroupId?: string;
+  treasuryId?: string;
+  budgetMonth: null;
+  budgetCadence: BudgetCadence;
+  budgets: { cadence: BudgetCadence; unit: string; amount: string }[];
+  expectedRevision: number;
+  mode: BudgetMode;
+  startsOn: string;
+  confirmTransition: boolean;
+  reason: string;
+}[] {
+  return steps.map((step) => {
+    const ref = { workgroupId: step.workgroupId, treasuryId: step.treasuryId };
+    return {
+      ...(step.workgroupId ? { workgroupId: step.workgroupId } : { treasuryId: step.treasuryId! }),
+      budgetMonth: null,
+      budgetCadence: step.cadence,
+      budgets: step.amounts.map((a) => ({ cadence: step.cadence, unit: a.unit, amount: a.amount })),
+      expectedRevision: revisions.get(budgetOwnerKey(ref)) ?? 0,
+      mode: step.mode,
+      startsOn: step.startsOn.slice(0, 7),
+      confirmTransition: step.confirm,
+      reason: step.reason,
+    };
+  });
+}

@@ -26,7 +26,7 @@
 
 **"Only signers, admins, or leads of all selected workgroups can build payouts"** — Signers here means the treasury's base signers. See [Who can build a payout](/docs/payday#who-can-build-a-payout).
 
-**"Only admins or recovery signers can build on the recovery path"** — A clawback treasury's recovery path is built by admins or its recovery signers, from the lock date. See [Spending paths](/docs/treasury#spending-paths).
+**"Only recovery signers can build on the recovery path"** — A clawback treasury's recovery path is built by its recovery signers, from the lock date. See [Spending paths](/docs/treasury#spending-paths).
 
 **"This spend does not fit the voted budgets"** — Budget consent is on and set to refuse: the payout or payment needs a voted budget for its period with room left. See [Spend citations and the budget check](/docs/governance#spend-citations-and-the-budget-check).
 
@@ -48,7 +48,7 @@
 
 **"This community changes budgets by proposal"** — Budget consent is on: budgets change only when a budget proposal passes, so direct saves and resets are refused. See [Budget consent](/docs/governance#budget-consent).
 
-**"A budget proposal for … is already open. Wait for it to close."** — One open proposal per budget at a time. Vote on it, or ask its proposer to withdraw it during the discussion.
+**"A budget proposal for … is already open. Wait for it to close."** — One open proposal per budget at a time. Vote on it, or ask its proposer to withdraw or [revise](/docs/governance#how-a-proposal-moves) it during the discussion.
 
 **"You are not in this proposal's electorate"** — The proposal's voters were fixed when voting opened, by the rules it was made with. See [Who can vote](/docs/governance#who-can-vote).
 
@@ -69,6 +69,8 @@
 **Can I change a community's network?** No. Create a new community.
 
 **Does Treasury Guild hold my funds or keys?** No. Funds sit in the multisig address; keys stay in the signers' wallets. The app only builds transactions and collects signatures. The one exception is a [co-signer treasury](/docs/treasury#co-signer) whose co-signer is Treasury Guild: the app holds that one encrypted key, which alone can never move funds.
+
+**Why is Task missing from New proposal?** Task proposals need an [app board](/docs/workgroups-boards#proposing-a-task). If every workgroup is a GitHub board (or archived), **Task** is omitted from the kind list and **Propose a task** does not appear on the board. Create issues on the GitHub board instead; they become tasks when they match the [import rule](/docs/github#which-issues-become-tasks). A passed task proposal never opens a GitHub issue.
 
 **Why is a task called "Imported task #12"?** It was rebuilt from a payout found on-chain that this community had no record of. The chain stores the task number, workgroup, period, amounts and recipient, but not the title. Open the task and give it one. See [Imported tasks](/docs/workgroups-boards#imported-tasks).
 

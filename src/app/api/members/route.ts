@@ -6,9 +6,9 @@ import {
 } from "@/lib/api/schemas";
 import type { OkResponse } from "@/lib/api/types";
 import { memberRole, requireAdmin } from "@/lib/authz";
-import { Role, SignerGroup } from "@/lib/constants";
+import { Role } from "@/lib/constants";
 import { addMember, removeMember, setMemberRole } from "@/lib/db/membership";
-import { isCommunityTreasurySigner } from "@/lib/db/treasuries";
+import { isCommunityTreasurySigner, isPrimaryTreasuryBaseSigner } from "@/lib/db/treasuries";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 // Admin management of community_members. Reads happen client-side via RLS;
@@ -46,13 +46,10 @@ export const PATCH = sessionRoute(async (req, { session }) => {
   await requireAdmin(communityId, session.wallet);
   await guardTarget(communityId, target, session.wallet, "You cannot change your own role");
 
-  // Base signers are admins by construction; recovery signers and
-  // co-signers are ordinary members and may be demoted.
-  if (
-    role === Role.Member &&
-    (await isCommunityTreasurySigner(communityId, target, [SignerGroup.Base]))
-  ) {
-    throw new BadRequestError("Treasury signers must remain admins");
+  // Primary treasury base signers are admins by construction; signers of
+  // other treasuries, recovery signers and co-signers may be demoted.
+  if (role === Role.Member && (await isPrimaryTreasuryBaseSigner(communityId, target))) {
+    throw new BadRequestError("Primary treasury signers must remain admins");
   }
 
   await setMemberRole(communityId, target, role);

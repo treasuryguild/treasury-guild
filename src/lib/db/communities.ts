@@ -97,3 +97,17 @@ export async function updateCommunity(communityId: string, patch: Record<string,
     "update community settings",
   );
 }
+
+/**
+ * Point the community at a primary treasury (the wallet whose base signers
+ * are community admins). The trigger refuses a treasury of another community.
+ */
+export async function setPrimaryTreasury(communityId: string, treasuryId: string): Promise<void> {
+  check(
+    await serviceClient()
+      .from("communities")
+      .update({ primary_treasury_id: treasuryId })
+      .eq("id", communityId),
+    "set primary treasury",
+  );
+}

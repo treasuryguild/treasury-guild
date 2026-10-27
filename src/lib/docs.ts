@@ -51,7 +51,7 @@ export const DOCS = [
   {
     slug: "workgroups-boards",
     title: "Workgroups & boards",
-    summary: "Creating or proposing workgroups, running a task board, proposing tasks, bounties and assignees.",
+    summary: "Creating or proposing workgroups, running a task board, proposing tasks on app boards, bounties and assignees.",
     group: "Your community",
   },
   {
@@ -75,7 +75,7 @@ export const DOCS = [
   {
     slug: "governance",
     title: "Proposals & voting",
-    summary: "Polls, budget consent, new workgroups and task proposals: who proposes, who votes, how votes are signed and counted.",
+    summary: "Polls, budget consent, new workgroups and task proposals on app boards: who proposes, who votes, how votes are signed and counted.",
     group: "Your community",
   },
   {

@@ -15,7 +15,7 @@ import { decodeTreasuryCbor } from "@/lib/cardano/treasuryImport";
 import { asNetwork, networkName, type Network } from "@/lib/config";
 import { COSIGNER_DISPLAY_NAME, CosignerKind, MIN_LOCK_LEAD_MS, Role, SignerGroup, TreasuryTemplate } from "@/lib/constants";
 import { generateCosignerKey } from "@/lib/cosigner/keys";
-import { requireCommunity } from "@/lib/db/communities";
+import { requireCommunity, setPrimaryTreasury } from "@/lib/db/communities";
 import { insertCosignerKey } from "@/lib/db/cosigner";
 import { addMember, promoteMembersToAdmin } from "@/lib/db/membership";
 import {
@@ -203,11 +203,12 @@ export const POST = sessionRoute(async (req, { session }) => {
   const { rows, shape } = built;
   const baseRows = rows.filter((r) => r.signer_group === SignerGroup.Base);
 
-  // The community's first treasury must include its creator: the caller is
-  // necessarily the owner (sole admin) at that point, and the base signers of
-  // the first wallet become the community's admins.
+  // The community's first treasury becomes primary and must include its
+  // creator: the caller is necessarily the owner (sole admin) at that point,
+  // and its base signers become the community's admins.
   const treasuryCount = await countCommunityTreasuries(communityId);
-  if (treasuryCount === 0 && !baseRows.some((s) => s.wallet_address === session.wallet)) {
+  const isPrimary = treasuryCount === 0;
+  if (isPrimary && !baseRows.some((s) => s.wallet_address === session.wallet)) {
     throw new BadRequestError("You must be a signer of the community's first treasury");
   }
   const keys = rows.map((r) => r.key_hash);
@@ -273,14 +274,21 @@ export const POST = sessionRoute(async (req, { session }) => {
     throw err;
   }
 
-  // Base signers are community admins: insert newcomers as admin and promote
-  // existing plain members; owners are never touched. Recovery signers and
-  // the co-signer keep their roles.
+  // Primary treasury base signers are community admins; later treasuries'
+  // base signers are only members (they act for that wallet alone). Recovery
+  // signers and the co-signer keep their roles either way.
   const signerWallets = baseRows.map((s) => s.wallet_address);
-  for (const wallet of signerWallets) {
-    await addMember(communityId, wallet, Role.Admin);
+  if (isPrimary) {
+    await setPrimaryTreasury(communityId, treasury.id);
+    for (const wallet of signerWallets) {
+      await addMember(communityId, wallet, Role.Admin);
+    }
+    await promoteMembersToAdmin(communityId, signerWallets);
+  } else {
+    for (const wallet of signerWallets) {
+      await addMember(communityId, wallet, Role.Member);
+    }
   }
-  await promoteMembersToAdmin(communityId, signerWallets);
 
   // Other treasuries may already hold inflows from this address: they are
   // internal transfers from now on. The new wallet's own history arrives

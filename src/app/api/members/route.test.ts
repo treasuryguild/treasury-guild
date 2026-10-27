@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.admin, memberRole: mocks.role }));
-vi.mock("@/lib/db/treasuries", () => ({ isCommunityTreasurySigner: mocks.signer }));
+vi.mock("@/lib/db/treasuries", () => ({
+  isCommunityTreasurySigner: mocks.signer,
+  isPrimaryTreasuryBaseSigner: mocks.signer,
+}));
 // removeMember stays real: its two deletes (lead assignments, then the membership) run
 // against the fake service client below.
 vi.mock("@/lib/db/membership", async (importOriginal) => ({
@@ -166,23 +169,22 @@ describe("members API", () => {
       expect(mocks.setRole).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, "admin");
     });
 
-    it("keeps a base signer an admin", async () => {
+    it("keeps a primary treasury base signer an admin", async () => {
       mocks.role.mockResolvedValue("admin");
       mocks.signer.mockResolvedValue(true);
       const response = await patch({ communityId: COMMUNITY, wallet: BOB, role: "member" });
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: "Treasury signers must remain admins" });
-      // Only the base group counts: the check is scoped to it.
-      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, ["base"]);
+      expect(await response.json()).toEqual({ error: "Primary treasury signers must remain admins" });
+      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB);
       expect(mocks.setRole).not.toHaveBeenCalled();
     });
 
-    it("demotes an admin who signs only as a recovery signer or co-signer", async () => {
+    it("demotes an admin who is not a primary treasury base signer", async () => {
       mocks.role.mockResolvedValue("admin");
       mocks.signer.mockResolvedValue(false);
       const response = await patch({ communityId: COMMUNITY, wallet: BOB, role: "member" });
       expect(response.status).toBe(200);
-      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, ["base"]);
+      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB);
       expect(mocks.setRole).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, "member");
     });
   });

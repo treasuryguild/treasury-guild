@@ -8,8 +8,12 @@ import { templateLabel } from "@/lib/cardano/spendingPaths";
 import type { ScriptType } from "@/lib/cardano/types";
 import { CosignerKind, TREASURY_TEMPLATES, TreasuryTemplate } from "@/lib/constants";
 import type { MemberWithContributor } from "@/lib/db/types";
-import { shortAddress } from "@/lib/format";
+import {
+  signerMemberGroups,
+  signerMemberOptions,
+} from "@/lib/treasury/signerMemberOptions";
 import { Button, Field, Input, Select } from "@/components/ui";
+import { SignerMemberPick } from "@/components/treasury/SignerMemberPick";
 
 export interface SignerDraft {
   address: string;
@@ -92,15 +96,26 @@ export function TemplateFields({
   draft,
   onChange,
   members,
+  leadWallets = new Set(),
+  usedWallets = new Set(),
   disabled,
 }: {
   draft: TemplateDraft;
   onChange: (patch: Partial<TemplateDraft>) => void;
-  /** The community's members, for the co-signer pick. */
+  /** The community's members, for recovery and co-signer picks. */
   members: MemberWithContributor[];
+  leadWallets?: ReadonlySet<string>;
+  /** Wallets already used on the form (base, recovery, co-signer). */
+  usedWallets?: ReadonlySet<string>;
   disabled: boolean;
 }) {
   const recoveryFilled = draft.recoverySigners.filter((s) => s.address.trim()).length;
+  const cosignerOptions = signerMemberOptions(members, leadWallets, (() => {
+    const exclude = new Set(usedWallets);
+    if (draft.cosignerAddress.trim()) exclude.delete(draft.cosignerAddress.trim());
+    return exclude;
+  })());
+  const cosignerGroups = signerMemberGroups(cosignerOptions);
   function updateRecovery(i: number, patch: Partial<SignerDraft>) {
     onChange({ recoverySigners: draft.recoverySigners.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
   }
@@ -124,14 +139,28 @@ export function TemplateFields({
         <>
           <Field label="Recovery signers (payment addresses)" hint="Must already be community members. They are not made admins.">
             <div className="space-y-2">
-              {draft.recoverySigners.map((s, i) => (
-                <div key={i} className="flex flex-col gap-2 sm:flex-row">
-                  <Input aria-label={`Recovery signer ${i + 1} address`} className="font-mono text-xs" value={s.address} disabled={disabled}
-                    onChange={(e) => updateRecovery(i, { address: e.target.value })} placeholder="addr… / addr_test…" />
-                  <Input aria-label={`Recovery signer ${i + 1} name`} className="sm:max-w-32" value={s.name} disabled={disabled}
-                    onChange={(e) => updateRecovery(i, { name: e.target.value })} placeholder="Name" />
-                </div>
-              ))}
+              {draft.recoverySigners.map((s, i) => {
+                const exclude = new Set(usedWallets);
+                if (s.address.trim()) exclude.delete(s.address.trim());
+                return (
+                  <div key={i} className="space-y-2 rounded-lg border border-[var(--border)] p-3">
+                    <SignerMemberPick
+                      ariaLabel={`Recovery signer ${i + 1} member`}
+                      members={members}
+                      leadWallets={leadWallets}
+                      exclude={exclude}
+                      disabled={disabled}
+                      onPick={(picked) => updateRecovery(i, picked)}
+                    />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input aria-label={`Recovery signer ${i + 1} address`} className="font-mono text-xs" value={s.address} disabled={disabled}
+                        onChange={(e) => updateRecovery(i, { address: e.target.value })} placeholder="addr… / addr_test…" />
+                      <Input aria-label={`Recovery signer ${i + 1} name`} className="sm:max-w-32" value={s.name} disabled={disabled}
+                        onChange={(e) => updateRecovery(i, { name: e.target.value })} placeholder="Name" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <Button variant="ghost" className="mt-2" disabled={disabled}
               onClick={() => onChange({ recoverySigners: [...draft.recoverySigners, emptySigner()] })}>
@@ -168,10 +197,12 @@ export function TemplateFields({
               <Select aria-label="Co-signer wallet" value={draft.cosignerAddress} disabled={disabled}
                 onChange={(e) => onChange({ cosignerAddress: e.target.value })}>
                 <option value="">Choose a member…</option>
-                {members.map((m) => (
-                  <option key={m.wallet_address} value={m.wallet_address}>
-                    {m.contributors?.handle ? `${m.contributors.handle} (${shortAddress(m.wallet_address)})` : shortAddress(m.wallet_address)}
-                  </option>
+                {cosignerGroups.map((g) => (
+                  <optgroup key={g.group} label={g.label}>
+                    {g.options.map((o) => (
+                      <option key={o.wallet} value={o.wallet}>{o.label}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </Select>
             )}

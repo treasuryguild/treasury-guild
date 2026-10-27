@@ -32,6 +32,12 @@ export function useProposals(communityId: string | null | undefined): AsyncData<
   ));
 }
 
+/** A linked proposal in a revise chain (0068). */
+export interface ProposalRef {
+  id: string;
+  number: number;
+}
+
 export interface ProposalDetails {
   proposal: ProposalRow;
   voters: ProposalVoterRow[];
@@ -41,6 +47,10 @@ export interface ProposalDetails {
   budgetOwners: ProposalBudgetOwnerRow[];
   /** The on-chain anchors of its steps, with their transactions (0060). */
   anchors: ProposalAnchorWithTx[];
+  /** The discussion proposal this one revised, when it is a revision. */
+  replaces: ProposalRef | null;
+  /** The later proposal that revised this one, when one exists. */
+  revisedBy: ProposalRef | null;
 }
 
 export function useProposal(proposalId: string | null | undefined): AsyncData<ProposalDetails | null> {
@@ -49,20 +59,29 @@ export function useProposal(proposalId: string | null | undefined): AsyncData<Pr
     const proposal = await db.from("proposals").select(PROPOSAL_COLUMNS).eq("id", proposalId).maybeSingle();
     if (proposal.error) throw new Error(proposal.error.message);
     if (!proposal.data) return null;
-    const [voters, votes, events, owners, anchors] = await Promise.all([
+    const row = proposal.data as ProposalRow;
+    const [voters, votes, events, owners, anchors, replacesRes, revisedByRes] = await Promise.all([
       db.from("proposal_voters").select("proposal_id, wallet_address, recused").eq("proposal_id", proposalId),
       db.from("proposal_votes").select(PROPOSAL_VOTE_COLUMNS).eq("proposal_id", proposalId).order("updated_at"),
       db.from("proposal_events").select(PROPOSAL_EVENT_COLUMNS).eq("proposal_id", proposalId).order("occurred_at"),
       db.from("proposal_budget_owners").select(PROPOSAL_BUDGET_OWNER_COLUMNS).eq("proposal_id", proposalId),
       db.from("proposal_anchors").select(PROPOSAL_ANCHOR_WITH_TX_COLUMNS).eq("proposal_id", proposalId),
+      row.replaces_proposal_id
+        ? db.from("proposals").select("id, number").eq("id", row.replaces_proposal_id).maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+      db.from("proposals").select("id, number").eq("replaces_proposal_id", proposalId).maybeSingle(),
     ]);
+    if (replacesRes.error) throw new Error(replacesRes.error.message);
+    if (revisedByRes.error) throw new Error(revisedByRes.error.message);
     return {
-      proposal: proposal.data as ProposalRow,
+      proposal: row,
       voters: unwrap<ProposalVoterRow[]>(voters),
       votes: unwrap<ProposalVoteRow[]>(votes),
       events: unwrap<ProposalEventRow[]>(events),
       budgetOwners: unwrap<ProposalBudgetOwnerRow[]>(owners),
       anchors: unwrap<ProposalAnchorWithTx[]>(anchors),
+      replaces: (replacesRes.data as ProposalRef | null) ?? null,
+      revisedBy: (revisedByRes.data as ProposalRef | null) ?? null,
     };
   });
 }

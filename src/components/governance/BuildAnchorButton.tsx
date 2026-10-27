@@ -1,10 +1,10 @@
 "use client";
 
 // Build a dedicated anchor transaction from one of the community's
-// treasuries and go to its signing page. Treasury actors only (admins, or
-// base signers of the chosen treasury); with one treasury there is nothing
-// to choose. A community with no treasury cannot anchor at all; a treasury
-// locked until a date cannot anchor before it.
+// treasuries and go to its signing page. Base signers of the chosen
+// treasury only; with one eligible treasury there is nothing to choose. A
+// community with no treasury cannot anchor at all; a treasury locked until
+// a date cannot anchor before it.
 import { useState } from "react";
 import type { BuildAnchorResponse } from "@/lib/api/types";
 import { TxKind, type SpendingPath } from "@/lib/constants";
@@ -15,16 +15,17 @@ import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { offeredPaths, PathPicker } from "@/components/tx/PathPicker";
 import { Button, ErrorText, Select } from "@/components/ui";
 
-export function BuildAnchorButton({ slug, communityId, treasuries, isAdmin, disabled = false }: {
+export function BuildAnchorButton({ slug, communityId, treasuries, disabled = false }: {
   slug: string;
   communityId: string;
   treasuries: readonly TreasurySummary[];
-  isAdmin: boolean;
+  /** Kept for call-site compatibility; eligibility is signer-only. */
+  isAdmin?: boolean;
   disabled?: boolean;
 }) {
   const roles = useMyTreasuryRoles(communityId);
   const { build, busy, error } = useBuildTx(slug);
-  const eligible = treasuries.filter((t) => actsForTreasury({ isAdmin, ...roles }, t.id));
+  const eligible = treasuries.filter((t) => actsForTreasury(roles, t.id));
   const [treasuryId, setTreasuryId] = useState("");
   const [path, setPath] = useState<SpendingPath | "">("");
   // Fixed at mount: a render must not read the clock.

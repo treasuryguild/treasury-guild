@@ -14,7 +14,7 @@ describe("roles", () => {
     expect(isOwnerRole("owner")).toBe(true);
     expect(isOwnerRole("admin")).toBe(false);
   });
-  it("lets admins manage everything and leads or signers only their own", () => {
+  it("lets admins manage workgroups, and treasury actors only the wallets they sign", () => {
     const lead = { isAdmin: false, ledWorkgroupIds: new Set(["wg1"]), signerTreasuryIds: new Set(["t1"]) };
     expect(managesWorkgroup(lead, "wg1")).toBe(true);
     expect(managesWorkgroup(lead, "wg2")).toBe(false);
@@ -22,13 +22,13 @@ describe("roles", () => {
     expect(actsForTreasury(lead, "t2")).toBe(false);
     const admin = { isAdmin: true, ledWorkgroupIds: new Set<string>(), signerTreasuryIds: new Set<string>() };
     expect(managesWorkgroup(admin, "wg2")).toBe(true);
-    expect(actsForTreasury(admin, "t2")).toBe(true);
+    expect(actsForTreasury(admin, "t2")).toBe(false);
   });
-  it("lets admins and a treasury's recovery signers build its recovery spend", () => {
-    const recovery = { isAdmin: false, recoveryTreasuryIds: new Set(["t1"]) };
+  it("lets only a treasury's recovery signers build its recovery spend", () => {
+    const recovery = { recoveryTreasuryIds: new Set(["t1"]) };
     expect(mayRecover(recovery, "t1")).toBe(true);
     expect(mayRecover(recovery, "t2")).toBe(false);
-    expect(mayRecover({ isAdmin: true, recoveryTreasuryIds: new Set<string>() }, "t2")).toBe(true);
+    expect(mayRecover({ recoveryTreasuryIds: new Set<string>() }, "t2")).toBe(false);
   });
   it("mirrors who may make a proposal", () => {
     const lead = { isAdmin: false, ledWorkgroupIds: new Set(["wg1"]) };

@@ -2,17 +2,23 @@
 
 // The proposal itself: who made it, where it stands, its text and the rules
 // it is decided by, and (for a passed one) whether it was carried out.
+import Link from "next/link";
 import { Card, ErrorText, NoticeText } from "@/components/ui";
 import { ExecutionState } from "@/lib/constants";
 import type { ProposalRow } from "@/lib/db/types";
 import { formatDate } from "@/lib/format";
 import { KIND_LABELS, proposalTiming, voterName } from "@/lib/governance/labels";
+import { routes } from "@/lib/routes";
+import type { ProposalRef } from "@/hooks/useProposals";
 import { ProposalRulesSummary } from "./ProposalRulesSummary";
 
-export function ProposalOverview({ proposal, names, now }: {
+export function ProposalOverview({ proposal, names, now, slug, replaces, revisedBy }: {
   proposal: ProposalRow;
   names: Map<string, string | null>;
   now: number;
+  slug: string;
+  replaces?: ProposalRef | null;
+  revisedBy?: ProposalRef | null;
 }) {
   return (
     <Card className="space-y-4">
@@ -20,6 +26,18 @@ export function ProposalOverview({ proposal, names, now }: {
         {KIND_LABELS[proposal.kind]} · proposed by {voterName(proposal.proposer, names.get(proposal.proposer))} on{" "}
         {formatDate(proposal.created_at)} · {proposalTiming(proposal, now)}
       </p>
+      {replaces && (
+        <p className="text-sm text-zinc-400">
+          Revises{" "}
+          <Link className="underline" href={routes.proposal(slug, replaces.id)}>#{replaces.number}</Link>
+        </p>
+      )}
+      {revisedBy && (
+        <p className="text-sm text-zinc-400">
+          Revised as{" "}
+          <Link className="underline" href={routes.proposal(slug, revisedBy.id)}>#{revisedBy.number}</Link>
+        </p>
+      )}
       {proposal.body && <p className="whitespace-pre-wrap text-sm">{proposal.body}</p>}
       {proposal.discussion_url && (
         <p className="text-sm">

@@ -19,7 +19,12 @@ vi.mock("@/lib/db/client", () => ({
     rpc: mocks.rpc,
   }),
 }));
-vi.mock("@/lib/db/communities", () => ({ requireCommunity: async () => ({ id: "10000000-0000-4000-8000-000000000001", network: 0 }) }));
+vi.mock("@/lib/db/communities", () => ({
+  requireCommunity: async () => ({
+    id: "10000000-0000-4000-8000-000000000001", network: 0, primary_treasury_id: "existing",
+  }),
+  setPrimaryTreasury: vi.fn(),
+}));
 vi.mock("@/lib/db/membership", () => ({ addMember: vi.fn(), promoteMembersToAdmin: vi.fn() }));
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
   ...(await importOriginal<typeof Treasuries>()),

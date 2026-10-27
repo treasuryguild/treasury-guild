@@ -18,20 +18,20 @@ export function managesWorkgroup(
   return roles.isAdmin || roles.ledWorkgroupIds.has(workgroupId);
 }
 
-/** Mirrors the server's treasury-actor rule: an admin, or a signer of the treasury. */
+/** Mirrors the server's treasury-actor rule: a base signer of that treasury only. */
 export function actsForTreasury(
-  roles: { isAdmin: boolean; signerTreasuryIds: ReadonlySet<string> },
+  roles: { signerTreasuryIds: ReadonlySet<string> },
   treasuryId: string,
 ): boolean {
-  return roles.isAdmin || roles.signerTreasuryIds.has(treasuryId);
+  return roles.signerTreasuryIds.has(treasuryId);
 }
 
-/** Mirrors requirePathBuilder for the recovery path: an admin, or a recovery signer of the treasury. */
+/** Mirrors requirePathBuilder for the recovery path: a recovery signer of that treasury only. */
 export function mayRecover(
-  roles: { isAdmin: boolean; recoveryTreasuryIds: ReadonlySet<string> },
+  roles: { recoveryTreasuryIds: ReadonlySet<string> },
   treasuryId: string,
 ): boolean {
-  return roles.isAdmin || roles.recoveryTreasuryIds.has(treasuryId);
+  return roles.recoveryTreasuryIds.has(treasuryId);
 }
 
 /**

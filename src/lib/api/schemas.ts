@@ -251,6 +251,12 @@ export const discordWebhookUrl = z
 /** GET /api/treasury: the details dialog. */
 export const treasuryIdQuerySchema = z.object({ treasuryId: id });
 
+/** POST /api/treasury/primary: which wallet's base signers are community admins. */
+export const setPrimaryTreasurySchema = z.object({
+  communityId: id,
+  treasuryId: id,
+});
+
 export const setTreasuryDiscordWebhookSchema = z.object({
   treasuryId: id,
   url: discordWebhookUrl,
@@ -796,6 +802,11 @@ const proposalText = {
   discussionUrl: optionalUrl,
   /** This proposal's rules. Omit to freeze the community's defaults for the kind. */
   rules: proposalRulesInput.optional(),
+  /**
+   * Withdraw this discussion proposal in the same step and link the new one as
+   * its revision (0068). Same proposer, community and kind; clock resets.
+   */
+  replacesProposalId: id.optional(),
 };
 export const createProposalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal(ProposalKind.Decision), ...proposalText }),

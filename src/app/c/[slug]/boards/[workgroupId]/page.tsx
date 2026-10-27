@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toMemberOptions, type BoardTask, type MergedBoardItem } from "@/lib/boardTypes";
@@ -133,6 +134,13 @@ export default function BoardPage({
       {archived && <p role="status" className="mb-4 rounded border border-zinc-700 p-3 text-sm text-zinc-400">Archived — this board is read-only. Historical tasks, budgets, and payments remain available.</p>}
       {board.loaded && !board.workgroup && !board.error && <PageMessage>Workgroup not found.</PageMessage>}
       {board.workgroup?.description && <p className="mb-4 whitespace-pre-wrap break-words text-sm text-zinc-400">{board.workgroup.description}</p>}
+      {isGithubBoard && !archived && taskVote?.enabled && (
+        <p className="mb-4 text-sm text-zinc-400">
+          Task proposals apply to{" "}
+          <Link className="underline" href={routes.doc("workgroups-boards") + "#proposing-a-task"}>app boards</Link>
+          {" "}only. On this GitHub board, create issues instead — they become tasks when they match the import rule.
+        </p>
+      )}
       <NoticeText className="mb-4">{detailsSaved && "Workgroup / project details saved."}</NoticeText>
       <ErrorText error={mutations.error ?? githubAction.error ?? board.error} className="mb-4" />
       <NoticeText className="mb-4">{taskNotice}</NoticeText>

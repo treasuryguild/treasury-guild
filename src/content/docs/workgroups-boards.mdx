@@ -40,7 +40,7 @@ Admins and the workgroup's leads can manage the board; everyone else sees it rea
 
 ### Proposing a task
 
-When the community has turned on [task proposals](/docs/governance#proposal-types), members who may propose tasks see **Propose a task** in an app board's header (not on archived or GitHub boards). A proposal names the task, what needs doing and its bounty, and can assign the task to its proposer (if they are still a member when it passes). If it passes, the task appears in the board's first column that is neither the payable nor the paid one, not yet payable; admins and the workgroup's leads move it along like any other task. The task keeps a link to its proposal, and its payout's on-chain record cites it (see [Spend citations](/docs/governance#spend-citations-and-the-budget-check)).
+Task proposals need an **app board**. When the community has turned on [task proposals](/docs/governance#proposal-types), members who may propose tasks see **Propose a task** in an app board's header, and **Task** in **New proposal** on the Proposals page — only if there is an active app board they may propose on. Archived boards and [GitHub boards](#github-boards) never offer it: GitHub work stays as issues. A proposal names the task, what needs doing and its bounty, and can assign the task to its proposer (if they are still a member when it passes). If it passes, the task appears in the board's first column that is neither the payable nor the paid one, not yet payable; admins and the workgroup's leads move it along like any other task. The task keeps a link to its proposal, and its payout's on-chain record cites it (see [Spend citations](/docs/governance#spend-citations-and-the-budget-check)).
 
 ### Editing a task
 
@@ -70,6 +70,8 @@ The **Archived tasks (n)** button switches the board to the archive list. **Mana
 ## GitHub boards
 
 A workgroup of kind **GitHub project** shows the linked project board live, column for column, with every item. Items that match the import rule (payable label **and** import column, see [GitHub integration](/docs/github)) are the ones that exist as tasks in Treasury Guild; they show bounty amounts and assignee wallets. Tasks created in Treasury Guild (tasks from before the repository was linked, `Call: …` attendance tasks, imported tasks) have no project item, so they are listed under **Created in Treasury Guild** below the project columns; managers open them from there like any other card, and they are paid from Payday as usual. **Archived tasks** lists the workgroup's archived tasks on a GitHub board too.
+
+[Task proposals](#proposing-a-task) do not apply here: a passed proposal never opens a GitHub issue. To put work on a GitHub board after a community vote, use a [decision](/docs/governance#proposal-types) (or agree informally), then **Add an issue…** or create the issue on GitHub. If task proposals are on and this is the community's only board, the Proposals page explains that Task needs an app board.
 
 GitHub tasks mirror a GitHub issue, and admins and the workgroup's leads manage that issue from here (see [Managing issues from Treasury Guild](/docs/github#managing-issues-from-treasury-guild)):
 

@@ -46,7 +46,7 @@ export default function PaymentsPage({ params, searchParams }: {
   const { slug } = use(params);
   const query = use(searchParams);
   const prefill = useMemo(() => parsePaymentPrefill(query), [query]);
-  const { community, isAdmin, blocked } = useCommunityGate(slug);
+  const { community, blocked } = useCommunityGate(slug);
   const treasuriesQuery = useTreasuries(community?.id);
   const workgroupsQuery = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
@@ -109,14 +109,13 @@ export default function PaymentsPage({ params, searchParams }: {
   if (blocked) return blocked;
 
   // The path the build takes: the treasury's default unless one was picked.
-  // A clawback treasury's recovery path (from its lock date) is for admins
-  // and recovery signers; every other path for admins and base signers.
+  // Recovery path: recovery signers only; every other path: base signers.
   const offered = selectedTreasury ? offeredPaths(selectedTreasury, TxKind.Payment, nowMs) : { paths: [], blocked: null };
   const chosenPath = path && offered.paths.includes(path) ? path : offered.paths[0];
   const canBuild = !!treasuryId && !!chosenPath && (
     chosenPath === SpendingPath.Recovery
-      ? mayRecover({ isAdmin, ...roles }, treasuryId)
-      : actsForTreasury({ isAdmin, ...roles }, treasuryId)
+      ? mayRecover(roles, treasuryId)
+      : actsForTreasury(roles, treasuryId)
   );
 
   function updateRow(key: number, patch: Partial<RecipientDraft>) {

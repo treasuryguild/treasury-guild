@@ -1,12 +1,13 @@
-// Which of a proposal's anchor steps are on-chain, in progress or due, and
-// what each step's record entry says (docs/onchain-anchoring-estimate.md,
+// Which of a proposal's anchor steps are on-chain, pending, submitted or due,
+// and what each step's record entry says (docs/onchain-anchoring-estimate.md,
 // phase 3). The one home for the rules; pure and client-safe. The server's
 // loadDueAnchors feeds it for the builds, the proposal page for its card.
 //
-// A step is anchored when a transaction carrying it is confirmed, in
-// progress while one is pending or submitted, and due again once every such
-// transaction is rejected or deleted. Only `anchored` proposals ever have a
-// due step: those already final when anchoring shipped are left alone.
+// A step is anchored when a transaction carrying it is confirmed, pending
+// while one waits for signatures, submitted once broadcast, and due again
+// once every such transaction is rejected or deleted. Only `anchored`
+// proposals ever have a due step: those already final when anchoring shipped
+// are left alone.
 import { AnchorStep, ANCHOR_STEPS, TxState } from "@/lib/constants";
 import type { AnchorEntry, AnchorTallyCounts } from "@/lib/cardano/anchorMetadata";
 import type { AnchorTransaction, ProposalAnchorWithTx, ProposalRow } from "@/lib/db/types";
@@ -16,11 +17,11 @@ import { isFinalProposal } from "./lifecycle";
 /** Once a frozen document waits this long for its outside copy, the closed anchor goes without one. */
 export const CLOSED_ANCHOR_COPY_GRACE_MS = 24 * 60 * 60 * 1000;
 
-export type AnchorStepStatus = "anchored" | "in_progress" | "due" | "none";
+export type AnchorStepStatus = "anchored" | "pending" | "submitted" | "due" | "none";
 
 export interface AnchorStepState {
   status: AnchorStepStatus;
-  /** The confirmed transaction (anchored) or the live one (in progress). */
+  /** The confirmed transaction (anchored) or the live one (pending / submitted). */
   txId: string | null;
   txHash: string | null;
   /** When the confirmed transaction landed on-chain, if the poller recorded it. */
@@ -61,11 +62,14 @@ export function anchorStatus(rows: readonly ProposalAnchorWithTx[]): AnchorStatu
     const live = rows.filter((r) => r.step === step).map(txOf).filter((tx): tx is AnchorTransaction => tx !== null);
     const confirmed = live.filter((tx) => tx.state === TxState.Confirmed)
       .sort((a, b) => (a.block_time ?? "").localeCompare(b.block_time ?? ""));
-    const pending = live.find((tx) => tx.state === TxState.Pending || tx.state === TxState.Submitted);
-    const found = confirmed[0] ?? pending;
+    // Prefer confirmed; else a live pending or submitted row (submitted first so a
+    // re-build's pending sibling does not hide a submitted one still settling).
+    const submitted = live.find((tx) => tx.state === TxState.Submitted);
+    const pending = live.find((tx) => tx.state === TxState.Pending);
+    const found = confirmed[0] ?? submitted ?? pending;
     if (!found) continue;
     status[step] = {
-      status: confirmed[0] ? "anchored" : "in_progress",
+      status: confirmed[0] ? "anchored" : found.state === TxState.Submitted ? "submitted" : "pending",
       txId: found.id, txHash: found.tx_hash, blockTime: confirmed[0] ? found.block_time : null,
     };
   }

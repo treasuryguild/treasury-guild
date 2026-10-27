@@ -248,8 +248,8 @@ Supabase (RLS, no ORM) + Netlify.
   before 0060), closed once final and, after a vote, once frozen and
   (not published, or a copy exists, or a day passed); a proposal closed
   without a vote gets a closed anchor only when a proposed one exists. A
-  step is anchored when a linking transaction is confirmed, in progress
-  while pending/submitted, due again once rejected or deleted. Links live in
+  step is anchored when a linking transaction is confirmed, pending while
+  awaiting signatures, submitted once broadcast, due again once rejected or deleted. Links live in
   `proposal_anchors` (member-readable, pk `(proposal_id, step,
   transaction_id)`, cascade on the transaction), written only by the
   `record_proposal_anchors` RPC from the build routes inside
@@ -617,12 +617,16 @@ Supabase (RLS, no ORM) + Netlify.
   constraint); `treasury_signers.signer_group` (`base`, `recovery`,
   `cosigner`; the pk refuses a key in two groups); `decodeTreasuryCbor`
   returns the `shape` and `buildTreasuryWallet` refuses any disagreement
-  between the row, the grouped signer rows and the script. Base signers
-  become admins and are the treasury actors (`isSigner`,
-  `signerTreasuryIds`; refund matching, `/api/reconcile/match`, is base
-  signers only: `isTreasurySigner`); recovery signers and a member co-signer must already
-  be members and are never promoted (`/api/members` demotes them but removes
-  nobody who signs). Every transaction is built for one
+  between the row, the grouped signer rows and the script. Base signers of
+  the community's **primary** treasury (`communities.primary_treasury_id`,
+  first treasury or admin re-point via `/api/treasury/primary`) become
+  admins; later treasuries' base signers are members only and are the
+  treasury actors for that wallet (`isSigner`, `signerTreasuryIds`,
+  `isTreasuryActor` = base signer only — community admin alone cannot
+  build; refund matching, `/api/reconcile/match`, is base signers only:
+  `isTreasurySigner`); recovery signers and a member co-signer must already
+  be members and are never promoted (`/api/members` refuses demoting a
+  primary base signer and removes nobody who signs). Every transaction is built for one
   `transactions.spending_path` (`base`, `recovery`, `cosigned`, `bypass`;
   trigger `transactions_guard_path` refuses one the template lacks), resolved
   by `resolveSpendingPath` + `requirePathBuilder` in `src/lib/tx.ts` (build-payout
@@ -630,7 +634,7 @@ Supabase (RLS, no ORM) + Netlify.
   paying only their own workgroups: payouts never take the recovery path)
   (`pathOffered` in the client-safe `spendingPaths.ts`: lock-until builds
   nothing before the date, recovery is clawback-only from the date and
-  payments only, admins or recovery signers build it); the path's
+  payments only, recovery signers build it); the path's
   `SigningRule` (`pathRule`: members + `alsoRequired` co-signer) is what
   `thresholds.ts` counts by **address** on the sign, submit and reject
   routes and the signing page (`loadPendingTxForSigner` admits the path's

@@ -44,10 +44,15 @@ export interface CommunityRow {
   discord_rate_currency: string;
   /** Main budget/spending token: "lovelace" or policyId + assetNameHex. Charted first on the Dashboard. */
   spending_unit: string;
+  /**
+   * The treasury whose base signers are community admins (null until the
+   * first treasury exists). Other treasuries' signers are not auto-promoted.
+   */
+  primary_treasury_id: string | null;
 }
 
 export const COMMUNITY_COLUMNS =
-  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit";
+  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit, primary_treasury_id";
 
 export interface CommunityMemberRow {
   community_id: string;
@@ -806,10 +811,12 @@ export interface ProposalRow {
   electorate_hash: string | null;
   /** Whether its steps are ever due on-chain: false for proposals already final when anchoring shipped (0060). */
   anchored: boolean;
+  /** The discussion proposal this one revised (0068); null when it is not a revision. */
+  replaces_proposal_id: string | null;
 }
 
 export const PROPOSAL_COLUMNS =
-  "id, community_id, number, kind, state, title, body, discussion_url, payload, content_hash, rules, rules_hash, workgroup_ids, beneficiaries, proposer, created_at, voting_starts_at, voting_opened_at, closes_at, closed_at, electorate_size, ballots_cast, ballot_version, tally, outcome_reason, execution_state, execution_error, execution_result, executed_at, ended_by, end_reason, discord_milestone, electorate_hash, anchored";
+  "id, community_id, number, kind, state, title, body, discussion_url, payload, content_hash, rules, rules_hash, workgroup_ids, beneficiaries, proposer, created_at, voting_starts_at, voting_opened_at, closes_at, closed_at, electorate_size, ballots_cast, ballot_version, tally, outcome_reason, execution_state, execution_error, execution_result, executed_at, ended_by, end_reason, discord_milestone, electorate_hash, anchored, replaces_proposal_id";
 
 /** One step of a proposal carried by one transaction (0060). */
 export interface ProposalAnchorRow {

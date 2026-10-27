@@ -192,7 +192,6 @@ describe("budget + permissions", () => {
 
   it("mirrors the server's build rule", () => {
     const base = {
-      isAdmin: false,
       treasuryId: "t1",
       signerTreasuryIds: new Set<string>(),
       ledWorkgroupIds: new Set(["wg1"]),
@@ -202,7 +201,6 @@ describe("budget + permissions", () => {
     expect(canBuildPayout({ ...base, selectedWorkgroupIds: new Set(["wg1", "wg2"]) })).toBe(false);
     expect(canBuildPayout({ ...base, selectedWorkgroupIds: new Set() })).toBe(false);
     expect(canBuildPayout({ ...base, selectedWorkgroupIds: new Set(), signerTreasuryIds: new Set(["t1"]) })).toBe(true);
-    expect(canBuildPayout({ ...base, selectedWorkgroupIds: new Set(), isAdmin: true })).toBe(true);
   });
 });
 

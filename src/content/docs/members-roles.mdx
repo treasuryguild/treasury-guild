@@ -7,36 +7,36 @@ Every member has exactly one role:
 | Role | Who | What they can do |
 |---|---|---|
 | **Owner** | The wallet that created the community. | Everything an admin can. There is one owner and the role cannot be reassigned from the app. |
-| **Admin** | Promoted by an admin, or automatically any base signer of a treasury. | Manage members, visibility, workgroups, GitHub, treasuries and budgets; build payouts for any workgroup; make payments; mint. |
+| **Admin** | Promoted by an admin, or automatically any base signer of the community's [primary treasury](/docs/treasury#primary-treasury). | Manage members, visibility, workgroups, GitHub, treasuries and budgets. Starting a spend still needs them to be a signer of that treasury (or a workgroup lead, for payouts of their workgroups). |
 | **Member** | Everyone else. | View shared community pages, be assigned to tasks and get paid. Admin-only settings remain restricted. Members cannot change boards, budgets or settings unless they are a workgroup lead. |
 
 Two further responsibilities sit on top of the role:
 
-- **Treasury signer** — a wallet listed in a [treasury's](/docs/treasury) signer set. **Base signers** sign, reject, submit and delete that treasury's transactions, build payouts, payments and anchor transactions from it, reconcile its incoming refunds and mint under its policy. They are **admins automatically** and cannot be demoted while they remain one ("Treasury signers must remain admins"). A clawback treasury's **recovery signers** and a co-signer treasury's member **co-signer** (see [Treasury templates](/docs/treasury#treasury-templates)) must already be members and are **not** made admins: recovery signers build and sign recovery payments from the lock date, the co-signer signs co-signed transactions, and both keep their role otherwise.
+- **Treasury signer** — a wallet listed in a [treasury's](/docs/treasury) signer set. **Base signers** of a treasury sign, reject, submit and delete that treasury's transactions, build payouts, payments and anchor transactions from it, reconcile its incoming refunds and mint under its policy. Base signers of the **primary** treasury are **admins automatically** and cannot be demoted while they remain one ("Primary treasury signers must remain admins"). Base signers of other treasuries keep their existing role (usually member) and only act for that wallet. A clawback treasury's **recovery signers** and a co-signer treasury's member **co-signer** (see [Treasury templates](/docs/treasury#treasury-templates)) must already be members and are **not** made admins: recovery signers build and sign recovery payments from the lock date, the co-signer signs co-signed transactions, and both keep their role otherwise.
 - **Workgroup lead** — assigned per workgroup by an admin. Leads manage that workgroup's board and tasks, edit its budget row, and can build a payout when every selected task belongs to a workgroup they lead. Leads are otherwise ordinary members.
 
 ## Who can do what
 
-| Action | Member | Workgroup lead | Admin / owner | Base signer |
+| Action | Member | Workgroup lead | Admin / owner | Base signer (of that treasury) |
 |---|---|---|---|---|
 | View shared community pages | yes | yes | yes | yes |
-| Create / edit tasks on a board | — | their workgroups | yes | yes |
-| Create workgroups, edit details, archive | — | — | yes (by proposal when workgroups are voted on) | yes |
-| Edit budgets | — | their workgroups (workgroup budgets only) | yes | yes |
-| Reset budgets | — | — | yes | yes |
+| Create / edit tasks on a board | — | their workgroups | yes | yes (if also admin) |
+| Create workgroups, edit details, archive | — | — | yes (by proposal when workgroups are voted on) | yes (if also admin) |
+| Edit budgets | — | their workgroups (workgroup budgets only) | yes | yes (if also admin) |
+| Reset budgets | — | — | yes | yes (if also admin) |
 | Make proposals, vote | as the [governance settings](/docs/governance#governance-settings) allow | as the settings allow | as the settings allow | as the settings allow |
-| Change governance settings, cancel a proposal, connect Discord announcements | — | — | yes | yes |
-| Build a payout | — | if all selected tasks are theirs | yes | yes |
-| Build a payment | — | — | yes (a recovery payment: admins or recovery signers) | yes |
-| Build an anchor transaction, re-run the co-signer check | — | — | yes | yes |
-| Create / manage calls and attendance tasks | — | their workgroups | yes | yes |
-| Open Call capture settings | — | — | yes | yes |
+| Change governance settings, cancel a proposal, connect Discord announcements | — | — | yes | yes (if also admin) |
+| Build a payout | — | if all selected tasks are theirs | — | yes |
+| Build a payment | — | — | — (recovery: recovery signers only) | yes |
+| Build an anchor transaction, re-run the co-signer check | — | — | — | yes |
+| Create / manage calls and attendance tasks | — | their workgroups | yes | yes (if also admin) |
+| Open Call capture settings | — | — | yes | yes (if also admin) |
 | Sign / reject / submit / delete a transaction | — | — | only if a signer on its spending path | on its spending path |
-| Create a treasury, connect GitHub, manage members | — | — | yes | yes |
-| Mint tokens | — | — | yes | yes |
+| Create a treasury, connect GitHub, manage members | — | — | yes | yes (if also admin) |
+| Mint tokens | — | — | — | yes |
 | Reconcile incoming refunds | — | — | classify (**Details**) only | yes, for their treasury |
 
-Base signers are always admins (being made one promotes you, and one cannot be demoted), so the signer column adds only signing, rejecting, submitting and deleting transactions and matching refunds for their own treasury. A recovery signer or co-signer who is not an admin has the Member column's rights, plus signing on their own [spending path](/docs/transactions#spending-paths) (and, for recovery signers, building recovery payments). No signer of any group can be removed from the community.
+Community admin manages the community; it does **not** by itself let someone build a payout, payment, mint or anchor from a treasury they do not sign. The base-signer column is per treasury. A recovery signer or co-signer who is not an admin has the Member column's rights, plus signing on their own [spending path](/docs/transactions#spending-paths) (and, for recovery signers, building recovery payments). No signer of any group can be removed from the community.
 
 Pages that need a role you do not have show "Members only." or "Admin access required." instead of their content.
 
@@ -45,7 +45,7 @@ Pages that need a role you do not have show "Members only." or "Admin access req
 Admins see buttons next to each member:
 
 - **Make admin** on a member.
-- **Demote** on an admin. Disabled for base signers of a treasury.
+- **Demote** on an admin. Disabled for base signers of the **primary** treasury.
 
 You cannot change your own role.
 
@@ -78,7 +78,7 @@ Also in the Community card, admins pick the token the community mainly budgets a
 
 ## Adding a member
 
-In the same card, paste a wallet address (`addr…` on mainnet, `addr_test…` on preprod) and click **Add member**. The wallet becomes a member immediately, even if it has never signed in. When its owner signs in for the first time, the community is already there.
+In the same card, paste a wallet address (`addr…` on mainnet, `addr_test…` on preprod) and click **Add member**. The wallet becomes a member immediately, even if it has never signed in. When its owner signs in for the first time, the community is already there. Promote them with **Make admin** if needed, or list them as a base signer of the [primary treasury](/docs/treasury#primary-treasury) when creating or re-pointing it.
 
 Each member card shows the short address, "(you)" for yourself, the display handle or "no handle", the linked GitHub username if any, a **signer** badge for base signers (**recovery signer** or **co-signer** for those groups), and the role badge.
 

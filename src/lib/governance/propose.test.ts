@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   resolveAmounts: vi.fn(),
   requireActive: vi.fn(),
   electorate: vi.fn(),
+  loadProposal: vi.fn(),
 }));
 vi.mock("@/lib/authz", () => ({
   requireProposer: mocks.requireProposer,
@@ -35,6 +36,7 @@ vi.mock("@/lib/db/governance", () => ({
   loadBudgetRevisions: mocks.revisions,
   checkBudgetProposal: mocks.checkBudget,
   electorateWallets: mocks.electorate,
+  loadProposal: mocks.loadProposal,
 }));
 vi.mock("@/lib/db/budgetSave", () => ({
   loadWorkgroupBudgetOwner: mocks.workgroupOwner,
@@ -115,6 +117,7 @@ describe("makeProposal: decision", () => {
     const rules = rulesFor(settings);
     const content = {
       kind: ProposalKind.Decision, title: "A title", body: "Why.", discussionUrl: "https://forum.example/t/1", payload: {},
+      replaces: null,
     };
     expect(mocks.requireProposer).toHaveBeenCalledWith(COMMUNITY, PROPOSER, settings.proposers, []);
     expect(mocks.create).toHaveBeenCalledTimes(1);
@@ -128,6 +131,7 @@ describe("makeProposal: decision", () => {
       beneficiaries: [],
       proposer: PROPOSER,
       budgetOwners: [],
+      replacesProposalId: null,
     });
     expect(created().rules).toMatchObject({ quorumPct: 33, votingHours: 96, method: settings.method });
     expect(created().contentHash).toMatch(/^[0-9a-f]{64}$/);
@@ -177,7 +181,8 @@ describe("makeProposal: workgroup", () => {
     expect(created()).toMatchObject({
       kind: ProposalKind.Workgroup, payload, workgroupIds: [], beneficiaries: ["addr_ann", "addr_bo"], budgetOwners: [],
       rules, rulesHash: proposalRulesHash(rules),
-      contentHash: proposalContentHash({ kind: ProposalKind.Workgroup, title: "A title", body: "Why.", discussionUrl: null, payload }),
+      contentHash: proposalContentHash({ kind: ProposalKind.Workgroup, title: "A title", body: "Why.", discussionUrl: null, payload, replaces: null }),
+      replacesProposalId: null,
     });
   });
 });
@@ -219,7 +224,8 @@ describe("makeProposal: task", () => {
     expect(created()).toMatchObject({
       kind: ProposalKind.Task, payload, workgroupIds: ["wg-1"], beneficiaries: [], budgetOwners: [],
       rules, rulesHash: proposalRulesHash(rules),
-      contentHash: proposalContentHash({ kind: ProposalKind.Task, title: "A title", body: "Why.", discussionUrl: null, payload }),
+      contentHash: proposalContentHash({ kind: ProposalKind.Task, title: "A title", body: "Why.", discussionUrl: null, payload, replaces: null }),
+      replacesProposalId: null,
     });
   });
 
@@ -333,7 +339,8 @@ describe("makeProposal: budget", () => {
     expect(created()).toMatchObject({
       kind: ProposalKind.Budget, payload: { steps }, workgroupIds: ["wg-1"], beneficiaries: ["addr_lead"], budgetOwners: owners,
       rules, rulesHash: proposalRulesHash(rules),
-      contentHash: proposalContentHash({ kind: ProposalKind.Budget, title: "A title", body: "Why.", discussionUrl: null, payload: { steps } }),
+      contentHash: proposalContentHash({ kind: ProposalKind.Budget, title: "A title", body: "Why.", discussionUrl: null, payload: { steps }, replaces: null }),
+      replacesProposalId: null,
     });
   });
 
@@ -402,6 +409,40 @@ describe("makeProposal: budget", () => {
     const err = await makeProposal(budgetInput([save()]), PROPOSER).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BadRequestError);
     expect((err as Error).message).toBe(noEligibleVotersReason(1, 0));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("makeProposal: revise", () => {
+  const OLD = {
+    id: "p-old", community_id: COMMUNITY, number: 4, kind: ProposalKind.Decision, state: "discussion",
+    proposer: PROPOSER, title: "Old", body: "", discussion_url: null, payload: {},
+  };
+
+  it("links the replacement and hashes the replaced number", async () => {
+    mocks.loadProposal.mockResolvedValue(OLD);
+    await makeProposal({ ...decision, replacesProposalId: OLD.id } as Input, PROPOSER);
+    expect(mocks.loadProposal).toHaveBeenCalledWith(OLD.id);
+    expect(created().replacesProposalId).toBe(OLD.id);
+    expect(created().replaces).toBe(4);
+    expect(created().contentHash).toBe(proposalContentHash({
+      kind: ProposalKind.Decision, title: "A title", body: "Why.", discussionUrl: null, payload: {}, replaces: 4,
+    }));
+  });
+
+  it("refuses another proposer's proposal, one past discussion, or a kind mismatch", async () => {
+    mocks.loadProposal.mockResolvedValue({ ...OLD, proposer: "addr_other" });
+    await expect(makeProposal({ ...decision, replacesProposalId: OLD.id } as Input, PROPOSER))
+      .rejects.toBeInstanceOf(ForbiddenError);
+
+    mocks.loadProposal.mockResolvedValue({ ...OLD, state: "voting" });
+    await expect(makeProposal({ ...decision, replacesProposalId: OLD.id } as Input, PROPOSER))
+      .rejects.toThrow(/only before voting opens/i);
+
+    mocks.loadProposal.mockResolvedValue({ ...OLD, kind: ProposalKind.Task });
+    await expect(makeProposal({ ...decision, replacesProposalId: OLD.id } as Input, PROPOSER))
+      .rejects.toThrow(/same proposal kind/i);
+
     expect(mocks.create).not.toHaveBeenCalled();
   });
 });

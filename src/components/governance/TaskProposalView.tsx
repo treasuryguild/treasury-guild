@@ -33,8 +33,9 @@ export function TaskProposalView({ slug, proposal, boardName, names }: {
         <dd>{task.assignSelf ? voterName(proposal.proposer, names.get(proposal.proposer)) : "None yet"}</dd>
       </dl>
       <p className="mt-4 text-xs text-zinc-500">
-        When the proposal passes, the task is added to the board&apos;s first column with this title and description. It is
-        not payable yet: its workgroup&apos;s leads move it through the board as with any task.
+        When the proposal passes, the task is added to this app board&apos;s first column with this title and description. It is
+        not payable yet: its workgroup&apos;s leads move it through the board as with any task. Task proposals never create
+        GitHub issues.
       </p>
     </Card>
   );
