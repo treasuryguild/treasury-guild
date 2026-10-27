@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type { UTxO } from "@meshsdk/common";
 import { ANCHOR_METADATA_LABEL, buildAnchorMetadata, type AnchorEntry } from "./anchorMetadata";
 import { MAX_METADATA_JSON_BYTES, metadataJsonBytes } from "./metadata";
-import { attachAnchors } from "./payoutBuilder";
+import { attachAnchors, sumUtxoAssets } from "./payoutBuilder";
+
+const GVTT = `${"a".repeat(56)}47565454`;
+const utxo = (amount: { unit: string; quantity: string }[]): UTxO => ({
+  input: { txHash: "a".repeat(64), outputIndex: 0 },
+  output: { address: "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5", amount },
+});
 
 const H1 = "a".repeat(64);
 const H2 = "b".repeat(64);
@@ -29,5 +36,15 @@ describe("attachAnchors", () => {
     const some = attachAnchors("guild", filler(MAX_METADATA_JSON_BYTES - two), entries);
     expect(some.carried.map((c) => c.n)).toEqual([1, 2]);
     expect(attachAnchors("guild", filler(MAX_METADATA_JSON_BYTES - 10), entries)).toEqual({ metadata: [], carried: [] });
+  });
+});
+
+describe("sumUtxoAssets", () => {
+  it("folds every unit across the wallet's UTxOs", () => {
+    expect(sumUtxoAssets([
+      utxo([{ unit: "lovelace", quantity: "5" }, { unit: GVTT, quantity: "3" }]),
+      utxo([{ unit: "lovelace", quantity: "7" }, { unit: GVTT, quantity: "1" }]),
+    ])).toEqual(new Map([["lovelace", 12n], [GVTT, 4n]]));
+    expect(sumUtxoAssets([])).toEqual(new Map());
   });
 });

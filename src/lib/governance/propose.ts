@@ -7,18 +7,19 @@ import type { z } from "zod";
 import type { createProposalSchema } from "@/lib/api/schemas";
 import type { CreateProposalResponse } from "@/lib/api/types";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
-import { requireProposer } from "@/lib/authz";
+import { requireProposer, requireWorkgroupManager } from "@/lib/authz";
 import { DEFAULT_BOARD_COLUMNS } from "@/lib/boardTypes";
 import { ProposalKind, TaskSource } from "@/lib/constants";
 import {
   loadTreasuryBudgetOwner, loadWorkgroupBudgetOwner, resolveBudgetAmounts, type BudgetOwnerContext,
 } from "@/lib/db/budgetSave";
 import {
-  checkBudgetProposal, createProposal, loadBudgetRevisions, loadGovernanceSettings, loadProposalWorkgroup, nonMembers,
+  checkBudgetProposal, createProposal, electorateWallets, loadBudgetRevisions, loadGovernanceSettings, loadProposalWorkgroup, nonMembers,
   workgroupLeadWallets, workgroupNameTaken, type NewProposal,
 } from "@/lib/db/governance";
 import { requireActiveWorkgroup } from "@/lib/db/workgroups";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
+import { eligibleVoterCount, noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";
 import {
   budgetOwnerKey, budgetOwnersOf, switchStartsTooEarly, taskExceedsLazyCap, type BudgetOwnerBase, type BudgetStep,
@@ -46,7 +47,8 @@ export async function prepareProposal(input: CreateProposalInput, proposer: stri
       ? "Budget consent is off in this community: budgets are saved directly"
       : "Proposals of this kind are off in this community. An admin can turn them on under Governance.");
   }
-  let rules = rulesFor(settings);
+  // A proposer may freeze a different set for this proposal. Omitted: the kind's settings.
+  let rules = input.rules ?? rulesFor(settings);
 
   let payload: ProposalPayload = {};
   let workgroupIds: string[] = [];
@@ -66,15 +68,32 @@ export async function prepareProposal(input: CreateProposalInput, proposer: stri
   } else if (input.kind === ProposalKind.Task) {
     workgroupIds = [input.task.workgroupId];
     await requireProposer(input.communityId, proposer, settings.proposers, workgroupIds);
+    if (input.rules) {
+      await requireWorkgroupManager(
+        input.communityId, input.task.workgroupId, proposer,
+        "Only admins and leads of this workgroup can set this task's voting rules",
+      );
+    }
     payload = await taskPayload(input.communityId, input.task);
     if (payload.task.assignSelf) beneficiaries = [proposer];
-    // Above the lazy-consensus cap a task is decided like any other proposal.
-    rules = rulesFor(settings, {
-      escalate: taskExceedsLazyCap(payload.task.amounts, payload.task.bountyLovelace, settings.lazyCapLovelace),
-    });
+    // Above the lazy-consensus cap a task is decided like any other proposal,
+    // unless the proposer already chose the rules for this one.
+    if (!input.rules) {
+      rules = rulesFor(settings, {
+        escalate: taskExceedsLazyCap(payload.task.amounts, payload.task.bountyLovelace, settings.lazyCapLovelace),
+      });
+    }
   } else {
     await requireProposer(input.communityId, proposer, settings.proposers, workgroupIds);
   }
+
+  // Voting would cancel a proposal nobody can vote on, at once or when it opens.
+  // The same count the create forms show; a discussion period does not add voters yet.
+  const wallets = await electorateWallets(input.communityId, rules, workgroupIds);
+  const reason = noEligibleVotersReason(
+    wallets.length, eligibleVoterCount(wallets, beneficiaries, rules.recuseBeneficiaries),
+  );
+  if (reason) throw new BadRequestError(reason);
 
   const content = {
     kind: input.kind,

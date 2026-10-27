@@ -27,6 +27,7 @@ export function useLiveBoard(workgroupId: string, enabled: boolean) {
   return {
     boards: data?.boards ?? null,
     hasRepos: data?.hasRepos ?? null,
+    repos: data?.repos ?? [],
     partial: !!data?.partial,
     loading,
     error: error ? "Live board unavailable" : null,

@@ -4,13 +4,13 @@
 // assignees, and a multi-token bounty (rows write tasks.amounts; the ADA row
 // is mirrored into bounty_lovelace with the same rules the GitHub sync uses).
 // GitHub tasks edit the issue itself: title, description, labels, project
-// status and bounty fields are pushed to GitHub by /api/github/issue (and
-// mirrored back by the sync). Their GitHub assignees still come from GitHub
-// (the sync adds and removes them); this editor sets each one's payout
-// wallet and can add extra manual assignees the sync never touches. Every
-// assignee receives the task's full amounts.
+// status, assignees and bounty fields are pushed to GitHub by /api/github/issue
+// (and mirrored back by the sync). Extra manual assignees and payout wallets
+// are edited here. Every assignee receives the task's full amounts.
 
 import { useState } from "react";
+import { GithubBountyFieldPicker } from "@/components/board/GithubBountyFieldPicker";
+import { QuarterSelect } from "@/components/budgets/QuarterSelect";
 import {
   Button,
   ErrorText,
@@ -38,13 +38,22 @@ import {
   type MemberOption,
 } from "@/lib/boardTypes";
 import { shortAddress } from "@/lib/format";
-import { QuarterSelect } from "@/components/budgets/QuarterSelect";
+import { useGithubEditorOptions } from "@/hooks/useGithubEditorOptions";
+import type { TreasuryWalletToken } from "@/hooks/useTreasuryTokenTickers";
 
 export type { MemberOption };
+
+/** GitHub's per-issue assignee cap. */
+const MAX_GITHUB_ASSIGNEES = 10;
 
 export interface TaskSaveFields {
   /** The complete assignee set (sent to /api/tasks/assignees). */
   assignees: TaskAssigneeInput[];
+  /**
+   * When github.assignees changed: wallets keyed by lowercased login so the
+   * save can reattach them after sync remaps github row ids.
+   */
+  githubWalletsByLogin?: Record<string, string | null>;
   /** "YYYY-MM-DD" (first of month) or null. */
   budget_month?: string | null;
   /** Native tasks only; GitHub titles go through `github`. */
@@ -78,10 +87,22 @@ interface AssigneeEditorRow {
   custom: string;
 }
 
+function emptyManualRow(key: number): AssigneeEditorRow {
+  return { key, source: "manual", id: null, ghLogin: null, selection: "", custom: "" };
+}
+
+function loginsEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const left = [...a].map((l) => l.toLowerCase()).sort();
+  const right = [...b].map((l) => l.toLowerCase()).sort();
+  return left.every((l, i) => l === right[i]);
+}
+
 export function TaskModal({
   task,
   members,
   tokenTickers,
+  walletTokens = [],
   network,
   budgetSetups = [],
   githubStatusOptions = [],
@@ -96,6 +117,8 @@ export function TaskModal({
   members: MemberOption[];
   /** Tickers of tokens held by the paying treasury wallet(s), sans ADA. */
   tokenTickers: string[];
+  /** Tokens held by paying treasury wallet(s), for creating GitHub bounty fields. */
+  walletTokens?: readonly TreasuryWalletToken[];
   /** For the explorer link once the task has been paid. */
   network: Network;
   /**
@@ -118,9 +141,12 @@ export function TaskModal({
   saveError?: string | null;
 }) {
   const isGithub = task.source === TaskSource.Github;
-  // A settled GitHub task's status, labels and bounty are part of its payment
-  // record: the API only still accepts title/description edits for it.
+  // A settled GitHub task's status, labels, assignees and bounty are part of
+  // its payment record: the API only still accepts title/description edits.
   const settled = SETTLED_PAY_STATES.includes(task.pay_state);
+  const editorOptions = useGithubEditorOptions(isGithub ? { taskId: task.id } : null);
+  const assignableLogins = editorOptions.data?.assignableLogins ?? [];
+  const numberFieldNames = editorOptions.data?.numberFieldNames ?? [];
   const tickerOptions = [
     "ADA",
     ...tokenTickers.filter((t) => t.toLowerCase() !== "ada"),
@@ -142,6 +168,7 @@ export function TaskModal({
     return initial.length === 0 && !isGithub ? [emptyManualRow(0)] : initial;
   });
   const [nextKey, setNextKey] = useState(assigneeRows.length);
+  const [addGithubLogin, setAddGithubLogin] = useState("");
   const [body, setBody] = useState(task.body ?? "");
   // GitHub issue fields, pushed to GitHub on save when changed.
   const [ghLabels, setGhLabels] = useState((task.gh_labels ?? []).join(", "));
@@ -173,9 +200,15 @@ export function TaskModal({
   const quarterly = cadenceAt(budgetSetups, budgetMonth) === BudgetCadence.Quarterly;
   const quarterStart = quarterStartMonth(budgetMonth);
 
-  function emptyManualRow(key: number): AssigneeEditorRow {
-    return { key, source: "manual", id: null, ghLogin: null, selection: "", custom: "" };
-  }
+  const chosenGithubLogins = new Set(
+    assigneeRows
+      .filter((r) => r.source === "github" && r.ghLogin)
+      .map((r) => (r.ghLogin as string).toLowerCase()),
+  );
+  const availableGithubLogins = assignableLogins.filter(
+    (login) => !chosenGithubLogins.has(login.toLowerCase()),
+  );
+  const usedBountyFields = new Set(rows.map((r) => r.ticker.toLowerCase()));
 
   function setAssignee(key: number, patch: Partial<AssigneeEditorRow>) {
     setAssigneeRows((list) =>
@@ -183,9 +216,41 @@ export function TaskModal({
     );
   }
 
-  function addAssignee() {
+  function addManualAssignee() {
     setAssigneeRows((list) => [...list, emptyManualRow(nextKey)]);
     setNextKey((k) => k + 1);
+  }
+
+  function addGithubAssignee(login: string) {
+    if (!login || settled) return;
+    const githubCount = assigneeRows.filter((r) => r.source === "github").length;
+    if (githubCount >= MAX_GITHUB_ASSIGNEES) {
+      setError(`GitHub allows at most ${MAX_GITHUB_ASSIGNEES} assignees`);
+      return;
+    }
+    if (chosenGithubLogins.has(login.toLowerCase())) return;
+    const member = members.find(
+      (m) => m.githubUsername?.toLowerCase() === login.toLowerCase(),
+    );
+    setAssigneeRows((list) => [
+      ...list,
+      {
+        key: nextKey,
+        source: "github",
+        id: null,
+        ghLogin: login,
+        selection: member?.wallet ?? "",
+        custom: "",
+      },
+    ]);
+    setNextKey((k) => k + 1);
+    setAddGithubLogin("");
+  }
+
+  function addBountyRow(fieldName: string) {
+    if (!fieldName || settled) return;
+    if (usedBountyFields.has(fieldName.toLowerCase())) return;
+    setRows((r) => [...r, { ticker: fieldName, amount: "", custom: false }]);
   }
 
   function setRow(i: number, patch: Partial<EditorRow>) {
@@ -194,7 +259,15 @@ export function TaskModal({
 
   function save() {
     setError(null);
+    const githubRows = assigneeRows.filter((r) => r.source === "github" && r.ghLogin);
+    const originalGithubLogins = task.task_assignees
+      .filter((a) => a.source === "github" && a.gh_login)
+      .map((a) => a.gh_login as string);
+    const nextGithubLogins = githubRows.map((r) => r.ghLogin as string);
+    const assigneesDirty = isGithub && !loginsEqual(originalGithubLogins, nextGithubLogins);
+
     const assignees: TaskAssigneeInput[] = [];
+    const githubWalletsByLogin: Record<string, string | null> = {};
     const seen = new Set<string>();
     for (const r of assigneeRows) {
       const wallet = (r.selection === CUSTOM ? r.custom.trim() : r.selection) || null;
@@ -205,9 +278,14 @@ export function TaskModal({
         }
         seen.add(wallet);
       }
-      if (r.source === "github") {
-        assignees.push({ source: "github", id: r.id as string, wallet });
-      } else if (wallet) {
+      if (r.source === "github" && r.ghLogin) {
+        githubWalletsByLogin[r.ghLogin.toLowerCase()] = wallet;
+        // When assignees change, ids are remapped after sync — only manuals
+        // go in the POST until saveTaskFields rebuilds github rows.
+        if (!assigneesDirty && r.id) {
+          assignees.push({ source: "github", id: r.id, wallet });
+        }
+      } else if (r.source === "manual" && wallet) {
         assignees.push({ source: "manual", wallet });
       }
     }
@@ -233,7 +311,16 @@ export function TaskModal({
       const labels = ghLabels.split(",").map((l) => l.trim()).filter(Boolean);
       if (labels.join("\n") !== (task.gh_labels ?? []).join("\n")) github.labels = labels;
       if (ghStatus && ghStatus !== (task.gh_status ?? "")) github.status = ghStatus;
-      // Bounty rows name existing project fields; only changed values are sent.
+      if (assigneesDirty) {
+        if (settled) {
+          setError("Assignees are locked once a payout has been queued or paid");
+          return;
+        }
+        github.assignees = nextGithubLogins;
+        fields.githubWalletsByLogin = githubWalletsByLogin;
+      }
+      // Bounty rows name existing project fields; only changed values are sent
+      // (removed fields clear with "").
       const original = amountRowsFromTask(task);
       const changedAmounts: Record<string, string> = {};
       let amountsDirty = false;
@@ -247,7 +334,12 @@ export function TaskModal({
         if (!before || before.amount !== amount) amountsDirty = true;
         changedAmounts[row.ticker] = amount;
       }
-      if (rows.length !== original.length) amountsDirty = true;
+      for (const before of original) {
+        if (!rows.some((r) => r.ticker.toLowerCase() === before.ticker.toLowerCase())) {
+          changedAmounts[before.ticker] = "";
+          amountsDirty = true;
+        }
+      }
       if (amountsDirty) github.amounts = changedAmounts;
       if (Object.keys(github).length > 0) fields.github = github;
     }
@@ -317,9 +409,8 @@ export function TaskModal({
             <>
               <p className="text-xs text-zinc-500">
                 This task is a GitHub issue. Changes to its title, description,
-                labels, status and bounty are saved to GitHub. GitHub assignees
-                are managed on GitHub too; their payout wallets and any extra
-                manual assignees are edited here.
+                labels, status, assignees and bounty are saved to GitHub. Payout
+                wallets and any extra manual assignees are edited here.
               </p>
               <Field label="Title (on GitHub)">
                 <Input aria-label="Title (on GitHub)" value={title} maxLength={256} onChange={(e) => setTitle(e.target.value)} />
@@ -423,10 +514,11 @@ export function TaskModal({
                         placeholder="addr…"
                       />
                     )}
-                    {!github && (
+                    {(!github || (isGithub && !settled)) && (
                       <Button
                         variant="ghost"
                         className="shrink-0"
+                        disabled={github && settled}
                         onClick={() =>
                           setAssigneeRows((list) => list.filter((r) => r.key !== row.key))
                         }
@@ -442,9 +534,38 @@ export function TaskModal({
                 <p className="text-xs text-amber-500">No assignees</p>
               )}
             </div>
-            <Button variant="ghost" className="mt-2" onClick={addAssignee}>
+            {isGithub && !settled && (
+              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                <Select
+                  className="min-w-0 flex-1"
+                  aria-label="Add GitHub assignee"
+                  value={addGithubLogin}
+                  disabled={editorOptions.loading || availableGithubLogins.length === 0}
+                  onChange={(e) => {
+                    const login = e.target.value;
+                    setAddGithubLogin(login);
+                    if (login) addGithubAssignee(login);
+                  }}
+                >
+                  <option value="">
+                    {editorOptions.loading
+                      ? "Loading assignable users…"
+                      : availableGithubLogins.length === 0
+                        ? "No more assignable users"
+                        : "+ Add GitHub assignee…"}
+                  </option>
+                  {availableGithubLogins.map((login) => (
+                    <option key={login} value={login}>@{login}</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+            <Button variant="ghost" className="mt-2" onClick={addManualAssignee}>
               + Add assignee
             </Button>
+            {editorOptions.error && (
+              <p className="mt-1 text-xs text-amber-500">{editorOptions.error}</p>
+            )}
           </Field>
 
           {quarterly ? (
@@ -484,12 +605,13 @@ export function TaskModal({
             <Field label="Bounty (the project's number fields on GitHub)">
               {rows.length === 0 ? (
                 <p className="text-xs text-amber-500">
-                  No bounty fields on this issue yet — add a number field value on the GitHub project board.
+                  No bounty fields on this issue yet — add an existing project field
+                  below, or create one from a wallet token.
                 </p>
               ) : (
                 <div className="space-y-2">
                   {rows.map((row, i) => (
-                    <div key={i} className="flex min-w-0 items-center gap-2">
+                    <div key={`${row.ticker}-${i}`} className="flex min-w-0 items-center gap-2">
                       <span className="w-24 shrink-0 text-sm text-zinc-400">{row.ticker}</span>
                       <Input
                         className="min-w-24 flex-1"
@@ -499,9 +621,29 @@ export function TaskModal({
                         onChange={(e) => setRow(i, { amount: e.target.value })}
                         placeholder="0"
                       />
+                      {!settled && (
+                        <Button
+                          variant="ghost"
+                          className="shrink-0"
+                          onClick={() => setRows((r) => r.filter((_, idx) => idx !== i))}
+                          aria-label={`Remove ${row.ticker}`}
+                        >
+                          ✕
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
+              )}
+              {!settled && (
+                <GithubBountyFieldPicker
+                  target={{ taskId: task.id }}
+                  numberFieldNames={numberFieldNames}
+                  usedFieldNames={usedBountyFields}
+                  walletTokens={walletTokens}
+                  loading={editorOptions.loading}
+                  onAddField={addBountyRow}
+                />
               )}
             </Field>
           )}

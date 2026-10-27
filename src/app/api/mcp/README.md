@@ -81,7 +81,11 @@ nothing until members vote on it with their wallets.
 - **`proposal_preview`** builds the app's own create body (`createProposalSchema`) and runs
   `prepareProposal` (`src/lib/governance/propose.ts`): every check of `POST /api/proposals`
   (kind on, `requireProposer`, payload, frozen rules, hashes, a budget's rolled-back dry
-  run), writing nothing.
+  run), writing nothing. Optional `rules` on the body freeze that set instead of the
+  kind's settings; either way they are fixed at creation and are not changed later.
+  On a task, `rules` are refused unless the caller is an admin or a lead of that workgroup.
+  A proposal nobody could vote on — an empty electorate, or one that recusal empties — is refused
+  here too, so no draft token is minted.
 - **The draft token** (`src/lib/mcp/draftToken.ts`) is a 15-minute JWT, `typ`
   `tg_mcp_draft`, signed with a key derived from `MCP_TOKEN_SECRET` for this purpose only
   and audience `${APP_URL}/mcp-draft`, so it is never an access token and an access token

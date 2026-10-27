@@ -2,9 +2,11 @@
 // are sparse (node ids only), so item details need a follow-up query. The
 // cron sweep uses the repo-wide query so it sees project columns and custom
 // number fields, which REST issue endpoints never expose. The writes are
-// setProjectItemStatus (post-payment move to the "Paid" column, and in-app
-// status moves) and setProjectItemNumberFields (in-app bounty edits); they
-// need the App's Projects permission at read & write.
+// addProjectItemByContentId (in-app create), setProjectItemStatus (post-payment
+// move to the "Paid" column, and in-app status moves),
+// setProjectItemNumberFields (in-app bounty edits) and
+// ensureProjectNumberField (create a bounty NUMBER field from a wallet token);
+// they need the App's Projects permission at read & write.
 import "server-only";
 
 import { installationOctokit } from "./app";
@@ -422,10 +424,48 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
   }) { projectV2Item { id } }
 }`;
 
+const ADD_ITEM_MUTATION = `
+mutation($projectId: ID!, $contentId: ID!) {
+  addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+    item { id }
+  }
+}`;
+
 export type SetStatusResult =
   /** `status` is the option's name as GitHub spells it. */
   | { outcome: "updated" | "unchanged"; status: string }
   | { outcome: "no_item" | "no_status_field" | "no_option" };
+
+export type AddProjectItemResult =
+  | { outcome: "added"; itemNodeId: string; status: string }
+  | { outcome: "no_item" | "no_status_field" | "no_option" };
+
+/**
+ * Add an issue (or other ProjectV2 content) to a project and move it to the
+ * named Status column. Throws on transport/permission errors; returns
+ * `no_option` / `no_status_field` / `no_item` when the status write cannot
+ * land so the caller can map them to a 400.
+ */
+export async function addProjectItemByContentId(
+  installationId: number,
+  projectId: string,
+  contentId: string,
+  statusName: string,
+): Promise<AddProjectItemResult> {
+  const octokit = await installationOctokit(installationId);
+  const res = (await octokit.graphql(ADD_ITEM_MUTATION, { projectId, contentId })) as {
+    addProjectV2ItemById?: { item?: { id?: string } | null } | null;
+  };
+  const itemNodeId = res.addProjectV2ItemById?.item?.id;
+  if (!itemNodeId) {
+    throw new Error("GitHub addProjectV2ItemById returned no item id");
+  }
+  const moved = await setProjectItemStatus(installationId, itemNodeId, statusName);
+  if (moved.outcome === "updated" || moved.outcome === "unchanged") {
+    return { outcome: "added", itemNodeId, status: moved.status };
+  }
+  return { outcome: moved.outcome };
+}
 
 /**
  * Move a project item to the Status option named `statusName` (matched
@@ -476,12 +516,52 @@ query($id: ID!) {
       project {
         id
         fields(first: 50) {
-          nodes { ... on ProjectV2FieldCommon { id name } }
+          nodes {
+            ... on ProjectV2Field {
+              id
+              name
+              dataType
+            }
+          }
         }
       }
     }
   }
 }`;
+
+type ItemProjectField = { id?: string; name?: string; dataType?: string };
+
+/** Number-field names on the project that owns this item (bounty picker). */
+export async function listProjectNumberFieldNames(
+  installationId: number,
+  itemNodeId: string,
+): Promise<string[]> {
+  const fields = await loadItemProjectNumberFields(installationId, itemNodeId);
+  return fields.map((f) => f.name);
+}
+
+async function loadItemProjectNumberFields(
+  installationId: number,
+  itemNodeId: string,
+): Promise<{ id: string; name: string }[]> {
+  const octokit = await installationOctokit(installationId);
+  const res = (await octokit.graphql(ITEM_FIELDS_QUERY, { id: itemNodeId })) as {
+    node: {
+      id?: string;
+      project?: {
+        id: string;
+        fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
+      } | null;
+    } | null;
+  };
+  const out: { id: string; name: string }[] = [];
+  for (const field of res.node?.project?.fields?.nodes ?? []) {
+    if (!field?.id || !field.name) continue;
+    if (field.dataType !== "NUMBER") continue;
+    out.push({ id: field.id, name: field.name });
+  }
+  return out;
+}
 
 const SET_NUMBER_MUTATION = `
 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $number: Float!) {
@@ -511,8 +591,8 @@ export interface SetNumberFieldsResult {
  * Write an item's number fields by field name (the bounty edit from the app).
  * Field ids are looked up per call, never stored. A null value clears the
  * field. Fields the project does not have are reported in `missing` instead
- * of failing the whole edit — creating project fields from the app would
- * surprise board owners, so the caller surfaces the names.
+ * of failing the whole edit — create fields explicitly via
+ * `ensureProjectNumberField` (POST /api/github/project-field).
  */
 export async function setProjectItemNumberFields(
   installationId: number,
@@ -528,7 +608,7 @@ export async function setProjectItemNumberFields(
       id?: string;
       project?: {
         id: string;
-        fields?: { nodes?: { id?: string; name?: string }[] } | null;
+        fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
       } | null;
     } | null;
   };
@@ -538,7 +618,8 @@ export async function setProjectItemNumberFields(
   }
   const byName = new Map<string, string>();
   for (const field of node.project.fields?.nodes ?? []) {
-    if (field.id && field.name) byName.set(field.name.toLowerCase(), field.id);
+    if (!field?.id || !field.name || field.dataType !== "NUMBER") continue;
+    byName.set(field.name.toLowerCase(), field.id);
   }
   for (const name of names) {
     const fieldId = byName.get(name.toLowerCase());
@@ -580,4 +661,85 @@ export async function fetchRepoProjects(
     } | null;
   };
   return res.repository?.projectsV2.nodes ?? [];
+}
+
+const PROJECT_FIELDS_QUERY = `
+query($id: ID!) {
+  node(id: $id) {
+    ... on ProjectV2 {
+      id
+      fields(first: 50) {
+        nodes {
+          ... on ProjectV2Field {
+            id
+            name
+            dataType
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const CREATE_NUMBER_FIELD_MUTATION = `
+mutation($projectId: ID!, $name: String!) {
+  createProjectV2Field(input: {
+    projectId: $projectId, dataType: NUMBER, name: $name
+  }) {
+    projectV2Field {
+      ... on ProjectV2Field {
+        id
+        name
+        dataType
+      }
+    }
+  }
+}`;
+
+export interface EnsureNumberFieldResult {
+  /** Canonical field name on the project (existing spelling when reused). */
+  fieldName: string;
+  /** False when a NUMBER field with this name already existed. */
+  created: boolean;
+}
+
+/**
+ * Ensure the project has a NUMBER field with this name (bounty create flow).
+ * Reuses an existing field when the name matches case-insensitively.
+ */
+export async function ensureProjectNumberField(
+  installationId: number,
+  projectNodeId: string,
+  name: string,
+): Promise<EnsureNumberFieldResult> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Field name is required");
+  const octokit = await installationOctokit(installationId);
+  const listed = (await octokit.graphql(PROJECT_FIELDS_QUERY, { id: projectNodeId })) as {
+    node: {
+      id?: string;
+      fields?: { nodes?: (ItemProjectField | null)[] | null } | null;
+    } | null;
+  };
+  if (!listed.node?.id) throw new Error("GitHub project not found");
+  const want = trimmed.toLowerCase();
+  for (const field of listed.node.fields?.nodes ?? []) {
+    if (!field?.name || field.dataType !== "NUMBER") continue;
+    if (field.name.toLowerCase() === want) {
+      return { fieldName: field.name, created: false };
+    }
+  }
+  const created = (await octokit.graphql(CREATE_NUMBER_FIELD_MUTATION, {
+    projectId: projectNodeId,
+    name: trimmed,
+  })) as {
+    createProjectV2Field?: {
+      projectV2Field?: { id?: string; name?: string; dataType?: string } | null;
+    } | null;
+  };
+  const field = created.createProjectV2Field?.projectV2Field;
+  if (!field?.name || field.dataType !== "NUMBER") {
+    throw new Error("GitHub did not return the new number field");
+  }
+  return { fieldName: field.name, created: true };
 }

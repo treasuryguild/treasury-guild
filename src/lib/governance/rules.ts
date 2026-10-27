@@ -154,6 +154,11 @@ export function communitySettingsFromRow(row: GovernanceCommunitySettingsRow | n
   return { documentStore: row.document_store, documentStoreSince: row.document_store_since, spendCheck: row.spend_check };
 }
 
+/** True when two frozen rule sets hash the same (key order does not matter). */
+export function sameRules(a: ProposalRules, b: ProposalRules): boolean {
+  return canonicalJson(a) === canonicalJson(b);
+}
+
 /**
  * The rules a new proposal is frozen with. `escalate` decides it by the
  * settings' escalation method instead of lazy consensus (an amount above the cap).

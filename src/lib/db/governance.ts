@@ -246,14 +246,17 @@ export async function listDueProposalIds(now: Date, limit = 50): Promise<string[
   ).map((row) => row.id);
 }
 
-/** How many members would vote on a proposal made now (the snapshot is taken when voting opens). */
-export async function countElectorate(
+/**
+ * Wallets in the electorate of a proposal made now (`proposal_electorate`,
+ * cutoff now). Recusal is applied by the caller: beneficiaries stay in this list.
+ */
+export async function electorateWallets(
   communityId: string, rules: Pick<ProposalRules, "electorate" | "activityMonths" | "minMemberDays">, workgroupIds: string[],
-): Promise<number> {
+): Promise<string[]> {
   return rpc<{ wallet_address: string }[]>(await serviceClient().rpc("proposal_electorate", {
     p_community_id: communityId, p_electorate: rules.electorate, p_activity_months: rules.activityMonths,
     p_min_member_days: rules.minMemberDays, p_workgroup_ids: workgroupIds, p_cutoff: new Date().toISOString(),
-  })).length;
+  })).map((row) => row.wallet_address);
 }
 
 /** Current budget revisions by owner key (0 for an owner that never had a budget). */

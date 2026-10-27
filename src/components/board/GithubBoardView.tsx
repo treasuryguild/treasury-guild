@@ -5,12 +5,13 @@ import {
   groupTasksByGhStatus,
   mergeLiveBoard,
   type BoardTask,
+  type LiveBoardRepo,
   type LiveProjectBoard,
   type MergedBoard,
   type MergedBoardItem,
 } from "@/lib/boardTypes";
 import { SETTLED_PAY_STATES, TaskSource } from "@/lib/constants";
-import { Badge, LinkButton } from "@/components/ui";
+import { Badge, Input, LinkButton, Select } from "@/components/ui";
 import { BoardColumn } from "./BoardColumn";
 import { LiveItemCard } from "./LiveItemCard";
 import { TaskCard } from "./TaskCard";
@@ -91,6 +92,7 @@ function NoRepoLinked({ isAdmin, settingsHref }: { isAdmin: boolean; settingsHre
 export function GithubBoardView({
   boards,
   hasRepos,
+  repos = [],
   partial,
   error,
   tasks,
@@ -101,10 +103,13 @@ export function GithubBoardView({
   onEditItem,
   onMoveTaskStatus,
   onMoveItemStatus,
+  onAdd,
   archived = false,
 }: {
   boards: LiveProjectBoard[] | null;
   hasRepos: boolean | null;
+  /** Linked repos for the create-issue picker (empty when the live board has none). */
+  repos?: LiveBoardRepo[];
   partial: boolean;
   error: string | null;
   tasks: BoardTask[];
@@ -118,6 +123,8 @@ export function GithubBoardView({
   onMoveTaskStatus?: (task: BoardTask, status: string) => Promise<boolean>;
   /** Drag a live item to another project column (pushed to GitHub); resolves false when the move failed. */
   onMoveItemStatus?: (item: MergedBoardItem, status: string) => Promise<boolean>;
+  /** Create a GitHub issue in this project Status column (pushed to GitHub). */
+  onAdd?: (projectId: string, status: string, title: string, repoId: number) => Promise<boolean>;
   archived?: boolean;
 }) {
   const githubTasks = useMemo(() => tasks.filter((t) => t.source === TaskSource.Github), [tasks]);
@@ -134,6 +141,7 @@ export function GithubBoardView({
         merged={merged}
         boards={boards}
         hasRepos={hasRepos}
+        repos={repos}
         partial={partial}
         error={error}
         tasks={githubTasks}
@@ -144,6 +152,7 @@ export function GithubBoardView({
         onEditItem={onEditItem}
         onMoveTaskStatus={onMoveTaskStatus}
         onMoveItemStatus={onMoveItemStatus}
+        onAdd={onAdd}
         archived={archived}
       />
       <AppTasksSection tasks={appTasks} canManage={manage} onEdit={onEdit} />
@@ -188,6 +197,7 @@ function GithubColumns({
   merged,
   boards,
   hasRepos,
+  repos,
   partial,
   error,
   tasks,
@@ -198,11 +208,13 @@ function GithubColumns({
   onEditItem,
   onMoveTaskStatus,
   onMoveItemStatus,
+  onAdd,
   archived,
 }: {
   merged: MergedBoard[];
   boards: LiveProjectBoard[] | null;
   hasRepos: boolean | null;
+  repos: LiveBoardRepo[];
   partial: boolean;
   error: string | null;
   tasks: BoardTask[];
@@ -213,6 +225,7 @@ function GithubColumns({
   onEditItem?: (item: MergedBoardItem, status: string) => void;
   onMoveTaskStatus?: (task: BoardTask, status: string) => Promise<boolean>;
   onMoveItemStatus?: (item: MergedBoardItem, status: string) => Promise<boolean>;
+  onAdd?: (projectId: string, status: string, title: string, repoId: number) => Promise<boolean>;
   archived: boolean;
 }) {
   // What is being dragged between project columns, and from which column.
@@ -221,6 +234,10 @@ function GithubColumns({
     | { kind: "item"; item: MergedBoardItem; from: string }
     | null
   >(null);
+  /** Draft "Add issue…" text, keyed by projectId + status. */
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** Last-chosen repo per project when more than one is linked. */
+  const [repoByProject, setRepoByProject] = useState<Record<string, number>>({});
   // Optimistic moves: card key -> the column it was dropped on. The card
   // renders there at once (dimmed, "Saving to GitHub…") while the write and
   // re-sync run; the entry clears when the live board catches up, and is
@@ -329,58 +346,96 @@ function GithubColumns({
             <Badge tone="blue">live</Badge>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {board.columns.map((col) => (
-              <BoardColumn
-                key={col.name}
-                name={col.name}
-                highlight={!!dragging && dragging.from !== col.name}
-                onDrop={
-                  canManage && dragging
-                    ? () => {
-                        if (dragging.from !== col.name) startMove(dragging, col.name);
-                        setDragging(null);
-                      }
-                    : undefined
-                }
-              >
-                {col.items.map((item) => {
-                  const saving = itemKey(item) in optimistic;
-                  const card = item.task ? (
-                    <TaskCard
-                      task={item.task}
-                      canManage={canManage}
-                      onEdit={onEdit}
-                      onDragStart={
-                        canManage && onMoveTaskStatus && !SETTLED_PAY_STATES.includes(item.task.pay_state)
-                          ? () => setDragging({ kind: "task", task: item.task!, from: col.name })
-                          : undefined
-                      }
-                    />
-                  ) : (
-                    <LiveItemCard
-                      item={item}
-                      canManage={canManage}
-                      onEdit={(it) => onEditItem?.(it, col.name)}
-                      onDragStart={
-                        canManage && onMoveItemStatus
-                          ? (it) => setDragging({ kind: "item", item: it, from: col.name })
-                          : undefined
-                      }
-                    />
-                  );
-                  return (
-                    <div key={item.itemNodeId} className={saving ? "opacity-60" : undefined}>
-                      {card}
-                      {saving && (
-                        <p role="status" className="mt-1 text-xs text-zinc-500">
-                          Saving to GitHub…
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </BoardColumn>
-            ))}
+            {board.columns.map((col) => {
+              const draftKey = `${board.projectId}:${col.name}`;
+              const selectedRepoId = repoByProject[board.projectId] ?? repos[0]?.id;
+              return (
+                <BoardColumn
+                  key={col.name}
+                  name={col.name}
+                  highlight={!!dragging && dragging.from !== col.name}
+                  onDrop={
+                    canManage && dragging
+                      ? () => {
+                          if (dragging.from !== col.name) startMove(dragging, col.name);
+                          setDragging(null);
+                        }
+                      : undefined
+                  }
+                  footer={
+                    canManage && onAdd && repos.length > 0 ? (
+                      <div className="mt-3 space-y-1">
+                        {repos.length > 1 && (
+                          <Select
+                            aria-label={`Repository for new issues in ${col.name}`}
+                            value={selectedRepoId ?? ""}
+                            onChange={(e) => {
+                              const id = Number(e.target.value);
+                              if (!Number.isFinite(id)) return;
+                              setRepoByProject((prev) => ({ ...prev, [board.projectId]: id }));
+                            }}
+                          >
+                            {repos.map((r) => (
+                              <option key={r.id} value={r.id}>{r.fullName}</option>
+                            ))}
+                          </Select>
+                        )}
+                        <Input
+                          value={drafts[draftKey] ?? ""}
+                          onChange={(e) => setDrafts((d) => ({ ...d, [draftKey]: e.target.value }))}
+                          placeholder="Add issue…"
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter" || selectedRepoId === undefined) return;
+                            const title = (drafts[draftKey] ?? "").trim();
+                            if (!title) return;
+                            void onAdd(board.projectId, col.name, title, selectedRepoId).then((ok) => {
+                              if (ok) setDrafts((d) => ({ ...d, [draftKey]: "" }));
+                            });
+                          }}
+                        />
+                      </div>
+                    ) : undefined
+                  }
+                >
+                  {col.items.map((item) => {
+                    const saving = itemKey(item) in optimistic;
+                    const card = item.task ? (
+                      <TaskCard
+                        task={item.task}
+                        canManage={canManage}
+                        onEdit={onEdit}
+                        onDragStart={
+                          canManage && onMoveTaskStatus && !SETTLED_PAY_STATES.includes(item.task.pay_state)
+                            ? () => setDragging({ kind: "task", task: item.task!, from: col.name })
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      <LiveItemCard
+                        item={item}
+                        canManage={canManage}
+                        onEdit={(it) => onEditItem?.(it, col.name)}
+                        onDragStart={
+                          canManage && onMoveItemStatus
+                            ? (it) => setDragging({ kind: "item", item: it, from: col.name })
+                            : undefined
+                        }
+                      />
+                    );
+                    return (
+                      <div key={item.itemNodeId} className={saving ? "opacity-60" : undefined}>
+                        {card}
+                        {saving && (
+                          <p role="status" className="mt-1 text-xs text-zinc-500">
+                            Saving to GitHub…
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </BoardColumn>
+              );
+            })}
           </div>
         </div>
       ))}

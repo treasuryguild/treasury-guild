@@ -77,6 +77,33 @@ export function describeHours(hours: number): string {
   return hours % 24 === 0 ? plural(hours / 24, "day") : plural(hours, "hour");
 }
 
+/**
+ * How `rules` differ from the community default, one line each
+ * ("Voting: 2 days, community default is 5 days"). Empty when they match.
+ * A number the method does not use (a quorum under lazy consensus) is left out.
+ */
+export function describeRulesChanges(rules: ProposalRules, baseline: ProposalRules): string[] {
+  const lines: string[] = [];
+  const push = (label: string, value: string, was: string) => {
+    if (value !== was) lines.push(`${label}: ${value}, community default is ${was}`);
+  };
+  push("Who votes", describeElectorate(rules), describeElectorate(baseline));
+  push("Decided by", describeMethod(rules), describeMethod(baseline));
+  push("Discussion", describeHours(rules.discussionHours), describeHours(baseline.discussionHours));
+  push("Voting", describeHours(rules.votingHours), describeHours(baseline.votingHours));
+  if (rules.hideResults !== baseline.hideResults) {
+    lines.push(rules.hideResults
+      ? "Results: hidden until voting closes, community default is shown while voting runs"
+      : "Results: shown while voting runs, community default is hidden until voting closes");
+  }
+  if (rules.recuseBeneficiaries !== baseline.recuseBeneficiaries) {
+    lines.push(rules.recuseBeneficiaries
+      ? "Those who gain from it are recused, which the community default does not do"
+      : "Those who gain from it may vote, which the community default recuses");
+  }
+  return lines;
+}
+
 /** "in 2 days" / "3 hours ago" / "in 12 minutes": the largest whole unit, rounded down. */
 export function relativeTime(iso: string, now: number): string {
   const ms = Date.parse(iso) - now;

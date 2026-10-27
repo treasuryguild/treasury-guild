@@ -81,6 +81,11 @@ beforeEach(() => {
     unsignedTxHex: "84a0", txHash: "f".repeat(64),
     outputs: [{ address: ALICE, assets: [{ unit: "lovelace", quantity: 2_500_000n }] }],
     totalByUnit: new Map([["lovelace", 3_500_000n], [GVTT, 15_000_000n]]),
+    recipients: [
+      { address: ALICE, treasuryId: null, label: "alice", amounts: [{ unit: "lovelace", quantity: 2_500_000n }, { unit: GVTT, quantity: 10_000_000n }] },
+      { address: OUTSIDE, treasuryId: null, label: null, amounts: [{ unit: "lovelace", quantity: 1_000_000n }] },
+      { address: DEV, treasuryId: DEV_ID, label: "Dev wallet", amounts: [{ unit: GVTT, quantity: 5_000_000n }] },
+    ],
     anchorsCarried: [],
   });
   mocks.withTx.mockImplementation(async (_row: unknown, fn: (tx: { id: string }) => Promise<unknown>) => fn({ id: "tx-1" }));
@@ -215,6 +220,76 @@ describe("build-payment API", () => {
     mocks.noPending.mockRejectedValue(new ConflictError("A pending transaction already exists for this treasury."));
     const response = await POST(request(body()), context);
     expect(response.status).toBe(409);
+    expect(mocks.build).not.toHaveBeenCalled();
+  });
+
+  it("drains every held asset to one recipient and persists the builder's final amounts", async () => {
+    const feeAdjusted = 99_800_000n;
+    mocks.build.mockResolvedValue({
+      unsignedTxHex: "84a0", txHash: "a".repeat(64),
+      outputs: [{ address: DEV, assets: [
+        { unit: "lovelace", quantity: feeAdjusted },
+        { unit: GVTT, quantity: 1_000_000_000n },
+      ] }],
+      totalByUnit: new Map([["lovelace", feeAdjusted], [GVTT, 1_000_000_000n]]),
+      recipients: [{
+        address: DEV, treasuryId: DEV_ID, label: "Dev wallet",
+        amounts: [{ unit: "lovelace", quantity: feeAdjusted }, { unit: GVTT, quantity: 1_000_000_000n }],
+      }],
+      anchorsCarried: [],
+    });
+    const response = await POST(request(body({
+      drain: true,
+      recipients: [{ address: DEV, amounts: {} }],
+    })), context);
+    expect(response.status).toBe(200);
+    expect(mocks.build).toHaveBeenCalledWith(expect.objectContaining({
+      drain: true,
+      recipients: [{
+        address: DEV, treasuryId: DEV_ID, label: "Dev wallet",
+        amounts: [
+          { unit: "lovelace", quantity: 100_000_000n },
+          { unit: GVTT, quantity: 1_000_000_000n },
+        ],
+      }],
+    }));
+    // Sibling drain is a transfer: no spend lines, no budget month.
+    expect(mocks.guard).toHaveBeenCalledWith("community", [], expect.anything());
+    expect(mocks.insert).toHaveBeenCalledWith([
+      {
+        transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID,
+        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, label: "Dev wallet",
+        unit: "lovelace", amount: feeAdjusted.toString(), budget_month: null,
+      },
+      {
+        transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID,
+        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, label: "Dev wallet",
+        unit: GVTT, amount: "1000000000", budget_month: null,
+      },
+    ]);
+  });
+
+  it("refuses a drain with more than one recipient before building", async () => {
+    const response = await POST(request(body({
+      drain: true,
+      recipients: [
+        { address: DEV, amounts: {} },
+        { address: ALICE, amounts: {} },
+      ],
+    })), context);
+    expect(response.status).toBe(400);
+    expect(mocks.context).not.toHaveBeenCalled();
+    expect(mocks.build).not.toHaveBeenCalled();
+  });
+
+  it("refuses a drain when the paying treasury holds nothing", async () => {
+    mocks.wallet.mockResolvedValue({ lovelace: 0n, utxoCount: 0, tokens: [] });
+    const response = await POST(request(body({
+      drain: true,
+      recipients: [{ address: DEV, amounts: {} }],
+    })), context);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "The paying treasury holds nothing to move" });
     expect(mocks.build).not.toHaveBeenCalled();
   });
 });

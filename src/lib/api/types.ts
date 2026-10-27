@@ -486,8 +486,10 @@ export interface GovernanceCommunitySettingsResponse {
 }
 /** GET /api/proposals/electorate */
 export interface ElectoratePreviewResponse {
-  /** Members who would vote on a proposal made now. */
+  /** Members in the electorate, before recusal. */
   count: number;
+  /** Members who could cast a ballot: `count`, minus beneficiaries when they are recused. */
+  eligible: number;
 }
 
 // --- Payment history (previous wallets) ------------------------------------------
@@ -626,8 +628,16 @@ export interface GithubIssueEditInput {
   state?: "open" | "closed";
   /** Project v2 Status option name to move the item to. */
   status?: string;
+  /** Complete GitHub assignee login set; [] clears. */
+  assignees?: string[];
   /** Bounty number fields by project field name; "" clears a field. */
   amounts?: Record<string, string>;
+}
+/** One github task_assignees row after an assignee edit + re-sync. */
+export interface GithubAssigneeSyncRow {
+  id: string;
+  ghLogin: string;
+  wallet: string | null;
 }
 /** POST /api/github/issue: an in-app issue edit pushed to GitHub, then re-synced. */
 export interface GithubIssueUpdateResponse {
@@ -640,6 +650,29 @@ export interface GithubIssueUpdateResponse {
   deleted: number;
   /** The edited task no longer matches the import rule and was removed. */
   taskRemoved: boolean;
+  /**
+   * Fresh github assignee rows after a sync that followed an assignees edit
+   * (ids change when logins are added). Absent when assignees were not edited.
+   */
+  githubAssignees?: GithubAssigneeSyncRow[];
+}
+/** POST /api/github/issue kind=create: a new issue opened on GitHub and added to the project. */
+export interface GithubIssueCreateResponse {
+  number: number;
+  url: string;
+  itemNodeId: string;
+}
+/** GET /api/github/editor-options: assignable users + project number fields. */
+export interface GithubEditorOptionsResponse {
+  assignableLogins: string[];
+  numberFieldNames: string[];
+}
+/** POST /api/github/project-field: ensure a bounty NUMBER field on the project. */
+export interface GithubProjectFieldResponse {
+  fieldName: string;
+  created: boolean;
+  /** On-chain unit when created from a wallet token; null for ADA. */
+  unit: string | null;
 }
 export interface InstallUrlResponse {
   url: string;

@@ -27,12 +27,13 @@ export const GET = sessionRoute(async (req, { session }) => {
   const communityId = await requireWorkgroupCommunity(workgroupId);
   await requireMember(communityId, session.wallet);
   if (!(await workgroupIsActive(workgroupId))) {
-    return { boards: [], hasRepos: true } satisfies LiveBoardResponse;
+    return { boards: [], hasRepos: true, repos: [] } satisfies LiveBoardResponse;
   }
 
   const repos = await loadWorkgroupRepos(workgroupId);
+  const repoList = repos.map((r) => ({ id: r.id, fullName: r.full_name }));
   if (repos.length === 0) {
-    return { boards: [], hasRepos: false } satisfies LiveBoardResponse;
+    return { boards: [], hasRepos: false, repos: [] } satisfies LiveBoardResponse;
   }
 
   // Stored links first; fall back to discovering the repos' open projects
@@ -98,6 +99,7 @@ export const GET = sessionRoute(async (req, { session }) => {
   return {
     boards,
     hasRepos: true,
+    repos: repoList,
     ...(failures > 0 ? { partial: true } : {}),
   } satisfies LiveBoardResponse;
 });

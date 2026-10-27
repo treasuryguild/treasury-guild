@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { METHOD_CHOICES } from "@/lib/constants";
 import {
-  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, proposalTiming, relativeTime, voterName,
+  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, describeRulesChanges, proposalTiming, relativeTime, voterName,
 } from "./labels";
 import { DEFAULT_SETTINGS, rulesFor } from "./rules";
 
@@ -22,6 +22,18 @@ describe("rule descriptions", () => {
     expect(describeHours(0)).toBe("none");
     expect(describeHours(48)).toBe("2 days");
     expect(describeHours(36)).toBe("36 hours");
+  });
+
+  it("names only the rules that differ from the community default", () => {
+    const baseline = rulesFor(DEFAULT_SETTINGS.decision);
+    expect(describeRulesChanges(baseline, baseline)).toEqual([]);
+    expect(describeRulesChanges({ ...baseline, votingHours: 48, hideResults: false }, baseline)).toEqual([
+      "Voting: 2 days, community default is 5 days",
+      "Results: shown while voting runs, community default is hidden until voting closes",
+    ]);
+    // A quorum does not decide a lazy-consensus proposal, so changing it is not named.
+    const lazy = rulesFor(DEFAULT_SETTINGS.task);
+    expect(describeRulesChanges({ ...lazy, quorumPct: 80 }, lazy)).toEqual([]);
   });
 
   it("labels every choice of every method", () => {

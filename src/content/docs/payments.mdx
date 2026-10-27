@@ -18,9 +18,11 @@ Each row starts with what kind of recipient it is:
 
 Then enter an amount for each token the treasury holds: ADA and every native token in the wallet are offered, in the token's own units (10 GVTT, 2.5 ADA). Leave a token blank to pay none of it. Two rows naming the same address are paid as one output with the sum. Treasury Guild reads what the treasury holds from the chain, so no token needs to be registered.
 
-The build is refused while a row has no recipient, an invalid or wrong-network address, the paying treasury's own address, no amount, a zero or malformed amount, or an amount with more decimals than the token supports; each problem is listed under the summary, naming the row. **Exceeds treasury balance** means the treasury does not hold enough of that token for the sum of every row. At most **40** recipients fit in one transaction.
+**Move all assets** on a recipient row fills every held token and builds a **drain**: one recipient, every UTxO spent, the network fee taken from ADA, and nothing left on the paying treasury. Amounts are a preview until build time (ADA after the fee is what is recorded). Prefer **Another treasury** when you are closing a wallet so the move stays a transfer and is not charged to a budget; an outside address is ordinary spending of the whole balance. **Edit amounts** leaves drain mode so you can type amounts again. A drain always pays a single recipient; **Add recipient** is hidden while it is on.
 
-Token-only outputs carry a small amount of ADA (about 1.2 to 1.5 ADA), the ledger minimum per output. It is not part of the payment and is not recorded as such.
+The build is refused while a row has no recipient, an invalid or wrong-network address, the paying treasury's own address, no amount, a zero or malformed amount, or an amount with more decimals than the token supports; each problem is listed under the summary, naming the row. **Exceeds treasury balance** means the treasury does not hold enough of that token for the sum of every row. At most **40** recipients fit in one transaction. A drain is refused when the wallet holds nothing, or not enough ADA after the fee to carry its tokens.
+
+Token-only outputs carry a small amount of ADA (about 1.2 to 1.5 ADA), the ledger minimum per output. It is not part of the payment and is not recorded as such. A drain always sends enough ADA with the tokens (the remainder after the fee).
 
 ## Budget period
 
@@ -32,7 +34,7 @@ The period is written into the [on-chain record](#on-chain-record) as `YYYY-MM` 
 
 ## Transfers between your treasuries
 
-An output to another of the community's treasuries is a **transfer**, not spending: it takes no budget period, counts against no budget, and is marked *Transfer* on the transaction page. Once the chain confirms it, the receiving treasury logs the inflow as an internal transfer without review (see [Several treasuries](/docs/treasury#several-treasuries)), and the Dashboard's funding flow draws it between the two wallets. A payment can mix transfers and other recipients; only the other recipients are charged to the budget.
+An output to another of the community's treasuries is a **transfer**, not spending: it takes no budget period, counts against no budget, and is marked *Transfer* on the transaction page. Once the chain confirms it, the receiving treasury logs the inflow as an internal transfer without review (see [Several treasuries](/docs/treasury#several-treasuries)), and the Dashboard's funding flow draws it between the two wallets. A payment can mix transfers and other recipients; only the other recipients are charged to the budget. Use **Move all assets** with **Another treasury** when you want to empty one wallet into another (for example before you stop using it).
 
 **Fund this budget** on an applied [budget proposal](/docs/governance#funding-a-voted-budget) opens this page with such a transfer filled in: the workgroup's treasury as the recipient, the period's voted amounts, and the proposal to cite. A notice at the top says which budget is being funded. Pick the treasury that pays (not the one being funded), edit the amounts if you like, and build; the transfer's on-chain record then cites the budget proposal under `g`. A voted amount in a token the paying treasury does not hold is listed as a problem until you clear it or pay from another treasury.
 

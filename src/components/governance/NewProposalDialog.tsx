@@ -8,19 +8,21 @@ import { apiFetch } from "@/lib/api/client";
 import type { CreateProposalResponse, ElectoratePreviewResponse } from "@/lib/api/types";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
 import { amountsFromRows, type AmountRow } from "@/lib/boardTypes";
-import { MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, ProposalKind, TaskSource } from "@/lib/constants";
+import { MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, ProposalKind, Proposers, TaskSource } from "@/lib/constants";
 import { errorMessage } from "@/lib/errors";
+import { noEligibleVotersReason } from "@/lib/governance/electorate";
 import { KIND_LABELS, voterName } from "@/lib/governance/labels";
 import { taskExceedsLazyCap } from "@/lib/governance/payload";
-import { rulesFor } from "@/lib/governance/rules";
+import { rulesFor, sameRules } from "@/lib/governance/rules";
 import type { MemberWithContributor } from "@/lib/db/types";
 import { mayPropose } from "@/lib/roles";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { GovernanceSettingsByKind } from "@/hooks/useProposals";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
-import { Button, ErrorText, Field, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Button, ErrorText, Field, Input, Modal, Select, Textarea, WarningText } from "@/components/ui";
 import { RewardRowsField } from "@/components/calls/RewardRowsField";
+import { AdjustableProposalRules, useTrackedRules } from "./ProposalRulesEditor";
 import { ProposalRulesSummary } from "./ProposalRulesSummary";
 
 /** The kinds made from this dialog. */
@@ -85,35 +87,64 @@ export function NewProposalDialog({
   } catch (err) {
     amountsError = errorMessage(err, "Invalid bounty");
   }
-  const rules = rulesFor(settings[kind], {
+  const baseline = rulesFor(settings[kind], {
     escalate: kind === ProposalKind.Task && !!amounts &&
       taskExceedsLazyCap(amounts, adaLovelaceFromAmounts(amounts), settings.task.lazyCapLovelace),
   });
+  const [rules, setRules] = useTrackedRules(baseline);
+  // A task's rules stay the community's unless an admin or a lead of its board changes them.
+  const mayAdjust = kind !== ProposalKind.Task || mayPropose(roles, Proposers.Managers, workgroupId ? [workgroupId] : []);
+  const shown = mayAdjust ? rules : baseline;
+  const customized = mayAdjust && !sameRules(rules, baseline);
   const concerned = kind === ProposalKind.Task && workgroupId ? workgroupId : "";
-  const electorate = useAsyncData(`${communityId}:${kind}:${concerned}`, () =>
-    apiFetch<ElectoratePreviewResponse>("/api/proposals/electorate", {
-      query: { communityId, kind, workgroupIds: concerned || undefined },
+  const beneficiaries = kind === ProposalKind.Workgroup
+    ? leads
+    : kind === ProposalKind.Task && assignSelf && sessionWallet ? [sessionWallet] : [];
+  const electorate = useAsyncData(
+    `${communityId}:${kind}:${concerned}:${shown.electorate}:${shown.activityMonths}:${shown.minMemberDays}:${shown.recuseBeneficiaries}:${beneficiaries.join(",")}`,
+    () => apiFetch<ElectoratePreviewResponse>("/api/proposals/electorate", {
+      query: {
+        communityId, kind, workgroupIds: concerned || undefined,
+        electorate: shown.electorate, activityMonths: shown.activityMonths, minMemberDays: shown.minMemberDays,
+        recuseBeneficiaries: shown.recuseBeneficiaries,
+        beneficiaries: beneficiaries.length ? beneficiaries.join(",") : undefined,
+      },
     }));
+  const blockedReason = electorate.data
+    ? noEligibleVotersReason(electorate.data.count, electorate.data.eligible) : null;
 
   const ready = kind === ProposalKind.Workgroup
     ? !!name.trim()
     : kind === ProposalKind.Task ? !!title.trim() && !!workgroupId && !!amounts : !!title.trim();
 
+  const defaultLeads = sessionWallet ? [sessionWallet] : [];
+  const dirty = !!(title.trim() || body.trim() || discussionUrl.trim() || name.trim() || description.trim()
+    || !assignSelf || customized
+    || leads.length !== defaultLeads.length || leads.some((w, i) => w !== defaultLeads[i])
+    || rows.length !== 1 || rows[0]?.ticker !== "ADA" || rows[0]?.amount.trim());
+
+  function requestClose() {
+    if (create.busy) return;
+    if (dirty && !window.confirm("Discard this draft proposal?")) return;
+    onClose();
+  }
+
   async function submit() {
     const link = discussionUrl.trim() || null;
+    const override = customized ? { rules: shown } : {};
     const request =
       kind === ProposalKind.Workgroup
         ? { kind, communityId, title: `New workgroup: ${name.trim()}`.slice(0, MAX_PROPOSAL_TITLE), body, discussionUrl: link,
-          workgroup: { name: name.trim(), description, leads } }
+          workgroup: { name: name.trim(), description, leads }, ...override }
         : kind === ProposalKind.Task
-          ? { kind, communityId, title: title.trim(), body, discussionUrl: link, task: { workgroupId, amounts: amounts!, assignSelf } }
-          : { kind, communityId, title: title.trim(), body, discussionUrl: link };
+          ? { kind, communityId, title: title.trim(), body, discussionUrl: link, task: { workgroupId, amounts: amounts!, assignSelf }, ...override }
+          : { kind, communityId, title: title.trim(), body, discussionUrl: link, ...override };
     const created = await create.run(() => apiFetch<CreateProposalResponse>("/api/proposals", { body: request }));
     if (created) onCreated(created.id);
   }
 
   return (
-    <Modal open onClose={onClose} busy={create.busy} scroll title="New proposal" className="w-full max-w-2xl">
+    <Modal open onClose={requestClose} busy={create.busy} scroll title="New proposal" className="w-full max-w-2xl">
       <div className="space-y-4">
         {kinds.length > 1 && (
           <Field label="Kind">
@@ -190,13 +221,20 @@ export function NewProposalDialog({
         <Field label="Discussion link (optional)" hint="Where members discuss it: a forum thread, a Discord channel.">
           <Input aria-label="Discussion link" value={discussionUrl} placeholder="https://" onChange={(e) => setDiscussionUrl(e.target.value)} />
         </Field>
-        <div className="rounded-xl bg-zinc-800/60 p-3">
-          <ProposalRulesSummary rules={rules} electorate={electorate.data?.count} estimate />
-        </div>
+        {mayAdjust ? (
+          <AdjustableProposalRules kind={kind} rules={rules} baseline={baseline} onChange={setRules}>
+            <ProposalRulesSummary rules={shown} electorate={electorate.data?.eligible} estimate />
+          </AdjustableProposalRules>
+        ) : (
+          <div className="rounded-xl bg-zinc-800/60 p-3">
+            <ProposalRulesSummary rules={shown} electorate={electorate.data?.eligible} estimate />
+          </div>
+        )}
+        <WarningText>{blockedReason}</WarningText>
         <ErrorText error={create.error} />
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={create.busy}>Cancel</Button>
-          <Button loading={create.busy} disabled={!ready} onClick={() => void submit()}>Make proposal</Button>
+          <Button variant="secondary" onClick={requestClose} disabled={create.busy}>Cancel</Button>
+          <Button loading={create.busy} disabled={!ready || blockedReason !== null} onClick={() => void submit()}>Make proposal</Button>
         </div>
       </div>
     </Modal>
