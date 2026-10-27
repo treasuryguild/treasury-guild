@@ -385,6 +385,10 @@ describe("createProposalSchema", () => {
   it("accepts rules within the settings bounds and refuses the rest", () => {
     const rules = rulesFor(DEFAULT_SETTINGS.decision);
     expect(createProposalSchema.parse({ kind: "decision", ...text, rules })).toMatchObject({ rules });
+    expect(createProposalSchema.parse({
+      kind: "decision", ...text, replacesProposalId: "10000000-0000-4000-8000-000000000001",
+    })).toMatchObject({ replacesProposalId: "10000000-0000-4000-8000-000000000001" });
+    expect(createProposalSchema.safeParse({ kind: "decision", ...text, replacesProposalId: "not-a-uuid" }).success).toBe(false);
     const bad = (patch: Record<string, unknown>) =>
       createProposalSchema.safeParse({ kind: "decision", ...text, rules: { ...rules, ...patch } }).success;
     expect(bad({ quorumPct: 0 })).toBe(true);

@@ -63,7 +63,7 @@ const RULES = rulesFor({ ...DEFAULT_SETTINGS.decision, enabled: true, discussion
 const prepared = (patch: Record<string, unknown> = {}) => ({
   communityId: CID, kind: "decision", title: "Adopt the handbook", body: "Why.", discussionUrl: null, payload: {},
   contentHash: "a".repeat(64), rules: RULES, rulesHash: "b".repeat(64), workgroupIds: [], beneficiaries: [],
-  proposer: "addr_w", budgetOwners: [], ...patch,
+  proposer: "addr_w", budgetOwners: [], replacesProposalId: null, ...patch,
 });
 const DECISION = { community: "signius", kind: "decision", title: "Adopt the handbook", body: "Why." };
 const WORKGROUP_CONTEXT = {

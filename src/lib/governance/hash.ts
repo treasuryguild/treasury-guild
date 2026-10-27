@@ -14,6 +14,8 @@ export function proposalContentHash(content: {
   body: string;
   discussionUrl: string | null;
   payload: ProposalPayload;
+  /** Public number of the proposal this revises, or null when it is not a revision (0068). */
+  replaces: number | null;
 }): string {
   return sha256Hex(canonicalJson(content));
 }

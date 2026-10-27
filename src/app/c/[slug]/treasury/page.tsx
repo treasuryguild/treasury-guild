@@ -72,6 +72,20 @@ export default function TreasuryPage({
       return (data ?? []) as TransactionSummary[];
     },
   );
+  // Pending txs are loaded separately so they never fall out of the recent
+  // limit(20) window (at most one pending per treasury).
+  const pendingTxs = useAsyncData(
+    treasuryIds.length > 0 ? `pending:${treasuryIds.join(",")}` : null,
+    async () => {
+      const { data } = await browserClient()
+        .from("transactions")
+        .select(TRANSACTION_SUMMARY_COLUMNS)
+        .in("treasury_id", treasuryIds)
+        .eq("state", TxState.Pending)
+        .order("created_at", { ascending: false });
+      return (data ?? []) as TransactionSummary[];
+    },
+  );
   // Outgoing txs found on-chain that the app has no record of (external_txs).
   const externals = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
@@ -97,13 +111,15 @@ export default function TreasuryPage({
   // Poll the chain for treasuries not checked in the last two minutes, in the
   // background; the lists reload if anything was polled. Balances are live.
   const reloadTxs = txs.reload;
+  const reloadPending = pendingTxs.reload;
   const reloadExternals = externals.reload;
   const reloadQueue = importQueue.reload;
   const reloadActivity = useCallback(() => {
     reloadTxs();
+    reloadPending();
     reloadExternals();
     reloadQueue();
-  }, [reloadTxs, reloadExternals, reloadQueue]);
+  }, [reloadTxs, reloadPending, reloadExternals, reloadQueue]);
   const sync = useChainSync(community?.id, reloadActivity);
   const balances = useWalletAssetsMany(list.map((t) => t.address));
   // Which treasury's details dialog is open (native script, CBOR, signers).
@@ -122,9 +138,33 @@ export default function TreasuryPage({
   // Network is per community (every treasury matches it), so explorer links
   // take it from the community row.
   const network = asNetwork(community?.network ?? 0);
-  const activity = recentTreasuryActivity(txs.data ?? [], externals.data ?? [], RECENT_TX_LIMIT);
+  const pending = pendingTxs.data ?? [];
+  // Pending rows have their own section; keep them out of the recent feed.
+  const activity = recentTreasuryActivity(
+    (txs.data ?? []).filter((t) => t.state !== TxState.Pending),
+    externals.data ?? [],
+    RECENT_TX_LIMIT,
+  );
   const treasuryName = (id: string) => list.find((t) => t.id === id)?.name ?? "Unknown wallet";
   const activityLoading = txs.loading || externals.loading;
+  const appTxCard = (tx: TransactionSummary) => (
+    <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
+      <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <p className="text-sm">{tx.description ?? "Transaction"}</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+            {formatDate(tx.created_at, "datetime")} ·{" "}
+            {tx.signed_addresses.length} signature(s)
+          </p>
+        </div>
+        <span className="flex flex-wrap items-center gap-2">
+          <TxKindBadge kind={tx.kind} />
+          <TxStateBadge state={tx.state} />
+        </span>
+      </Card>
+    </Link>
+  );
 
   return (
     <div>
@@ -232,30 +272,19 @@ export default function TreasuryPage({
         </div>
       )}
 
+      {pending.length > 0 && (
+        <div className="mb-8">
+          <SectionTitle>Pending</SectionTitle>
+          <div className="space-y-3">{pending.map(appTxCard)}</div>
+        </div>
+      )}
+
       <SectionTitle>Transactions</SectionTitle>
       <ChainSyncStatus {...sync} className="-mt-2 mb-3" />
       <div className="space-y-3">
         {activity.map((item) => {
           if (item.kind === "app") {
-            const tx = item.tx;
-            return (
-              <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
-                <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
-                  <div className="min-w-0">
-                    <p className="text-sm">{tx.description ?? "Transaction"}</p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
-                      {formatDate(tx.created_at, "datetime")} ·{" "}
-                      {tx.signed_addresses.length} signature(s)
-                    </p>
-                  </div>
-                  <span className="flex flex-wrap items-center gap-2">
-                    <TxKindBadge kind={tx.kind} />
-                    <TxStateBadge state={tx.state} />
-                  </span>
-                </Card>
-              </Link>
-            );
+            return appTxCard(item.tx);
           }
           // An outgoing tx seen on-chain without an app record: no signing
           // page to open, so it links to the explorer.

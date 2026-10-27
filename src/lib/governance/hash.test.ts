@@ -26,6 +26,7 @@ const content = {
   payload: {
     task: { workgroupId: "wg-1", amounts: { ADA: "25", AGIX: "100" }, bountyLovelace: "25000000", assignSelf: true },
   },
+  replaces: null as number | null,
 };
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -67,13 +68,13 @@ describe("proposalRulesHash", () => {
 
 describe("proposalContentHash", () => {
   it("is the sha256 of the content as sorted-key JSON, nested objects included", () => {
-    expect(proposalContentHash({ kind: ProposalKind.Decision, title: "T", body: "B", discussionUrl: null, payload: {} })).toBe(
-      sha256('{"body":"B","discussionUrl":null,"kind":"decision","payload":{},"title":"T"}'),
+    expect(proposalContentHash({ kind: ProposalKind.Decision, title: "T", body: "B", discussionUrl: null, payload: {}, replaces: null })).toBe(
+      sha256('{"body":"B","discussionUrl":null,"kind":"decision","payload":{},"replaces":null,"title":"T"}'),
     );
     expect(proposalContentHash(content)).toBe(
       sha256(
         '{"body":"A page per flow.","discussionUrl":null,"kind":"task","payload":{"task":{"amounts":{"ADA":"25","AGIX":"100"},' +
-          '"assignSelf":true,"bountyLovelace":"25000000","workgroupId":"wg-1"}},"title":"Write the docs"}',
+          '"assignSelf":true,"bountyLovelace":"25000000","workgroupId":"wg-1"}},"replaces":null,"title":"Write the docs"}',
       ),
     );
   });
@@ -87,6 +88,7 @@ describe("proposalContentHash", () => {
       body: "A page per flow.",
       title: "Write the docs",
       kind: ProposalKind.Task,
+      replaces: null,
     };
     expect(proposalContentHash(shuffled)).toBe(proposalContentHash(content));
   });
@@ -103,6 +105,7 @@ describe("proposalContentHash", () => {
     expect(
       proposalContentHash({ ...content, payload: { task: { ...content.payload.task, assignSelf: false } } }),
     ).not.toBe(base);
+    expect(proposalContentHash({ ...content, replaces: 3 })).not.toBe(base);
   });
 
   it("keeps array order significant: reordered budget steps are a different proposal", () => {
@@ -117,7 +120,7 @@ describe("proposalContentHash", () => {
       reason: "",
     });
     const budget = (ids: string[]) =>
-      proposalContentHash({ kind: ProposalKind.Budget, title: "B", body: "", discussionUrl: null, payload: { steps: ids.map(step) } });
+      proposalContentHash({ kind: ProposalKind.Budget, title: "B", body: "", discussionUrl: null, payload: { steps: ids.map(step) }, replaces: null });
     expect(budget(["a", "b"])).toBe(budget(["a", "b"]));
     expect(budget(["a", "b"])).not.toBe(budget(["b", "a"]));
   });

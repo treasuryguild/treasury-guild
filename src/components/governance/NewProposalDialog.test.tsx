@@ -128,6 +128,33 @@ it("names the proposer as a beneficiary of a task assigned to them", async () =>
   })));
 });
 
+it("prefills a revision and submits replacesProposalId with the frozen rules", async () => {
+  const onCreated = vi.fn();
+  const reviseFrom = {
+    id: "p-old", number: 4, kind: ProposalKind.Decision, title: "Old title", body: "Old body",
+    discussion_url: "https://forum.example/t/1", payload: {}, rules: { ...rulesFor(settings.decision), votingHours: 96 },
+  };
+  render(
+    <NewProposalDialog communityId="c-1" kinds={["decision"]} settings={settings} roles={member}
+      workgroups={[]} members={[]} sessionWallet={null} reviseFrom={reviseFrom as never}
+      onClose={vi.fn()} onCreated={onCreated} />,
+  );
+  expect(screen.getByLabelText("Proposal title")).toHaveProperty("value", "Old title");
+  expect(screen.getByLabelText("Proposal text")).toHaveProperty("value", "Old body");
+  expect(screen.getByLabelText("Discussion link")).toHaveProperty("value", "https://forum.example/t/1");
+  expect(screen.getByText(/Revise proposal #4/)).toBeTruthy();
+  expect(screen.getByText(/fresh discussion period/)).toBeTruthy();
+
+  await userEvent.click(screen.getByRole("button", { name: "Submit revision" }));
+  await waitFor(() => expect(onCreated).toHaveBeenCalledWith("p-1"));
+  const body = vi.mocked(apiFetch).mock.calls.find((call) => call[0] === "/api/proposals")?.[1] as {
+    body: { replacesProposalId?: string; rules?: { votingHours: number }; title: string };
+  };
+  expect(body.body).toMatchObject({
+    replacesProposalId: "p-old", title: "Old title", rules: expect.objectContaining({ votingHours: 96 }),
+  });
+});
+
 it("disables making a proposal nobody could vote on", async () => {
   vi.mocked(apiFetch).mockImplementation(async () => ({ count: 0, eligible: 0 }));
   const { user, onCreated } = setup();

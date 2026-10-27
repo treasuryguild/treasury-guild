@@ -796,6 +796,11 @@ const proposalText = {
   discussionUrl: optionalUrl,
   /** This proposal's rules. Omit to freeze the community's defaults for the kind. */
   rules: proposalRulesInput.optional(),
+  /**
+   * Withdraw this discussion proposal in the same step and link the new one as
+   * its revision (0068). Same proposer, community and kind; clock resets.
+   */
+  replacesProposalId: id.optional(),
 };
 export const createProposalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal(ProposalKind.Decision), ...proposalText }),

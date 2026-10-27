@@ -3,18 +3,20 @@
 // Make a proposal of any kind the viewer may propose, except budgets (made
 // from the Budgets page): a decision, a new workgroup, or a task on an app
 // board. Shows the rules it will be decided by and about how many will vote.
+// With reviseFrom, prefills from a discussion proposal and submits a linked
+// replacement that withdraws it (0068).
 import { useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import type { CreateProposalResponse, ElectoratePreviewResponse } from "@/lib/api/types";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
-import { amountsFromRows, type AmountRow } from "@/lib/boardTypes";
+import { amountsFromRows, rewardRows, type AmountRow } from "@/lib/boardTypes";
 import { MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, ProposalKind, Proposers, TaskSource } from "@/lib/constants";
+import type { MemberWithContributor, ProposalRow } from "@/lib/db/types";
 import { errorMessage } from "@/lib/errors";
 import { noEligibleVotersReason } from "@/lib/governance/electorate";
 import { KIND_LABELS, voterName } from "@/lib/governance/labels";
-import { taskExceedsLazyCap } from "@/lib/governance/payload";
+import { isTaskPayload, isWorkgroupPayload, taskExceedsLazyCap } from "@/lib/governance/payload";
 import { rulesFor, sameRules } from "@/lib/governance/rules";
-import type { MemberWithContributor } from "@/lib/db/types";
 import { mayPropose } from "@/lib/roles";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -49,8 +51,13 @@ export function proposableKinds(
     : mayPropose(roles, settings[kind].proposers, [])));
 }
 
+function isDialogKind(kind: string): kind is DialogKind {
+  return (DIALOG_KINDS as readonly string[]).includes(kind);
+}
+
 export function NewProposalDialog({
-  communityId, kinds, initialKind, initialWorkgroupId, settings, roles, workgroups, members, sessionWallet, onClose, onCreated,
+  communityId, kinds, initialKind, initialWorkgroupId, settings, roles, workgroups, members, sessionWallet,
+  reviseFrom, onClose, onCreated,
 }: {
   communityId: string;
   kinds: DialogKind[];
@@ -61,23 +68,35 @@ export function NewProposalDialog({
   workgroups: readonly WorkgroupSummary[];
   members: readonly MemberWithContributor[];
   sessionWallet: string | null;
+  /** Prefill from this discussion proposal and replace it on submit (0068). */
+  reviseFrom?: ProposalRow;
   onClose: () => void;
   onCreated: (proposalId: string) => void;
 }) {
-  const [kind, setKind] = useState<DialogKind>(initialKind && kinds.includes(initialKind) ? initialKind : kinds[0]!);
+  const revising = !!reviseFrom;
+  const [kind, setKind] = useState<DialogKind>(() => {
+    if (reviseFrom && isDialogKind(reviseFrom.kind)) return reviseFrom.kind;
+    return initialKind && kinds.includes(initialKind) ? initialKind : kinds[0]!;
+  });
   const boards = useMemo(() => taskBoards(workgroups, settings, roles), [workgroups, settings, roles]);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [discussionUrl, setDiscussionUrl] = useState("");
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [leads, setLeads] = useState<string[]>(sessionWallet ? [sessionWallet] : []);
-  const [workgroupId, setWorkgroupId] = useState(
-    boards.some((b) => b.id === initialWorkgroupId) ? initialWorkgroupId! : boards[0]?.id ?? "",
+  const taskPayload = reviseFrom && isTaskPayload(reviseFrom.payload) ? reviseFrom.payload.task : null;
+  const workgroupPayload = reviseFrom && isWorkgroupPayload(reviseFrom.payload) ? reviseFrom.payload.workgroup : null;
+
+  const [title, setTitle] = useState(reviseFrom && kind !== ProposalKind.Workgroup ? reviseFrom.title : "");
+  const [body, setBody] = useState(reviseFrom?.body ?? "");
+  const [discussionUrl, setDiscussionUrl] = useState(reviseFrom?.discussion_url ?? "");
+  const [name, setName] = useState(workgroupPayload?.name ?? "");
+  const [description, setDescription] = useState(workgroupPayload?.description ?? "");
+  const [leads, setLeads] = useState<string[]>(
+    workgroupPayload?.leads ?? (sessionWallet ? [sessionWallet] : []),
   );
-  const [rows, setRows] = useState<AmountRow[]>([{ ticker: "ADA", amount: "" }]);
-  const [assignSelf, setAssignSelf] = useState(true);
-  const create = useAsyncAction("Failed to make the proposal");
+  const [workgroupId, setWorkgroupId] = useState(() => {
+    if (taskPayload && boards.some((b) => b.id === taskPayload.workgroupId)) return taskPayload.workgroupId;
+    return boards.some((b) => b.id === initialWorkgroupId) ? initialWorkgroupId! : boards[0]?.id ?? "";
+  });
+  const [rows, setRows] = useState<AmountRow[]>(() => rewardRows(taskPayload?.amounts));
+  const [assignSelf, setAssignSelf] = useState(taskPayload?.assignSelf ?? true);
+  const create = useAsyncAction(revising ? "Failed to revise the proposal" : "Failed to make the proposal");
 
   // The bounty as the board stores it; null (and the error) while it is invalid.
   let amounts: Record<string, string> | null = null;
@@ -87,15 +106,18 @@ export function NewProposalDialog({
   } catch (err) {
     amountsError = errorMessage(err, "Invalid bounty");
   }
-  const baseline = rulesFor(settings[kind], {
+  const communityBaseline = rulesFor(settings[kind], {
     escalate: kind === ProposalKind.Task && !!amounts &&
       taskExceedsLazyCap(amounts, adaLovelaceFromAmounts(amounts), settings.task.lazyCapLovelace),
   });
+  // A revision keeps the frozen rules as its tracked baseline so community
+  // defaults do not silently replace them.
+  const baseline = reviseFrom?.rules ?? communityBaseline;
   const [rules, setRules] = useTrackedRules(baseline);
   // A task's rules stay the community's unless an admin or a lead of its board changes them.
   const mayAdjust = kind !== ProposalKind.Task || mayPropose(roles, Proposers.Managers, workgroupId ? [workgroupId] : []);
   const shown = mayAdjust ? rules : baseline;
-  const customized = mayAdjust && !sameRules(rules, baseline);
+  const customized = mayAdjust && !sameRules(rules, communityBaseline);
   const concerned = kind === ProposalKind.Task && workgroupId ? workgroupId : "";
   const beneficiaries = kind === ProposalKind.Workgroup
     ? leads
@@ -118,35 +140,46 @@ export function NewProposalDialog({
     : kind === ProposalKind.Task ? !!title.trim() && !!workgroupId && !!amounts : !!title.trim();
 
   const defaultLeads = sessionWallet ? [sessionWallet] : [];
-  const dirty = !!(title.trim() || body.trim() || discussionUrl.trim() || name.trim() || description.trim()
+  const dirty = revising || !!(title.trim() || body.trim() || discussionUrl.trim() || name.trim() || description.trim()
     || !assignSelf || customized
     || leads.length !== defaultLeads.length || leads.some((w, i) => w !== defaultLeads[i])
     || rows.length !== 1 || rows[0]?.ticker !== "ADA" || rows[0]?.amount.trim());
 
   function requestClose() {
     if (create.busy) return;
-    if (dirty && !window.confirm("Discard this draft proposal?")) return;
+    if (dirty && !window.confirm(revising
+      ? "Discard this revision? The original proposal stays open."
+      : "Discard this draft proposal?")) return;
     onClose();
   }
 
   async function submit() {
     const link = discussionUrl.trim() || null;
-    const override = customized ? { rules: shown } : {};
+    // A revision always freezes the (possibly edited) rules from the dialog.
+    const override = revising || customized ? { rules: shown } : {};
+    const replace = revising ? { replacesProposalId: reviseFrom.id } : {};
     const request =
       kind === ProposalKind.Workgroup
         ? { kind, communityId, title: `New workgroup: ${name.trim()}`.slice(0, MAX_PROPOSAL_TITLE), body, discussionUrl: link,
-          workgroup: { name: name.trim(), description, leads }, ...override }
+          workgroup: { name: name.trim(), description, leads }, ...override, ...replace }
         : kind === ProposalKind.Task
-          ? { kind, communityId, title: title.trim(), body, discussionUrl: link, task: { workgroupId, amounts: amounts!, assignSelf }, ...override }
-          : { kind, communityId, title: title.trim(), body, discussionUrl: link, ...override };
+          ? { kind, communityId, title: title.trim(), body, discussionUrl: link, task: { workgroupId, amounts: amounts!, assignSelf }, ...override, ...replace }
+          : { kind, communityId, title: title.trim(), body, discussionUrl: link, ...override, ...replace };
     const created = await create.run(() => apiFetch<CreateProposalResponse>("/api/proposals", { body: request }));
     if (created) onCreated(created.id);
   }
 
   return (
-    <Modal open onClose={requestClose} busy={create.busy} scroll title="New proposal" className="w-full max-w-2xl">
+    <Modal open onClose={requestClose} busy={create.busy} scroll
+      title={revising ? `Revise proposal #${reviseFrom.number}` : "New proposal"} className="w-full max-w-2xl">
       <div className="space-y-4">
-        {kinds.length > 1 && (
+        {revising && (
+          <p className="text-sm text-zinc-400">
+            Submitting withdraws #{reviseFrom.number} and opens a new proposal with a fresh discussion period.
+            Closing this dialog without submitting leaves #{reviseFrom.number} open.
+          </p>
+        )}
+        {!revising && kinds.length > 1 && (
           <Field label="Kind">
             <Select aria-label="Proposal kind" value={kind} onChange={(e) => setKind(e.target.value as DialogKind)}>
               {kinds.map((k) => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
@@ -186,7 +219,7 @@ export function NewProposalDialog({
         {kind === ProposalKind.Task && (
           <>
             <Field label="Board">
-              <Select aria-label="Board" value={workgroupId} onChange={(e) => setWorkgroupId(e.target.value)}>
+              <Select aria-label="Board" value={workgroupId} onChange={(e) => setWorkgroupId(e.target.value)} disabled={revising}>
                 {boards.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </Select>
             </Field>
@@ -212,7 +245,9 @@ export function NewProposalDialog({
               <Input aria-label="Proposal title" value={title} maxLength={MAX_PROPOSAL_TITLE} onChange={(e) => setTitle(e.target.value)}
                 placeholder="Adopt a code of conduct" />
             </Field>
-            <Field label="What members vote on" hint="State the decision so a yes or a no is unambiguous. It cannot be edited once made.">
+            <Field label="What members vote on" hint={revising
+              ? "State the decision so a yes or a no is unambiguous."
+              : "State the decision so a yes or a no is unambiguous. Use Revise during discussion to change it."}>
               <Textarea aria-label="Proposal text" value={body} maxLength={MAX_PROPOSAL_BODY} rows={7} onChange={(e) => setBody(e.target.value)} />
             </Field>
           </>
@@ -222,7 +257,7 @@ export function NewProposalDialog({
           <Input aria-label="Discussion link" value={discussionUrl} placeholder="https://" onChange={(e) => setDiscussionUrl(e.target.value)} />
         </Field>
         {mayAdjust ? (
-          <AdjustableProposalRules kind={kind} rules={rules} baseline={baseline} onChange={setRules}>
+          <AdjustableProposalRules kind={kind} rules={rules} baseline={communityBaseline} onChange={setRules}>
             <ProposalRulesSummary rules={shown} electorate={electorate.data?.eligible} estimate />
           </AdjustableProposalRules>
         ) : (
@@ -234,7 +269,9 @@ export function NewProposalDialog({
         <ErrorText error={create.error} />
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={requestClose} disabled={create.busy}>Cancel</Button>
-          <Button loading={create.busy} disabled={!ready || blockedReason !== null} onClick={() => void submit()}>Make proposal</Button>
+          <Button loading={create.busy} disabled={!ready || blockedReason !== null} onClick={() => void submit()}>
+            {revising ? "Submit revision" : "Make proposal"}
+          </Button>
         </div>
       </div>
     </Modal>

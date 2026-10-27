@@ -311,6 +311,8 @@ export interface NewProposal {
   beneficiaries: string[];
   proposer: string;
   budgetOwners: BudgetOwnerBase[];
+  /** Discussion proposal this revises (0068); null when it is not a revision. */
+  replacesProposalId: string | null;
 }
 
 export async function createProposal(p: NewProposal): Promise<{ id: string; number: number; state: string }> {
@@ -319,6 +321,7 @@ export async function createProposal(p: NewProposal): Promise<{ id: string; numb
     p_discussion_url: p.discussionUrl, p_payload: p.payload, p_content_hash: p.contentHash,
     p_rules: p.rules, p_rules_hash: p.rulesHash, p_workgroup_ids: p.workgroupIds,
     p_beneficiaries: p.beneficiaries, p_proposer: p.proposer, p_budget_owners: p.budgetOwners,
+    p_replaces_id: p.replacesProposalId,
   }), { [PgCode.UniqueViolation]: ConflictError });
 }
 
@@ -337,6 +340,7 @@ export async function createDraftProposal(
     p_discussion_url: p.discussionUrl, p_payload: p.payload, p_content_hash: p.contentHash,
     p_rules: p.rules, p_rules_hash: p.rulesHash, p_workgroup_ids: p.workgroupIds,
     p_beneficiaries: p.beneficiaries, p_proposer: p.proposer, p_budget_owners: p.budgetOwners,
+    p_replaces_id: p.replacesProposalId,
   }), { [PgCode.UniqueViolation]: ConflictError });
 }
 

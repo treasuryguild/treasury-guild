@@ -58,6 +58,12 @@ const EFFECTS = [
   "The user can withdraw it in the app while it is in discussion.",
 ];
 
+const REVISE_EFFECTS = [
+  "The named discussion proposal is withdrawn in the same step and linked as what this revises.",
+  "Discussion and voting periods start again from when this proposal is created.",
+  ...EFFECTS,
+];
+
 type CreateRequest = z.infer<typeof createProposalSchema>;
 
 const month = z.string().regex(/^[1-9]\d{3}-(0[1-9]|1[0-2])$/, "Use a month as YYYY-MM");
@@ -89,6 +95,8 @@ const previewInput = z.object({
     .describe("Link to where it is being discussed (http or https)"),
   rules: proposalRulesInput.optional()
     .describe("Voting rules for this proposal only. Omit to use the community's defaults for the kind. Fixed once the proposal is created; they cannot be changed during discussion or voting."),
+  replacesProposalId: z.string().uuid().optional()
+    .describe("Id of your own discussion proposal to withdraw and replace with this one (same kind). The new proposal starts a fresh discussion period and links to the old number."),
   task: z.object({
     workgroup: z.string().trim().min(1).max(200)
       .describe("The app board it goes on: a workgroup's name or id, as workgroup_list returns it"),
@@ -116,6 +124,7 @@ async function createRequest(communityId: string, input: PreviewInput, wallet: s
   const text = {
     communityId, title: input.title, body: input.body, discussionUrl: input.discussionUrl,
     ...(input.rules ? { rules: input.rules } : {}),
+    ...(input.replacesProposalId ? { replacesProposalId: input.replacesProposalId } : {}),
   };
   let body: Record<string, unknown>;
   if (input.kind === ProposalKind.Task) {
@@ -250,6 +259,7 @@ export function draftFingerprint(p: NewProposal): string {
   return sha256Hex(canonicalJson({
     kind: p.kind, title: p.title, body: p.body, discussionUrl: p.discussionUrl, payload,
     workgroupIds: p.workgroupIds, beneficiaries: p.beneficiaries, budgetOwners: p.budgetOwners,
+    replacesProposalId: p.replacesProposalId,
   }));
 }
 
@@ -301,7 +311,7 @@ export const previewProposal = defineEndpoint({
         votingOpensAround: new Date(opens).toISOString(),
         votingClosesAround: new Date(opens + proposal.rules.votingHours * HOUR_MS).toISOString(),
       },
-      effects: EFFECTS,
+      effects: input.replacesProposalId ? REVISE_EFFECTS : EFFECTS,
       next: "Nothing has been created. Show this preview to the user and call proposal_create with draftToken only if they say yes, before expiresAt.",
       draftToken: token,
       expiresAt,
