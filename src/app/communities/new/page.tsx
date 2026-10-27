@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import type { CreateCommunityResponse } from "@/lib/api/types";
 import { appNetwork, type Network, networkName } from "@/lib/config";
+import { Visibility } from "@/lib/constants";
 import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useSession } from "@/hooks/useSession";
@@ -39,11 +40,26 @@ const NETWORK_OPTIONS: { value: Network; title: string; blurb: string }[] = [
   },
 ];
 
+const VISIBILITY_OPTIONS: { value: Visibility; title: string; blurb: string }[] = [
+  {
+    value: Visibility.Private,
+    title: "Private",
+    blurb:
+      "Invite-only. Members are added by an admin, via GitHub assignments, or call check-in.",
+  },
+  {
+    value: Visibility.Public,
+    title: "Public",
+    blurb: "Listed on Discover; anyone signed in can join as a member.",
+  },
+];
+
 export default function NewCommunity() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<Visibility>(Visibility.Private);
   const { walletNetwork } = useSession();
   // Preselect the wallet's network (the deployment default until it is
   // known); an explicit pick by the user is never overridden.
@@ -57,7 +73,7 @@ export default function NewCommunity() {
   async function submit() {
     const result = await run(() =>
       apiFetch<CreateCommunityResponse>("/api/community", {
-        body: { name, slug, description, network },
+        body: { name, slug, description, network, visibility },
       }),
     );
     if (result) router.push(routes.community(result.community.slug));
@@ -125,6 +141,30 @@ export default function NewCommunity() {
             {networkName(network)} account to run its treasury.
           </p>
         )}
+        <Field
+          label="Visibility"
+          hint="You can change this later on the Members page."
+        >
+          <div className="flex flex-col gap-1.5">
+            {VISIBILITY_OPTIONS.map((option) => (
+              <label
+                key={option.value}
+                className="flex cursor-pointer items-start gap-2 text-xs text-zinc-400"
+              >
+                <input
+                  type="radio"
+                  name="visibility"
+                  className="mt-0.5"
+                  checked={visibility === option.value}
+                  onChange={() => setVisibility(option.value)}
+                />
+                <span>
+                  <span className="text-zinc-200">{option.title}</span> — {option.blurb}
+                </span>
+              </label>
+            ))}
+          </div>
+        </Field>
         <ErrorText error={error} />
         <Button onClick={() => void submit()} disabled={!name || !slug} loading={busy}>
           {busy ? "Creating…" : "Create community"}

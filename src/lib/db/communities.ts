@@ -59,6 +59,7 @@ export async function createCommunity(input: {
   name: string;
   description: string | null;
   network: number;
+  visibility: string;
   createdBy: string;
 }): Promise<CommunityRow> {
   const db = serviceClient();
@@ -69,6 +70,7 @@ export async function createCommunity(input: {
       name: input.name,
       description: input.description,
       network: input.network,
+      visibility: input.visibility,
       created_by: input.createdBy,
     })
     .select()

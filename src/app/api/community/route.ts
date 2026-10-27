@@ -12,14 +12,19 @@ import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError } from "@/lib/errors";
 
 export const POST = sessionRoute(async (req, { session }) => {
-  const { slug, name, description, network } = await parseJson(
+  const { slug, name, description, network, visibility } = await parseJson(
     req,
     createCommunitySchema,
   );
   await enforceRateLimit("communityCreate", session.wallet);
 
   const community = await createCommunity({
-    slug, name, description: description || null, network, createdBy: session.wallet,
+    slug,
+    name,
+    description: description || null,
+    network,
+    visibility,
+    createdBy: session.wallet,
   });
   return { community } satisfies CreateCommunityResponse;
 });

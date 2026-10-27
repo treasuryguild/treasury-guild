@@ -85,6 +85,8 @@ export const createCommunitySchema = z.object({
   description: z.string().trim().max(1000).optional(),
   // Chosen once: treasury addresses and on-chain history are bound to it.
   network,
+  // Defaults private (same as the column default); changeable later on Members.
+  visibility: z.enum([Visibility.Public, Visibility.Private]).default(Visibility.Private),
 });
 
 /** CoinGecko coin id as it appears in the coin's page URL ("cardano", "singularitynet"). */
