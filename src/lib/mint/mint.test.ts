@@ -31,7 +31,7 @@ describe("validateMintForm", () => {
 
   it("reports the first missing piece", () => {
     expect(validateMintForm(ftForm({ treasuryId: "" }), ctx)).toBe("Choose a treasury");
-    expect(validateMintForm(ftForm(), { ...ctx, canMintHere: false })).toMatch(/Only admins/);
+    expect(validateMintForm(ftForm(), { ...ctx, canMintHere: false })).toMatch(/Only signers/);
     expect(validateMintForm(ftForm({ supply: "0" }), ctx)).toBe("Enter the total supply");
     expect(validateMintForm(ftForm({ ftImage: { ...image, cid: null } }), ctx)).toBe("Upload a logo image");
   });
