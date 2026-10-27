@@ -13,6 +13,7 @@ import {
 } from "@/components/governance/NewProposalDialog";
 import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
 import { ProposalList } from "@/components/governance/ProposalList";
+import { TaskSource } from "@/lib/constants";
 import { isOpenProposal } from "@/lib/governance/lifecycle";
 import { routes } from "@/lib/routes";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
@@ -44,8 +45,11 @@ export default function ProposalsPage({ params, searchParams }: {
   if (blocked) return blocked;
 
   const viewer = { isAdmin, ledWorkgroupIds: roles.ledWorkgroupIds };
-  const kinds = settings.data ? proposableKinds(settings.data, viewer, workgroups.data ?? []) : [];
+  const groups = workgroups.data ?? [];
+  const kinds = settings.data ? proposableKinds(settings.data, viewer, groups) : [];
   const anyOn = !!settings.data && Object.values(settings.data).some((s) => s.enabled);
+  const taskProposalsOn = !!settings.data?.task.enabled;
+  const hasAppBoard = groups.some((w) => w.kind === TaskSource.Native && !w.archived_at);
   const all = proposals.data ?? [];
   const open = all.filter((p) => isOpenProposal(p.state));
   const closed = all.filter((p) => !isOpenProposal(p.state));
@@ -67,6 +71,14 @@ export default function ProposalsPage({ params, searchParams }: {
           {isAdmin
             ? <>Turn on the kinds of proposals you want under <Link className="underline" href={routes.governanceSettings(slug)}>Governance</Link>.</>
             : "An admin can turn it on under Governance."}
+        </EmptyState>
+      )}
+      {taskProposalsOn && workgroups.data && !hasAppBoard && (
+        <EmptyState>
+          Task proposals need an{" "}
+          <Link className="underline" href={routes.doc("workgroups-boards") + "#proposing-a-task"}>app board</Link>
+          . GitHub boards keep using issues — add them from the board or on GitHub; they become tasks here when they match the{" "}
+          <Link className="underline" href={routes.doc("github") + "#which-issues-become-tasks"}>import rule</Link>.
         </EmptyState>
       )}
 

@@ -1,10 +1,11 @@
 "use client";
 
 // Where each of the proposal's steps stands on-chain (label 190002): anchored
-// (with when, beside when voting opened, so a late anchor shows), in progress
-// in a pending transaction, due, or not yet applicable. Treasury actors can
-// build the due ones now. Once the frozen record exists, Verify checks the
-// document and the anchors in the browser (VerifyRecord).
+// (with when, beside when voting opened, so a late anchor shows), pending
+// (awaiting signatures), submitted (awaiting confirmation), due, or not yet
+// applicable. Treasury actors can build the due ones now. Once the frozen
+// record exists, Verify checks the document and the anchors in the browser
+// (VerifyRecord).
 import Link from "next/link";
 import { AnchorStep, ANCHOR_STEPS } from "@/lib/constants";
 import type { Network } from "@/lib/config";
@@ -114,10 +115,12 @@ function StepState({ step, state, due, proposal, slug, network }: {
       </span>
     );
   }
-  if (state.status === "in_progress") {
+  if (state.status === "pending" || state.status === "submitted") {
     return (
       <span className="text-right text-xs text-blue-400">
-        In a transaction awaiting signatures
+        {state.status === "submitted"
+          ? "Submitted, awaiting confirmation"
+          : "In a transaction awaiting signatures"}
         {state.txId && <> · <Link className="underline" href={routes.tx(slug, state.txId)}>open</Link></>}
       </span>
     );

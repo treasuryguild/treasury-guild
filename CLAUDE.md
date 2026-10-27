@@ -248,8 +248,8 @@ Supabase (RLS, no ORM) + Netlify.
   before 0060), closed once final and, after a vote, once frozen and
   (not published, or a copy exists, or a day passed); a proposal closed
   without a vote gets a closed anchor only when a proposed one exists. A
-  step is anchored when a linking transaction is confirmed, in progress
-  while pending/submitted, due again once rejected or deleted. Links live in
+  step is anchored when a linking transaction is confirmed, pending while
+  awaiting signatures, submitted once broadcast, due again once rejected or deleted. Links live in
   `proposal_anchors` (member-readable, pk `(proposal_id, step,
   transaction_id)`, cascade on the transaction), written only by the
   `record_proposal_anchors` RPC from the build routes inside

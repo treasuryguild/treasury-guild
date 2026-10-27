@@ -103,7 +103,7 @@ describe("loadDueAnchors", () => {
           link("p-3", "proposed", 2, { block_time: "2026-09-27T00:00:00Z" }),
           link("p-3", "opened", 3),
         ]),
-        // Voting, proposed submitted (in progress) and opened confirmed: nothing due.
+        // Voting, proposed submitted and opened confirmed: nothing due.
         candidate("p-7", 7, {
           state: "voting", voting_opened_at: "2026-09-30T00:00:00Z", electorate_hash: H("e"),
           proposal_anchors: [link("p-7", "proposed", 1), link("p-7", "opened", 2)],

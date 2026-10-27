@@ -27,14 +27,14 @@ const withCopy = { ...frozen, copies: [{ store: "ipfs" as const, locator: "bafy1
 const publishing = { documentStore: "ipfs" as const, documentStoreSince: "2026-09-01T00:00:00Z" };
 
 describe("anchorStatus", () => {
-  it("reads confirmed as anchored, pending or submitted as in progress, rejected as nothing", () => {
+  it("reads confirmed as anchored, pending and submitted distinctly, rejected as nothing", () => {
     const status = anchorStatus([
       row("proposed", 3), row("proposed", 2, { id: "c1", tx_hash: "h1", block_time: "2026-09-30T10:00:00Z" }),
-      row("opened", 1, { id: "s1", tx_hash: "h2" }), row("closed", 3),
+      row("opened", 1, { id: "s1", tx_hash: "h2" }), row("closed", 0, { id: "p1" }),
     ]);
     expect(status.proposed).toEqual({ status: "anchored", txId: "c1", txHash: "h1", blockTime: "2026-09-30T10:00:00Z" });
-    expect(status.opened).toEqual({ status: "in_progress", txId: "s1", txHash: "h2", blockTime: null });
-    expect(status.closed.status).toBe("none");
+    expect(status.opened).toEqual({ status: "submitted", txId: "s1", txHash: "h2", blockTime: null });
+    expect(status.closed).toEqual({ status: "pending", txId: "p1", txHash: null, blockTime: null });
     expect(anchorStatus([]).proposed.status).toBe("none");
   });
 
@@ -43,6 +43,14 @@ describe("anchorStatus", () => {
     const earlier = { ...row("proposed", 2, { id: "e", block_time: "2026-09-30T09:00:00Z" }) };
     earlier.transactions = [earlier.transactions as never];
     expect(anchorStatus([later, earlier, row("proposed", 0)]).proposed.txId).toBe("e");
+  });
+
+  it("prefers a submitted transaction over a pending sibling for the same step", () => {
+    const status = anchorStatus([
+      row("proposed", 0, { id: "pending" }),
+      row("proposed", 1, { id: "submitted", tx_hash: "h" }),
+    ]);
+    expect(status.proposed).toEqual({ status: "submitted", txId: "submitted", txHash: "h", blockTime: null });
   });
 });
 
@@ -109,7 +117,7 @@ describe("anchoredLate", () => {
     expect(anchoredLate(at("2026-09-29T00:00:00Z"), "2026-09-28T00:00:00Z")).toBe(true);
     expect(anchoredLate(at("2026-09-27T00:00:00Z"), "2026-09-28T00:00:00Z")).toBe(false);
     expect(anchoredLate(at(null), "2026-09-28T00:00:00Z")).toBe(false);
-    expect(anchoredLate({ ...at("2026-09-29T00:00:00Z"), status: "in_progress" }, "2026-09-28T00:00:00Z")).toBe(false);
+    expect(anchoredLate({ ...at("2026-09-29T00:00:00Z"), status: "submitted" }, "2026-09-28T00:00:00Z")).toBe(false);
     expect(anchoredLate(at("2026-09-29T00:00:00Z"), null)).toBe(false);
   });
 });

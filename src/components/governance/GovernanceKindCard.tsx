@@ -26,7 +26,7 @@ const ENABLE_TEXT: Partial<Record<ProposalKind, { label: string; help: string }>
   },
   [ProposalKind.Task]: {
     label: "Task proposals",
-    help: "Members can propose tasks on app boards. A passed proposal adds the task to the board's first column; its leads make it payable as usual.",
+    help: "Members can propose tasks on app boards only — not on GitHub boards, which keep using issues. A passed proposal adds the task to the board's first column; its leads make it payable as usual.",
   },
   [ProposalKind.Decision]: {
     label: "Polls",
