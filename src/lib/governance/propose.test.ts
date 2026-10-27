@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS, rulesFor, type GovernanceSettings } from "./rules";
 const mocks = vi.hoisted(() => ({
   settings: vi.fn(),
   requireProposer: vi.fn(),
+  requireWorkgroupManager: vi.fn(),
   create: vi.fn(),
   nameTaken: vi.fn(),
   nonMembers: vi.fn(),
@@ -18,8 +19,12 @@ const mocks = vi.hoisted(() => ({
   treasuryOwner: vi.fn(),
   resolveAmounts: vi.fn(),
   requireActive: vi.fn(),
+  electorate: vi.fn(),
 }));
-vi.mock("@/lib/authz", () => ({ requireProposer: mocks.requireProposer }));
+vi.mock("@/lib/authz", () => ({
+  requireProposer: mocks.requireProposer,
+  requireWorkgroupManager: mocks.requireWorkgroupManager,
+}));
 vi.mock("@/lib/db/governance", () => ({
   loadGovernanceSettings: mocks.settings,
   createProposal: mocks.create,
@@ -29,6 +34,7 @@ vi.mock("@/lib/db/governance", () => ({
   workgroupLeadWallets: mocks.leads,
   loadBudgetRevisions: mocks.revisions,
   checkBudgetProposal: mocks.checkBudget,
+  electorateWallets: mocks.electorate,
 }));
 vi.mock("@/lib/db/budgetSave", () => ({
   loadWorkgroupBudgetOwner: mocks.workgroupOwner,
@@ -37,6 +43,7 @@ vi.mock("@/lib/db/budgetSave", () => ({
 }));
 vi.mock("@/lib/db/workgroups", () => ({ requireActiveWorkgroup: mocks.requireActive }));
 
+import { noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";
 import type { BudgetStep } from "./payload";
 import { makeProposal } from "./propose";
@@ -68,6 +75,7 @@ beforeEach(() => {
   mocks.nonMembers.mockResolvedValue([]);
   mocks.workgroup.mockResolvedValue(BOARD);
   mocks.leads.mockResolvedValue([]);
+  mocks.electorate.mockResolvedValue(["addr_voter"]);
 });
 
 describe("makeProposal: every kind", () => {
@@ -255,6 +263,31 @@ describe("makeProposal: task", () => {
     await makeProposal(taskInput(), PROPOSER);
     expect(created().rules.method).toBe(DecisionMethod.Lazy);
   });
+
+  it("freezes rules a lead set and does not escalate them", async () => {
+    const settings = on(ProposalKind.Task, { lazyCapLovelace: "1" });
+    mocks.settings.mockResolvedValue(settings);
+    const rules = { ...rulesFor(settings), votingHours: 24 };
+    await makeProposal({ ...taskInput({ amounts: { ADA: "50" } }), rules } as Input, PROPOSER);
+    expect(mocks.requireWorkgroupManager).toHaveBeenCalledWith(
+      COMMUNITY, "wg-1", PROPOSER, "Only admins and leads of this workgroup can set this task's voting rules",
+    );
+    expect(created().rules).toEqual(rules);
+    expect(created().rulesHash).toBe(proposalRulesHash(rules));
+    expect(created().rules.method).toBe(DecisionMethod.Lazy);
+  });
+
+  it("refuses a member who sets a task's rules, and creates nothing", async () => {
+    mocks.requireWorkgroupManager.mockRejectedValue(
+      new ForbiddenError("Only admins and leads of this workgroup can set this task's voting rules"),
+    );
+    const rules = rulesFor(on(ProposalKind.Task));
+    const err = await makeProposal({ ...taskInput(), rules } as Input, PROPOSER).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect((err as Error).message).toBe("Only admins and leads of this workgroup can set this task's voting rules");
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.workgroup).not.toHaveBeenCalled();
+  });
 });
 
 describe("makeProposal: budget", () => {
@@ -329,6 +362,25 @@ describe("makeProposal: budget", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it("freezes rules the proposer set", async () => {
+    const rules = { ...rulesFor(on(ProposalKind.Budget)), votingHours: 48, hideResults: false };
+    await makeProposal({ ...budgetInput([save()]), rules }, PROPOSER);
+    expect(created().rules).toEqual(rules);
+    expect(created().rulesHash).toBe(proposalRulesHash(rules));
+  });
+
+  it("uses the proposer's discussion and voting hours when a setup change is too early", async () => {
+    const rules = { ...rulesFor(on(ProposalKind.Budget)), discussionHours: 336, votingHours: 720 };
+    const votingEndsAt = new Date(Date.now() + (rules.discussionHours + rules.votingHours) * 60 * 60 * 1000);
+    const err = await makeProposal(
+      { ...budgetInput([save({ startsOn: "2020-01", confirmTransition: true })]), rules }, PROPOSER,
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestError);
+    expect((err as Error).message).toContain(votingEndsAt.toISOString().slice(0, 7));
+    expect(mocks.checkBudget).not.toHaveBeenCalled();
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
   it("refuses a setup change that would start before voting can end", async () => {
     const err = await makeProposal(budgetInput([save({ startsOn: "2020-01", confirmTransition: true })]), PROPOSER).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BadRequestError);
@@ -341,5 +393,49 @@ describe("makeProposal: budget", () => {
     mocks.checkBudget.mockRejectedValue(new BadRequestError("A later setup exists"));
     await expect(makeProposal(budgetInput([save()]), PROPOSER)).rejects.toThrow("A later setup exists");
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a budget whose leads are the whole electorate", async () => {
+    mocks.settings.mockResolvedValue(on(ProposalKind.Budget, { recuseBeneficiaries: true, discussionHours: 24 }));
+    mocks.leads.mockResolvedValue(["addr_lead"]);
+    mocks.electorate.mockResolvedValue(["addr_lead"]);
+    const err = await makeProposal(budgetInput([save()]), PROPOSER).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestError);
+    expect((err as Error).message).toBe(noEligibleVotersReason(1, 0));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("makeProposal: nobody can vote", () => {
+  it("refuses an empty electorate even when a discussion period would delay the cancel", async () => {
+    mocks.electorate.mockResolvedValue([]);
+    const err = await makeProposal(decision, PROPOSER).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestError);
+    expect((err as Error).message).toBe(noEligibleVotersReason(0, 0));
+    expect(mocks.electorate).toHaveBeenCalledWith(
+      COMMUNITY, expect.objectContaining({ discussionHours: 48 }), [],
+    );
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a self-assigned task when the proposer is the only voter and recusal is on", async () => {
+    mocks.settings.mockResolvedValue(on(ProposalKind.Task, { recuseBeneficiaries: true, discussionHours: 24 }));
+    mocks.electorate.mockResolvedValue([PROPOSER]);
+    const err = await makeProposal(taskInput({ assignSelf: true }), PROPOSER).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestError);
+    expect((err as Error).message).toBe(noEligibleVotersReason(1, 0));
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a self-assigned task when someone else can still vote", async () => {
+    const settings = on(ProposalKind.Task, { recuseBeneficiaries: true, discussionHours: 24 });
+    mocks.settings.mockResolvedValue(settings);
+    mocks.electorate.mockResolvedValue([PROPOSER, "addr_other"]);
+    await makeProposal(taskInput({ assignSelf: true }), PROPOSER);
+    expect(created().beneficiaries).toEqual([PROPOSER]);
+    expect(mocks.electorate).toHaveBeenCalledWith(
+      COMMUNITY, expect.objectContaining({ recuseBeneficiaries: true, discussionHours: 24 }), ["wg-1"],
+    );
+    expect(mocks.create).toHaveBeenCalledTimes(1);
   });
 });

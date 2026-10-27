@@ -751,6 +751,20 @@ export const governanceSettingsInput = z.object({
   hideResults: z.boolean(),
   recuseBeneficiaries: z.boolean(),
 });
+/** The rules frozen onto one proposal (ProposalRules). Omitted on create: the kind's settings. */
+export const proposalRulesInput = governanceSettingsInput.pick({
+  method: true,
+  electorate: true,
+  activityMonths: true,
+  minMemberDays: true,
+  quorumPct: true,
+  thresholdPct: true,
+  lazyObjections: true,
+  discussionHours: true,
+  votingHours: true,
+  hideResults: true,
+  recuseBeneficiaries: true,
+});
 export const saveGovernanceSettingsSchema = z.object({
   communityId: id,
   kind: z.enum(ProposalKind),
@@ -768,6 +782,8 @@ const proposalText = {
   title: nonEmpty.max(MAX_PROPOSAL_TITLE),
   body: z.string().trim().max(MAX_PROPOSAL_BODY).default(""),
   discussionUrl: optionalUrl,
+  /** This proposal's rules. Omit to freeze the community's defaults for the kind. */
+  rules: proposalRulesInput.optional(),
 };
 export const createProposalSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal(ProposalKind.Decision), ...proposalText }),
@@ -798,6 +814,8 @@ export const createProposalSchema = z.discriminatedUnion("kind", [
     }),
   }),
 ]);
+const queryFlag = z.enum(["true", "false"]).optional()
+  .transform((value): boolean | undefined => (value === undefined ? undefined : value === "true"));
 export const electorateQuerySchema = z.object({
   communityId: id,
   kind: z.enum(ProposalKind),
@@ -805,6 +823,16 @@ export const electorateQuerySchema = z.object({
   workgroupIds: z.string().max(4000).optional()
     .transform((ids) => (ids ? ids.split(",").filter(Boolean) : []))
     .pipe(z.array(id).max(100)),
+  /** The rules the create form is showing. Omitted: the kind's saved settings. */
+  electorate: z.enum(Electorate).optional(),
+  activityMonths: z.coerce.number().int().min(1).max(36).optional(),
+  minMemberDays: z.coerce.number().int().min(0).max(365).optional(),
+  /** Omitted: the kind's saved recusal. A budget's beneficiaries are its workgroups' leads, not this list. */
+  recuseBeneficiaries: queryFlag,
+  /** Wallets who gain from a decision, workgroup or task the form is making. Comma-separated. */
+  beneficiaries: z.string().max(5000).optional()
+    .transform((wallets) => (wallets ? wallets.split(",").filter(Boolean) : []))
+    .pipe(z.array(storedWallet).max(20)),
 });
 const voteReason = z.string().max(MAX_VOTE_REASON * 2).optional();
 /** Ask for the ballot text to sign. */

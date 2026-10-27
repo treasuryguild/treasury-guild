@@ -4,6 +4,7 @@ import {
   MAX_PROPOSAL_TITLE, MAX_TASK_ASSIGNEES, MAX_VOTE_REASON,
 } from "@/lib/constants";
 import { MAX_BUDGET_STEPS } from "@/lib/governance/payload";
+import { DEFAULT_SETTINGS, rulesFor } from "@/lib/governance/rules";
 import {
   addAttendeesSchema,
   ballotRequestSchema,
@@ -371,6 +372,32 @@ describe("createProposalSchema", () => {
     expect(createProposalSchema.safeParse({ ...base, title: "T", body: "x".repeat(MAX_PROPOSAL_BODY + 1) }).success).toBe(false);
   });
 
+  it("accepts rules within the settings bounds and refuses the rest", () => {
+    const rules = rulesFor(DEFAULT_SETTINGS.decision);
+    expect(createProposalSchema.parse({ kind: "decision", ...text, rules })).toMatchObject({ rules });
+    const bad = (patch: Record<string, unknown>) =>
+      createProposalSchema.safeParse({ kind: "decision", ...text, rules: { ...rules, ...patch } }).success;
+    expect(bad({ quorumPct: 0 })).toBe(true);
+    expect(bad({ quorumPct: 100 })).toBe(true);
+    expect(bad({ quorumPct: 101 })).toBe(false);
+    expect(bad({ thresholdPct: 50 })).toBe(true);
+    expect(bad({ thresholdPct: 49 })).toBe(false);
+    expect(bad({ thresholdPct: 99 })).toBe(true);
+    expect(bad({ discussionHours: 0 })).toBe(true);
+    expect(bad({ discussionHours: 336 })).toBe(true);
+    expect(bad({ discussionHours: 337 })).toBe(false);
+    expect(bad({ votingHours: 1 })).toBe(true);
+    expect(bad({ votingHours: 720 })).toBe(true);
+    expect(bad({ votingHours: 0 })).toBe(false);
+    expect(bad({ activityMonths: 1 })).toBe(true);
+    expect(bad({ activityMonths: 37 })).toBe(false);
+    expect(bad({ minMemberDays: 365 })).toBe(true);
+    expect(bad({ minMemberDays: -1 })).toBe(false);
+    expect(bad({ lazyObjections: 1 })).toBe(true);
+    expect(bad({ lazyObjections: 0 })).toBe(false);
+    expect(bad({ method: "straw" })).toBe(false);
+  });
+
   it("refuses an unknown kind and a community id that is not a uuid", () => {
     expect(createProposalSchema.safeParse({ kind: "payout", ...text }).success).toBe(false);
     expect(createProposalSchema.safeParse({ ...text }).success).toBe(false);
@@ -549,6 +576,20 @@ describe("governance schemas", () => {
     expect(electorateQuerySchema.safeParse({ ...base, workgroupIds: Array(100).fill(WORKGROUP).join(",") }).success).toBe(true);
     expect(electorateQuerySchema.safeParse({ ...base, workgroupIds: Array(101).fill(WORKGROUP).join(",") }).success).toBe(false);
     expect(electorateQuerySchema.safeParse({ ...base, kind: "poll" }).success).toBe(false);
+  });
+
+  it("reads recusal and the form's beneficiaries", () => {
+    const base = { communityId: COMMUNITY, kind: "task" };
+    expect(electorateQuerySchema.parse(base).recuseBeneficiaries).toBeUndefined();
+    expect(electorateQuerySchema.parse(base).beneficiaries).toEqual([]);
+    expect(electorateQuerySchema.parse({ ...base, recuseBeneficiaries: "true", beneficiaries: "addr_ann,addr_bo" }))
+      .toMatchObject({ recuseBeneficiaries: true, beneficiaries: ["addr_ann", "addr_bo"] });
+    expect(electorateQuerySchema.parse({ ...base, recuseBeneficiaries: "false", beneficiaries: ",addr_ann," }).beneficiaries)
+      .toEqual(["addr_ann"]);
+    expect(electorateQuerySchema.safeParse({ ...base, recuseBeneficiaries: "yes" }).success).toBe(false);
+    expect(electorateQuerySchema.safeParse({ ...base, beneficiaries: Array(20).fill("addr").join(",") }).success).toBe(true);
+    expect(electorateQuerySchema.safeParse({ ...base, beneficiaries: Array(21).fill("addr").join(",") }).success).toBe(false);
+    expect(electorateQuerySchema.safeParse({ ...base, beneficiaries: "a".repeat(201) }).success).toBe(false);
   });
 
   it("validates a ballot request and a signed ballot", () => {

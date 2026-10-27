@@ -33,6 +33,7 @@ export function ProposalOverview({ proposal, names, now }: {
       <ExecutionLine proposal={proposal} />
       <div className="rounded-xl bg-zinc-800/60 p-3">
         <ProposalRulesSummary rules={proposal.rules} electorate={proposal.electorate_size} />
+        <p className="mt-2 text-xs text-zinc-500">Chosen when the proposal was made. They stay fixed through discussion and voting.</p>
       </div>
       <details className="text-xs text-zinc-500">
         <summary className="cursor-pointer">Fingerprints every ballot signs</summary>

@@ -454,7 +454,9 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
             setError("Budgets were reset, but balances could not be refreshed. Reload the page before making further changes to this workgroup.");
           } finally { setBusy(false); }
         }} />}
-      {proposing && consent && <ProposeBudgetDialog projectNames={pending.map((group) => group.name)}
+      {proposing && consent && <ProposeBudgetDialog communityId={communityId}
+        workgroupIds={pending.filter((group) => group.kind === "workgroup").map((group) => group.id)}
+        projectNames={pending.map((group) => group.name)}
         settings={consent.settings} busy={busy} error={proposalError}
         onClose={() => setProposing(false)} onSubmit={(text) => void proposeAll(text)} />}
       {setupPrompt && <BudgetSetupDialog name={ownerFor(setupPrompt.id)!.name}

@@ -147,6 +147,18 @@ describe("proposal_preview", () => {
     expect(res.draftToken).toMatch(/^ey/);
   });
 
+  it("passes rules the assistant set through to the app's checks, and refuses rules outside the bounds", async () => {
+    const rules = { ...RULES, votingHours: 24, hideResults: false };
+    await preview({ ...DECISION, rules });
+    expect(mocks.prepare).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "decision", rules }),
+      "addr_w",
+    );
+    mocks.prepare.mockClear();
+    await expect(preview({ ...DECISION, rules: { ...RULES, votingHours: 0 } })).rejects.toBeInstanceOf(BadRequestError);
+    expect(mocks.prepare).not.toHaveBeenCalled();
+  });
+
   it("puts a task on the board it names, with the reward as the board stores it", async () => {
     mocks.prepare.mockResolvedValue(prepared({
       kind: "task", payload: { task: { workgroupId: WGID, amounts: { ADA: "250" }, bountyLovelace: 250_000_000, assignSelf: true } },

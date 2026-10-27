@@ -12,7 +12,7 @@ import "server-only";
 
 import { z } from "zod";
 import type { ApiCaller } from "@/lib/api/caller";
-import { createProposalSchema } from "@/lib/api/schemas";
+import { createProposalSchema, proposalRulesInput } from "@/lib/api/schemas";
 import { parseInput } from "@/lib/api/parse";
 import type { V1ProposalCreateResponse, V1ProposalPreviewResponse } from "@/lib/api/types";
 import { ADA_ASSET, LOVELACE, scaleDecimal } from "@/lib/assets";
@@ -87,6 +87,8 @@ const previewInput = z.object({
     .describe("The proposal's text: what and why. For a task, the task's description"),
   discussionUrl: z.string().trim().max(500).optional()
     .describe("Link to where it is being discussed (http or https)"),
+  rules: proposalRulesInput.optional()
+    .describe("Voting rules for this proposal only. Omit to use the community's defaults for the kind. Fixed once the proposal is created; they cannot be changed during discussion or voting."),
   task: z.object({
     workgroup: z.string().trim().min(1).max(200)
       .describe("The app board it goes on: a workgroup's name or id, as workgroup_list returns it"),
@@ -111,7 +113,10 @@ type BudgetChange = z.infer<typeof budgetChange>;
 
 /** The app's create body for the preview's input, validated by the app's own schema. */
 async function createRequest(communityId: string, input: PreviewInput, wallet: string): Promise<CreateRequest> {
-  const text = { communityId, title: input.title, body: input.body, discussionUrl: input.discussionUrl };
+  const text = {
+    communityId, title: input.title, body: input.body, discussionUrl: input.discussionUrl,
+    ...(input.rules ? { rules: input.rules } : {}),
+  };
   let body: Record<string, unknown>;
   if (input.kind === ProposalKind.Task) {
     if (!input.task) throw new BadRequestError("A task proposal needs task: { workgroup, reward }");

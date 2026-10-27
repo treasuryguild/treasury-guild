@@ -486,8 +486,10 @@ export interface GovernanceCommunitySettingsResponse {
 }
 /** GET /api/proposals/electorate */
 export interface ElectoratePreviewResponse {
-  /** Members who would vote on a proposal made now. */
+  /** Members in the electorate, before recusal. */
   count: number;
+  /** Members who could cast a ballot: `count`, minus beneficiaries when they are recused. */
+  eligible: number;
 }
 
 // --- Payment history (previous wallets) ------------------------------------------
