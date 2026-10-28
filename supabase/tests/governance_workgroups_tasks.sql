@@ -1,4 +1,6 @@
--- Migrations 0056-0057: workgroup and task proposals, proposal announcements.
+-- Migrations 0056-0057 (+ 0071 channel table): workgroup and task proposals,
+-- proposal announcements. 0071 replaces the 0057 webhook table with a
+-- service-role channel row; the RLS check below targets that head shape.
 -- Run with psql -f against an EMPTY disposable PostgreSQL database; everything
 -- is rolled back.
 \set ON_ERROR_STOP on
@@ -69,6 +71,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0055_governance.sql
 \ir ../migrations/0056_governance_workgroups_tasks.sql
 \ir ../migrations/0057_governance_announcements.sql
+\ir ../migrations/0071_governance_discord_channels.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin

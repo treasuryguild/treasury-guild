@@ -3,8 +3,9 @@ import { UpstreamError } from "@/lib/errors";
 
 vi.mock("@/lib/env.server", () => ({ discordBotToken: () => "bot-token" }));
 
+import type { DiscordBotError } from "./bot";
 import {
-  botJoinedAt, botUserId, createForumPost, DiscordBotError, leaveGuild, listBotGuilds,
+  botJoinedAt, botUserId, createForumPost, leaveGuild, listBotGuilds,
   listTextLikeChannels, listVoiceChannels, postChannelMessage, startThreadFromMessage,
 } from "./bot";
 

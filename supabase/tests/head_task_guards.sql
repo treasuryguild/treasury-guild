@@ -1,7 +1,7 @@
--- Head schema (migrations 0001-0065): what the browser may write on tasks and
--- workgroups, the task delete rules, the execute grants closed by 0046 and the
--- proposal webhook secret. Run with psql -f against an EMPTY disposable
--- PostgreSQL database; everything is rolled back.
+-- Head schema (migrations 0001-0065 + 0071): what the browser may write on
+-- tasks and workgroups, the task delete rules, the execute grants closed by
+-- 0046 and the governance Discord channel grants (0071). Run with psql -f
+-- against an EMPTY disposable PostgreSQL database; everything is rolled back.
 \set ON_ERROR_STOP on
 begin;
 create role anon;
@@ -80,6 +80,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0063_route_hardening.sql
 \ir ../migrations/0064_agent_proposal_drafts.sql
 \ir ../migrations/0065_agent_drafts.sql
+\ir ../migrations/0071_governance_discord_channels.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin

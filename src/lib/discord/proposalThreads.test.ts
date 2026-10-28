@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as DbClient from "@/lib/db/client";
+import type * as Bot from "./bot";
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
@@ -36,7 +37,7 @@ vi.mock("./governanceChannel", () => ({
   recordGovernanceChannelError: mocks.recordError,
 }));
 vi.mock("./bot", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./bot")>();
+  const real = await importOriginal<typeof Bot>();
   return {
     ...real,
     createForumPost: mocks.createForum,

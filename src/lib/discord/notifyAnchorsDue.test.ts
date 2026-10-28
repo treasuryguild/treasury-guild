@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as AnchorAlerts from "@/lib/db/anchorAlerts";
 import type * as DbClient from "@/lib/db/client";
 
 const mocks = vi.hoisted(() => ({
@@ -26,7 +27,7 @@ vi.mock("@/lib/governance/anchorsDue", () => ({
   loadAnchorAlertCandidates: mocks.loadCandidates,
 }));
 vi.mock("@/lib/db/anchorAlerts", async (importOriginal) => {
-  const real = await importOriginal<typeof import("@/lib/db/anchorAlerts")>();
+  const real = await importOriginal<typeof AnchorAlerts>();
   return {
     ...real,
     loadAnchorAlertStamps: mocks.loadStamps,
