@@ -130,7 +130,7 @@ export const proposalDetail = defineEndpoint({
           .map((v) => ({ voter: name(v.voter), choice: v.choice, reason: v.reason, signedAt: v.signed_at }))
           .sort((a, b) => a.signedAt.localeCompare(b.signedAt))
         : null,
-      ballotsHidden: visible ? null : "The ballots stay secret until voting closes (this community hides results while voting runs).",
+      ballotsHidden: visible ? null : "The ballots stay hidden until voting closes (this community shows only turnout while voting runs). After the close, members see every ballot.",
       tally: tally
         ? { hash: tally.hash, frozenAt: tally.frozen_at, copies: copies.map((c) => ({ store: c.store, locator: c.locator })) }
         : null,

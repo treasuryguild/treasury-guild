@@ -129,7 +129,7 @@ export function ProposalRulesEditor({
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" className="mt-1" checked={rules.hideResults} disabled={disabled}
           onChange={(e) => set("hideResults", e.target.checked)} />
-        <span>Hide ballots until voting closes<span className="block text-zinc-500">Only turnout shows while voting runs, so nobody votes with the crowd.</span></span>
+        <span>Hide ballots until voting closes<span className="block text-zinc-500">Only turnout shows while voting runs, so nobody votes with the crowd. After the close, members still see each ballot — votes are not anonymous.</span></span>
       </label>
       {recuse && (
         <label className="flex items-start gap-3 text-sm">

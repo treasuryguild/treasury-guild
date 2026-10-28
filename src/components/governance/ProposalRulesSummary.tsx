@@ -26,7 +26,7 @@ export function ProposalRulesSummary({ rules, electorate, estimate = false }: {
       <dt className="text-zinc-500">Discussion, then voting</dt>
       <dd>{describeHours(rules.discussionHours)}, then {describeHours(rules.votingHours)}</dd>
       <dt className="text-zinc-500">Results</dt>
-      <dd>{rules.hideResults ? "Hidden until voting closes (turnout shows)" : "Shown while voting runs"}</dd>
+      <dd>{rules.hideResults ? "Hidden until voting closes (turnout shows; then members see every ballot)" : "Shown while voting runs"}</dd>
     </dl>
   );
 }

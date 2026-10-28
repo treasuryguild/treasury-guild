@@ -74,7 +74,7 @@ export function VotePanel({ proposal, seat, myVote, onVoted }: {
         ))}
       </div>
       <Field label={needsReason ? "Reason (required)" : "Reason (optional)"}
-        hint={needsReason ? "Say what would have to change for you to accept it." : "Shown with your vote once results are visible."}>
+        hint={needsReason ? "Say what would have to change for you to accept it." : "Shown to members with your vote once results are visible."}>
         <Textarea aria-label="Reason for your vote" value={reason} rows={2} maxLength={MAX_VOTE_REASON}
           onChange={(e) => setReason(e.target.value)} />
       </Field>

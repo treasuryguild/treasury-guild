@@ -875,7 +875,7 @@ export interface V1Proposal {
   votingOpensAt: string;
   votingClosesAt: string | null;
   closedAt: string | null;
-  /** Counts once voting closed; ballots stay secret while it runs unless the community shows them. */
+  /** Counts once voting closed; ballots stay hidden while it runs unless the community shows them. */
   result: { outcome: string; counts: Record<string, number> } | null;
   /** Whether a passed proposal was carried out: pending, applied or failed (with why). */
   carriedOut: { state: string; error: string | null } | null;
@@ -1038,7 +1038,7 @@ export interface V1ProposalDetailResponse {
   /** Voters fixed when voting opened, and how many of them are recused. */
   voters: number;
   recused: number;
-  /** Every ballot (voter, choice, reason) once ballots are visible; null while they stay secret. */
+  /** Every ballot (voter, choice, reason) once ballots are visible; null while they stay hidden. */
   ballots: { voter: string; choice: string; reason: string | null; signedAt: string }[] | null;
   ballotsHidden: string | null;
   /** The frozen signed tally: its blake2b hash and the outside copies (IPFS CID). */

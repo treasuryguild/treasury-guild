@@ -95,6 +95,9 @@ export function ProposalResults({ proposal, votes, names }: {
       {votes.length > 0 && (
         <>
           <h3 className="mb-2 mt-6 text-sm font-medium">Signed ballots</h3>
+          <p className="mb-2 text-xs text-zinc-500">
+            Each member&apos;s choice, reason and signature, so the community can check the result. Votes are not anonymous.
+          </p>
           <ul className="space-y-2">
             {votes.map((vote) => (
               <li key={vote.voter} className="rounded-xl bg-zinc-800/60 px-3 py-2 text-sm">
