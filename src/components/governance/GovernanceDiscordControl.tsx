@@ -2,7 +2,7 @@
 
 // Admin control: pick a Discord text or forum channel for proposal
 // announcements and auto discussion threads. The Discord server is connected
-// under Call capture; this only chooses the channel.
+// under Integrations; this only chooses the channel.
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "@/lib/api/client";
@@ -93,7 +93,7 @@ export function GovernanceDiscordControl({
         {!status.serverConnected ? (
           <span className="text-zinc-500">
             Connect a Discord server under{" "}
-            <Link className="underline" href={routes.callSettings(slug)}>Call capture</Link>
+            <Link className="underline" href={routes.integrations(slug)}>Integrations</Link>
             {" "}first, then pick a channel here.
           </span>
         ) : status.channelId ? (
@@ -137,7 +137,7 @@ export function GovernanceDiscordControl({
               ))}
             </select>
           </label>
-          <p className="text-xs text-zinc-500">A forum channel is best: one post per proposal. Re-add the bot under Call capture if channels are missing after a permission update.</p>
+          <p className="text-xs text-zinc-500">A forum channel is best: one post per proposal. Re-add the bot under Integrations if channels are missing after a permission update.</p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={save} disabled={!channelId || action.busy}>
               {action.busy ? "Saving…" : "Save channel"}

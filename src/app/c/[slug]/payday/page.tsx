@@ -25,6 +25,7 @@ import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useCommunityBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
 import { useWorkgroupTreasuryAssignments } from "@/hooks/useWorkgroupTreasuryAssignments";
+import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice";
 import { BusyOverlay, Button, EmptyState, PageTitle } from "@/components/ui";
 import { offeredPaths, PathPicker } from "@/components/tx/PathPicker";
 import { TxKind, type SpendingPath } from "@/lib/constants";
@@ -182,6 +183,9 @@ export default function PaydayPage({
   return (
     <div>
       <PageTitle>Payday</PageTitle>
+      {isAdmin && community && (
+        <IntegrationsNotice communityId={community.id} slug={slug} kind="payday-webhooks" />
+      )}
 
       <TreasuryPicker
         treasuries={treasuries}

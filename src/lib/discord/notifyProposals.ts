@@ -132,11 +132,11 @@ export async function connectGovernanceDiscordChannel(
 ): Promise<GovernanceDiscordStatus> {
   const guild = await loadDiscordGuild(community.id);
   if (!guild) {
-    throw new DiscordBotError("Connect a Discord server under Call capture first", null, true);
+    throw new DiscordBotError("Connect a Discord server under Integrations first", null, true);
   }
   const channels = await listTextLikeChannels(guild.guildId, options.fetchImpl);
   if (!channels) {
-    throw new DiscordBotError("Treasury Guild bot is not in the Discord server — reconnect it under Call capture", null, true);
+    throw new DiscordBotError("Treasury Guild bot is not in the Discord server — reconnect it under Integrations", null, true);
   }
   const chosen = channels.find((c) => c.id === channelId);
   if (!chosen) {

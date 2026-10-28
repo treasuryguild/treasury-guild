@@ -11,7 +11,7 @@ import { MeetingLinkDialog } from "./MeetingLinkDialog";
 const PLATFORM_LABEL = { zoom: "Zoom", meet: "Google Meet" } as const;
 
 /**
- * The community's linked Zoom and Google Meet meetings on the Call capture
+ * The community's linked Zoom and Google Meet meetings on the Call platforms
  * page: a recurring meeting tied to a workgroup, whose calls create
  * themselves when the meeting runs.
  */

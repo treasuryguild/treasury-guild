@@ -23,9 +23,9 @@ import { postTokenForm } from "./token";
 const DISCORD_BOT_PERMISSIONS = "309237776896";
 
 /**
- * The Discord server for call capture and (when a channel is chosen under
- * Governance) proposal announcements and discussion threads. The admin adds
- * the bot to a server they manage. The server id is taken from Discord's
+ * The Discord server under Integrations: voice capture for calls, and (when a
+ * channel is chosen) proposal announcements and discussion threads. The admin
+ * adds the bot to a server they manage. The server id is taken from Discord's
  * token response and never from the query string: whoever finishes this flow
  * proved to Discord that they manage that server.
  */

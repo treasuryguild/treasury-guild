@@ -14,6 +14,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { formatDate } from "@/lib/format";
 import { describeSettingChange, voterName } from "@/lib/governance/labels";
 import { LIVE_PROPOSAL_KINDS } from "@/lib/governance/rules";
+import { routes } from "@/lib/routes";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useGovernanceChanges, useGovernanceSettings } from "@/hooks/useProposals";
@@ -42,12 +43,12 @@ export default function GovernanceSettingsPage({ params }: { params: Promise<{ s
       </p>
       <ErrorText error={settings.error} />
       {community && settings.data && LIVE_PROPOSAL_KINDS.map((kind) => (
-        <GovernanceKindCard key={kind} communityId={community.id} kind={kind}
+        <GovernanceKindCard key={kind} communityId={community.id} kind={kind} slug={slug}
           initial={settings.data![kind]} canEdit={isAdmin} onSaved={() => { settings.reload(); changes.reload(); }} />
       ))}
       {community && communitySettings.data && (
         <RecordsAndChecksCard key={communitySettings.data.settings.documentStore ?? "none"} communityId={community.id}
-          initial={communitySettings.data.settings} canEdit={isAdmin}
+          slug={slug} initial={communitySettings.data.settings} canEdit={isAdmin}
           onSaved={() => { communitySettings.reload(); changes.reload(); }} />
       )}
       <ErrorText error={communitySettings.error} />
@@ -55,7 +56,9 @@ export default function GovernanceSettingsPage({ params }: { params: Promise<{ s
         <Card>
           <SectionTitle>Discord announcements</SectionTitle>
           <p className="text-sm text-zinc-400">
-            Post proposals to a Discord channel on the server connected under Call capture: a discussion thread when a
+            Post proposals to a Discord channel on the server connected under{" "}
+            <a className="underline" href={routes.integrations(slug)}>Integrations</a>
+            : a discussion thread when a
             proposal opens (forum channels work best), when voting opens, a day before it closes, and the result.
             Messages carry the proposal, its timing and counts, never who voted or how. Proposals already under way
             are announced from their next step. Re-add the bot once if you connected it before send and thread
@@ -66,7 +69,7 @@ export default function GovernanceSettingsPage({ params }: { params: Promise<{ s
             slug={slug}
             status={discord.data?.discord ?? null}
             onChanged={discord.reload}
-            removeText="Proposals will no longer be announced in the channel. The Discord server connection under Call capture stays."
+            removeText="Proposals will no longer be announced in the channel. The Discord server connection under Integrations stays."
           />
           <ErrorText error={discord.error} className="mt-2" />
         </Card>

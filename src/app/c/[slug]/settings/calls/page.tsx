@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import Link from "next/link";
 import { routes } from "@/lib/routes";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { IntegrationCard } from "@/components/calls/IntegrationCard";
@@ -15,40 +16,21 @@ export default function CallSettingsPage({ params }: { params: Promise<{ slug: s
   const returnTo = routes.callSettings(slug);
   return (
     <div className="max-w-2xl space-y-4">
-      <PageTitle>Call capture</PageTitle>
+      <PageTitle>Call platforms</PageTitle>
       <p className="-mt-3 mb-2 text-sm text-zinc-400">
-        Connect where your community holds its calls, and attendance is captured while a call
-        runs. Check-in and pasted lists on the Calls page work without any connection.
+        Connect Zoom or Google Meet so attendance is captured while a call runs. Check-in and pasted
+        lists on the Calls page work without any connection. Discord voice capture needs the server
+        under{" "}
+        <Link className="text-indigo-400 hover:underline" href={routes.integrations(slug)}>
+          Integrations
+        </Link>
+        .
       </p>
 
       <IntegrationCard
         communityId={community!.id}
-        provider="discord"
-        title="🎧 Discord server"
-        apiPath="/api/discord/guild-connect"
-        outcomeParam="discord_server"
-        returnTo={returnTo}
-        nouns={{ thing: "server", connect: "Connect Discord server", change: "Change server" }}
-        blurb={<>
-          Adds the Treasury Guild bot to a server you manage. For calls it only reads who is in a
-          voice channel (it never joins or listens). The same bot can post proposal announcements
-          and discussion threads when you pick a channel under Governance.
-        </>}
-        footnote={<>
-          A private voice channel is captured only if the bot&apos;s role may view it. Attendees
-          are recognised by the Discord account they linked on their Profile page; everyone else
-          shows up by name, waiting for a wallet.
-        </>}
-        disconnectWarning={<>
-          Capture stops for this community&apos;s Discord calls and the bot leaves the server (unless
-          another community uses it). Attendees already captured stay on their calls.
-        </>}
-      />
-
-      <IntegrationCard
-        communityId={community!.id}
         provider="zoom"
-        title="📹 Zoom account"
+        title="Zoom account"
         apiPath="/api/zoom/connect"
         outcomeParam="zoom"
         returnTo={returnTo}
@@ -75,7 +57,7 @@ export default function CallSettingsPage({ params }: { params: Promise<{ slug: s
       <IntegrationCard
         communityId={community!.id}
         provider="google"
-        title="🎥 Google Meet account"
+        title="Google Meet account"
         apiPath="/api/google/host-connect"
         outcomeParam="google_host"
         returnTo={returnTo}

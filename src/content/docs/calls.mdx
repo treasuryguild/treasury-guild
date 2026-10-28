@@ -28,13 +28,7 @@ A wallet can be on a call's list only once, however it got there, so nobody is r
 
 ## Connecting a Discord server
 
-An admin connects the community's Discord server once, on **Call capture** in the community sidebar. **Connect Discord server** opens Discord, where you pick a server you manage and add the Treasury Guild bot to it. The bot asks for view, send and thread permissions: for calls it only reads who is in a voice channel (it never joins or listens), and the same bot can post [proposal announcements and discussion threads](/docs/governance#discord-announcements) when an admin picks a channel under Governance.
-
-- The server you picked in Discord is the one that gets connected. One server per community; **Change server** repeats the step with another one.
-- A **private voice channel** is captured only if the bot's role is allowed to view it. Give the role access in the channel's permissions, or the channel is not offered when creating a call.
-- **Disconnect** stops capture and takes the bot out of the server (unless another community uses the same server). Attendees already captured stay on their calls.
-- Connecting a different server replaces the old one, and the bot leaves the old server under the same rule.
-- If you add the bot on Discord but the connection is never finished (the tab was closed, or Treasury Guild refused it), the bot leaves that server by itself, within about an hour.
+An admin connects the community's Discord server once on **[Integrations](/docs/integrations#discord-server)**. That same bot reads who is in a voice channel for calls (it never joins or listens) and can post [proposal announcements](/docs/governance#discord-announcements) when a channel is chosen. Private voice channels need the bot's role allowed to view them, or the channel is not offered when creating a call.
 
 ## Capturing Discord voice calls
 
@@ -57,7 +51,11 @@ Members see the names on the list, never anyone's Discord account id.
 
 ## Capturing Zoom meetings
 
-An admin connects the Zoom account that **hosts** the community's calls, once, under **Zoom account** on the **Call capture** page. Zoom only reports on meetings that account hosts, so run your rewarded calls from one shared account. **Disconnect** deletes the stored access; removing the app inside Zoom does the same.
+## Call platforms
+
+Zoom and Google Meet host accounts, and linked meetings, are configured on **Call platforms** in the community sidebar. Discord voice still needs the server under [Integrations](/docs/integrations#discord-server).
+
+An admin connects the Zoom account that **hosts** the community's calls, once, under **Zoom account** on the **Call platforms** page. Zoom only reports on meetings that account hosts, so run your rewarded calls from one shared account. **Disconnect** deletes the stored access; removing the app inside Zoom does the same.
 
 Creating or editing a Zoom call then offers:
 
@@ -68,7 +66,7 @@ While the meeting runs, people appear on the attendee list as they join, with th
 
 ### Linked meetings
 
-Most community calls are one recurring meeting, or a personal room, with an id that never changes. An admin can link that meeting to its workgroup once, under **Linked meetings** on the **Call capture** page: the **platform** (Zoom or Google Meet, whichever accounts are connected), the Zoom **Meeting ID** or the **Meet code or link**, the **workgroup** whose budget and wallet pay, a **call title**, the **reward per attendee**, the **minimum minutes** and the meeting's **usual length**.
+Most community calls are one recurring meeting, or a personal room, with an id that never changes. An admin can link that meeting to its workgroup once, under **Linked meetings** on the **Call platforms** page: the **platform** (Zoom or Google Meet, whichever accounts are connected), the Zoom **Meeting ID** or the **Meet code or link**, the **workgroup** whose budget and wallet pay, a **call title**, the **reward per attendee**, the **minimum minutes** and the meeting's **usual length**.
 
 From then on nobody has to create the call. When the first person joins a linked Zoom meeting, a call creates itself in that workgroup with the link's title, reward and threshold, and fills up as people join. It starts when the meeting started; it ends after the usual length, moves out when people are still leaving later, and takes the real end once Zoom reports the meeting over. The call is marked **Linked meeting** on the Calls page and is an ordinary call from there on: edit it, link wallets, and create the attendance task whenever you like, the same day or at the end of the month.
 
@@ -92,7 +90,7 @@ Zoom attendees are mostly guests, known only by the name they typed. A name that
 
 ## Capturing Google Meet calls
 
-An admin connects the Google account that **creates** the community's Meet calls, once, under **Google Meet account** on the **Call capture** page. Google asks for one Meet permission, read access to the account's Meet conferences, which Treasury Guild uses only to read who attended and when; tick it, or the connection is refused. Treasury Guild reads no audio, video, chat, recordings, transcripts or calendar. Meet only reports a meeting to the account that created it, so create your rewarded calls from this one shared account. **Disconnect** deletes the stored access and revokes it at Google; connecting a different Google account does the same for the old one. Access is not revoked while another community is still connected to the same Google account, because revoking would cut that community off too.
+An admin connects the Google account that **creates** the community's Meet calls, once, under **Google Meet account** on the **Call platforms** page. Google asks for one Meet permission, read access to the account's Meet conferences, which Treasury Guild uses only to read who attended and when; tick it, or the connection is refused. Treasury Guild reads no audio, video, chat, recordings, transcripts or calendar. Meet only reports a meeting to the account that created it, so create your rewarded calls from this one shared account. **Disconnect** deletes the stored access and revokes it at Google; connecting a different Google account does the same for the old one. Access is not revoked while another community is still connected to the same Google account, because revoking would cut that community off too.
 
 This is separate from the **Google account** link on your own Profile page, which only tells communities which Google account is yours.
 

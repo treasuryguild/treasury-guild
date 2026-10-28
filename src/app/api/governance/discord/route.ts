@@ -1,5 +1,5 @@
 // Admin management of the community's governance Discord channel. The
-// Discord server comes from Call capture (call_integrations); this route
+// Discord server comes from Integrations (call_integrations); this route
 // only picks which text/forum channel the bot posts to.
 import { parseJson, parseQuery, sessionRoute } from "@/lib/api/route";
 import { communityIdQuerySchema, communityIdSchema, setGovernanceDiscordChannelSchema } from "@/lib/api/schemas";

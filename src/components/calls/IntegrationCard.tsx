@@ -10,10 +10,9 @@ import { useOAuthOutcome } from "@/hooks/useOAuthOutcome";
 import { Button, Card, ConfirmDialog, ErrorText, LinkButton, OAuthOutcomeBanner } from "@/components/ui";
 
 /**
- * One call platform a community connects on the Call capture page. Connecting
- * is a full redirect through the platform's consent screen that ends back
- * here as ?<outcomeParam>=<outcome>; disconnecting is a DELETE on the same
- * API path.
+ * One host connection (Discord server, Zoom or Google Meet). Connecting is a
+ * full redirect through the platform's consent screen that ends back here as
+ * ?<outcomeParam>=<outcome>; disconnecting is a DELETE on the same API path.
  */
 export function IntegrationCard({
   communityId,

@@ -100,6 +100,9 @@ export interface TxMetadataResponse {
 export interface CreateCommunityResponse {
   community: CommunityRow;
 }
+/** GET /api/community/integrations-status: admin completeness for Integrations hub. */
+export type { IntegrationsStatus as IntegrationsStatusResponse } from "@/lib/integrations/status";
+
 export interface JoinCommunityResponse extends OkResponse {
   slug: string;
 }

@@ -56,7 +56,7 @@ afterEach(() => {
 describe("discord guild-connect API", () => {
   describe("GET: start the connection", () => {
     it("sends an admin to Discord to add the bot, with view, send, and thread perms", async () => {
-      const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/calls" });
+      const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/integrations" });
       expect(response.status).toBe(307);
       const url = location(response);
       expect(`${url.origin}${url.pathname}`).toBe("https://discord.com/oauth2/authorize");
@@ -69,7 +69,7 @@ describe("discord guild-connect API", () => {
         redirect_uri: "https://vault.test/api/discord/guild-callback",
       });
       expect(verifyOAuthState("discord-guild", state!)).toEqual({
-        wallet: WALLET, returnTo: "/c/demo/settings/calls", communityId: COMMUNITY_ID,
+        wallet: WALLET, returnTo: "/c/demo/settings/integrations", communityId: COMMUNITY_ID,
       });
       expect(mocks.admin).toHaveBeenCalledExactlyOnceWith(COMMUNITY_ID, WALLET);
     });

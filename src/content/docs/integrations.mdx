@@ -1,0 +1,23 @@
+**Integrations** (community sidebar) is the admin page that shows whether the community's outside connections are finished, and where Discord lives. GitHub repos, Zoom and Meet accounts, and governance voting rules stay on their own pages; this page is the completeness view and the place that installs the Discord server.
+
+## Discord server
+
+**Connect Discord server** opens Discord, where you pick a server you manage and add the Treasury Guild bot. The bot asks for view, send and thread permissions. One server per community; **Change server** repeats the step with another one. **Disconnect** takes the bot out of the server unless another community still uses it.
+
+That one connection unlocks several things:
+
+- **Voice capture** on [Calls](/docs/calls): while a Discord call runs, the bot reads who is in the chosen voice channel (it never joins or listens). Private channels need the bot's role allowed to view them.
+- **Proposal announcements** and discussion threads: pick a text or forum channel on this page (or under [Governance](/docs/governance#discord-announcements)). The same channel also posts outside-spend alerts and on-chain anchor reminders when those apply.
+- **Payout announcements** use a separate Discord *webhook* URL per treasury (also configurable on this page and on each treasury card). They are not the bot. The optional fiat rate in the payout footer is set on [Members](/docs/members-roles).
+
+If you add the bot on Discord but the connection is never finished, the bot leaves that server by itself within about an hour.
+
+## Other connections
+
+The page also summarises:
+
+- **GitHub** — whether the [GitHub App](/docs/github) is installed and how many repositories are linked to workgroups. Install and link on the GitHub page. When [Governance](/docs/governance#governance-settings) publishes signed tallies to a GitHub archive, that archive repository must sit on the same installation.
+- **Call platforms** — Zoom and Google Meet host accounts, and [linked meetings](/docs/calls#linked-meetings), configured under **Call platforms** in the sidebar. Discord voice still needs the server above.
+- **Records** — whether frozen tallies are kept in Treasury Guild only or also published to IPFS or GitHub, and how the spending check behaves. Change those under Governance.
+
+A short **Setup** list on the community [Overview](/docs/communities#community-overview) points admins at unfinished steps; dismissing an item hides it on Overview only, not on Integrations.

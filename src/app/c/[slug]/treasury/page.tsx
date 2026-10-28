@@ -45,6 +45,7 @@ import {
 import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
 import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
+import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice";
 import { DiscordWebhookControl } from "@/components/treasury/DiscordWebhookControl";
 import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
 
@@ -184,6 +185,9 @@ export default function TreasuryPage({
         Treasury
       </PageTitle>
 
+      {isAdmin && community && (
+        <IntegrationsNotice communityId={community.id} slug={slug} kind="treasury-webhooks" />
+      )}
       <ErrorText error={discord.error ?? setPrimary.error} className="mb-3" />
       <div className="mb-8 grid gap-4 lg:grid-cols-2">
         {list.map((t) => {

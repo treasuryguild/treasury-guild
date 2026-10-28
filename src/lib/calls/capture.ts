@@ -26,7 +26,7 @@ const SNAPSHOT_TOO_SOON = "A snapshot was taken a few seconds ago. Try again in 
 /** Running calls captured per cron run. */
 const BATCH = 20;
 
-const BOT_GONE = "The bot is no longer in the Discord server. Connect the server again in Call capture settings.";
+const BOT_GONE = "The bot is no longer in the Discord server. Connect the server again under Integrations.";
 
 /** A call's voice channel must be one of the connected server's, visible to the bot. */
 export async function assertVoiceChannel(communityId: string, channelId: string): Promise<void> {

@@ -14,13 +14,17 @@ import { SpendCheckMode, type GovernanceCommunitySettings } from "@/lib/governan
 import { STORE_LABELS } from "@/lib/storage/locator";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import Link from "next/link";
 import { Button, Card, ConfirmDialog, ErrorText, Field, NoticeText, Select, SectionTitle } from "@/components/ui";
+import { routes } from "@/lib/routes";
 
-export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }: {
+export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved, slug }: {
   communityId: string;
   initial: GovernanceCommunitySettings;
   canEdit: boolean;
   onSaved: () => void;
+  /** For deep links when the GitHub App is missing. */
+  slug?: string;
 }) {
   const [store, setStore] = useState<DocumentStoreName | null>(initial.documentStore);
   const [archiveRepoId, setArchiveRepoId] = useState<number | null>(initial.documentArchiveRepoId);
@@ -100,7 +104,16 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
           <ErrorText error={repos.error} />
           {!repos.loading && !repos.error && archiveOptions.length === 0 && (
             <p className="mt-1 text-sm text-zinc-500">
-              Install the GitHub App and grant it access to an archive repository first.
+              Install the GitHub App and grant it access to an archive repository first
+              {slug ? (
+                <>
+                  {" "}—{" "}
+                  <Link className="underline" href={routes.githubSettings(slug)}>GitHub settings</Link>
+                  {" "}or{" "}
+                  <Link className="underline" href={`${routes.integrations(slug)}#github`}>Integrations</Link>
+                </>
+              ) : null}
+              .
             </p>
           )}
         </Field>

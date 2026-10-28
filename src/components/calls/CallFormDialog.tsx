@@ -227,7 +227,7 @@ export function CallFormDialog({
             <p className="text-xs text-zinc-500">
               {channels.error ?? "To capture who is in the voice channel automatically, an admin connects the Discord server in"}{" "}
               {!channels.error && (
-                <Link href={routes.callSettings(slug)} className="text-indigo-400 hover:underline">Call capture</Link>
+                <Link href={routes.integrations(slug)} className="text-indigo-400 hover:underline">Integrations</Link>
               )}
               {!channels.error && ". Check-in works without it."}
             </p>
@@ -247,7 +247,7 @@ export function CallFormDialog({
           !hostAccount.loading && (
             <p className="text-xs text-zinc-500">
               To capture who attends automatically, an admin connects {hosted.account} in{" "}
-              <Link href={routes.callSettings(slug)} className="text-indigo-400 hover:underline">Call capture</Link>.
+              <Link href={routes.callSettings(slug)} className="text-indigo-400 hover:underline">Call platforms</Link>.
               Check-in and pasted lists work without it.
             </p>
           )

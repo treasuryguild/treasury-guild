@@ -21,7 +21,7 @@ import { GET } from "./route";
 const WALLET = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
 const OTHER = "addr_test1vznqk7fg98mup5ycpd7w9ql62htvh4cwqzugj4x3eqdfyvgtvyz89";
 const COMMUNITY_ID = "30000000-0000-4000-8000-000000000001";
-const RETURN_TO = "/c/demo/settings/calls";
+const RETURN_TO = "/c/demo/settings/integrations";
 
 const context = { params: Promise.resolve({}) };
 const state = (purpose: OAuthPurpose = "discord-guild", payload: object = { communityId: COMMUNITY_ID }) =>
