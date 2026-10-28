@@ -21,22 +21,22 @@ function message(
         href: `${routes.integrations(slug)}#announcements`,
       };
     case "treasury-webhooks": {
-      const missing = status.payoutDiscord.treasuries.filter((t) => !t.webhookConnected);
+      const missing = status.payoutDiscord.treasuries.filter((t) => !t.connected);
       if (missing.length === 0) return null;
       return {
         text: missing.length === status.payoutDiscord.treasuries.length
-          ? "Confirmed payouts are not announced in Discord — add a webhook per treasury."
-          : `${missing.length} treasur${missing.length === 1 ? "y has" : "ies have"} no Discord payout webhook.`,
-        href: `${routes.integrations(slug)}#payout-webhooks`,
+          ? "Confirmed payouts are not announced in Discord — connect a channel or webhook per treasury."
+          : `${missing.length} treasur${missing.length === 1 ? "y has" : "ies have"} no Discord payout destination.`,
+        href: `${routes.integrations(slug)}#payout-discord`,
       };
     }
     case "payday-webhooks": {
       if (status.treasuryCount === 0) return null;
-      const any = status.payoutDiscord.treasuries.some((t) => t.webhookConnected);
+      const any = status.payoutDiscord.treasuries.some((t) => t.connected);
       if (any) return null;
       return {
-        text: "Confirmed payouts are not announced in Discord — connect a webhook under Integrations.",
-        href: `${routes.integrations(slug)}#payout-webhooks`,
+        text: "Confirmed payouts are not announced in Discord — connect a channel or webhook under Integrations.",
+        href: `${routes.integrations(slug)}#payout-discord`,
       };
     }
   }

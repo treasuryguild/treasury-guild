@@ -161,21 +161,28 @@ export interface TreasuryDetailsResponse {
 }
 /** A treasury's Discord connection as admins see it: never the URL itself. */
 /** A connected Discord webhook, without its secret URL. */
-export interface DiscordWebhookStatus {
-  /** `…/webhooks/<id>/••••<last 4 chars of the token>`. */
-  urlHint: string;
+/** A treasury's payout Discord destination: pasted webhook or bot channel. */
+export interface TreasuryDiscordDestinationStatus {
+  treasuryId: string;
+  mode: "webhook" | "channel";
+  /** Present only for webhook mode: `…/webhooks/<id>/••••<last 4>`. */
+  urlHint?: string;
+  /** Present only for channel mode. */
+  channelId?: string;
+  /** Discord channel type: 0 text, 5 announcement. */
+  channelType?: 0 | 5;
   lastPostedAt: string | null;
   lastError: string | null;
 }
-export interface TreasuryDiscordWebhookStatus extends DiscordWebhookStatus {
-  treasuryId: string;
+
+export interface TreasuryDiscordDestinationsResponse {
+  /** One entry per treasury of the community that has a destination. */
+  destinations: TreasuryDiscordDestinationStatus[];
+  /** Text/announcement channels when `?channels=1` and a Discord server is connected. */
+  channels?: { id: string; name: string; type: number }[];
 }
-export interface TreasuryDiscordWebhooksResponse {
-  /** One entry per treasury of the community that has a webhook. */
-  webhooks: TreasuryDiscordWebhookStatus[];
-}
-export interface SetTreasuryDiscordWebhookResponse {
-  webhook: TreasuryDiscordWebhookStatus;
+export interface SetTreasuryDiscordDestinationResponse {
+  destination: TreasuryDiscordDestinationStatus;
 }
 
 // --- Tasks --------------------------------------------------------------------

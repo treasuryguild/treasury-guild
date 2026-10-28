@@ -50,6 +50,7 @@ import {
   saveGovernanceCommunitySettingsSchema,
   saveGovernanceSettingsSchema,
   setGovernanceDiscordChannelSchema,
+  setTreasuryDiscordDestinationSchema,
   setTaskAssigneesSchema,
   treasuryIdQuerySchema,
   txStatusQuerySchema,
@@ -347,6 +348,7 @@ describe("schemas", () => {
 });
 
 const COMMUNITY = "10000000-0000-4000-8000-000000000001";
+const TREASURY = "40000000-0000-4000-8000-000000000001";
 const WORKGROUP = "20000000-0000-4000-8000-000000000001";
 const SOURCE = "50000000-0000-4000-8000-000000000001";
 const TX_HASH = "ab".repeat(32);
@@ -641,6 +643,15 @@ describe("governance schemas", () => {
     expect(setGovernanceDiscordChannelSchema.safeParse({ communityId: COMMUNITY }).success).toBe(false);
     expect(setGovernanceDiscordChannelSchema.safeParse({ communityId: "demo", channelId: "1" }).success).toBe(false);
     expect(setGovernanceDiscordChannelSchema.safeParse({ channelId: "1" }).success).toBe(false);
+
+    const hook = "https://discord.com/api/webhooks/123456789/AbC-dEf_123";
+    expect(setTreasuryDiscordDestinationSchema.parse({ treasuryId: TREASURY, url: ` ${hook} ` }))
+      .toEqual({ treasuryId: TREASURY, url: hook });
+    expect(setTreasuryDiscordDestinationSchema.parse({ treasuryId: TREASURY, channelId: " 99 " }))
+      .toEqual({ treasuryId: TREASURY, channelId: "99" });
+    expect(setTreasuryDiscordDestinationSchema.safeParse({ treasuryId: TREASURY }).success).toBe(false);
+    expect(setTreasuryDiscordDestinationSchema.safeParse({ treasuryId: TREASURY, url: hook, channelId: "1" }).success)
+      .toBe(false);
   });
 });
 

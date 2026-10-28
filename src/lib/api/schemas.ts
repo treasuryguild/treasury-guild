@@ -257,15 +257,18 @@ export const setPrimaryTreasurySchema = z.object({
   treasuryId: id,
 });
 
-export const setTreasuryDiscordWebhookSchema = z.object({
-  treasuryId: id,
-  url: discordWebhookUrl,
-});
-export const deleteTreasuryDiscordWebhookSchema = z.object({ treasuryId: id });
+const discordChannelId = z.string().trim().min(1).max(32).regex(/^\d+$/);
+
+/** POST /api/treasury/discord: webhook URL or bot channel (XOR). */
+export const setTreasuryDiscordDestinationSchema = z.union([
+  z.object({ treasuryId: id, url: discordWebhookUrl }).strict(),
+  z.object({ treasuryId: id, channelId: discordChannelId }).strict(),
+]);
+export const deleteTreasuryDiscordDestinationSchema = z.object({ treasuryId: id });
 /** The community's governance Discord channel (Governance settings). */
 export const setGovernanceDiscordChannelSchema = z.object({
   communityId: id,
-  channelId: z.string().trim().min(1).max(32).regex(/^\d+$/),
+  channelId: discordChannelId,
 });
 
 // --- Developer tools ----------------------------------------------------------
@@ -1015,7 +1018,7 @@ export type WorkgroupLeadBody = z.infer<typeof workgroupLeadAddSchema>;
 export type TaskAssigneeInput = z.infer<typeof taskAssigneeInputSchema>;
 export type SetTaskAssigneesBody = z.infer<typeof setTaskAssigneesSchema>;
 export type CreateTreasuryBody = z.infer<typeof createTreasurySchema>;
-export type SetTreasuryDiscordWebhookBody = z.infer<typeof setTreasuryDiscordWebhookSchema>;
+export type SetTreasuryDiscordDestinationBody = z.infer<typeof setTreasuryDiscordDestinationSchema>;
 export type DevDiscordSendBody = z.infer<typeof devDiscordSendSchema>;
 export type DevCronRunBody = z.infer<typeof devCronRunSchema>;
 export type DevAnchorTestBody = z.infer<typeof devAnchorTestSchema>;

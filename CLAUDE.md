@@ -504,10 +504,12 @@ Supabase (RLS, no ORM) + Netlify.
   task only once archived; a GitHub task (which cannot be archived) only by
   the service-role sync, when its issue leaves the import filter.
 - **Payout announcements**: a confirmed payout is posted to the treasury's
-  Discord channel (`src/lib/discord/notifyPayouts.ts`, webhook in
-  `treasury_discord_webhooks`, migration 0027; fiat footer from
-  `src/lib/rates/coingecko.ts`) and written back to GitHub (tx-hash comment,
-  paid label, move to the Paid status: `src/lib/github/writeback.ts`).
+  Discord destination (`src/lib/discord/notifyPayouts.ts`,
+  `treasury_discord_destinations`, migrations 0027 / 0072: either a bot
+  channel on the community's Discord server or a pasted webhook URL, XOR;
+  fiat footer from `src/lib/rates/coingecko.ts`) and written back to GitHub
+  (tx-hash comment, paid label, move to the Paid status:
+  `src/lib/github/writeback.ts`).
 - **GitHub App install** (`/api/github/setup`): the state is a wallet-bound
   `github-install` OAuth state; `installation_id` is a spoofable query
   parameter, so `installationClaim` never moves an installation another

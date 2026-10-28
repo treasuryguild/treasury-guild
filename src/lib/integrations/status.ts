@@ -28,12 +28,13 @@ export interface DiscordIntegrationStatus {
 export interface TreasuryPayoutDiscordStatus {
   treasuryId: string;
   name: string;
-  webhookConnected: boolean;
+  /** True when a webhook URL or bot channel is configured for this treasury. */
+  connected: boolean;
 }
 
 export interface PayoutDiscordStatus {
   treasuries: TreasuryPayoutDiscordStatus[];
-  /** Soft incomplete when any webhook exists and the community rate coin is null. */
+  /** Soft incomplete when any destination exists and the community rate coin is null. */
   rateConfigured: boolean;
 }
 
@@ -79,7 +80,8 @@ export interface IntegrationsStatus {
 export interface IntegrationsStatusInput {
   discord: DiscordIntegrationStatus;
   treasuries: { id: string; name: string }[];
-  webhookTreasuryIds: readonly string[];
+  /** Treasury ids that have a payout Discord destination (webhook or channel). */
+  payoutDiscordTreasuryIds: readonly string[];
   rateConfigured: boolean;
   github: {
     installationCount: number;
@@ -107,18 +109,20 @@ function checklistOf(input: IntegrationsStatusInput): SetupChecklistItem[] {
       soft: false,
     });
   }
-  const missingWebhooks = input.treasuries.filter((t) => !input.webhookTreasuryIds.includes(t.id));
-  if (input.treasuries.length > 0 && missingWebhooks.length > 0) {
+  const missingPayoutDiscord = input.treasuries.filter(
+    (t) => !input.payoutDiscordTreasuryIds.includes(t.id),
+  );
+  if (input.treasuries.length > 0 && missingPayoutDiscord.length > 0) {
     items.push({
       id: SetupItemId.PayoutWebhooks,
-      label: missingWebhooks.length === input.treasuries.length
-        ? "Add a Discord webhook so payouts are announced"
-        : `Add Discord webhooks for ${missingWebhooks.length} treasur${missingWebhooks.length === 1 ? "y" : "ies"}`,
+      label: missingPayoutDiscord.length === input.treasuries.length
+        ? "Connect Discord so payouts are announced"
+        : `Connect Discord for ${missingPayoutDiscord.length} treasur${missingPayoutDiscord.length === 1 ? "y" : "ies"}`,
       soft: true,
     });
   }
   if (
-    input.webhookTreasuryIds.length > 0 &&
+    input.payoutDiscordTreasuryIds.length > 0 &&
     !input.rateConfigured
   ) {
     items.push({
@@ -162,14 +166,14 @@ function checklistOf(input: IntegrationsStatusInput): SetupChecklistItem[] {
 
 /** Assemble the hub / checklist status from already-loaded facts. */
 export function buildIntegrationsStatus(input: IntegrationsStatusInput): IntegrationsStatus {
-  const webhookSet = new Set(input.webhookTreasuryIds);
+  const connectedSet = new Set(input.payoutDiscordTreasuryIds);
   return {
     discord: input.discord,
     payoutDiscord: {
       treasuries: input.treasuries.map((t) => ({
         treasuryId: t.id,
         name: t.name,
-        webhookConnected: webhookSet.has(t.id),
+        connected: connectedSet.has(t.id),
       })),
       rateConfigured: input.rateConfigured,
     },

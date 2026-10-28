@@ -6,7 +6,7 @@ function base(over: Partial<IntegrationsStatusInput> = {}): IntegrationsStatusIn
   return {
     discord: { serverConnected: false, serverLabel: null, channelId: null, lastError: null },
     treasuries: [],
-    webhookTreasuryIds: [],
+    payoutDiscordTreasuryIds: [],
     rateConfigured: false,
     github: {
       installationCount: 0,
@@ -43,27 +43,27 @@ describe("buildIntegrationsStatus", () => {
     expect(withServer.checklist.map((c) => c.id)).not.toContain(SetupItemId.DiscordServer);
   });
 
-  it("lists per-treasury webhook completeness and soft rate hint", () => {
+  it("lists per-treasury payout Discord completeness and soft rate hint", () => {
     const status = buildIntegrationsStatus(base({
       treasuries: [
         { id: "t1", name: "Main" },
         { id: "t2", name: "Ops" },
       ],
-      webhookTreasuryIds: ["t1"],
+      payoutDiscordTreasuryIds: ["t1"],
       rateConfigured: false,
     }));
     expect(status.payoutDiscord.treasuries).toEqual([
-      { treasuryId: "t1", name: "Main", webhookConnected: true },
-      { treasuryId: "t2", name: "Ops", webhookConnected: false },
+      { treasuryId: "t1", name: "Main", connected: true },
+      { treasuryId: "t2", name: "Ops", connected: false },
     ]);
     expect(status.checklist.map((c) => c.id)).toContain(SetupItemId.PayoutWebhooks);
     expect(status.checklist.map((c) => c.id)).toContain(SetupItemId.PayoutRate);
   });
 
-  it("does not nag about rate when no webhook exists", () => {
+  it("does not nag about rate when no payout Discord destination exists", () => {
     const status = buildIntegrationsStatus(base({
       treasuries: [{ id: "t1", name: "Main" }],
-      webhookTreasuryIds: [],
+      payoutDiscordTreasuryIds: [],
       rateConfigured: false,
     }));
     expect(status.checklist.map((c) => c.id)).not.toContain(SetupItemId.PayoutRate);

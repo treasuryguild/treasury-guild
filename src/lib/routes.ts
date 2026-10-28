@@ -51,7 +51,7 @@ export const routes = {
   proposal: (slug: string, proposalId: string) => `/c/${slug}/proposals/${proposalId}`,
   budgets: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/budgets`, period),
   dashboard: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/dashboard`, period),
-  /** Discord server, payout webhooks, and status of other community connections. */
+  /** Discord server, payout Discord destinations, and status of other community connections. */
   integrations: (slug: string) => `/c/${slug}/settings/integrations`,
   githubSettings: (slug: string) => `/c/${slug}/settings/github`,
   /** Linked Zoom / Meet meetings (host accounts and Discord are under Integrations). */

@@ -57,7 +57,7 @@ export const DOCS = [
   {
     slug: "integrations",
     title: "Integrations",
-    summary: "Discord server, payout webhooks, and the status of GitHub, call platforms and published records.",
+    summary: "Discord server, payout Discord destinations, and the status of GitHub, call platforms and published records.",
     group: "Your community",
   },
   {

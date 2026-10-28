@@ -255,17 +255,18 @@ to a dedicated GitHub archive repository on their App installation.
 
 ### Discord notifications (optional)
 
-No environment variable for payouts: a community admin pastes a channel's
-incoming webhook URL on the Treasury page (stored in
-`treasury_discord_webhooks`, service-role only). The reconcile cron posts a
-summary of each confirmed payout to it. Proposal announcements use the
-community's Discord bot connection (Call capture) plus a channel chosen on
-the Governance page (`governance_discord_channels`, migration 0071): up for
-discussion (with an auto discussion thread/forum post when the proposal has
-a discussion period), voting open, a day left, the result. While budget
-consent is on it also gets one post per outgoing transaction built outside
-Treasury Guild (migration 0059; treasury, amounts and tx link, never a
-recipient).
+No environment variable for payouts: on Integrations, a community admin
+picks a text/announcement channel on the connected Discord server (bot
+posts) or pastes an incoming webhook URL per treasury (stored in
+`treasury_discord_destinations`, service-role only, migration 0072). The
+reconcile cron posts a summary of each confirmed payout to it. Proposal
+announcements use the community's Discord bot connection (Call capture)
+plus a channel chosen under Integrations (`governance_discord_channels`,
+migration 0071): up for discussion (with an auto discussion thread/forum
+post when the proposal has a discussion period), voting open, a day left,
+the result. While budget consent is on it also gets one post per outgoing
+transaction built outside Treasury Guild (migration 0059; treasury,
+amounts and tx link, never a recipient).
 
 ### Call attendance: Discord, Zoom, Google (optional)
 
