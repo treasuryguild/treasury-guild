@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as BotModule from "./bot";
 import { DiscordBotError } from "./bot";
 
 const mocks = vi.hoisted(() => ({
@@ -8,10 +9,11 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 vi.mock("./governanceChannel", () => ({ loadDiscordGuild: mocks.guild }));
-vi.mock("./bot", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./bot")>();
-  return { ...real, listTextLikeChannels: mocks.channels, postChannelMessage: mocks.post };
-});
+vi.mock("./bot", async (importOriginal) => ({
+  ...(await importOriginal<typeof BotModule>()),
+  listTextLikeChannels: mocks.channels,
+  postChannelMessage: mocks.post,
+}));
 vi.mock("@/lib/db/treasuries", () => ({ saveTreasuryDiscordChannel: mocks.save }));
 
 import {

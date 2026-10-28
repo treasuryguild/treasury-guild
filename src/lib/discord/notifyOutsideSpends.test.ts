@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UnalertedSpend } from "@/lib/db/outsideSpends";
+import type * as BotModule from "./bot";
 import { DiscordBotError } from "./bot";
 
 const mocks = vi.hoisted(() => ({
@@ -29,10 +30,10 @@ vi.mock("./governanceChannel", () => ({
   recordGovernanceChannelPost: mocks.recordPost,
   recordGovernanceChannelError: mocks.recordError,
 }));
-vi.mock("./bot", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./bot")>();
-  return { ...real, postChannelMessage: mocks.post };
-});
+vi.mock("./bot", async (importOriginal) => ({
+  ...(await importOriginal<typeof BotModule>()),
+  postChannelMessage: mocks.post,
+}));
 
 import { notifyOutsideSpends } from "./notifyOutsideSpends";
 

@@ -35,7 +35,8 @@ export interface CreatedInvite {
 }
 
 function withoutHash(row: CommunityInviteRow): CommunityInviteSummary {
-  const { token_hash: _, ...rest } = row;
+  const { token_hash: _tokenHash, ...rest } = row;
+  void _tokenHash;
   return rest;
 }
 
