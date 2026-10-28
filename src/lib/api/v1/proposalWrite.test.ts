@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/communities", () => ({ requireCommunityBySlug: mocks.community }));
 vi.mock("@/lib/authz", () => ({ memberRole: mocks.role }));
 vi.mock("@/lib/governance/propose", () => ({ prepareProposal: mocks.prepare }));
+vi.mock("@/lib/discord/proposalThreads", () => ({ tryEnsureProposalDiscordThread: vi.fn() }));
 vi.mock("@/lib/db/governance", () => ({
   createDraftProposal: mocks.createDraft,
   findProposalByDraft: mocks.findByDraft,

@@ -184,15 +184,15 @@ select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin
 select pg_temp.reject($q$ insert into workgroups(community_id, name) values ('10000000-0000-0000-0000-000000000000', 'Direct 2') $q$, '42501');
 reset role;
 
--- 4. The announcements webhook URL is a secret: no member reads it, even an admin.
-insert into governance_discord_webhooks(community_id, url, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'https://discord.com/api/webhooks/1/secret', 'admin');
+-- 4. The governance Discord channel row is service-role only: no member reads it.
+insert into governance_discord_channels(community_id, channel_id, channel_type, created_by)
+  values ('10000000-0000-0000-0000-000000000000', '123456789012345678', 15, 'admin');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin"}', true);
-select pg_temp.reject($q$ select * from governance_discord_webhooks $q$, '42501');
+select pg_temp.reject($q$ select * from governance_discord_channels $q$, '42501');
 do $$ begin
   if (select count(*) from proposals where discord_milestone is not null) <> 0 then
-    raise exception 'milestones set without a webhook';
+    raise exception 'milestones set without a channel connect stamp';
   end if;
 end $$;
 reset role;

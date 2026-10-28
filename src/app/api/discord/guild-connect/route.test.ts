@@ -55,7 +55,7 @@ afterEach(() => {
 
 describe("discord guild-connect API", () => {
   describe("GET: start the connection", () => {
-    it("sends an admin to Discord to add the bot, with View Channels only", async () => {
+    it("sends an admin to Discord to add the bot, with view, send, and thread perms", async () => {
       const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/calls" });
       expect(response.status).toBe(307);
       const url = location(response);
@@ -64,7 +64,7 @@ describe("discord guild-connect API", () => {
       expect(query).toEqual({
         client_id: "discord-client",
         scope: "bot identify",
-        permissions: "1024",
+        permissions: "309237776896",
         response_type: "code",
         redirect_uri: "https://vault.test/api/discord/guild-callback",
       });

@@ -5,11 +5,11 @@
 // log of changes to them.
 import { use } from "react";
 import { Card, ErrorText, PageTitle, SectionTitle } from "@/components/ui";
+import { GovernanceDiscordControl } from "@/components/governance/GovernanceDiscordControl";
 import { GovernanceKindCard } from "@/components/governance/GovernanceKindCard";
 import { RecordsAndChecksCard } from "@/components/governance/RecordsAndChecksCard";
-import { DiscordWebhookControl } from "@/components/treasury/DiscordWebhookControl";
 import { apiFetch } from "@/lib/api/client";
-import type { GovernanceCommunitySettingsResponse, GovernanceDiscordWebhookResponse } from "@/lib/api/types";
+import type { GovernanceCommunitySettingsResponse, GovernanceDiscordResponse } from "@/lib/api/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { formatDate } from "@/lib/format";
 import { describeSettingChange, voterName } from "@/lib/governance/labels";
@@ -25,7 +25,7 @@ export default function GovernanceSettingsPage({ params }: { params: Promise<{ s
   const changes = useGovernanceChanges(community?.id);
   const members = useCommunityMembers(community?.id);
   const discord = useAsyncData(isAdmin && community ? community.id : null, () =>
-    apiFetch<GovernanceDiscordWebhookResponse>("/api/governance/discord", { query: { communityId: community!.id } }));
+    apiFetch<GovernanceDiscordResponse>("/api/governance/discord", { query: { communityId: community!.id } }));
   const communitySettings = useAsyncData(community?.id, () =>
     apiFetch<GovernanceCommunitySettingsResponse>("/api/governance/community-settings", { query: { communityId: community!.id } }));
 
@@ -55,13 +55,19 @@ export default function GovernanceSettingsPage({ params }: { params: Promise<{ s
         <Card>
           <SectionTitle>Discord announcements</SectionTitle>
           <p className="text-sm text-zinc-400">
-            Post proposals to a Discord channel: when one is up for discussion, when voting opens, a day before it closes, and the
-            result. Messages carry the proposal, its timing and counts, never who voted or how. Proposals already under way
-            are announced from their next step.
+            Post proposals to a Discord channel on the server connected under Call capture: a discussion thread when a
+            proposal opens (forum channels work best), when voting opens, a day before it closes, and the result.
+            Messages carry the proposal, its timing and counts, never who voted or how. Proposals already under way
+            are announced from their next step. Re-add the bot once if you connected it before send and thread
+            permissions were added.
           </p>
-          <DiscordWebhookControl endpoint="/api/governance/discord" target={{ communityId: community.id }}
-            status={discord.data?.webhook ?? null} onChanged={discord.reload}
-            removeText="Proposals will no longer be announced in the channel." />
+          <GovernanceDiscordControl
+            communityId={community.id}
+            slug={slug}
+            status={discord.data?.discord ?? null}
+            onChanged={discord.reload}
+            removeText="Proposals will no longer be announced in the channel. The Discord server connection under Call capture stays."
+          />
           <ErrorText error={discord.error} className="mt-2" />
         </Card>
       )}

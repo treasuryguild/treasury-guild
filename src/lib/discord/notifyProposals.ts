@@ -1,21 +1,29 @@
-// Announce proposals on a community's Discord webhook (migration 0057): run
-// by the reconcile sweep after proposals were moved along. Each proposal's
-// due milestone is posted once and recorded in proposals.discord_milestone. A
-// transient failure (429, 5xx, network) is retried next run; a permanent one
-// (deleted webhook) is recorded on the webhook and the milestone skipped.
+// Announce proposals on a community's governance Discord channel (migration
+// 0071): run by the reconcile sweep after proposals were moved along. Each
+// proposal's due milestone is posted once (into its discussion thread when
+// one exists) and recorded in proposals.discord_milestone. A transient
+// failure is retried next run; a permanent one is recorded on the channel
+// and the milestone skipped.
 import "server-only";
 
-import type { DiscordWebhookStatus } from "@/lib/api/types";
+import type { GovernanceDiscordStatus } from "@/lib/api/types";
 import { check, maybe, rows, serviceClient } from "@/lib/db/client";
 import { PROPOSAL_COLUMNS, type ProposalRow } from "@/lib/db/types";
 import { appUrl } from "@/lib/env.server";
 import { errorMessage } from "@/lib/errors";
 import { routes } from "@/lib/routes";
+import type { GovernanceDiscordChannelType } from "@/lib/db/types";
+import { DiscordBotError, listTextLikeChannels, postChannelMessage, type BotFetchLike } from "./bot";
+import {
+  loadDiscordGuild, loadGovernanceChannel, listGovernanceChannels,
+  recordGovernanceChannelError, recordGovernanceChannelPost,
+  removeGovernanceChannel, upsertGovernanceChannel,
+} from "./governanceChannel";
 import { stampCurrentAnchorAlerts } from "./notifyAnchorsDue";
 import {
   buildGovernanceConnectedEmbed, buildProposalEmbed, currentMilestone, dueMilestone, type ProposalMilestone,
 } from "./proposalMessage";
-import { DiscordWebhookError, postDiscordWebhook, webhookUrlHint, type FetchLike } from "./webhook";
+import { ensureProposalDiscordThread } from "./proposalThreads";
 
 const BATCH = 100;
 
@@ -25,25 +33,15 @@ export interface ProposalNotifyResult {
   dead: number;
 }
 
-interface WebhookRow {
-  community_id: string;
-  url: string;
-  last_posted_at: string | null;
-  last_error: string | null;
-}
-
 export async function notifyProposalMilestones(
   now: Date,
-  options: { fetchImpl?: FetchLike } = {},
+  options: { fetchImpl?: BotFetchLike } = {},
 ): Promise<ProposalNotifyResult> {
   const result: ProposalNotifyResult = { posted: 0, failed: 0, dead: 0 };
   const db = serviceClient();
-  const webhooks = rows<WebhookRow>(
-    await db.from("governance_discord_webhooks").select("community_id, url, last_posted_at, last_error"),
-    "load governance webhooks",
-  );
-  if (webhooks.length === 0) return result;
-  const byCommunity = new Map(webhooks.map((w) => [w.community_id, w]));
+  const channels = await listGovernanceChannels();
+  if (channels.length === 0) return result;
+  const byCommunity = new Map(channels.map((c) => [c.community_id, c]));
   const communities = new Map(rows<{ id: string; name: string; slug: string }>(
     await db.from("communities").select("id, name, slug").in("id", [...byCommunity.keys()]),
     "load communities",
@@ -63,71 +61,101 @@ export async function notifyProposalMilestones(
   );
   for (const proposal of proposals) {
     const milestone = dueMilestone(proposal, now.getTime());
-    const webhook = byCommunity.get(proposal.community_id);
+    const channel = byCommunity.get(proposal.community_id);
     const community = communities.get(proposal.community_id);
-    if (!milestone || !webhook || !community) continue;
+    if (!milestone || !channel || !community) continue;
+
+    if (proposal.rules.discussionHours > 0 && !proposal.discord_thread_id) {
+      const ensured = await ensureProposalDiscordThread(proposal.id, options);
+      if (ensured.status === "failed" && !ensured.permanent) {
+        result.failed += 1;
+        continue;
+      }
+      if (ensured.status === "created" || ensured.status === "exists") {
+        const refreshed = maybe<Pick<ProposalRow, "discord_thread_id">>(
+          await db.from("proposals").select("discord_thread_id").eq("id", proposal.id).maybeSingle(),
+          "reload proposal thread",
+        );
+        proposal.discord_thread_id = refreshed?.discord_thread_id ?? null;
+      }
+    }
+
     const payload = buildProposalEmbed({
       communityName: community.name,
       proposal,
       milestone,
       url: `${appUrl()}${routes.proposal(community.slug, proposal.id)}`,
     });
+    const targetChannelId = proposal.discord_thread_id ?? channel.channel_id;
     try {
-      await postDiscordWebhook(webhook.url, payload, options.fetchImpl);
+      await postChannelMessage(targetChannelId, { embeds: payload.embeds }, options.fetchImpl);
     } catch (err) {
       console.error(`discord announcement of proposal ${proposal.id} failed`, err);
-      if (!(err instanceof DiscordWebhookError && err.permanent)) {
+      if (!(err instanceof DiscordBotError && err.permanent)) {
         result.failed += 1;
         continue;
       }
-      check(
-        await db.from("governance_discord_webhooks").update({ last_error: errorMessage(err) }).eq("community_id", proposal.community_id),
-        "record webhook error",
-      );
+      await recordGovernanceChannelError(proposal.community_id, errorMessage(err));
       await stamp(proposal.id, milestone);
       result.dead += 1;
       continue;
     }
     await stamp(proposal.id, milestone);
-    check(
-      await db.from("governance_discord_webhooks").update({ last_posted_at: new Date().toISOString(), last_error: null })
-        .eq("community_id", proposal.community_id),
-      "record webhook post",
-    );
+    await recordGovernanceChannelPost(proposal.community_id);
     result.posted += 1;
   }
   return result;
 }
 
-export async function loadGovernanceWebhook(communityId: string): Promise<DiscordWebhookStatus | null> {
-  const row = maybe<WebhookRow>(
-    await serviceClient().from("governance_discord_webhooks").select("community_id, url, last_posted_at, last_error")
-      .eq("community_id", communityId).maybeSingle(),
-    "load governance webhook",
-  );
-  return row ? { urlHint: webhookUrlHint(row.url), lastPostedAt: row.last_posted_at, lastError: row.last_error } : null;
+export async function loadGovernanceDiscordStatus(communityId: string): Promise<GovernanceDiscordStatus> {
+  const guild = await loadDiscordGuild(communityId);
+  const channel = await loadGovernanceChannel(communityId);
+  return {
+    serverConnected: !!guild,
+    serverLabel: guild?.label ?? null,
+    channelId: channel?.channel_id ?? null,
+    channelType: channel?.channel_type ?? null,
+    lastPostedAt: channel?.last_posted_at ?? null,
+    lastError: channel?.last_error ?? null,
+  };
 }
 
 /**
- * Test the URL with a hello message, store it, and treat every proposal's
- * current milestone as announced: connecting never posts history.
+ * Verify the channel, post a hello message, store it, and treat every
+ * proposal's current milestone as announced: connecting never posts history.
  */
-export async function connectGovernanceWebhook(
+export async function connectGovernanceDiscordChannel(
   community: { id: string; name: string },
-  url: string,
+  channelId: string,
   actor: string,
-  options: { fetchImpl?: FetchLike } = {},
-): Promise<DiscordWebhookStatus> {
-  await postDiscordWebhook(url, buildGovernanceConnectedEmbed(community.name), options.fetchImpl);
-  const db = serviceClient();
-  const now = new Date();
-  check(
-    await db.from("governance_discord_webhooks").upsert({
-      community_id: community.id, url, created_by: actor, created_at: now.toISOString(),
-      last_posted_at: now.toISOString(), last_error: null,
-    }),
-    "save governance webhook",
+  options: { fetchImpl?: BotFetchLike } = {},
+): Promise<GovernanceDiscordStatus> {
+  const guild = await loadDiscordGuild(community.id);
+  if (!guild) {
+    throw new DiscordBotError("Connect a Discord server under Call capture first", null, true);
+  }
+  const channels = await listTextLikeChannels(guild.guildId, options.fetchImpl);
+  if (!channels) {
+    throw new DiscordBotError("Treasury Guild bot is not in the Discord server — reconnect it under Call capture", null, true);
+  }
+  const chosen = channels.find((c) => c.id === channelId);
+  if (!chosen) {
+    throw new DiscordBotError("That channel is not on the connected Discord server (or the bot cannot see it)", null, true);
+  }
+  const channelType = chosen.type as GovernanceDiscordChannelType;
+  await postChannelMessage(
+    channelId,
+    { embeds: buildGovernanceConnectedEmbed(community.name).embeds },
+    options.fetchImpl,
   );
+  const now = new Date();
+  await upsertGovernanceChannel({
+    communityId: community.id,
+    channelId,
+    channelType,
+    actor,
+  });
+  const db = serviceClient();
   const proposals = rows<Pick<ProposalRow, "id" | "state" | "closes_at" | "execution_state" | "rules">>(
     await db.from("proposals").select("id, state, closes_at, execution_state, rules").eq("community_id", community.id),
     "load proposals",
@@ -140,15 +168,21 @@ export async function connectGovernanceWebhook(
   for (const [milestone, ids] of byMilestone) {
     check(await db.from("proposals").update({ discord_milestone: milestone }).in("id", ids), "stamp announced proposals");
   }
-  // Anchor reminders: stamp whatever is already due or in the copy-grace
-  // window so connecting never dumps history into the channel.
   await stampCurrentAnchorAlerts(community.id, now);
-  return { urlHint: webhookUrlHint(url), lastPostedAt: now.toISOString(), lastError: null };
+  return loadGovernanceDiscordStatus(community.id);
 }
 
-export async function removeGovernanceWebhook(communityId: string): Promise<void> {
-  check(
-    await serviceClient().from("governance_discord_webhooks").delete().eq("community_id", communityId),
-    "remove governance webhook",
-  );
+export async function removeGovernanceDiscordChannel(communityId: string): Promise<void> {
+  await removeGovernanceChannel(communityId);
+}
+
+/** Channels the admin may pick for governance posts. */
+export async function listGovernanceDiscordChannelOptions(
+  communityId: string,
+  options: { fetchImpl?: BotFetchLike } = {},
+): Promise<{ id: string; name: string; type: number }[]> {
+  const guild = await loadDiscordGuild(communityId);
+  if (!guild) return [];
+  const channels = await listTextLikeChannels(guild.guildId, options.fetchImpl);
+  return channels ?? [];
 }

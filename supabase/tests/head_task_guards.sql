@@ -397,16 +397,16 @@ select pg_temp.reject($$select public.replace_workgroup_dated_budgets('20000000-
 select pg_temp.reject($$select * from contributors$$, '42501');
 reset role;
 
--- 6. governance_discord_webhooks (0057): the URL is a secret of the service role ------------
+-- 6. governance_discord_channels (0071): channel config is service-role only ------------
 set local role service_role;
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
-insert into governance_discord_webhooks(community_id, url, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'https://discord.com/api/webhooks/1/secret', 'admin');
-update governance_discord_webhooks set last_posted_at = now(), last_error = null
+insert into governance_discord_channels(community_id, channel_id, channel_type, created_by)
+  values ('10000000-0000-0000-0000-000000000000', '123456789012345678', 15, 'admin');
+update governance_discord_channels set last_posted_at = now(), last_error = null
   where community_id = '10000000-0000-0000-0000-000000000000';
 do $$ begin
-  if (select url from governance_discord_webhooks where last_posted_at is not null) <> 'https://discord.com/api/webhooks/1/secret' then
-    raise exception 'the service role cannot read or update the webhook';
+  if (select channel_id from governance_discord_channels where last_posted_at is not null) <> '123456789012345678' then
+    raise exception 'the service role cannot read or update the governance channel';
   end if;
 end $$;
 reset role;
@@ -415,36 +415,36 @@ declare r text; p text;
 begin
   foreach r in array array['anon', 'authenticated'] loop
     foreach p in array array['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger'] loop
-      if has_table_privilege(r, 'public.governance_discord_webhooks', p) then
-        raise exception '% holds % on governance_discord_webhooks', r, p;
+      if has_table_privilege(r, 'public.governance_discord_channels', p) then
+        raise exception '% holds % on governance_discord_channels', r, p;
       end if;
     end loop;
-    if has_any_column_privilege(r, 'public.governance_discord_webhooks', 'select, insert, update') then
-      raise exception '% holds a column privilege on governance_discord_webhooks', r;
+    if has_any_column_privilege(r, 'public.governance_discord_channels', 'select, insert, update') then
+      raise exception '% holds a column privilege on governance_discord_channels', r;
     end if;
   end loop;
 end $$;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin"}', true);
-select pg_temp.reject($$select * from governance_discord_webhooks$$, '42501');
-select pg_temp.reject($$select count(*) from governance_discord_webhooks$$, '42501');
-select pg_temp.reject($$insert into governance_discord_webhooks(community_id, url, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'https://evil.example/hook', 'admin')$$, '42501');
-select pg_temp.reject($$update governance_discord_webhooks set url = 'https://evil.example/hook'$$, '42501');
-select pg_temp.reject($$delete from governance_discord_webhooks$$, '42501');
+select pg_temp.reject($$select * from governance_discord_channels$$, '42501');
+select pg_temp.reject($$select count(*) from governance_discord_channels$$, '42501');
+select pg_temp.reject($$insert into governance_discord_channels(community_id, channel_id, channel_type, created_by)
+  values ('10000000-0000-0000-0000-000000000000', '999', 0, 'admin')$$, '42501');
+select pg_temp.reject($$update governance_discord_channels set channel_id = '999'$$, '42501');
+select pg_temp.reject($$delete from governance_discord_channels$$, '42501');
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
-select pg_temp.reject($$select * from governance_discord_webhooks$$, '42501');
-select pg_temp.reject($$insert into governance_discord_webhooks(community_id, url, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'https://evil.example/hook', 'anon')$$, '42501');
-select pg_temp.reject($$update governance_discord_webhooks set url = 'https://evil.example/hook'$$, '42501');
-select pg_temp.reject($$delete from governance_discord_webhooks$$, '42501');
+select pg_temp.reject($$select * from governance_discord_channels$$, '42501');
+select pg_temp.reject($$insert into governance_discord_channels(community_id, channel_id, channel_type, created_by)
+  values ('10000000-0000-0000-0000-000000000000', '999', 0, 'anon')$$, '42501');
+select pg_temp.reject($$update governance_discord_channels set channel_id = '999'$$, '42501');
+select pg_temp.reject($$delete from governance_discord_channels$$, '42501');
 reset role;
 set local role service_role;
-delete from governance_discord_webhooks where community_id = '10000000-0000-0000-0000-000000000000';
+delete from governance_discord_channels where community_id = '10000000-0000-0000-0000-000000000000';
 do $$ begin
-  if exists (select 1 from governance_discord_webhooks) then raise exception 'the service role cannot delete the webhook'; end if;
+  if exists (select 1 from governance_discord_channels) then raise exception 'the service role cannot delete the channel'; end if;
 end $$;
 reset role;
 

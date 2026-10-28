@@ -30,9 +30,9 @@ export default function CallSettingsPage({ params }: { params: Promise<{ slug: s
         returnTo={returnTo}
         nouns={{ thing: "server", connect: "Connect Discord server", change: "Change server" }}
         blurb={<>
-          Adds the Treasury Guild bot to a server you manage. It only needs to see your voice
-          channels: every few minutes during a Discord call it notes who is in the call&apos;s
-          channel. It never joins a call, listens, speaks or posts.
+          Adds the Treasury Guild bot to a server you manage. For calls it only reads who is in a
+          voice channel (it never joins or listens). The same bot can post proposal announcements
+          and discussion threads when you pick a channel under Governance.
         </>}
         footnote={<>
           A private voice channel is captured only if the bot&apos;s role may view it. Attendees

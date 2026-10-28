@@ -780,6 +780,10 @@ export interface ProposalRow {
   title: string;
   body: string;
   discussion_url: string | null;
+  /** Discord thread/forum post id for discussion (0071); not in content_hash. */
+  discord_thread_id: string | null;
+  /** https://discord.com/channels/{guild}/{thread} when a discussion thread exists (0071). */
+  discord_discussion_url: string | null;
   payload: ProposalPayload;
   content_hash: string;
   /** Frozen at creation: what this proposal is decided by. */
@@ -816,7 +820,23 @@ export interface ProposalRow {
 }
 
 export const PROPOSAL_COLUMNS =
-  "id, community_id, number, kind, state, title, body, discussion_url, payload, content_hash, rules, rules_hash, workgroup_ids, beneficiaries, proposer, created_at, voting_starts_at, voting_opened_at, closes_at, closed_at, electorate_size, ballots_cast, ballot_version, tally, outcome_reason, execution_state, execution_error, execution_result, executed_at, ended_by, end_reason, discord_milestone, electorate_hash, anchored, replaces_proposal_id";
+  "id, community_id, number, kind, state, title, body, discussion_url, discord_thread_id, discord_discussion_url, payload, content_hash, rules, rules_hash, workgroup_ids, beneficiaries, proposer, created_at, voting_starts_at, voting_opened_at, closes_at, closed_at, electorate_size, ballots_cast, ballot_version, tally, outcome_reason, execution_state, execution_error, execution_result, executed_at, ended_by, end_reason, discord_milestone, electorate_hash, anchored, replaces_proposal_id";
+
+/** Discord channel type stored on governance_discord_channels (0071). */
+export type GovernanceDiscordChannelType = 0 | 5 | 15;
+
+export interface GovernanceDiscordChannelRow {
+  community_id: string;
+  channel_id: string;
+  channel_type: GovernanceDiscordChannelType;
+  created_by: string;
+  created_at: string;
+  last_posted_at: string | null;
+  last_error: string | null;
+}
+
+export const GOVERNANCE_DISCORD_CHANNEL_COLUMNS =
+  "community_id, channel_id, channel_type, created_by, created_at, last_posted_at, last_error";
 
 /** One step of a proposal carried by one transaction (0060). */
 export interface ProposalAnchorRow {

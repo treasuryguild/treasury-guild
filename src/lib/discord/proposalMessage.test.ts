@@ -88,7 +88,7 @@ describe("buildGovernanceConnectedEmbed", () => {
 
   it("says which four moments of a proposal will be announced", () => {
     const description = buildGovernanceConnectedEmbed("Signius").embeds[0]!.description!;
-    expect(description).toMatch(/up for discussion/);
+    expect(description).toMatch(/discussion thread/);
     expect(description).toMatch(/voting opens/);
     expect(description).toMatch(/a day before it closes/);
     expect(description).toMatch(/the result/);

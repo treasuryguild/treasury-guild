@@ -18,6 +18,7 @@ import {
   loadProposalWorkgroup, nonMembers, workgroupLeadWallets, workgroupNameTaken, type NewProposal,
 } from "@/lib/db/governance";
 import { requireActiveWorkgroup } from "@/lib/db/workgroups";
+import { tryEnsureProposalDiscordThread } from "@/lib/discord/proposalThreads";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { eligibleVoterCount, noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";
@@ -33,7 +34,10 @@ type BudgetSave = Extract<CreateProposalInput, { kind: "budget" }>["saves"][numb
 const HOUR_MS = 60 * 60 * 1000;
 
 export async function makeProposal(input: CreateProposalInput, proposer: string): Promise<CreateProposalResponse> {
-  return createProposal(await prepareProposal(input, proposer));
+  const created = await createProposal(await prepareProposal(input, proposer));
+  // Best-effort Discord discussion thread; never fails the create.
+  await tryEnsureProposalDiscordThread(created.id);
+  return created;
 }
 
 /**

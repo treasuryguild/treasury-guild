@@ -7,6 +7,10 @@ const mocks = vi.hoisted(() => ({
   loadStamps: vi.fn(),
   stamp: vi.fn(),
 }));
+vi.mock("@/lib/env.server", () => ({
+  discordBotToken: () => "bot-token",
+  appUrl: () => "https://app.example",
+}));
 vi.mock("@/lib/db/client", async (importOriginal) => ({
   ...(await importOriginal<typeof DbClient>()),
   serviceClient: () => ({ from: mocks.from }),
@@ -41,8 +45,14 @@ function builder(table: string) {
   const op: Op = { table, op: "select", filters: [] };
   const respond = () => {
     if (op.op === "update") return { data: null, error: null };
-    if (table === "governance_discord_webhooks") {
-      return { data: [{ community_id: "c-1", url: "https://discord.com/api/webhooks/1/tok" }], error: null };
+    if (table === "governance_discord_channels") {
+      return {
+        data: [{
+          community_id: "c-1", channel_id: "chan-1", channel_type: 0,
+          created_by: "addr", created_at: NOW.toISOString(), last_posted_at: null, last_error: null,
+        }],
+        error: null,
+      };
     }
     if (table === "communities") return { data: [{ id: "c-1", name: "Guild", slug: "guild" }], error: null };
     return { data: [], error: null };
@@ -87,7 +97,7 @@ describe("notifyAnchorsDue", () => {
     const titles: string[] = [];
     const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
       titles.push(JSON.parse(String(init.body)).embeds[0].title);
-      return new Response(null, { status: 204 });
+      return new Response(JSON.stringify({ id: "m-1", channel_id: "chan-1" }), { status: 200 });
     });
     expect(await notifyAnchorsDue(NOW, { fetchImpl })).toEqual({ posted: 2, skipped: 0, failed: 0 });
     expect(titles).toEqual(["On-chain anchors waiting", "Tally copy needed · Proposal #4"]);
@@ -118,19 +128,20 @@ describe("notifyAnchorsDue", () => {
       proposal_id: "p-1", step: "proposed", kind: "stale",
       due_since: "2026-08-01T00:00:00.000Z", alerted_at: "2026-08-05T00:00:00Z",
     }]);
-    const fetchImpl = vi.fn(async () => new Response(null, { status: 204 }));
+    const fetchImpl = vi.fn(async () =>
+      new Response(JSON.stringify({ id: "m-1", channel_id: "chan-1" }), { status: 200 }));
     expect(await notifyAnchorsDue(NOW, { fetchImpl })).toEqual({ posted: 1, skipped: 0, failed: 0 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves candidates for the next run on a transient failure, stamps on a dead webhook", async () => {
+  it("leaves candidates for the next run on a transient failure, stamps on a dead channel", async () => {
     mocks.loadCandidates.mockResolvedValue([stale]);
     const busy = vi.fn(async () => new Response("slow down", { status: 429 }));
     expect(await notifyAnchorsDue(NOW, { fetchImpl: busy })).toEqual({ posted: 0, skipped: 0, failed: 1 });
     expect(mocks.stamp).not.toHaveBeenCalled();
 
     mocks.stamp.mockClear();
-    const gone = vi.fn(async () => new Response("Unknown Webhook", { status: 404 }));
+    const gone = vi.fn(async () => new Response("Unknown Channel", { status: 404 }));
     expect(await notifyAnchorsDue(NOW, { fetchImpl: gone })).toEqual({ posted: 0, skipped: 1, failed: 0 });
     expect(mocks.stamp).toHaveBeenCalledTimes(1);
   });

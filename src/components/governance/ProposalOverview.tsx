@@ -39,6 +39,13 @@ export function ProposalOverview({ proposal, names, now, slug, replaces, revised
         </p>
       )}
       {proposal.body && <p className="whitespace-pre-wrap text-sm">{proposal.body}</p>}
+      {proposal.discord_discussion_url && (
+        <p className="text-sm">
+          <a className="underline" href={proposal.discord_discussion_url} target="_blank" rel="noopener noreferrer nofollow">
+            Discuss on Discord
+          </a>
+        </p>
+      )}
       {proposal.discussion_url && (
         <p className="text-sm">
           Discussion:{" "}

@@ -35,6 +35,7 @@ export function describeProposal(slug: string, p: ProposalRow, listing: Proposal
     title: p.title,
     text: truncate(p.body, TEXT_MAX),
     discussionUrl: p.discussion_url,
+    discordDiscussionUrl: p.discord_discussion_url,
     proposer: member(p.proposer),
     changes: proposalChangeLines(p, { owner: (id) => listing.ownerNames.get(id), member }),
     decidedBy: describeMethod(p.rules),

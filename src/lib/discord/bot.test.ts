@@ -3,7 +3,10 @@ import { UpstreamError } from "@/lib/errors";
 
 vi.mock("@/lib/env.server", () => ({ discordBotToken: () => "bot-token" }));
 
-import { botJoinedAt, botUserId, leaveGuild, listBotGuilds, listVoiceChannels } from "./bot";
+import {
+  botJoinedAt, botUserId, createForumPost, DiscordBotError, leaveGuild, listBotGuilds,
+  listTextLikeChannels, listVoiceChannels, postChannelMessage, startThreadFromMessage,
+} from "./bot";
 
 const API = "https://discord.com/api/v10";
 const fetchMock = vi.fn();
@@ -24,9 +27,10 @@ describe("listBotGuilds", () => {
   it("reads one page when Discord returns fewer than 200 servers", async () => {
     fetchMock.mockResolvedValueOnce(json(guilds(1, 3)));
     expect(await listBotGuilds()).toEqual(["1", "2", "3"]);
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(`${API}/users/@me/guilds?limit=200&after=0`, {
-      headers: { Authorization: "Bot bot-token" },
-    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe(`${API}/users/@me/guilds?limit=200&after=0`);
+    expect((fetchMock.mock.calls[0]![1] as RequestInit).headers).toBeInstanceOf(Headers);
+    expect(((fetchMock.mock.calls[0]![1] as RequestInit).headers as Headers).get("Authorization")).toBe("Bot bot-token");
   });
 
   it("pages 200 at a time after the last id until a short page", async () => {
@@ -106,5 +110,74 @@ describe("listVoiceChannels", () => {
   it("answers null when the bot is not in the server", async () => {
     fetchMock.mockResolvedValueOnce(status(404));
     expect(await listVoiceChannels("g-1")).toBeNull();
+  });
+});
+
+describe("listTextLikeChannels", () => {
+  it("lists text, announcement and forum channels in Discord's order", async () => {
+    fetchMock.mockResolvedValueOnce(json([
+      { id: "v", name: "Voice", type: 2, position: 0 },
+      { id: "f", name: "proposals", type: 15, position: 2 },
+      { id: "t", name: "general", type: 0, position: 1 },
+      { id: "a", name: "news", type: 5, position: 3 },
+    ]));
+    expect(await listTextLikeChannels("g-1")).toEqual([
+      { id: "t", name: "general", type: 0 },
+      { id: "f", name: "proposals", type: 15 },
+      { id: "a", name: "news", type: 5 },
+    ]);
+  });
+
+  it("answers null when the bot is not in the server", async () => {
+    fetchMock.mockResolvedValueOnce(status(403));
+    expect(await listTextLikeChannels("g-1")).toBeNull();
+  });
+});
+
+describe("postChannelMessage", () => {
+  it("posts embeds to a channel and returns the message id", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "m-1", channel_id: "c-1" }));
+    expect(await postChannelMessage("c-1", { embeds: [{ title: "Hi" }] })).toEqual({ id: "m-1", channel_id: "c-1" });
+    expect(fetchMock).toHaveBeenCalledWith(`${API}/channels/c-1/messages`, expect.objectContaining({
+      method: "POST",
+      headers: expect.any(Headers),
+    }));
+  });
+
+  it("treats 404 as a permanent bot error", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("missing", { status: 404 }));
+    await expect(postChannelMessage("c-1", { content: "x" })).rejects.toMatchObject({
+      name: "DiscordBotError", permanent: true, status: 404,
+    } satisfies Partial<DiscordBotError>);
+  });
+
+  it("treats 429 as transient", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("slow", { status: 429 }));
+    await expect(postChannelMessage("c-1", { content: "x" })).rejects.toMatchObject({
+      permanent: false, status: 429,
+    });
+  });
+});
+
+describe("startThreadFromMessage", () => {
+  it("starts a public thread from a message", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "m-1" }));
+    expect(await startThreadFromMessage("c-1", "m-1", "#1 · Title")).toEqual({ id: "m-1" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/channels/c-1/messages/m-1/threads`,
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
+describe("createForumPost", () => {
+  it("creates a forum thread with a starter message", async () => {
+    fetchMock.mockResolvedValueOnce(json({ id: "thread-1" }));
+    expect(await createForumPost("forum-1", { name: "#2 · Budget", embeds: [{ title: "Budget" }] }))
+      .toEqual({ id: "thread-1" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${API}/channels/forum-1/threads`,
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 });

@@ -133,7 +133,7 @@ export function buildGovernanceConnectedEmbed(communityName: string): DiscordWeb
     username: USERNAME,
     embeds: [{
       title: "🔗 Treasury Guild connected",
-      description: `New proposals of **${communityName}** will be announced in this channel: when they are up for discussion, when voting opens, a day before it closes, and the result.`,
+      description: `New proposals of **${communityName}** will be announced here: a discussion thread when one opens, when voting opens, a day before it closes, and the result.`,
       color: COLORS.neutral,
     }],
   };

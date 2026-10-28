@@ -24,7 +24,8 @@ const rules = {
 } as ProposalRules;
 const proposal = {
   id: "p1", number: 3, kind: "task", state: "voting", title: "Redesign onboarding", body: "Three screens.",
-  discussion_url: null, proposer: "addr_ben", rules, electorate_size: 5, ballots_cast: 2,
+  discussion_url: null, discord_thread_id: null, discord_discussion_url: null,
+  proposer: "addr_ben", rules, electorate_size: 5, ballots_cast: 2,
   content_hash: "a".repeat(64), rules_hash: "b".repeat(64), electorate_hash: "c".repeat(64),
   created_at: "2026-09-28T12:00:00Z", voting_starts_at: "2026-09-28T12:00:00Z", closes_at: "2026-10-01T12:00:00Z",
   closed_at: null, tally: null, outcome_reason: null, execution_state: null, execution_error: null, end_reason: null,

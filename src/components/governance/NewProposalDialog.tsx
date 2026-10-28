@@ -253,7 +253,7 @@ export function NewProposalDialog({
           </>
         )}
 
-        <Field label="Discussion link (optional)" hint="Where members discuss it: a forum thread, a Discord channel.">
+        <Field label="Discussion link (optional)" hint="Optional forum or other link. If Discord announcements are connected, a Discord discussion thread is created automatically.">
           <Input aria-label="Discussion link" value={discussionUrl} placeholder="https://" onChange={(e) => setDiscussionUrl(e.target.value)} />
         </Field>
         {mayAdjust ? (

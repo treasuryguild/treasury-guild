@@ -15,7 +15,7 @@ An [AI assistant](/docs/ai-assistants#making-proposals) you connected with the *
 
 ## How a proposal moves
 
-1. **In discussion**: the proposal is visible and can be discussed (add a link to a forum thread or Discord channel). Nobody votes yet. The proposer can **Withdraw** it, or **Revise** it: that opens a form filled from the proposal; submitting withdraws the old one and creates a linked replacement with a **new number** and a **fresh discussion period**. Closing the form without submitting leaves the original open. A revision shows **Revises #N** on the new proposal and **Revised as #M** on the withdrawn one. Budget amounts stay as they were: to change those, withdraw and propose again from [Budgets](/docs/budgets).
+1. **In discussion**: the proposal is visible and can be discussed (optional link to a forum thread; when [Discord announcements](#discord-announcements) are connected, a Discord discussion thread is created automatically and linked as **Discuss on Discord**). Nobody votes yet. The proposer can **Withdraw** it, or **Revise** it: that opens a form filled from the proposal; submitting withdraws the old one and creates a linked replacement with a **new number** and a **fresh discussion period**. Closing the form without submitting leaves the original open. A revision shows **Revises #N** on the new proposal and **Revised as #M** on the withdrawn one. Budget amounts stay as they were: to change those, withdraw and propose again from [Budgets](/docs/budgets).
 2. **Voting**: once the discussion period ends, the list of voters is fixed and voting opens for the voting period.
 3. **Closed**: at the deadline the ballots are counted. The result is **Passed**, **Rejected**, or **No quorum** when too few members voted.
 4. A passed budget, workgroup or task proposal is **applied**: the budget changes are saved (with "Proposal #N" in each project's budget history), the workgroup is created or the task added, and the proposal links to it. If that fails (for example the workgroup was archived meanwhile), the proposal shows why and an admin can **Retry applying** once it is fixed.
@@ -136,14 +136,14 @@ This is near-enforcement, not enforcement: every base signer together can still 
 
 ## Discord announcements
 
-An admin can connect a Discord channel under **Governance → Discord announcements** by pasting a webhook URL (in Discord: channel settings, **Integrations**, **Webhooks**). Treasury Guild posts a test message, then announces each proposal:
+An admin first [connects the community's Discord server](/docs/calls#connecting-a-discord-server) under Call capture, then under **Governance → Discord announcements** picks a text or **forum** channel (forum is best: one post per proposal). Treasury Guild posts a test message, then for each proposal with a discussion period opens a Discord discussion thread (or forum post) and links it from the proposal page as **Discuss on Discord**. Later it announces in that thread (or in the channel when there is no discussion period):
 
-- when it is **up for discussion**,
+- when the proposal is **up for discussion**,
 - when **voting opens**, with the deadline and who votes,
 - a day before voting **closes** (for votes longer than a day), with the turnout,
 - the **result**, with the counts and whether it was carried out.
 
-A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. The same channel also posts [on-chain anchor](#on-chain-anchors) reminders when due steps have sat for three days, and a heads-up before a closed anchor would go without its published copy. If Discord refuses the webhook (it was deleted), the error shows under Discord announcements until you connect a new one.
+A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. The same channel also posts [on-chain anchor](#on-chain-anchors) reminders when due steps have sat for three days, and a heads-up before a closed anchor would go without its published copy. If Discord refuses the bot (wrong permissions, channel deleted), the error shows under Discord announcements until you fix the channel or re-add the bot.
 
 With budget consent on, the same channel receives the [outside-spend alerts](#spend-citations-and-the-budget-check).
 

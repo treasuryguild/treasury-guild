@@ -14,15 +14,20 @@ import { errorMessage } from "@/lib/errors";
 import type { HostLinkAdapter } from "./hostLink";
 import { postTokenForm } from "./token";
 
-/** VIEW_CHANNEL (1 << 10). */
-const DISCORD_BOT_PERMISSIONS = "1024";
+/**
+ * VIEW_CHANNEL | SEND_MESSAGES | EMBED_LINKS | READ_MESSAGE_HISTORY |
+ * CREATE_PUBLIC_THREADS | SEND_MESSAGES_IN_THREADS — voice capture needs
+ * view; governance posts need send/embed/threads. Channel overwrites can
+ * still keep the bot quiet outside the chosen governance channel.
+ */
+const DISCORD_BOT_PERMISSIONS = "309237776896";
 
 /**
- * The Discord server for call capture. The admin adds the bot to a server
- * they manage; it asks for View Channels only: it reads who is in a voice
- * channel and never joins, speaks or posts. The server id is taken from
- * Discord's token response and never from the query string: whoever finishes
- * this flow proved to Discord that they manage that server.
+ * The Discord server for call capture and (when a channel is chosen under
+ * Governance) proposal announcements and discussion threads. The admin adds
+ * the bot to a server they manage. The server id is taken from Discord's
+ * token response and never from the query string: whoever finishes this flow
+ * proved to Discord that they manage that server.
  */
 export const discordGuildLink: HostLinkAdapter = {
   provider: IntegrationProvider.Discord,
