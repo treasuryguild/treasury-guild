@@ -281,6 +281,13 @@ describe("runReconcileSweep", () => {
       mocks.writeBack.mockResolvedValue({ movedToStatus: "Paid" });
       const result = await runReconcileSweep();
       expect(result).toMatchObject({ writtenBack: 1, statusMoved: 1 });
+      const payoutLoad = ops.find((o) => o.table === "payouts" && o.op === "select");
+      expect(payoutLoad?.filters).toEqual(
+        expect.arrayContaining([
+          ["status", "confirmed"],
+          ["tasks.source", "github"],
+        ]),
+      );
       expect(mocks.writeBack).toHaveBeenCalledExactlyOnceWith({
         installationId: 7, repoFullName: "guild/repo", issueNumber: 12,
         amounts: [{ ticker: "ADA", decimals: 6, quantity: 50_000_000n }, { ticker: "HOSKY", decimals: 2, quantity: 150n }],

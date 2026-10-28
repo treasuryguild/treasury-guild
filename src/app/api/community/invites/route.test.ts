@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
+import { BadRequestError, ForbiddenError, UnauthorizedError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
@@ -128,6 +128,17 @@ describe("POST /api/community/invites", () => {
       expiresInDays: 30,
       maxUses: null,
       label: null,
+    });
+  });
+
+  it("surfaces the active-invite cap as a 400", async () => {
+    mocks.create.mockRejectedValueOnce(
+      new BadRequestError("This community already has 20 active invite links. Revoke one first."),
+    );
+    const res = await post({ communityId: COMMUNITY, expiresInDays: 30 });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "This community already has 20 active invite links. Revoke one first.",
     });
   });
 });
