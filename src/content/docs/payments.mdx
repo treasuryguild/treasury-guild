@@ -46,6 +46,8 @@ An output to another of the community's treasuries is a **transfer**, not spendi
 A treasury can have only one transaction waiting for signatures at a time, whether it is a payout, a mint, a payment or an anchor transaction, because a second one would try to spend the same funds. Open the pending transaction from the Treasury page and submit, reject or delete it, then build again.
 </Callout>
 
+When the community has [proposal anchors](/docs/governance#on-chain-anchors) due, a payment build carries as many as fit alongside its own record (same as a payout); the rest stay due for the next payout, payment or dedicated anchor transaction.
+
 ## On-chain record
 
 Like a payout, a payment carries a public record under metadata label **190001** so the community's spending can be audited from the chain. It is told apart from a payout by `t: "payment"` and contains only:

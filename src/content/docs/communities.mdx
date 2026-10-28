@@ -29,12 +29,13 @@ After you join, you can optionally [set a display handle and link Discord, GitHu
 
 Admins create invite links on the [Members](/docs/members-roles#invite-links) page. Each link:
 
-- joins the signed-in wallet as a **member** (never as admin);
+- joins the signed-in wallet as a **member** (never as admin), on the community's network (a mainnet wallet cannot join a preprod community, and the reverse);
 - can expire after 7, 30 or 90 days, or never;
 - can cap how many people may use it, or stay unlimited;
-- can be **revoked** at any time.
+- can carry an optional **label** for the admin's own notes;
+- can be **revoked** at any time while it is still Active.
 
-The full URL is shown once when the link is created — copy it before leaving the page. The app stores only a one-way hash of the token, not the link itself, so a revoked or forgotten URL cannot be reconstructed. Share invite links in channels you trust; anyone with a valid link can join until it expires, hits its use limit, or is revoked.
+A community may have up to **20 unrevoked** invite links at once (expired and used-up links still count until an admin revokes them). The full URL is shown once when the link is created — copy it before leaving the page. The app stores only a one-way hash of the token, not the link itself, so a revoked or forgotten URL cannot be reconstructed. Share invite links in channels you trust; anyone with a valid link can join until it expires, hits its use limit, or is revoked. Invite links work on public communities too.
 
 ## Creating a community
 

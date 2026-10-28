@@ -22,11 +22,10 @@ If the page says "No payable tasks", nothing is audited yet.
 
 The **Build payout transaction** button is enabled for:
 
-- community **admins** (for any workgroup),
-- **base signers of the selected treasury** (for any workgroup); a treasury's recovery signers and co-signer cannot build payouts unless they are admins,
+- **base signers of the selected treasury** (for any workgroup that treasury can pay); a treasury's recovery signers and co-signer cannot build payouts unless they are also a base signer of that treasury or a qualifying lead,
 - a **workgroup lead**, only when every selected task belongs to a workgroup they lead.
 
-Anyone else sees "Only signers, admins, or leads of all selected workgroups can build payouts". Your wallet must also be on the community's network.
+Community admin alone is not enough. Anyone else sees "Only signers of this treasury, or leads of all selected workgroups, can build payouts". Your wallet must also be on the community's network.
 
 ## Choosing a treasury
 
