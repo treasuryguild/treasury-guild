@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   syncTreasury: vi.fn(),
   freeze: vi.fn(),
   publish: vi.fn(),
+  notifyAnchors: vi.fn(),
   notifyOutside: vi.fn(),
   cosign: vi.fn(),
   releaseOrphans: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("@/lib/github/writeback", () => ({ writeBackPayment: mocks.writeBack }))
 vi.mock("@/lib/governance/advance", () => ({ advanceDueProposals: mocks.advance }));
 vi.mock("@/lib/governance/freeze", () => ({ freezeMissingTallyDocuments: mocks.freeze }));
 vi.mock("@/lib/governance/publish", () => ({ publishTallyDocuments: mocks.publish }));
+vi.mock("@/lib/discord/notifyAnchorsDue", () => ({ notifyAnchorsDue: mocks.notifyAnchors }));
 vi.mock("@/lib/discord/notifyOutsideSpends", () => ({ notifyOutsideSpends: mocks.notifyOutside }));
 vi.mock("@/lib/cosigner/sign", () => ({ cosignReadyTransactions: mocks.cosign }));
 vi.mock("@/lib/reconciliation/syncTreasury", () => ({ syncTreasury: mocks.syncTreasury }));
@@ -96,6 +98,7 @@ beforeEach(() => {
   mocks.writeBack.mockResolvedValue({ movedToStatus: null });
   mocks.freeze.mockResolvedValue({ frozen: 1, failed: 0 });
   mocks.publish.mockResolvedValue({ published: 1, republished: 0, failed: 0, checked: 2 });
+  mocks.notifyAnchors.mockResolvedValue({ posted: 2, skipped: 0, failed: 0 });
   mocks.notifyOutside.mockResolvedValue({ posted: 1, skipped: 2, failed: 0 });
   mocks.cosign.mockResolvedValue({ signed: 1, refused: 0 });
   mocks.releaseOrphans.mockResolvedValue(0);
@@ -103,6 +106,7 @@ beforeEach(() => {
 
 const EMPTY_FREEZE = { frozen: 0, failed: 0 };
 const EMPTY_PUBLISH = { published: 0, republished: 0, failed: 0, checked: 0 };
+const EMPTY_ANCHORS = { posted: 0, skipped: 0, failed: 0 };
 const EMPTY_OUTSIDE = { posted: 0, skipped: 0, failed: 0 };
 
 afterEach(() => {
@@ -121,6 +125,7 @@ describe("runReconcileSweep", () => {
       proposalAnnouncements: { posted: 3, failed: 1, dead: 1 },
       tallyDocuments: { frozen: 1, failed: 0 },
       documentCopies: { published: 1, republished: 0, failed: 0, checked: 2 },
+      anchorAlerts: { posted: 2, skipped: 0, failed: 0 },
       outsideSpends: { posted: 1, skipped: 2, failed: 0 },
       cosigned: { signed: 1, refused: 0 },
       releasedTasks: 0,
@@ -132,9 +137,11 @@ describe("runReconcileSweep", () => {
     expect(mocks.notifyProposals).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(mocks.freeze).toHaveBeenCalledTimes(1);
     expect(mocks.publish).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
+    expect(mocks.notifyAnchors).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(mocks.notifyOutside).toHaveBeenCalledTimes(1);
-    // Freeze before publish; the treasuries synced (chain import run) before outside spends are announced.
+    // Freeze before publish before anchor alerts; treasuries synced before outside spends.
     expect(mocks.freeze.mock.invocationCallOrder[0]!).toBeLessThan(mocks.publish.mock.invocationCallOrder[0]!);
+    expect(mocks.publish.mock.invocationCallOrder[0]!).toBeLessThan(mocks.notifyAnchors.mock.invocationCallOrder[0]!);
     expect(mocks.syncTreasury.mock.invocationCallOrder.at(-1)!).toBeLessThan(mocks.notifyOutside.mock.invocationCallOrder[0]!);
     expect(mocks.syncTreasury.mock.calls.map((call) => call[0])).toEqual(TREASURIES);
     expect(mocks.purgeRateLimits).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
@@ -219,20 +226,22 @@ describe("runReconcileSweep", () => {
   it("survives every isolated step failing at once", async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     for (const step of [
-      mocks.advance, mocks.notifyProposals, mocks.freeze, mocks.publish, mocks.syncTreasury, mocks.notifyOutside,
-      mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeOAuth, mocks.cosign, mocks.releaseOrphans,
+      mocks.advance, mocks.notifyProposals, mocks.freeze, mocks.publish, mocks.notifyAnchors, mocks.syncTreasury,
+      mocks.notifyOutside, mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeOAuth, mocks.cosign, mocks.releaseOrphans,
     ]) {
       step.mockRejectedValue(new Error("boom"));
     }
     expect(await runReconcileSweep()).toEqual({
       results: {}, writtenBack: 0, statusMoved: 0, discordPosted: 0,
       proposals: { advanced: 0, failed: 0 }, proposalAnnouncements: { posted: 0, failed: 0, dead: 0 },
-      tallyDocuments: EMPTY_FREEZE, documentCopies: EMPTY_PUBLISH, outsideSpends: EMPTY_OUTSIDE, cosigned: { signed: 0, refused: 0 },
+      tallyDocuments: EMPTY_FREEZE, documentCopies: EMPTY_PUBLISH, anchorAlerts: EMPTY_ANCHORS,
+      outsideSpends: EMPTY_OUTSIDE, cosigned: { signed: 0, refused: 0 },
       releasedTasks: 0,
     });
     expect(console.error).toHaveBeenCalledWith("orphaned task release failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("freezeMissingTallyDocuments failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("publishTallyDocuments failed", expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith("notifyAnchorsDue failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("notifyOutsideSpends failed", expect.any(Error));
   });
 

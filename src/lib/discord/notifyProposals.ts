@@ -11,6 +11,7 @@ import { PROPOSAL_COLUMNS, type ProposalRow } from "@/lib/db/types";
 import { appUrl } from "@/lib/env.server";
 import { errorMessage } from "@/lib/errors";
 import { routes } from "@/lib/routes";
+import { stampCurrentAnchorAlerts } from "./notifyAnchorsDue";
 import {
   buildGovernanceConnectedEmbed, buildProposalEmbed, currentMilestone, dueMilestone, type ProposalMilestone,
 } from "./proposalMessage";
@@ -139,6 +140,9 @@ export async function connectGovernanceWebhook(
   for (const [milestone, ids] of byMilestone) {
     check(await db.from("proposals").update({ discord_milestone: milestone }).in("id", ids), "stamp announced proposals");
   }
+  // Anchor reminders: stamp whatever is already due or in the copy-grace
+  // window so connecting never dumps history into the channel.
+  await stampCurrentAnchorAlerts(community.id, now);
   return { urlHint: webhookUrlHint(url), lastPostedAt: now.toISOString(), lastError: null };
 }
 

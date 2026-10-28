@@ -254,14 +254,21 @@ Supabase (RLS, no ORM) + Netlify.
   transaction_id)`, cascade on the transaction), written only by the
   `record_proposal_anchors` RPC from the build routes inside
   `withTransactionRow` (pending transaction, the community's anchored
-  proposals only). `loadDueAnchors` (`anchorsDue.ts`, server) is the one
+  proposals only).   `loadDueAnchors` (`anchorsDue.ts`, server) is the one
   loader: build-payout and build-payment attach as many due anchors as fit
   in `MAX_METADATA_JSON_BYTES` minus their own record (`attachAnchors`),
   loading them best effort (`loadDueAnchorsBestEffort`: a load failure logs
   and builds without), `POST /api/tx/build-anchor`
   (treasury actors; `TxKind.Anchor`, `buildAnchorTx`, no outputs) carries
   what fits alone, and `GET /api/proposals/anchors-due` feeds the pages'
-  notice. The confirm poller stamps `transactions.block_time` from Koios
+  notice. **Discord reminders** (0070, `notifyAnchorsDue`, pure
+  `anchorMessage.ts`): after freeze/publish in the reconcile sweep, a due
+  step that has sat for `ANCHOR_STALE_MS` (3 days) or a closed step in the
+  last `COPY_GRACE_REMINDER_BEFORE_MS` (6h) of the copy-grace window is
+  posted once per `(proposal, step, kind)` episode (`proposal_anchor_alerts`,
+  keyed by `due_since`) to `governance_discord_webhooks`; connecting stamps
+  current candidates without posting; a dead webhook stamps without a post;
+  numbers and steps only. The confirm poller stamps `transactions.block_time` from Koios
   `tx_timestamp`; the proposal page shows it beside `voting_opened_at`. The
   Verify button (`VerifyRecord.tsx`) runs `checkTallyDocument` in the
   browser (`tallyDocument.ts` is client-safe: no `Buffer`; loaded by dynamic

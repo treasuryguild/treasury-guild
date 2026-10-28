@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { ProposalAnchorWithTx } from "@/lib/db/types";
 import {
-  anchoredLate, anchorEntryFor, anchorStatus, CLOSED_ANCHOR_COPY_GRACE_MS, dueAnchorSteps, type AnchorProposal,
+  anchoredLate, anchorEntryFor, anchorStatus, ANCHOR_STALE_MS, CLOSED_ANCHOR_COPY_GRACE_MS,
+  COPY_GRACE_REMINDER_BEFORE_MS, copyGraceReminderDue, dueAnchorSteps, dueSince, isStaleDue,
+  type AnchorProposal,
 } from "./anchors";
 
 const H = (c: string) => c.repeat(64);
 const now = Date.parse("2026-10-01T12:00:00Z");
+const CREATED = "2026-09-20T00:00:00Z";
 
 function proposal(patch: Partial<AnchorProposal> = {}): AnchorProposal {
   return {
     id: "p1", number: 7, state: "discussion", content_hash: H("a"), rules_hash: H("b"), electorate_hash: null,
-    voting_opened_at: null, anchored: true, tally: null, ...patch,
+    voting_opened_at: null, anchored: true, tally: null, created_at: CREATED, closed_at: null, ...patch,
   };
 }
 
@@ -119,5 +122,62 @@ describe("anchoredLate", () => {
     expect(anchoredLate(at(null), "2026-09-28T00:00:00Z")).toBe(false);
     expect(anchoredLate({ ...at("2026-09-29T00:00:00Z"), status: "submitted" }, "2026-09-28T00:00:00Z")).toBe(false);
     expect(anchoredLate(at("2026-09-29T00:00:00Z"), null)).toBe(false);
+  });
+});
+
+describe("dueSince", () => {
+  it("times proposed from creation, opened from voting open, closed from freeze or grace", () => {
+    const opened = "2026-09-28T00:00:00Z";
+    const p = proposal({ state: "voting", voting_opened_at: opened, electorate_hash: H("c") });
+    expect(dueSince("proposed", p, null, null)).toBe(Date.parse(CREATED));
+    expect(dueSince("opened", p, null, null)).toBe(Date.parse(opened));
+    expect(dueSince("opened", proposal(), null, null)).toBeNull();
+
+    const closed = proposal({ state: "passed", voting_opened_at: opened, electorate_hash: H("c"), tally, closed_at: "2026-10-01T00:00:00Z" });
+    expect(dueSince("closed", closed, frozen, null)).toBe(Date.parse(frozen.frozenAt));
+    expect(dueSince("closed", closed, withCopy, publishing)).toBe(Date.parse(frozen.frozenAt));
+    expect(dueSince("closed", closed, frozen, publishing))
+      .toBe(Date.parse(frozen.frozenAt) + CLOSED_ANCHOR_COPY_GRACE_MS);
+    expect(dueSince("closed", closed, null, null)).toBeNull();
+
+    const withdrawn = proposal({ state: "withdrawn", closed_at: "2026-09-25T00:00:00Z" });
+    expect(dueSince("closed", withdrawn, null, null)).toBe(Date.parse("2026-09-25T00:00:00Z"));
+    expect(dueSince("closed", proposal({ state: "withdrawn" }), null, null)).toBe(Date.parse(CREATED));
+  });
+});
+
+describe("isStaleDue", () => {
+  it("is true once a due step has sat for ANCHOR_STALE_MS", () => {
+    const p = proposal();
+    expect(isStaleDue("proposed", p, null, null, Date.parse(CREATED) + ANCHOR_STALE_MS - 1)).toBe(false);
+    expect(isStaleDue("proposed", p, null, null, Date.parse(CREATED) + ANCHOR_STALE_MS)).toBe(true);
+
+    const closed = proposal({ state: "passed", voting_opened_at: "2026-09-28T00:00:00Z", electorate_hash: H("c"), tally });
+    const graceEnd = Date.parse(frozen.frozenAt) + CLOSED_ANCHOR_COPY_GRACE_MS;
+    expect(isStaleDue("closed", closed, frozen, publishing, graceEnd + ANCHOR_STALE_MS - 1)).toBe(false);
+    expect(isStaleDue("closed", closed, frozen, publishing, graceEnd + ANCHOR_STALE_MS)).toBe(true);
+  });
+});
+
+describe("copyGraceReminderDue", () => {
+  const passed = proposal({
+    state: "passed", voting_opened_at: "2026-09-28T00:00:00Z", electorate_hash: H("c"), tally,
+  });
+  const done = anchorStatus([row("proposed", 2), row("opened", 2)]);
+  const graceEnd = Date.parse(frozen.frozenAt) + CLOSED_ANCHOR_COPY_GRACE_MS;
+  const remindAt = graceEnd - COPY_GRACE_REMINDER_BEFORE_MS;
+
+  it("fires in the last hours of grace while still waiting for a copy", () => {
+    expect(copyGraceReminderDue(passed, done, frozen, publishing, remindAt - 1)).toBe(false);
+    expect(copyGraceReminderDue(passed, done, frozen, publishing, remindAt)).toBe(true);
+    expect(copyGraceReminderDue(passed, done, frozen, publishing, graceEnd - 1)).toBe(true);
+    expect(copyGraceReminderDue(passed, done, frozen, publishing, graceEnd)).toBe(false);
+  });
+
+  it("does not fire when there is a copy, no publication, or the closed step is already covered", () => {
+    expect(copyGraceReminderDue(passed, done, withCopy, publishing, remindAt)).toBe(false);
+    expect(copyGraceReminderDue(passed, done, frozen, null, remindAt)).toBe(false);
+    expect(copyGraceReminderDue(passed, anchorStatus([row("proposed", 2), row("opened", 2), row("closed", 0)]), frozen, publishing, remindAt)).toBe(false);
+    expect(copyGraceReminderDue(proposal({ state: "withdrawn" }), done, frozen, publishing, remindAt)).toBe(false);
   });
 });

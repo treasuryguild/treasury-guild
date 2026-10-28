@@ -100,6 +100,8 @@ An anchor is **awaiting signatures** while its transaction is still pending, **a
 
 The closed anchor of a proposal that reached a vote waits for the frozen record, and when publication is on, for its copy in the chosen store (or a day), so it can name the copy. A proposal withdrawn or cancelled before voting opened gets a closed anchor only when its proposed anchor exists, so the chain never shows a proposal without an ending; otherwise it is never anchored. Proposals already closed when anchoring started are not anchored either.
 
+When [Discord announcements](#discord-announcements) are connected, the same channel also reminds the community if anchors sit due for three days with no pending transaction (so a quiet period without payouts does not leave fingerprints off-chain), and again in the last hours before a closed anchor would go on-chain without its published copy locator. Connecting never posts those reminders for steps that were already waiting.
+
 **Verify record and anchors** (on the card, once the record is frozen) downloads the frozen record, runs the checks under [Checking a result](#checking-a-result) in your browser, reads each anchor's record from the chain and compares: the content and rules fingerprints with the proposed anchor, the voter list with the voting-opened anchor, the state and the record's hash with the closed anchor. It lists every mismatch, or says the record matches the chain and whether the first two anchors landed before voting opened.
 
 A community with no treasury cannot anchor: the anchor is a transaction its signers sign.
@@ -139,7 +141,7 @@ An admin can connect a Discord channel under **Governance → Discord announceme
 - a day before voting **closes** (for votes longer than a day), with the turnout,
 - the **result**, with the counts and whether it was carried out.
 
-A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. If Discord refuses the webhook (it was deleted), the error shows under Discord announcements until you connect a new one.
+A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. The same channel also posts [on-chain anchor](#on-chain-anchors) reminders when due steps have sat for three days, and a heads-up before a closed anchor would go without its published copy. If Discord refuses the webhook (it was deleted), the error shows under Discord announcements until you connect a new one.
 
 With budget consent on, the same channel receives the [outside-spend alerts](#spend-citations-and-the-budget-check).
 
