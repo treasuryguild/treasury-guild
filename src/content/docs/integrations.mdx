@@ -1,4 +1,4 @@
-**Integrations** (community sidebar) is the admin page that shows whether the community's outside connections are finished, and where Discord lives. GitHub repos, Zoom and Meet accounts, and governance voting rules stay on their own pages; this page is the completeness view and the place that installs the Discord server.
+**Integrations** (community sidebar) is the admin page that connects the community's outside accounts and channels. Sections expand and collapse: unfinished ones open by default. GitHub App install, linked meetings, voting rules and published-record settings stay on their own pages; this page shows their status and links there.
 
 ## Discord server
 
@@ -7,17 +7,33 @@
 That one connection unlocks several things:
 
 - **Voice capture** on [Calls](/docs/calls): while a Discord call runs, the bot reads who is in the chosen voice channel (it never joins or listens). Private channels need the bot's role allowed to view them.
-- **Proposal announcements** and discussion threads: pick a text or forum channel on this page (or under [Governance](/docs/governance#discord-announcements)). The same channel also posts outside-spend alerts and on-chain anchor reminders when those apply.
-- **Payout announcements** use a separate Discord *webhook* URL per treasury (also configurable on this page and on each treasury card). They are not the bot. The optional fiat rate in the payout footer is set on [Members](/docs/members-roles).
+- **Proposal announcements** and discussion threads: pick a text or forum channel under [Proposal announcements](#proposal-announcements) on this page. The same channel also posts outside-spend alerts and on-chain anchor reminders when those apply. See [how announcements behave](/docs/governance#discord-announcements).
+- **Payout announcements** use a separate Discord *webhook* URL per treasury (configured under [Payout Discord webhooks](#payout-discord-webhooks) on this page). They are not the bot. The optional fiat rate in the payout footer is set on [Members](/docs/members-roles).
 
 If you add the bot on Discord but the connection is never finished, the bot leaves that server by itself within about an hour.
+
+## Proposal announcements
+
+With a Discord server connected, pick a text or **forum** channel for proposal milestones (forum is best: one post per proposal). Treasury Guild posts a test message when you save. Governance settings and the Proposals page show whether a channel is set and link here to change it.
+
+## Payout Discord webhooks
+
+Each treasury can post confirmed payouts to a Discord channel via an incoming webhook (Channel settings → Integrations → Webhooks). Configure the URL here for every treasury; the Treasury page only shows status and links back. Details of what each announcement contains are under [Treasury → Discord notifications](/docs/treasury#discord-notifications).
+
+## Zoom account
+
+**Connect Zoom account** connects the Zoom account that **hosts** the community's calls. Zoom only reports on meetings that account hosts, so run your rewarded calls from one shared account. **Disconnect** deletes the stored access; removing the app inside Zoom does the same. How capture works is under [Calls](/docs/calls#capturing-zoom-meetings).
+
+## Google Meet account
+
+**Connect Google account** connects the Google account that **creates** the community's Meet calls. Google asks for one Meet permission (read access to conferences); tick it, or the connection is refused. Meet only reports a meeting to the account that created it. **Disconnect** deletes the stored access and revokes it at Google. How capture works is under [Calls](/docs/calls#capturing-google-meet-calls).
 
 ## Other connections
 
 The page also summarises:
 
 - **GitHub** — whether the [GitHub App](/docs/github) is installed and how many repositories are linked to workgroups. Install and link on the GitHub page. When [Governance](/docs/governance#governance-settings) publishes signed tallies to a GitHub archive, that archive repository must sit on the same installation.
-- **Call platforms** — Zoom and Google Meet host accounts, and [linked meetings](/docs/calls#linked-meetings), configured under **Call platforms** in the sidebar. Discord voice still needs the server above.
+- **Linked meetings** — count of recurring Zoom or Meet meetings linked under [Call platforms](/docs/calls#call-platforms). Discord voice still needs the server above.
 - **Records** — whether frozen tallies are kept in Treasury Guild only or also published to IPFS or GitHub, and how the spending check behaves. Change those under Governance.
 
 A short **Setup** list on the community [Overview](/docs/communities#community-overview) points admins at unfinished steps; dismissing an item hides it on Overview only, not on Integrations.

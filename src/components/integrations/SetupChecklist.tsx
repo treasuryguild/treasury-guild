@@ -25,6 +25,7 @@ function hrefFor(slug: string, id: SetupItemId): string {
     case SetupItemId.Github:
       return routes.githubSettings(slug);
     case SetupItemId.CallPlatform:
+      return `${routes.integrations(slug)}#call-platforms`;
     case SetupItemId.LinkedMeetings:
       return routes.callSettings(slug);
     case SetupItemId.TallyPublish:

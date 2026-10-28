@@ -246,8 +246,8 @@ export function CallFormDialog({
         ) : (
           !hostAccount.loading && (
             <p className="text-xs text-zinc-500">
-              To capture who attends automatically, an admin connects {hosted.account} in{" "}
-              <Link href={routes.callSettings(slug)} className="text-indigo-400 hover:underline">Call platforms</Link>.
+              To capture who attends automatically, an admin connects {hosted.account} under{" "}
+              <Link href={routes.integrations(slug)} className="text-indigo-400 hover:underline">Integrations</Link>.
               Check-in and pasted lists work without it.
             </p>
           )

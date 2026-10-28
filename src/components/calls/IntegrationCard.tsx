@@ -25,6 +25,9 @@ export function IntegrationCard({
   returnTo,
   nouns,
   disconnectWarning,
+  /** When true, skip the Card chrome (parent IntegrationSection already frames it). */
+  embedded = false,
+  onChanged,
 }: {
   communityId: string;
   provider: CallIntegrationRow["provider"];
@@ -38,6 +41,8 @@ export function IntegrationCard({
   /** What is connected, for the copy: "server", "account". */
   nouns: { thing: string; connect: string; change: string };
   disconnectWarning: ReactNode;
+  embedded?: boolean;
+  onChanged?: () => void;
 }) {
   const connection = useCallIntegration(communityId, provider);
   const disconnect = useAsyncAction(`Could not disconnect the ${nouns.thing}`);
@@ -53,13 +58,14 @@ export function IntegrationCard({
       setConfirming(false);
       outcome.clear();
       connection.reload();
+      onChanged?.();
     }
   }
 
-  return (
-    <Card>
-      <h3 className="font-medium">{title}</h3>
-      <p className="mt-1 text-sm text-zinc-400">{blurb}</p>
+  const body = (
+    <>
+      {!embedded && <h3 className="font-medium">{title}</h3>}
+      <p className={embedded ? "text-sm text-zinc-400" : "mt-1 text-sm text-zinc-400"}>{blurb}</p>
       <OAuthOutcomeBanner name={name} outcome={outcome.outcome} reason={outcome.reason} messages={{
         cancelled: "Connection cancelled.",
         error: "Connection failed. Please try again.",
@@ -86,6 +92,8 @@ export function IntegrationCard({
         onCancel={() => setConfirming(false)} onConfirm={() => void disconnectNow()}>
         {disconnectWarning}
       </ConfirmDialog>
-    </Card>
+    </>
   );
+
+  return embedded ? body : <Card>{body}</Card>;
 }

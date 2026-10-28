@@ -54,7 +54,7 @@ export const routes = {
   /** Discord server, payout webhooks, and status of other community connections. */
   integrations: (slug: string) => `/c/${slug}/settings/integrations`,
   githubSettings: (slug: string) => `/c/${slug}/settings/github`,
-  /** Zoom / Google Meet host accounts and linked meetings (Discord server is under Integrations). */
+  /** Linked Zoom / Meet meetings (host accounts and Discord are under Integrations). */
   callSettings: (slug: string) => `/c/${slug}/settings/calls`,
   /** Who proposes and votes on what, per proposal kind (admins edit). */
   governanceSettings: (slug: string) => `/c/${slug}/settings/governance`,

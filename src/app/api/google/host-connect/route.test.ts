@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe("google host-connect API", () => {
   it("asks Google for offline Meet read access, with a fresh consent and a google-host state", async () => {
-    const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/calls" });
+    const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/integrations" });
     expect(response.status).toBe(307);
     const url = new URL(response.headers.get("location")!);
     expect(`${url.origin}${url.pathname}`).toBe("https://accounts.google.com/o/oauth2/v2/auth");
@@ -66,7 +66,7 @@ describe("google host-connect API", () => {
       redirect_uri: "https://vault.test/api/google/host-callback",
     });
     expect(verifyOAuthState("google-host", state!)).toEqual({
-      wallet: WALLET, returnTo: "/c/demo/settings/calls", communityId: COMMUNITY_ID,
+      wallet: WALLET, returnTo: "/c/demo/settings/integrations", communityId: COMMUNITY_ID,
     });
     expect(verifyOAuthState("google-link", state!)).toBeNull();
   });
@@ -76,10 +76,10 @@ describe("google host-connect API", () => {
     const saved = process.env.GOOGLE_CLIENT_ID;
     delete process.env.GOOGLE_CLIENT_ID;
     try {
-      const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/calls" });
+      const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/integrations" });
       expect(response.status).toBe(307);
       const url = new URL(response.headers.get("location")!);
-      expect(url.pathname).toBe("/c/demo/settings/calls");
+      expect(url.pathname).toBe("/c/demo/settings/integrations");
       expect(Object.fromEntries(url.searchParams)).toEqual({ google_host: "error", reason: "oauth_env_missing" });
       expect(logged).toHaveBeenCalled();
     } finally {

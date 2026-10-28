@@ -1,8 +1,8 @@
 "use client";
 
-// Admin control: pick a Discord text or forum channel for proposal
-// announcements and auto discussion threads. The Discord server is connected
-// under Integrations; this only chooses the channel.
+// Admin control on the Integrations hub: pick a Discord text or forum channel
+// for proposal announcements and auto discussion threads. The Discord server
+// is the section above; this only chooses the channel.
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "@/lib/api/client";
@@ -92,9 +92,9 @@ export function GovernanceDiscordControl({
         <span className="text-zinc-400">Discord</span>
         {!status.serverConnected ? (
           <span className="text-zinc-500">
-            Connect a Discord server under{" "}
-            <Link className="underline" href={routes.integrations(slug)}>Integrations</Link>
-            {" "}first, then pick a channel here.
+            Connect a Discord server in the{" "}
+            <Link className="underline" href={`${routes.integrations(slug)}#discord`}>Discord server</Link>
+            {" "}section first, then pick a channel here.
           </span>
         ) : status.channelId ? (
           <>
