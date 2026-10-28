@@ -459,6 +459,12 @@ export const RATE_LIMITS = {
   oauthToken: { limit: 60, windowSeconds: 60 },
   /** Open Dynamic Client Registration, per client IP (every fresh connection registers). */
   oauthRegister: { limit: 20, windowSeconds: 3600 },
+  /** Creating community invite links, per admin wallet. */
+  inviteCreate: { limit: 20, windowSeconds: 3600 },
+  /** Looking up an invite token before joining, per client IP. */
+  invitePreview: { limit: 60, windowSeconds: 600 },
+  /** Redeeming an invite (joining), per wallet. */
+  inviteRedeem: { limit: 20, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 /** Rate-limit counters older than this are purged by the reconcile sweep. */

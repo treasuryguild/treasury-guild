@@ -106,6 +106,44 @@ export type { IntegrationsStatus as IntegrationsStatusResponse } from "@/lib/int
 export interface JoinCommunityResponse extends OkResponse {
   slug: string;
 }
+
+/** One invite as admins see it (never includes the raw token). */
+export interface CommunityInviteInfo {
+  id: string;
+  communityId: string;
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string | null;
+  maxUses: number | null;
+  useCount: number;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  label: string | null;
+}
+
+export interface CreateInviteResponse {
+  invite: CommunityInviteInfo;
+  /** Full URL to share; the raw token is only returned here, once. */
+  url: string;
+}
+
+export interface ListInvitesResponse {
+  invites: CommunityInviteInfo[];
+}
+
+/** GET /api/invites/[token]: what the join page shows before redeeming. */
+export interface InvitePreviewResponse {
+  name: string;
+  slug: string;
+  network: number;
+  valid: boolean;
+}
+
+export interface RedeemInviteResponse extends OkResponse {
+  slug: string;
+  name: string;
+  already: boolean;
+}
 /** The routing assignment made for a treasury linked to a workgroup at creation. */
 export interface TreasuryWorkgroupLink {
   workgroupId: string;

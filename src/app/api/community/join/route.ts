@@ -6,8 +6,9 @@ import { requireCommunity } from "@/lib/db/communities";
 import { addMember } from "@/lib/db/membership";
 import { ForbiddenError } from "@/lib/errors";
 
-// One-click join for public communities. Private communities are joined only
-// via GitHub auto-join or an admin adding the member — never self-service.
+// One-click join for public communities. Private communities are joined via
+// an invite link, GitHub auto-join, call check-in, or an admin adding the
+// member — never through this route.
 export const POST = sessionRoute(async (req, { session }) => {
   const { communityId } = await parseJson(req, communityIdSchema);
 

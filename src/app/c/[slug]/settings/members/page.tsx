@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Role, Visibility } from "@/lib/constants";
 import { DiscordRateSetting } from "@/components/community/DiscordRateSetting";
+import { InviteLinks } from "@/components/community/InviteLinks";
 import { SpendingTokenSetting } from "@/components/community/SpendingTokenSetting";
 import { shortAddress } from "@/lib/format";
 import { isAdminRole } from "@/lib/roles";
@@ -159,9 +160,9 @@ export default function MembersSettings({
           </div>
           <p className="mt-2 text-xs text-zinc-500">
             Public communities appear in discovery and anyone can join as a
-            member. Private communities are invite-only: link a GitHub account
-            with tasks assigned on this community&apos;s boards, or be added
-            below.
+            member. Private communities stay off Discover: share an invite link
+            below, add a wallet, or let people join via GitHub assignments or
+            call check-in.
           </p>
           <DiscordRateSetting
             key={`${community!.discord_rate_coin ?? ""}:${community!.discord_rate_currency}`}
@@ -176,6 +177,7 @@ export default function MembersSettings({
             unit={community!.spending_unit}
             onSaved={reloadCommunity}
           />
+          <InviteLinks communityId={community!.id} />
           <div className="mt-4 flex flex-col items-stretch gap-2 border-t border-zinc-800 pt-4 sm:flex-row sm:items-center">
             <Input
               value={newMemberWallet}

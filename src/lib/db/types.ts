@@ -78,6 +78,30 @@ export interface MemberWithContributor {
 export const MEMBER_WITH_CONTRIBUTOR_COLUMNS =
   "wallet_address, role, contributors(handle, github_username)";
 
+/** A community invite link (token never stored; only its hash). */
+export interface CommunityInviteRow {
+  id: string;
+  community_id: string;
+  token_hash: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  label: string | null;
+}
+
+export const COMMUNITY_INVITE_COLUMNS =
+  "id, community_id, token_hash, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
+
+/** Admin-facing invite fields (no token hash). */
+export type CommunityInviteSummary = Omit<CommunityInviteRow, "token_hash">;
+
+export const COMMUNITY_INVITE_SUMMARY_COLUMNS =
+  "id, community_id, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
+
 export interface WorkgroupRow {
   id: string;
   community_id: string;

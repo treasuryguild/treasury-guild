@@ -14,13 +14,27 @@ You can browse Discover without signing in, but joining requires a signed-in wal
 You can join through the directory, an invitation or work you take part in:
 
 1. **Public communities:** click **Join** on Discover or on the Welcome page, or **Join community** on the community's own page ("You are not a member of this community yet.").
-2. **Private communities, invited:** an admin adds your wallet address on the Members page. Ask them for the community link.
-3. **Private communities, via GitHub:** [link your GitHub account](/docs/profile#linking-a-github-account). You automatically join any community whose boards have tasks assigned to your GitHub username, now or later.
-4. **Call check-in:** a manager's [check-in link or code](/docs/calls#checking-in) also invites your signed-in wallet to the community, including a private one.
-5. **Discord capture:** if you linked your Discord account, being captured in a community's rewarded voice call adds your wallet as a member.
-6. **Treasury base signer or workgroup lead:** an admin listing your wallet as a base signer of the community's **first (primary)** treasury adds you as an admin; listing you on a later treasury adds you as a member with spend rights for that wallet only. Making you a workgroup lead adds you as a member. Recovery signers and a co-signer must already be members and are not made admins.
+2. **Invite link:** an admin shares a link from the [Members](/docs/members-roles#invite-links) page. Open it, sign in with your wallet, and click **Join**. Private communities stay off Discover; only people with the link can join this way.
+3. **Private communities, added by an admin:** an admin pastes your wallet address on the Members page.
+4. **Private communities, via GitHub:** [link your GitHub account](/docs/profile#linking-a-github-account). You automatically join any community whose boards have tasks assigned to your GitHub username, now or later.
+5. **Call check-in:** a manager's [check-in link or code](/docs/calls#checking-in) also invites your signed-in wallet to the community, including a private one.
+6. **Discord capture:** if you linked your Discord account, being captured in a community's rewarded voice call adds your wallet as a member.
+7. **Treasury base signer or workgroup lead:** an admin listing your wallet as a base signer of the community's **first (primary)** treasury adds you as an admin; listing you on a later treasury adds you as a member with spend rights for that wallet only. Making you a workgroup lead adds you as a member. Recovery signers and a co-signer must already be members and are not made admins.
 
 New members get the **member** role. See [Members & roles](/docs/members-roles) for what that allows.
+
+After you join, you can optionally [set a display handle and link Discord, GitHub or Google](/docs/profile) on your profile — the invite never attaches those for you.
+
+## Invite links
+
+Admins create invite links on the [Members](/docs/members-roles#invite-links) page. Each link:
+
+- joins the signed-in wallet as a **member** (never as admin);
+- can expire after 7, 30 or 90 days, or never;
+- can cap how many people may use it, or stay unlimited;
+- can be **revoked** at any time.
+
+The full URL is shown once when the link is created — copy it before leaving the page. The app stores only a one-way hash of the token, not the link itself, so a revoked or forgotten URL cannot be reconstructed. Share invite links in channels you trust; anyone with a valid link can join until it expires, hits its use limit, or is revoked.
 
 ## Creating a community
 
@@ -32,7 +46,7 @@ Open **New community** from the sidebar. You need to be signed in.
 | **Slug** | The short name in the address (`/c/your-slug`), also written into every on-chain payout record. Filled in automatically from the name (changing the name again resets it, so edit the slug last). 2–63 lowercase letters, digits and hyphens, not starting with a hyphen; must be unique ("Slug already taken"). |
 | **Description** | Optional, shown on Discover and the overview. |
 | **Cardano network** | **Mainnet** or **Preprod testnet**. Preselected to match your connected wallet's network; if you pick the other one, a note reminds you that you will need an account on that network to run its treasury. |
-| **Visibility** | **Private** (the default) or **Public**. Private is invite-only; public communities appear on Discover and anyone signed in can join. Changeable later on the Members page. |
+| **Visibility** | **Private** (the default) or **Public**. Private stays off Discover (join via [invite link](#invite-links), an admin, GitHub or calls); public communities appear on Discover and anyone signed in can join. Changeable later on the Members page. |
 
 <Callout tone="warning" title="The network cannot be changed later">
 A community's network is fixed at creation. Every treasury, payout and mint in it lives on that network. Create a preprod community to experiment, and a separate mainnet community for real funds.
