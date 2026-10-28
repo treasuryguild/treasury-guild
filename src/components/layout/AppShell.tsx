@@ -176,6 +176,10 @@ function SidebarContent({
         <Link href={routes.doc("privacy")} className="hover:text-zinc-300" onClick={onNavigate}>
           Privacy policy
         </Link>
+        {" · "}
+        <Link href={routes.doc("terms")} className="hover:text-zinc-300" onClick={onNavigate}>
+          Terms of service
+        </Link>
       </p>
     </>
   );

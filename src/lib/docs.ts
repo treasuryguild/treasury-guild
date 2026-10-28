@@ -145,6 +145,12 @@ export const DOCS = [
     summary: "What Treasury Guild stores about you, who can see it, and how to have it changed or deleted.",
     group: "Reference",
   },
+  {
+    slug: "terms",
+    title: "Terms of service",
+    summary: "What you agree to when you use Treasury Guild: wallets, communities, on-chain activity and integrations.",
+    group: "Reference",
+  },
 ] as const satisfies readonly DocEntry[];
 
 export type DocSlug = (typeof DOCS)[number]["slug"];
