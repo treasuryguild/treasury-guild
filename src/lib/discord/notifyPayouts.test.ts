@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as DbClient from "@/lib/db/client";
+import type * as BotModule from "@/lib/discord/bot";
 import { unitDisplayFromRegistry } from "@/lib/assetRegistry";
 
 const mocks = vi.hoisted(() => ({
@@ -9,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   budgets: vi.fn(),
   wallet: vi.fn(),
   rate: vi.fn(),
+  postChannel: vi.fn(),
 }));
 vi.mock("@/lib/db/client", async (importOriginal) => ({
   ...(await importOriginal<typeof DbClient>()),
@@ -28,7 +30,12 @@ vi.mock("@/lib/db/assets", () => ({
 vi.mock("@/lib/db/budgetDashboard", () => ({ loadWorkgroupBudgets: mocks.budgets }));
 vi.mock("@/lib/cardano/walletAssets", () => ({ fetchWalletAssets: mocks.wallet }));
 vi.mock("@/lib/rates/coingecko", () => ({ fetchExchangeRate: mocks.rate }));
+vi.mock("@/lib/discord/bot", async (importOriginal) => ({
+  ...(await importOriginal<typeof BotModule>()),
+  postChannelMessage: mocks.postChannel,
+}));
 
+import { DiscordBotError } from "./bot";
 import { budgetLinesFrom, groupPayoutLines, notifyConfirmedPayouts } from "./notifyPayouts";
 
 const HASH = "cd".repeat(32);
@@ -87,8 +94,16 @@ const tx = {
     address: "addr_test1treasury",
     network: 0,
     community_id: "c-1",
-    treasury_discord_webhooks: { url: "https://discord.com/api/webhooks/1/tok" },
+    treasury_discord_destinations: { url: "https://discord.com/api/webhooks/1/tok", channel_id: null },
     communities: { slug: "guild", name: "Guild DAO", discord_rate_coin: "cardano", discord_rate_currency: "usd" },
+  },
+};
+
+const channelTx = {
+  ...tx,
+  treasuries: {
+    ...tx.treasuries,
+    treasury_discord_destinations: { url: null, channel_id: "chan-1" },
   },
 };
 
@@ -141,6 +156,7 @@ beforeEach(() => {
     tokens: [{ unit: GVT, quantity: 12_345n, ticker: null, name: null, decimals: 0, source: "none" }],
   });
   mocks.rate.mockResolvedValue({ price: 0.42, currency: "usd", symbol: "ADA" });
+  mocks.postChannel.mockResolvedValue({ id: "m-1", channel_id: "chan-1" });
   delete process.env.APP_URL;
 });
 
@@ -215,7 +231,22 @@ describe("notifyConfirmedPayouts", () => {
       values: { discord_notified_at: expect.any(String) },
       filters: [["id", "tx-1"]],
     });
-    expect(updates("treasury_discord_webhooks")[0]).toMatchObject({
+    expect(updates("treasury_discord_destinations")[0]).toMatchObject({
+      values: { last_posted_at: expect.any(String), last_error: null },
+      filters: [["treasury_id", "t-1"]],
+    });
+    expect(mocks.postChannel).not.toHaveBeenCalled();
+  });
+
+  it("posts through the bot when the destination is a channel", async () => {
+    pendingTxs = [channelTx];
+    const fetchImpl = vi.fn();
+    expect(await notifyConfirmedPayouts({ fetchImpl, now: AT })).toEqual({ posted: 1, failed: 0, dead: 0 });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(mocks.postChannel).toHaveBeenCalledTimes(1);
+    expect(mocks.postChannel.mock.calls[0]?.[0]).toBe("chan-1");
+    expect(mocks.postChannel.mock.calls[0]?.[1]).toMatchObject({ embeds: expect.any(Array) });
+    expect(updates("treasury_discord_destinations")[0]).toMatchObject({
       values: { last_posted_at: expect.any(String), last_error: null },
       filters: [["treasury_id", "t-1"]],
     });
@@ -242,7 +273,7 @@ describe("notifyConfirmedPayouts", () => {
     const result = await notifyConfirmedPayouts({ fetchImpl, now: AT });
     expect(result).toEqual({ posted: 0, failed: 1, dead: 0 });
     expect(updates("transactions")).toHaveLength(0);
-    expect(updates("treasury_discord_webhooks")).toHaveLength(0);
+    expect(updates("treasury_discord_destinations")).toHaveLength(0);
   });
 
   it("stamps the tx and records the error when the webhook is gone", async () => {
@@ -251,8 +282,22 @@ describe("notifyConfirmedPayouts", () => {
     const result = await notifyConfirmedPayouts({ fetchImpl, now: AT });
     expect(result).toEqual({ posted: 0, failed: 0, dead: 1 });
     expect(updates("transactions")).toHaveLength(1);
-    expect(updates("treasury_discord_webhooks")[0]?.values).toEqual({
+    expect(updates("treasury_discord_destinations")[0]?.values).toEqual({
       last_error: "Discord webhook not found (deleted or wrong URL?): Unknown Webhook",
+    });
+  });
+
+  it("stamps the tx and records the error when the bot channel is permanently gone", async () => {
+    pendingTxs = [channelTx];
+    mocks.postChannel.mockRejectedValue(
+      new DiscordBotError("Discord channel missing or bot lacks permission", 404, true),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await notifyConfirmedPayouts({ now: AT });
+    expect(result).toEqual({ posted: 0, failed: 0, dead: 1 });
+    expect(updates("transactions")).toHaveLength(1);
+    expect(updates("treasury_discord_destinations")[0]?.values).toEqual({
+      last_error: "Discord channel missing or bot lacks permission",
     });
   });
 

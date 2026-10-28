@@ -13,6 +13,7 @@ import { check, maybe, rows, serviceClient } from "@/lib/db/client";
 import { loadAssetRegistry } from "@/lib/db/assets";
 import { cosignReadyTransactions, type CosignSweepResult } from "@/lib/cosigner/sign";
 import { purgeExpiredNonces } from "@/lib/db/auth";
+import { purgeCommunityInvites } from "@/lib/db/invites";
 import { purgeOAuth } from "@/lib/db/oauth";
 import { purgeRateLimits } from "@/lib/db/rateLimit";
 import { releaseOrphanedQueuedTasks } from "@/lib/db/tasks";
@@ -273,6 +274,13 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     await purgeRateLimits(new Date());
   } catch (err) {
     console.error("rate limit purge failed", err);
+  }
+
+  // Community invite links that expired or were revoked long ago.
+  try {
+    await purgeCommunityInvites(new Date());
+  } catch (err) {
+    console.error("community invite purge failed", err);
   }
 
   // Expired OAuth codes and refresh tokens, and AI-client registrations nobody

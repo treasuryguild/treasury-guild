@@ -1,7 +1,8 @@
--- Head schema (migrations 0001-0065 + 0071): what the browser may write on
+-- Head schema (migrations 0001-0065 + 0071-0072): what the browser may write on
 -- tasks and workgroups, the task delete rules, the execute grants closed by
--- 0046 and the governance Discord channel grants (0071). Run with psql -f
--- against an EMPTY disposable PostgreSQL database; everything is rolled back.
+-- 0046, the governance Discord channel grants (0071) and treasury Discord
+-- destination grants (0072). Run with psql -f against an EMPTY disposable
+-- PostgreSQL database; everything is rolled back.
 \set ON_ERROR_STOP on
 begin;
 create role anon;
@@ -81,6 +82,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0064_agent_proposal_drafts.sql
 \ir ../migrations/0065_agent_drafts.sql
 \ir ../migrations/0071_governance_discord_channels.sql
+\ir ../migrations/0072_treasury_discord_destinations.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -447,6 +449,59 @@ delete from governance_discord_channels where community_id = '10000000-0000-0000
 do $$ begin
   if exists (select 1 from governance_discord_channels) then raise exception 'the service role cannot delete the channel'; end if;
 end $$;
+reset role;
+
+-- 7. treasury_discord_destinations (0072): XOR mode + service-role only --------------
+set local role service_role;
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+insert into treasury_discord_destinations(treasury_id, url, created_by)
+  values ('40000000-0000-0000-0000-000000000001', 'https://discord.com/api/webhooks/1/tok', 'admin');
+update treasury_discord_destinations
+  set url = null, channel_id = '123456789012345678', channel_type = 0, last_posted_at = now(), last_error = null
+  where treasury_id = '40000000-0000-0000-0000-000000000001';
+do $$ begin
+  if (select channel_id from treasury_discord_destinations where last_posted_at is not null) <> '123456789012345678' then
+    raise exception 'the service role cannot read or update the treasury destination';
+  end if;
+end $$;
+-- XOR: both modes set, neither set, channel without type, forum type.
+delete from treasury_discord_destinations where treasury_id = '40000000-0000-0000-0000-000000000001';
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, url, channel_id, channel_type, created_by)
+  values ('40000000-0000-0000-0000-000000000001', 'https://discord.com/api/webhooks/2/tok', '9', 0, 'admin')$$, '23514');
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, created_by)
+  values ('40000000-0000-0000-0000-000000000001', 'admin')$$, '23514');
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, channel_id, created_by)
+  values ('40000000-0000-0000-0000-000000000001', '9', 'admin')$$, '23514');
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, channel_id, channel_type, created_by)
+  values ('40000000-0000-0000-0000-000000000001', '9', 15, 'admin')$$, '23514');
+reset role;
+do $$
+declare r text; p text;
+begin
+  foreach r in array array['anon', 'authenticated'] loop
+    foreach p in array array['select', 'insert', 'update', 'delete', 'truncate', 'references', 'trigger'] loop
+      if has_table_privilege(r, 'public.treasury_discord_destinations', p) then
+        raise exception '% holds % on treasury_discord_destinations', r, p;
+      end if;
+    end loop;
+    if has_any_column_privilege(r, 'public.treasury_discord_destinations', 'select, insert, update') then
+      raise exception '% holds a column privilege on treasury_discord_destinations', r;
+    end if;
+  end loop;
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin"}', true);
+select pg_temp.reject($$select * from treasury_discord_destinations$$, '42501');
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, url, created_by)
+  values ('40000000-0000-0000-0000-000000000001', 'https://discord.com/api/webhooks/9/tok', 'admin')$$, '42501');
+select pg_temp.reject($$update treasury_discord_destinations set last_error = 'x'$$, '42501');
+select pg_temp.reject($$delete from treasury_discord_destinations$$, '42501');
+reset role;
+set local role anon;
+select set_config('request.jwt.claims', '{"role":"anon"}', true);
+select pg_temp.reject($$select * from treasury_discord_destinations$$, '42501');
+select pg_temp.reject($$insert into treasury_discord_destinations(treasury_id, url, created_by)
+  values ('40000000-0000-0000-0000-000000000001', 'https://discord.com/api/webhooks/9/tok', 'anon')$$, '42501');
 reset role;
 
 rollback;

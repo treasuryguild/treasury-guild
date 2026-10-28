@@ -40,6 +40,8 @@ export const routes = {
   call: (slug: string, callId: string) => `/c/${slug}/calls/${callId}`,
   /** The link a host shares: attendees confirm presence with their wallet. */
   callCheckin: (slug: string, callId: string) => `/c/${slug}/calls/${callId}/checkin`,
+  /** Community invite: sign in with a wallet to join as a member. */
+  invite: (token: string) => `/invite/${token}`,
   mint: (slug: string) => `/c/${slug}/mint`,
   reconcile: (slug: string) => `/c/${slug}/reconcile`,
   /** Outside funders, what they committed and what arrived. */
@@ -51,7 +53,7 @@ export const routes = {
   proposal: (slug: string, proposalId: string) => `/c/${slug}/proposals/${proposalId}`,
   budgets: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/budgets`, period),
   dashboard: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/dashboard`, period),
-  /** Discord server, payout webhooks, and status of other community connections. */
+  /** Discord server, payout Discord destinations, and status of other community connections. */
   integrations: (slug: string) => `/c/${slug}/settings/integrations`,
   githubSettings: (slug: string) => `/c/${slug}/settings/github`,
   /** Linked Zoom / Meet meetings (host accounts and Discord are under Integrations). */
@@ -156,6 +158,7 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p === "/settings", "Profile & settings"],
   [(p) => p === "/welcome", "Welcome"],
   [(p) => p.startsWith("/oauth/consent"), "Connect an AI assistant"],
+  [(p) => p.startsWith("/invite/"), "Join community"],
   [(p) => p === "/dev", "Developer tools"],
   // Before the `includes` rows: /docs/treasury must not read as "Treasury".
   [(p) => p === "/docs" || p.startsWith("/docs/"), "Documentation"],

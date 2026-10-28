@@ -45,7 +45,7 @@ const VISIBILITY_OPTIONS: { value: Visibility; title: string; blurb: string }[] 
     value: Visibility.Private,
     title: "Private",
     blurb:
-      "Invite-only. Members are added by an admin, via GitHub assignments, or call check-in.",
+      "Stays off Discover. Members join via invite link, an admin, GitHub assignments, or call check-in.",
   },
   {
     value: Visibility.Public,

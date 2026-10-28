@@ -19,7 +19,7 @@ function hrefFor(slug: string, id: SetupItemId): string {
     case SetupItemId.DiscordChannel:
       return `${routes.integrations(slug)}#announcements`;
     case SetupItemId.PayoutWebhooks:
-      return `${routes.integrations(slug)}#payout-webhooks`;
+      return `${routes.integrations(slug)}#payout-discord`;
     case SetupItemId.PayoutRate:
       return routes.members(slug);
     case SetupItemId.Github:

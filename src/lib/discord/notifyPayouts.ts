@@ -20,6 +20,7 @@ import { errorMessage } from "@/lib/errors";
 import { shortUnit } from "@/lib/format";
 import { fetchExchangeRate } from "@/lib/rates/coingecko";
 import { routes } from "@/lib/routes";
+import { DiscordBotError, postChannelMessage } from "./bot";
 import {
   AVATAR_PATH,
   buildPayoutEmbed,
@@ -32,8 +33,10 @@ import { DiscordWebhookError, postDiscordWebhook, type FetchLike } from "./webho
 
 const BATCH = 20;
 
-interface WebhookEmbed {
-  url: string;
+/** Destination row: webhook URL and/or bot channel (exactly one set in DB). */
+interface DestinationEmbed {
+  url: string | null;
+  channel_id: string | null;
 }
 
 interface CommunityEmbed {
@@ -54,13 +57,13 @@ interface PendingTx {
     community_id: string;
     // One-to-one (PK = FK) so PostgREST returns an object; typed loosely in
     // case the client ever inlines it as a one-element array.
-    treasury_discord_webhooks: WebhookEmbed | WebhookEmbed[];
+    treasury_discord_destinations: DestinationEmbed | DestinationEmbed[];
     communities: CommunityEmbed | CommunityEmbed[];
   };
 }
 
 const PENDING_TX_COLUMNS =
-  "id, tx_hash, treasury_id, treasuries!inner(name, address, network, community_id, treasury_discord_webhooks!inner(url), communities!inner(slug, name, discord_rate_coin, discord_rate_currency))";
+  "id, tx_hash, treasury_id, treasuries!inner(name, address, network, community_id, treasury_discord_destinations!inner(url, channel_id), communities!inner(slug, name, discord_rate_coin, discord_rate_currency))";
 
 interface PayoutLine {
   task_id: string;
@@ -165,14 +168,21 @@ export interface NotifyResult {
   posted: number;
   /** Transient failures, retried next sweep. */
   failed: number;
-  /** Webhooks that answered permanently (deleted, rejected): tx stamped, error recorded. */
+  /** Destinations that answered permanently (deleted, rejected): tx stamped, error recorded. */
   dead: number;
 }
 
 export interface NotifyOptions {
-  /** Used for both Discord and CoinGecko (tests). */
+  /** Used for Discord webhook/bot posts and CoinGecko (tests). */
   fetchImpl?: FetchLike;
   now?: Date;
+}
+
+function isPermanentDiscordError(err: unknown): boolean {
+  return (
+    (err instanceof DiscordWebhookError && err.permanent) ||
+    (err instanceof DiscordBotError && err.permanent)
+  );
 }
 
 export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promise<NotifyResult> {
@@ -194,9 +204,10 @@ export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promi
   const result: NotifyResult = { posted: 0, failed: 0, dead: 0 };
   for (const tx of pending) {
     const treasury = tx.treasuries;
-    const webhook = optionalRelation(treasury.treasury_discord_webhooks);
+    const destination = optionalRelation(treasury.treasury_discord_destinations);
     const community = optionalRelation(treasury.communities);
-    if (!tx.tx_hash || !webhook || !community) continue;
+    if (!tx.tx_hash || !destination || !community) continue;
+    if (!destination.url && !destination.channel_id) continue;
 
     const network = asNetwork(treasury.network);
     const display = await unitDisplay(treasury.community_id);
@@ -235,21 +246,28 @@ export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promi
     });
 
     try {
-      await postDiscordWebhook(webhook.url, payload, options.fetchImpl);
+      if (destination.url) {
+        await postDiscordWebhook(destination.url, payload, options.fetchImpl);
+      } else {
+        await postChannelMessage(
+          destination.channel_id!,
+          { embeds: payload.embeds },
+          options.fetchImpl,
+        );
+      }
     } catch (err) {
-      const permanent = err instanceof DiscordWebhookError && err.permanent;
       console.error(`discord notify for tx ${tx.id} failed`, err);
-      if (!permanent) {
+      if (!isPermanentDiscordError(err)) {
         result.failed += 1;
         continue;
       }
       // Stop retrying this tx; leave the reason where the admin can see it.
       check(
         await db
-          .from("treasury_discord_webhooks")
+          .from("treasury_discord_destinations")
           .update({ last_error: errorMessage(err) })
           .eq("treasury_id", tx.treasury_id),
-        "record webhook error",
+        "record discord destination error",
       );
       check(
         await db.from("transactions").update({ discord_notified_at: new Date().toISOString() }).eq("id", tx.id),
@@ -266,10 +284,10 @@ export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promi
     );
     check(
       await db
-        .from("treasury_discord_webhooks")
+        .from("treasury_discord_destinations")
         .update({ last_posted_at: stamp, last_error: null })
         .eq("treasury_id", tx.treasury_id),
-      "record webhook post",
+      "record discord destination post",
     );
     result.posted += 1;
   }

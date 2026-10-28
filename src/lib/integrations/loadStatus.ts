@@ -8,7 +8,7 @@ import { rows, serviceClient } from "@/lib/db/client";
 import { requireCommunity } from "@/lib/db/communities";
 import { loadGovernanceCommunitySettings } from "@/lib/db/governance";
 import { communityInstallations, loadInstallationRepoLinks } from "@/lib/db/github";
-import { listCommunityTreasuries, listTreasuryDiscordWebhooks } from "@/lib/db/treasuries";
+import { listCommunityTreasuries, listTreasuryDiscordDestinations } from "@/lib/db/treasuries";
 import { listCommunityWorkgroups } from "@/lib/db/workgroups";
 import { loadGovernanceDiscordStatus } from "@/lib/discord/notifyProposals";
 import { buildIntegrationsStatus, type IntegrationsStatus } from "./status";
@@ -50,7 +50,7 @@ export async function loadIntegrationsStatus(communityId: string): Promise<Integ
   const [
     discord,
     treasuries,
-    webhooks,
+    destinations,
     github,
     workgroups,
     zoom,
@@ -61,7 +61,7 @@ export async function loadIntegrationsStatus(communityId: string): Promise<Integ
   ] = await Promise.all([
     loadGovernanceDiscordStatus(communityId),
     listCommunityTreasuries(communityId),
-    listTreasuryDiscordWebhooks(communityId),
+    listTreasuryDiscordDestinations(communityId),
     githubLinkStats(communityId),
     listCommunityWorkgroups(communityId),
     loadIntegration(communityId, IntegrationProvider.Zoom),
@@ -86,7 +86,7 @@ export async function loadIntegrationsStatus(communityId: string): Promise<Integ
       lastError: discord.lastError,
     },
     treasuries: treasuries.map((t) => ({ id: t.id, name: t.name })),
-    webhookTreasuryIds: webhooks.map((w) => w.treasury_id),
+    payoutDiscordTreasuryIds: destinations.map((d) => d.treasury_id),
     rateConfigured: community.discord_rate_coin !== null,
     github: {
       installationCount: github.installationCount,

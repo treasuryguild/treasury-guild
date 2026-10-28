@@ -58,7 +58,7 @@ For each member who is not an admin, admins see a **Lead of** row with a checkbo
 The **Community** card at the top of the page (admins only) sets the community's visibility:
 
 - **Public** — listed on Discover; anyone signed in can join as a member.
-- **Private** — members are added by an admin below, through GitHub assignments, or through call check-in and linked Discord capture. See [Joining a community](/docs/communities#joining-a-community).
+- **Private** — members join through an [invite link](#invite-links), are added by an admin below, through GitHub assignments, or through call check-in and linked Discord capture. See [Joining a community](/docs/communities#joining-a-community).
 
 Chosen when the community is created (private by default); change it here any time.
 
@@ -76,9 +76,15 @@ Prices are fetched from CoinGecko when the message is posted. If the price canno
 
 Also in the Community card, admins pick the token the community mainly budgets and spends: **ADA** (the default), any token the community has paid out, or one a treasury wallet currently holds. The [Dashboard](/docs/budgets#dashboard) charts it first and lists it first in its tables; when no budget is set for the period in view, it is the only token charted.
 
+## Invite links
+
+In the Community card, admins can **Create invite link**. Choose how long it lasts (7, 30 or 90 days, or never), an optional use limit, and an optional label for your own notes. The page shows the full URL once — copy it and share it (for example in Discord). Anyone who opens a valid link, signs in with a Cardano wallet on the community's network, and clicks **Join** becomes a **member**. After joining, the page points them at [Profile & settings](/docs/profile) to set a handle and link Discord, GitHub or Google if they want; the invite never sets those for them.
+
+Every link is listed with its status (**Active**, **Expired**, **Used up** or **Revoked**), uses and expiry. **Revoke** is available while a link is Active and stops it immediately. The raw token is not stored (only a hash), so you cannot re-copy an old URL from the app — create a new link if you lost it. A community may have up to **20 unrevoked** invite links at once: expired and used-up links still count toward that cap until you revoke them. See [Invite links](/docs/communities#invite-links).
+
 ## Adding a member
 
-In the same card, paste a wallet address (`addr…` on mainnet, `addr_test…` on preprod) and click **Add member**. The wallet becomes a member immediately, even if it has never signed in. When its owner signs in for the first time, the community is already there. Promote them with **Make admin** if needed, or list them as a base signer of the [primary treasury](/docs/treasury#primary-treasury) when creating or re-pointing it.
+In the same card, paste a wallet address (`addr…` on mainnet, `addr_test…` on preprod) and click **Add member**. The wallet becomes a member immediately, even if it has never signed in. When its owner signs in for the first time, the community is already there. Promote them with **Make admin** if needed, or list them as a base signer of the [primary treasury](/docs/treasury#primary-treasury) when creating or re-pointing it. For onboarding many people at once, prefer an [invite link](#invite-links).
 
 Each member card shows the short address, "(you)" for yourself, the display handle or "no handle", the linked GitHub username if any, a **signer** badge for base signers (**recovery signer** or **co-signer** for those groups), and the role badge.
 

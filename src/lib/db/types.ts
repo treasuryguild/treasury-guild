@@ -78,6 +78,30 @@ export interface MemberWithContributor {
 export const MEMBER_WITH_CONTRIBUTOR_COLUMNS =
   "wallet_address, role, contributors(handle, github_username)";
 
+/** A community invite link (token never stored; only its hash). */
+export interface CommunityInviteRow {
+  id: string;
+  community_id: string;
+  token_hash: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  label: string | null;
+}
+
+export const COMMUNITY_INVITE_COLUMNS =
+  "id, community_id, token_hash, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
+
+/** Admin-facing invite fields (no token hash). */
+export type CommunityInviteSummary = Omit<CommunityInviteRow, "token_hash">;
+
+export const COMMUNITY_INVITE_SUMMARY_COLUMNS =
+  "id, community_id, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
+
 export interface WorkgroupRow {
   id: string;
   community_id: string;
@@ -183,16 +207,6 @@ export interface TransactionRow {
   block_time: string | null;
   /** The branch of the treasury script it was built for (0061); whose signatures count. */
   spending_path: SpendingPath;
-}
-
-/** Service-role only: the URL is a bearer secret and never reaches the client. */
-export interface TreasuryDiscordWebhookRow {
-  treasury_id: string;
-  url: string;
-  created_by: string;
-  created_at: string;
-  last_posted_at: string | null;
-  last_error: string | null;
 }
 
 export type TransactionSummary = Pick<
@@ -837,6 +851,27 @@ export interface GovernanceDiscordChannelRow {
 
 export const GOVERNANCE_DISCORD_CHANNEL_COLUMNS =
   "community_id, channel_id, channel_type, created_by, created_at, last_posted_at, last_error";
+
+/** Text or announcement channel on a treasury Discord destination (0072). */
+export type TreasuryDiscordChannelType = 0 | 5;
+
+/**
+ * One destination per treasury: either a pasted webhook URL or a bot channel
+ * (migration 0072). The URL is a bearer secret — never send it to the browser.
+ */
+export interface TreasuryDiscordDestinationRow {
+  treasury_id: string;
+  url: string | null;
+  channel_id: string | null;
+  channel_type: TreasuryDiscordChannelType | null;
+  created_by: string;
+  created_at: string;
+  last_posted_at: string | null;
+  last_error: string | null;
+}
+
+export const TREASURY_DISCORD_DESTINATION_COLUMNS =
+  "treasury_id, url, channel_id, channel_type, created_by, created_at, last_posted_at, last_error";
 
 /** One step of a proposal carried by one transaction (0060). */
 export interface ProposalAnchorRow {

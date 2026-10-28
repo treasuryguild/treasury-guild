@@ -10,7 +10,7 @@ import type { GovernanceDiscordResponse, GovernanceDiscordStatus } from "@/lib/a
 import { formatDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
-import { Button, ConfirmDialog, ErrorText, NoticeText } from "@/components/ui";
+import { Button, ConfirmDialog, ErrorText, Field, NoticeText, Select } from "@/components/ui";
 
 function channelLabel(c: { name: string; type: number }): string {
   const kind = c.type === 15 ? "forum" : c.type === 5 ? "announcement" : "text";
@@ -123,21 +123,22 @@ export function GovernanceDiscordControl({
 
       {editing && status.serverConnected ? (
         <div className="mt-3 space-y-2">
-          <label className="block text-xs text-zinc-500">
-            Channel
-            <select
-              className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm"
+          <Field
+            label="Channel"
+            size="sm"
+            hint="A forum channel is best: one post per proposal. Re-add the bot under Integrations if channels are missing after a permission update."
+          >
+            <Select
+              aria-label="Discord channel"
               value={channelId}
               onChange={(e) => setChannelId(e.target.value)}
-              aria-label="Discord channel"
             >
               <option value="">Select a channel…</option>
               {(channels ?? []).map((c) => (
                 <option key={c.id} value={c.id}>{channelLabel(c)}</option>
               ))}
-            </select>
-          </label>
-          <p className="text-xs text-zinc-500">A forum channel is best: one post per proposal. Re-add the bot under Integrations if channels are missing after a permission update.</p>
+            </Select>
+          </Field>
           <div className="flex flex-wrap gap-2">
             <Button onClick={save} disabled={!channelId || action.busy}>
               {action.busy ? "Saving…" : "Save channel"}

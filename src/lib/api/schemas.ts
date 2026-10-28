@@ -143,6 +143,27 @@ export const memberDeleteSchema = z.object({
   wallet: storedWallet,
 });
 
+/** Opaque invite token in the URL path (32-byte base64url). */
+export const inviteTokenSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/, "Invalid invite link");
+
+export const createInviteSchema = z.object({
+  communityId: id,
+  /** Days until expiry; null = never. Default 30 when omitted. */
+  expiresInDays: z
+    .union([z.literal(7), z.literal(30), z.literal(90), z.null()])
+    .optional()
+    .default(30),
+  /** null / omitted = unlimited. */
+  maxUses: z.number().int().min(1).max(10_000).nullable().optional().default(null),
+  label: z.string().trim().min(1).max(100).nullable().optional().default(null),
+});
+export const revokeInviteSchema = z.object({
+  communityId: id,
+  inviteId: id,
+});
+
 export const workgroupLeadAddSchema = z.object({
   workgroupId: id,
   wallet: walletAddress,
@@ -257,15 +278,18 @@ export const setPrimaryTreasurySchema = z.object({
   treasuryId: id,
 });
 
-export const setTreasuryDiscordWebhookSchema = z.object({
-  treasuryId: id,
-  url: discordWebhookUrl,
-});
-export const deleteTreasuryDiscordWebhookSchema = z.object({ treasuryId: id });
+const discordChannelId = z.string().trim().min(1).max(32).regex(/^\d+$/);
+
+/** POST /api/treasury/discord: webhook URL or bot channel (XOR). */
+export const setTreasuryDiscordDestinationSchema = z.union([
+  z.object({ treasuryId: id, url: discordWebhookUrl }).strict(),
+  z.object({ treasuryId: id, channelId: discordChannelId }).strict(),
+]);
+export const deleteTreasuryDiscordDestinationSchema = z.object({ treasuryId: id });
 /** The community's governance Discord channel (Governance settings). */
 export const setGovernanceDiscordChannelSchema = z.object({
   communityId: id,
-  channelId: z.string().trim().min(1).max(32).regex(/^\d+$/),
+  channelId: discordChannelId,
 });
 
 // --- Developer tools ----------------------------------------------------------
@@ -1011,11 +1035,13 @@ export type PatchCommunityBody = z.infer<typeof patchCommunitySchema>;
 export type MemberAddBody = z.infer<typeof memberAddSchema>;
 export type MemberPatchBody = z.infer<typeof memberPatchSchema>;
 export type MemberDeleteBody = z.infer<typeof memberDeleteSchema>;
+export type CreateInviteBody = z.infer<typeof createInviteSchema>;
+export type RevokeInviteBody = z.infer<typeof revokeInviteSchema>;
 export type WorkgroupLeadBody = z.infer<typeof workgroupLeadAddSchema>;
 export type TaskAssigneeInput = z.infer<typeof taskAssigneeInputSchema>;
 export type SetTaskAssigneesBody = z.infer<typeof setTaskAssigneesSchema>;
 export type CreateTreasuryBody = z.infer<typeof createTreasurySchema>;
-export type SetTreasuryDiscordWebhookBody = z.infer<typeof setTreasuryDiscordWebhookSchema>;
+export type SetTreasuryDiscordDestinationBody = z.infer<typeof setTreasuryDiscordDestinationSchema>;
 export type DevDiscordSendBody = z.infer<typeof devDiscordSendSchema>;
 export type DevCronRunBody = z.infer<typeof devCronRunSchema>;
 export type DevAnchorTestBody = z.infer<typeof devAnchorTestSchema>;

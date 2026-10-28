@@ -504,16 +504,30 @@ Supabase (RLS, no ORM) + Netlify.
   task only once archived; a GitHub task (which cannot be archived) only by
   the service-role sync, when its issue leaves the import filter.
 - **Payout announcements**: a confirmed payout is posted to the treasury's
-  Discord channel (`src/lib/discord/notifyPayouts.ts`, webhook in
-  `treasury_discord_webhooks`, migration 0027; fiat footer from
-  `src/lib/rates/coingecko.ts`) and written back to GitHub (tx-hash comment,
-  paid label, move to the Paid status: `src/lib/github/writeback.ts`).
+  Discord destination (`src/lib/discord/notifyPayouts.ts`,
+  `treasury_discord_destinations`, migrations 0027 / 0072: either a bot
+  channel on the community's Discord server or a pasted webhook URL, XOR;
+  fiat footer from `src/lib/rates/coingecko.ts`) and written back to GitHub
+  (tx-hash comment, paid label, move to the Paid status:
+  `src/lib/github/writeback.ts`).
 - **GitHub App install** (`/api/github/setup`): the state is a wallet-bound
   `github-install` OAuth state; `installation_id` is a spoofable query
   parameter, so `installationClaim` never moves an installation another
   community holds and accepts an unclaimed one only when GitHub created or
   updated it in the last 15 minutes. Repo links are checked against the
   installation (`GET /repositories/{id}`), never trusted from the body.
+- **Community invite links** (migration 0073, `src/lib/invites/`,
+  `src/lib/db/invites.ts`, page `/invite/[token]`): admins create and revoke
+  on Members (`InviteLinks`, `/api/community/invites`); redeem joins as
+  **member** only (`redeem_community_invite`), wallet network must match the
+  community; already-members succeed without burning a use. Raw token shown
+  once; only sha256 stored (`hashInviteToken`). Cap **20 unrevoked** per
+  community (`countActiveInvites`: `revoked_at IS NULL`, so expired and
+  used-up still count). Expiry presets 7/30/90/never; optional max uses and
+  label. Preview is public/IP-limited; create and redeem are wallet-limited.
+  Reconcile sweep purges expired/revoked after 90 days
+  (`purge_community_invites`); used-up never-expire rows stay until revoked.
+  Public join (`/api/community/join`) stays visibility=`public` only.
 - **Rate limits**: abuse-prone routes call `enforceRateLimit(bucket, subject)`
   (`src/lib/db/rateLimit.ts`, budgets in `RATE_LIMITS` in
   `src/lib/constants.ts`, `hit_rate_limit` RPC,

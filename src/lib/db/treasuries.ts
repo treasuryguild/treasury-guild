@@ -3,7 +3,12 @@ import "server-only";
 import { PgCode, SignerGroup, TxState, type CosignerKind, type TreasuryTemplate } from "@/lib/constants";
 import { InvariantError, NotFoundError } from "@/lib/errors";
 import { check, maybe, rows, serviceClient } from "./client";
-import type { TreasuryRow, TreasurySignerRow } from "./types";
+import type {
+  TreasuryDiscordChannelType,
+  TreasuryDiscordDestinationRow,
+  TreasuryRow,
+  TreasurySignerRow,
+} from "./types";
 
 export async function loadTreasury(treasuryId: string): Promise<TreasuryRow> {
   const treasury = maybe<TreasuryRow>(
@@ -223,28 +228,41 @@ export async function tagInternalTransfers(communityId: string): Promise<void> {
   if (error) console.error(`tag_internal_transfers ${communityId} failed`, error);
 }
 
-/** A treasury's Discord webhook. The URL is a bearer secret: never send it to the browser. */
-export interface TreasuryDiscordWebhook {
-  treasury_id: string;
-  url: string;
-  last_posted_at: string | null;
-  last_error: string | null;
+/** A treasury's Discord destination (webhook URL or bot channel). Never send `url` to the browser. */
+export type TreasuryDiscordDestination = Pick<
+  TreasuryDiscordDestinationRow,
+  "treasury_id" | "url" | "channel_id" | "channel_type" | "last_posted_at" | "last_error"
+>;
+
+export async function listTreasuryDiscordDestinations(
+  communityId: string,
+): Promise<TreasuryDiscordDestination[]> {
+  return rows<TreasuryDiscordDestination>(
+    await serviceClient()
+      .from("treasury_discord_destinations")
+      .select(
+        "treasury_id, url, channel_id, channel_type, last_posted_at, last_error, treasuries!inner(community_id)",
+      )
+      .eq("treasuries.community_id", communityId),
+    "load discord destinations",
+  );
 }
 
-export async function listTreasuryDiscordWebhooks(communityId: string): Promise<TreasuryDiscordWebhook[]> {
-  return rows<TreasuryDiscordWebhook>(
+async function stampConfirmedForDiscord(treasuryId: string, now: string): Promise<void> {
+  check(
     await serviceClient()
-      .from("treasury_discord_webhooks")
-      .select("treasury_id, url, last_posted_at, last_error, treasuries!inner(community_id)")
-      .eq("treasuries.community_id", communityId),
-    "load discord webhooks",
+      .from("transactions")
+      .update({ discord_notified_at: now })
+      .eq("treasury_id", treasuryId)
+      .eq("state", TxState.Confirmed)
+      .is("discord_notified_at", null),
+    "stamp confirmed transactions",
   );
 }
 
 /**
- * Store the webhook as posted at `now` and stamp the treasury's confirmed
- * transactions with it: connecting never announces history, only payouts
- * confirmed from now on.
+ * Store a webhook destination as posted at `now` and stamp the treasury's
+ * confirmed transactions: connecting never announces history.
  */
 export async function saveTreasuryDiscordWebhook(input: {
   treasuryId: string;
@@ -254,9 +272,11 @@ export async function saveTreasuryDiscordWebhook(input: {
 }): Promise<void> {
   const db = serviceClient();
   check(
-    await db.from("treasury_discord_webhooks").upsert({
+    await db.from("treasury_discord_destinations").upsert({
       treasury_id: input.treasuryId,
       url: input.url,
+      channel_id: null,
+      channel_type: null,
       created_by: input.actor,
       created_at: input.now,
       last_posted_at: input.now,
@@ -264,20 +284,40 @@ export async function saveTreasuryDiscordWebhook(input: {
     }),
     "save discord webhook",
   );
-  check(
-    await db
-      .from("transactions")
-      .update({ discord_notified_at: input.now })
-      .eq("treasury_id", input.treasuryId)
-      .eq("state", TxState.Confirmed)
-      .is("discord_notified_at", null),
-    "stamp confirmed transactions",
-  );
+  await stampConfirmedForDiscord(input.treasuryId, input.now);
 }
 
-export async function deleteTreasuryDiscordWebhook(treasuryId: string): Promise<void> {
+/**
+ * Store a bot-channel destination as posted at `now` and stamp confirmed
+ * transactions the same way as the webhook path.
+ */
+export async function saveTreasuryDiscordChannel(input: {
+  treasuryId: string;
+  channelId: string;
+  channelType: TreasuryDiscordChannelType;
+  actor: string;
+  now: string;
+}): Promise<void> {
+  const db = serviceClient();
   check(
-    await serviceClient().from("treasury_discord_webhooks").delete().eq("treasury_id", treasuryId),
-    "remove discord webhook",
+    await db.from("treasury_discord_destinations").upsert({
+      treasury_id: input.treasuryId,
+      url: null,
+      channel_id: input.channelId,
+      channel_type: input.channelType,
+      created_by: input.actor,
+      created_at: input.now,
+      last_posted_at: input.now,
+      last_error: null,
+    }),
+    "save discord channel",
+  );
+  await stampConfirmedForDiscord(input.treasuryId, input.now);
+}
+
+export async function deleteTreasuryDiscordDestination(treasuryId: string): Promise<void> {
+  check(
+    await serviceClient().from("treasury_discord_destinations").delete().eq("treasury_id", treasuryId),
+    "remove discord destination",
   );
 }

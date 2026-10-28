@@ -39,13 +39,13 @@ export const DOCS = [
   {
     slug: "communities",
     title: "Communities",
-    summary: "Finding, joining and creating a community, and the overview page.",
+    summary: "Finding, joining (including invite links) and creating a community, and the overview page.",
     group: "Start here",
   },
   {
     slug: "members-roles",
     title: "Members & roles",
-    summary: "Owners, admins, members, treasury signers, workgroup leads and visibility.",
+    summary: "Owners, admins, members, treasury signers, workgroup leads, invite links and visibility.",
     group: "Your community",
   },
   {
@@ -57,7 +57,7 @@ export const DOCS = [
   {
     slug: "integrations",
     title: "Integrations",
-    summary: "Discord server, payout webhooks, and the status of GitHub, call platforms and published records.",
+    summary: "Discord server, payout Discord destinations, and the status of GitHub, call platforms and published records.",
     group: "Your community",
   },
   {
@@ -145,6 +145,12 @@ export const DOCS = [
     summary: "What Treasury Guild stores about you, who can see it, and how to have it changed or deleted.",
     group: "Reference",
   },
+  {
+    slug: "terms",
+    title: "Terms of service",
+    summary: "What you agree to when you use Treasury Guild: wallets, communities, on-chain activity and integrations.",
+    group: "Reference",
+  },
 ] as const satisfies readonly DocEntry[];
 
 export type DocSlug = (typeof DOCS)[number]["slug"];
@@ -200,6 +206,7 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.startsWith("/oauth/consent"), { slug: "ai-assistants", hash: "approving-a-connection" }],
   [(p) => p === "/discover", { slug: "communities", hash: "discover" }],
   [(p) => p === "/communities/new", { slug: "communities", hash: "creating-a-community" }],
+  [(p) => p.startsWith("/invite/"), { slug: "communities", hash: "invite-links" }],
   [(p) => p.includes("/treasury/new"), { slug: "treasury", hash: "creating-a-treasury" }],
   [(p) => p.includes("/treasury/import"), { slug: "treasury", hash: "importing-a-treasury" }],
   [(p) => p.includes("/treasury/history"), { slug: "treasury", hash: "payment-history-from-a-previous-wallet" }],

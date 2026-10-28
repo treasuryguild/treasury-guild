@@ -19,6 +19,9 @@ describe("routes", () => {
     expect(routes.budgets("dao", { month: "2026-07", view: "month" })).toBe("/c/dao/budgets?month=2026-07&view=month");
     expect(routes.call("dao", "abc")).toBe("/c/dao/calls/abc");
     expect(routes.callCheckin("dao", "abc")).toBe("/c/dao/calls/abc/checkin");
+    expect(routes.invite("AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg")).toBe(
+      "/invite/AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg",
+    );
     expect(routes.proposal("dao", "abc")).toBe("/c/dao/proposals/abc");
     expect(routes.proposals("dao", { kind: "task", workgroupId: "wg" })).toBe("/c/dao/proposals?new=task&workgroupId=wg");
     expect(routes.payments("dao")).toBe("/c/dao/payments");
@@ -80,6 +83,9 @@ describe("pageLabel: the remaining pages", () => {
     expect(pageLabel("/oauth/consent")).toBe("Connect an AI assistant");
     // The consent route carries its handle in the query; the pathname alone decides.
     expect(pageLabel(routes.oauthConsent({ request: "handle.mac" }).split("?")[0]!)).toBe("Connect an AI assistant");
+    expect(pageLabel(routes.invite("AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg"))).toBe(
+      "Join community",
+    );
   });
 
   it("labels the community pages", () => {

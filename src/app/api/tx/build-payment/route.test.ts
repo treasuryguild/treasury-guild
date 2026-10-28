@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as TxModule from "@/lib/tx";
 import type * as SpendGuardModule from "@/lib/governance/spendGuard";
-import { ConflictError } from "@/lib/errors";
+import { BadRequestError, ConflictError } from "@/lib/errors";
+import { SPEND_CHECK_FAILED } from "@/lib/governance/spendGuard";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), context: vi.fn(), noPending: vi.fn(), withTx: vi.fn(),
@@ -214,6 +215,20 @@ describe("build-payment API", () => {
     const response = await POST(request(body({ proposalId: "40000000-0000-4000-8000-000000000010" })), context);
     expect(response.status).toBe(400);
     expect(mocks.build).not.toHaveBeenCalled();
+  });
+
+  it("refuses the build when the community chose refuse mode", async () => {
+    mocks.guard.mockRejectedValue(new BadRequestError(SPEND_CHECK_FAILED, {
+      problems: ["Treasury: T would go over its 2026-Q3 budget of 100 ADA."],
+    }));
+    const response = await POST(request(body()), context);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "This spend does not fit the voted budgets",
+      problems: ["Treasury: T would go over its 2026-Q3 budget of 100 ADA."],
+    });
+    expect(mocks.build).not.toHaveBeenCalled();
+    expect(mocks.withTx).not.toHaveBeenCalled();
   });
 
   it("surfaces a pending transaction as a conflict", async () => {

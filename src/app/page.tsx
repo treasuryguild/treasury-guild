@@ -52,6 +52,10 @@ export default function Home() {
           <Link href={routes.doc("privacy")} className={LINK_CLASS}>
             Privacy policy
           </Link>
+          {" · "}
+          <Link href={routes.doc("terms")} className={LINK_CLASS}>
+            Terms of service
+          </Link>
         </p>
       </div>
     );

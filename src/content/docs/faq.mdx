@@ -10,9 +10,13 @@
 
 **"Nonce expired"** — The sign-in message was not signed within 5 minutes, or was already used. Click **Sign in with (wallet name)** in the top bar and sign the new message. See [Wallets and signing in](/docs/getting-started#wallets-and-signing-in).
 
-**"Community not found."** — The link is wrong, or the community is private and you are not a member. Ask an admin to add your wallet, or link your GitHub account if you already have tasks assigned there.
+**"Community not found."** — The link is wrong, or the community is private and you are not a member. Open an [invite link](/docs/communities#invite-links) if you have one, ask an admin to add your wallet, or link your GitHub account if you already have tasks assigned there.
 
-**"Members only."** — You can see the community but are not a member. Join it if it is public, or ask an admin.
+**"Members only."** — You can see the community but are not a member. Join it if it is public, open an [invite link](/docs/communities#invite-links) an admin shared, or ask an admin to add you.
+
+**"Invite not found"** — The invite link is wrong, expired, revoked, or has hit its use limit. Ask an admin for a fresh link. See [Invite links](/docs/communities#invite-links).
+
+**"This community already has 20 active invite links. Revoke one first."** — Unrevoked links count toward the cap, including expired and used-up ones. Revoke a link on the [Members](/docs/members-roles#invite-links) page, then create another.
 
 **"Admin access required."** — The page (Integrations, GitHub, Call platforms, New treasury, Import treasury, Payment history) is for admins.
 
@@ -24,7 +28,7 @@
 
 **"Transaction is no longer pending"** — It was submitted, rejected or deleted while you were looking at it. Reload the page.
 
-**"Only signers, admins, or leads of all selected workgroups can build payouts"** — Signers here means the treasury's base signers. See [Who can build a payout](/docs/payday#who-can-build-a-payout).
+**"Only signers of this treasury, or leads of all selected workgroups, can build payouts"** — Signers here means the treasury's base signers. Community admin alone is not enough. See [Who can build a payout](/docs/payday#who-can-build-a-payout).
 
 **"Only recovery signers can build on the recovery path"** — A clawback treasury's recovery path is built by its recovery signers, from the lock date. See [Spending paths](/docs/treasury#spending-paths).
 
@@ -102,6 +106,7 @@
 | **Electorate** | The members who may vote on a proposal, fixed when voting opens. |
 | **Frozen record** | A final proposal's signed tally, stored once with its hash and served unchanged from then on. |
 | **Import column** | The Projects v2 Status column an issue must be in to become a task. |
+| **Invite link** | An admin-created URL that lets a signed-in wallet join the community as a member. |
 | **Internal transfer** | Money moved between the community's own treasuries; neither income nor spending. |
 | **Label 190001** | The metadata label that carries the payout record (and the payment record, marked `t: "payment"`) on-chain. |
 | **Label 190002** | The metadata label that carries proposal anchors on-chain. |

@@ -186,13 +186,13 @@ export default function TreasuryPage({
           {(() => {
             const payout = integrations.data?.payoutDiscord;
             if (!payout || payout.treasuries.length === 0) return null;
-            const connected = payout.treasuries.filter((t) => t.webhookConnected).length;
+            const connected = payout.treasuries.filter((t) => t.connected).length;
             return (
               <div className="mb-3">
                 <IntegrationStatusLink
                   label="Payout Discord"
-                  href={`${routes.integrations(slug)}#payout-webhooks`}
-                  status={`${connected}/${payout.treasuries.length} webhook${payout.treasuries.length === 1 ? "" : "s"}`}
+                  href={`${routes.integrations(slug)}#payout-discord`}
+                  status={`${connected}/${payout.treasuries.length} connected`}
                 />
               </div>
             );

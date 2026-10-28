@@ -8,7 +8,7 @@ That one connection unlocks several things:
 
 - **Voice capture** on [Calls](/docs/calls): while a Discord call runs, the bot reads who is in the chosen voice channel (it never joins or listens). Private channels need the bot's role allowed to view them.
 - **Proposal announcements** and discussion threads: pick a text or forum channel under [Proposal announcements](#proposal-announcements) on this page. The same channel also posts outside-spend alerts and on-chain anchor reminders when those apply. See [how announcements behave](/docs/governance#discord-announcements).
-- **Payout announcements** use a separate Discord *webhook* URL per treasury (configured under [Payout Discord webhooks](#payout-discord-webhooks) on this page). They are not the bot. The optional fiat rate in the payout footer is set on [Members](/docs/members-roles).
+- **Payout announcements** per treasury under [Payout Discord](#payout-discord): prefer a text or announcement channel on this server (the bot posts), or paste an incoming webhook URL if you do not install the bot. The optional fiat rate in the payout footer is set on [Members](/docs/members-roles).
 
 If you add the bot on Discord but the connection is never finished, the bot leaves that server by itself within about an hour.
 
@@ -16,9 +16,9 @@ If you add the bot on Discord but the connection is never finished, the bot leav
 
 With a Discord server connected, pick a text or **forum** channel for proposal milestones (forum is best: one post per proposal). Treasury Guild posts a test message when you save. Governance settings and the Proposals page show whether a channel is set and link here to change it.
 
-## Payout Discord webhooks
+## Payout Discord
 
-Each treasury can post confirmed payouts to a Discord channel via an incoming webhook (Channel settings → Integrations → Webhooks). Configure the URL here for every treasury; the Treasury page only shows status and links back. Details of what each announcement contains are under [Treasury → Discord notifications](/docs/treasury#discord-notifications).
+Each treasury can announce confirmed payouts in Discord. With a Discord server connected, pick a text or announcement channel from a dropdown (the bot posts). Without the bot — or if you prefer — paste an incoming webhook URL (Channel settings → Integrations → Webhooks). Configure one destination per treasury here; the Treasury page only shows status and links back. Details of what each announcement contains are under [Treasury → Discord notifications](/docs/treasury#discord-notifications).
 
 ## Zoom account
 

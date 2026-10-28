@@ -1,19 +1,19 @@
 "use client";
 
 // Community Integrations hub: sole place to connect Discord, announcement
-// channel, payout webhooks, Zoom and Meet; status rows for GitHub, linked
-// meetings and published records. Sections collapse when healthy.
+// channel, payout Discord destinations, Zoom and Meet; status rows for
+// GitHub, linked meetings and published records. Sections collapse when healthy.
 import Link from "next/link";
 import { use } from "react";
 import { apiFetch } from "@/lib/api/client";
 import type {
   GovernanceDiscordResponse,
-  TreasuryDiscordWebhooksResponse,
+  TreasuryDiscordDestinationsResponse,
 } from "@/lib/api/types";
 import { IntegrationCard } from "@/components/calls/IntegrationCard";
 import { GovernanceDiscordControl } from "@/components/governance/GovernanceDiscordControl";
 import { IntegrationSection } from "@/components/integrations/IntegrationSection";
-import { DiscordWebhookControl } from "@/components/treasury/DiscordWebhookControl";
+import { TreasuryDiscordControl } from "@/components/treasury/TreasuryDiscordControl";
 import { ErrorText, PageTitle } from "@/components/ui";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
@@ -29,8 +29,8 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
     apiFetch<GovernanceDiscordResponse>("/api/governance/discord", {
       query: { communityId: community!.id },
     }));
-  const webhooks = useAsyncData(community?.id, async () =>
-    apiFetch<TreasuryDiscordWebhooksResponse>("/api/treasury/discord", {
+  const payoutDiscord = useAsyncData(community?.id, async () =>
+    apiFetch<TreasuryDiscordDestinationsResponse>("/api/treasury/discord", {
       query: { communityId: community!.id },
     }));
 
@@ -42,15 +42,15 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
   function reloadAll() {
     status.reload();
     discord.reload();
-    webhooks.reload();
+    payoutDiscord.reload();
   }
 
   const discordConnected = data?.discord.serverConnected ?? false;
   const channelSet = Boolean(data?.discord.channelId);
-  const webhookTreasuries = data?.payoutDiscord.treasuries ?? [];
-  const webhooksConnected = webhookTreasuries.filter((t) => t.webhookConnected).length;
-  const webhooksIncomplete =
-    webhookTreasuries.length === 0 || webhooksConnected < webhookTreasuries.length;
+  const payoutTreasuries = data?.payoutDiscord.treasuries ?? [];
+  const payoutConnected = payoutTreasuries.filter((t) => t.connected).length;
+  const payoutIncomplete =
+    payoutTreasuries.length === 0 || payoutConnected < payoutTreasuries.length;
   const githubIncomplete =
     !data || data.github.installationCount === 0 || data.github.workgroupsMissingRepo > 0 || !data.github.archiveReady;
   const callsIncomplete = !data || (!data.calls.zoomConnected && !data.calls.googleConnected);
@@ -62,8 +62,8 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
       <PageTitle>Integrations</PageTitle>
       <p className="-mt-3 text-sm text-zinc-400">
         Connect Discord, Zoom and Meet for this community, and pick announcement channels and
-        payout webhooks. Voting rules stay under Governance; linked meetings under Call platforms;
-        install the GitHub App under GitHub.
+        payout Discord destinations. Voting rules stay under Governance; linked meetings under Call
+        platforms; install the GitHub App under GitHub.
       </p>
       <ErrorText error={status.error} />
 
@@ -87,9 +87,9 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
           nouns={{ thing: "server", connect: "Connect Discord server", change: "Change server" }}
           blurb={<>
             Adds the Treasury Guild bot to a server you manage. The bot reads who is in a voice
-            channel for call rewards (it never joins or listens), and posts proposal announcements,
-            outside-spend alerts and anchor reminders when you pick a channel below. Payout
-            announcements use a separate webhook URL per treasury.
+            channel for call rewards (it never joins or listens), and can post proposal
+            announcements, outside-spend alerts, anchor reminders and payout summaries when you
+            pick channels below. Treasuries can still use a pasted webhook URL instead of the bot.
           </>}
           footnote={<>
             A private voice channel is captured only if the bot&apos;s role may view it. Attendees
@@ -97,8 +97,9 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
           </>}
           disconnectWarning={<>
             Capture stops for this community&apos;s Discord calls, proposal announcements stop, and
-            the bot leaves the server (unless another community uses it). Payout webhooks are
-            unchanged. Attendees already captured stay on their calls.
+            the bot leaves the server (unless another community uses it). Treasury destinations that
+            use a webhook URL are unchanged; channel destinations stop posting until you reconnect
+            or switch to a webhook. Attendees already captured stay on their calls.
           </>}
         />
       </IntegrationSection>
@@ -128,39 +129,42 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
       </IntegrationSection>
 
       <IntegrationSection
-        id="payout-webhooks"
-        title="Payout Discord webhooks"
-        incomplete={webhooksIncomplete}
-        status={webhookTreasuries.length === 0
+        id="payout-discord"
+        title="Payout Discord"
+        incomplete={payoutIncomplete}
+        status={payoutTreasuries.length === 0
           ? "No treasury yet"
-          : `${webhooksConnected}/${webhookTreasuries.length} connected`}
+          : `${payoutConnected}/${payoutTreasuries.length} connected`}
       >
         <p className="text-sm text-zinc-400">
-          Each treasury can post confirmed payouts to a Discord channel via an incoming webhook
-          (Channel settings → Integrations → Webhooks). This is separate from the bot above.
+          Each treasury can announce confirmed payouts in Discord. Prefer a channel on the
+          connected server above; or paste an incoming webhook URL if you do not want to use the
+          bot (Channel settings → Integrations → Webhooks).
         </p>
-        <ErrorText error={webhooks.error} />
-        {webhookTreasuries.length === 0 ? (
+        <ErrorText error={payoutDiscord.error} />
+        {payoutTreasuries.length === 0 ? (
           <p className="text-sm text-zinc-500">
             No treasury yet.{" "}
             <Link className="underline" href={routes.treasury(slug)}>Create one</Link>
             {" "}first.
           </p>
         ) : (
-          webhookTreasuries.map((t) => (
+          payoutTreasuries.map((t) => (
             <div key={t.treasuryId} className="rounded-lg border border-zinc-800 px-3 py-2">
               <p className="text-sm font-medium">{t.name}</p>
-              <DiscordWebhookControl
-                endpoint="/api/treasury/discord"
-                target={{ treasuryId: t.treasuryId }}
-                removeText={`Payouts from ${t.name} will no longer be announced in the channel.`}
-                status={webhooks.data?.webhooks.find((w) => w.treasuryId === t.treasuryId) ?? null}
+              <TreasuryDiscordControl
+                communityId={community!.id}
+                treasuryId={t.treasuryId}
+                slug={slug}
+                serverConnected={discordConnected}
+                removeText={`Payouts from ${t.name} will no longer be announced in Discord.`}
+                status={payoutDiscord.data?.destinations.find((d) => d.treasuryId === t.treasuryId) ?? null}
                 onChanged={reloadAll}
               />
             </div>
           ))
         )}
-        {data && data.payoutDiscord.treasuries.some((t) => t.webhookConnected) && !data.payoutDiscord.rateConfigured && (
+        {data && data.payoutDiscord.treasuries.some((t) => t.connected) && !data.payoutDiscord.rateConfigured && (
           <p className="text-sm text-zinc-500">
             Optional: set the fiat rate shown in payout footers on{" "}
             <Link className="underline" href={routes.members(slug)}>Members</Link>.
