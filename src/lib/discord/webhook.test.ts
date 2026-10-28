@@ -1,9 +1,20 @@
-import { describe, expect, it, vi } from "vitest";
-import type { DiscordWebhookPayload } from "./payoutMessage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AVATAR_PATH, type DiscordWebhookPayload } from "./payoutMessage";
 import { DiscordWebhookError, postDiscordWebhook, webhookUrlHint, type FetchLike } from "./webhook";
 
 const URL_ = "https://discord.com/api/webhooks/123456789012345678/abcDEF-ghi_JKL9876";
 const payload: DiscordWebhookPayload = { username: "Treasury Guild", embeds: [] };
+const APP = "https://app.example";
+const savedAppUrl = process.env.APP_URL;
+
+beforeEach(() => {
+  process.env.APP_URL = APP;
+});
+
+afterEach(() => {
+  if (savedAppUrl === undefined) delete process.env.APP_URL;
+  else process.env.APP_URL = savedAppUrl;
+});
 
 const answering = (status: number, body = "") =>
   vi.fn<FetchLike>(async () => new Response(status === 204 ? null : body, { status }));
@@ -43,7 +54,7 @@ describe("webhookUrlHint", () => {
 });
 
 describe("postDiscordWebhook", () => {
-  it("posts the payload as JSON and resolves on 204", async () => {
+  it("posts the payload as JSON with a default avatar_url and resolves on 204", async () => {
     const fetchImpl = answering(204);
     await expect(postDiscordWebhook(URL_, payload, fetchImpl)).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledTimes(1);
@@ -51,7 +62,24 @@ describe("postDiscordWebhook", () => {
     expect(url).toBe(URL_);
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ "content-type": "application/json" });
-    expect(JSON.parse(init.body as string)).toEqual(payload);
+    expect(JSON.parse(init.body as string)).toEqual({
+      ...payload,
+      avatar_url: `${APP}${AVATAR_PATH}`,
+    });
+  });
+
+  it("keeps an explicit avatar_url", async () => {
+    const fetchImpl = answering(204);
+    const custom = "https://cdn.example/custom.png";
+    await postDiscordWebhook(URL_, { ...payload, avatar_url: custom }, fetchImpl);
+    expect(JSON.parse(fetchImpl.mock.calls[0]![1].body as string).avatar_url).toBe(custom);
+  });
+
+  it("trims a trailing slash on APP_URL before joining the avatar path", async () => {
+    process.env.APP_URL = `${APP}/`;
+    const fetchImpl = answering(204);
+    await postDiscordWebhook(URL_, payload, fetchImpl);
+    expect(JSON.parse(fetchImpl.mock.calls[0]![1].body as string).avatar_url).toBe(`${APP}${AVATAR_PATH}`);
   });
 
   it("resolves on any 2xx", async () => {

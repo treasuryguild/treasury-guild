@@ -2,8 +2,9 @@
 // webhook URL is a bearer secret (anyone holding it can post to the channel).
 import "server-only";
 
+import { appUrl } from "@/lib/env.server";
 import { errorMessage } from "@/lib/errors";
-import type { DiscordWebhookPayload } from "./payoutMessage";
+import { AVATAR_PATH, type DiscordWebhookPayload } from "./payoutMessage";
 
 /**
  * `permanent` = retrying the same request will not help (webhook deleted or
@@ -25,17 +26,25 @@ export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
 const BODY_EXCERPT = 200;
 
+function defaultAvatarUrl(): string {
+  return `${appUrl().replace(/\/+$/, "")}${AVATAR_PATH}`;
+}
+
 export async function postDiscordWebhook(
   url: string,
   payload: DiscordWebhookPayload,
   fetchImpl: FetchLike = (u, init) => fetch(u, init),
 ): Promise<void> {
+  const body: DiscordWebhookPayload = {
+    ...payload,
+    avatar_url: payload.avatar_url ?? defaultAvatarUrl(),
+  };
   let res: Response;
   try {
     res = await fetchImpl(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw new DiscordWebhookError(

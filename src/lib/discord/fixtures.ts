@@ -5,6 +5,7 @@
 
 import { unitTicker } from "@/lib/assetRegistry";
 import {
+  AVATAR_PATH,
   buildConnectedEmbed,
   buildPayoutEmbed,
   MAX_WORKGROUP_LINES,
@@ -76,7 +77,7 @@ function budget(
 
 const community = (extras = true): PayoutMessageInput["community"] =>
   extras
-    ? { name: "Guild DAO", url: `${APP}/c/${SLUG}`, iconUrl: `${APP}/logo-white.png` }
+    ? { name: "Guild DAO", url: `${APP}/c/${SLUG}`, iconUrl: `${APP}${AVATAR_PATH}` }
     : { name: "Guild DAO" };
 
 const links = { transaction: `${APP}/c/${SLUG}/tx/00000000-0000-4000-8000-000000000001`, dashboard: `${APP}/c/${SLUG}/dashboard` };
