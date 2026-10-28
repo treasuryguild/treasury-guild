@@ -17,6 +17,12 @@ import { isFinalProposal } from "./lifecycle";
 /** Once a frozen document waits this long for its outside copy, the closed anchor goes without one. */
 export const CLOSED_ANCHOR_COPY_GRACE_MS = 24 * 60 * 60 * 1000;
 
+/** Discord stale reminder: a due step with no live tx for this long. */
+export const ANCHOR_STALE_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** Discord copy-grace reminder: this long before the closed step becomes due without a locator. */
+export const COPY_GRACE_REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
+
 export type AnchorStepStatus = "anchored" | "pending" | "submitted" | "due" | "none";
 
 export interface AnchorStepState {
@@ -32,7 +38,9 @@ export type AnchorStatus = Record<AnchorStep, AnchorStepState>;
 
 /** What the due rules read of a proposal. */
 export type AnchorProposal = Pick<
-  ProposalRow, "id" | "number" | "state" | "content_hash" | "rules_hash" | "electorate_hash" | "voting_opened_at" | "anchored" | "tally"
+  ProposalRow,
+  | "id" | "number" | "state" | "content_hash" | "rules_hash" | "electorate_hash"
+  | "voting_opened_at" | "anchored" | "tally" | "created_at" | "closed_at"
 >;
 
 /** A frozen tally document and its outside copies, as the closed step reads them. */
@@ -114,7 +122,7 @@ export function dueAnchorSteps(
 }
 
 /** Whether this document is one the community publishes: a store chosen, and chosen before the freeze. */
-function publicationOn(document: AnchorDocument, publication: AnchorPublication | null): boolean {
+export function publicationOn(document: AnchorDocument, publication: AnchorPublication | null): boolean {
   return !!publication?.documentStore && !!publication.documentStoreSince &&
     Date.parse(publication.documentStoreSince) <= Date.parse(document.frozenAt);
 }
@@ -123,6 +131,68 @@ function publicationOn(document: AnchorDocument, publication: AnchorPublication 
 export function copyIn(document: AnchorDocument, publication: AnchorPublication | null): AnchorDocument["copies"][number] | null {
   if (!publication?.documentStore) return null;
   return document.copies.find((c) => c.store === publication.documentStore) ?? null;
+}
+
+/**
+ * When a due step's due episode started (ms). Null when the step cannot be
+ * timed yet (opened without voting_opened_at, closed without a document).
+ * Stale Discord reminders compare `now - dueSince` to `ANCHOR_STALE_MS`.
+ */
+export function dueSince(
+  step: AnchorStep,
+  proposal: AnchorProposal,
+  document: AnchorDocument | null,
+  publication: AnchorPublication | null,
+): number | null {
+  switch (step) {
+    case AnchorStep.Proposed:
+      return Date.parse(proposal.created_at);
+    case AnchorStep.Opened:
+      return proposal.voting_opened_at ? Date.parse(proposal.voting_opened_at) : null;
+    case AnchorStep.Closed:
+      if (closedWithoutVoting(proposal)) {
+        return Date.parse(proposal.closed_at ?? proposal.created_at);
+      }
+      if (!document) return null;
+      // Publication on and no copy yet: the step only becomes due after grace.
+      if (publicationOn(document, publication) && !copyIn(document, publication)) {
+        return Date.parse(document.frozenAt) + CLOSED_ANCHOR_COPY_GRACE_MS;
+      }
+      return Date.parse(document.frozenAt);
+  }
+}
+
+/** Whether a due step has sat long enough for a stale Discord reminder. */
+export function isStaleDue(
+  step: AnchorStep,
+  proposal: AnchorProposal,
+  document: AnchorDocument | null,
+  publication: AnchorPublication | null,
+  now: number,
+): boolean {
+  const since = dueSince(step, proposal, document, publication);
+  return since !== null && now - since >= ANCHOR_STALE_MS;
+}
+
+/**
+ * Whether the closed step is still waiting inside the copy-grace window and
+ * the reminder window has opened (last `COPY_GRACE_REMINDER_BEFORE_MS` of grace).
+ * Once grace ends the closed step is due instead — stale reminders cover that.
+ */
+export function copyGraceReminderDue(
+  proposal: AnchorProposal,
+  status: AnchorStatus,
+  document: AnchorDocument | null,
+  publication: AnchorPublication | null,
+  now: number,
+): boolean {
+  if (!proposal.anchored || closedWithoutVoting(proposal)) return false;
+  if (!isFinalProposal(proposal.state) || !document) return false;
+  if (status[AnchorStep.Closed].status !== "none") return false;
+  if (!publicationOn(document, publication) || copyIn(document, publication)) return false;
+  const graceEnd = Date.parse(document.frozenAt) + CLOSED_ANCHOR_COPY_GRACE_MS;
+  const remindAt = graceEnd - COPY_GRACE_REMINDER_BEFORE_MS;
+  return now >= remindAt && now < graceEnd;
 }
 
 /** The record entry of one step; null when the proposal has nothing to say for it yet. */

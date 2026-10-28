@@ -17,6 +17,7 @@ import { useGovernanceSettings } from "@/hooks/useProposals";
 import { useTreasuries } from "@/hooks/useTreasuries";
 import { useWorkgroups, type WorkgroupDetails } from "@/hooks/useWorkgroups";
 import { NetworkBadge } from "@/components/community/NetworkNotice";
+import { SetupChecklist } from "@/components/integrations/SetupChecklist";
 import { WorkgroupDetailsDialog } from "@/components/workgroups/WorkgroupDetailsDialog";
 import {
   Badge,
@@ -138,6 +139,10 @@ export default function CommunityDashboard({
       >
         {community!.name}
       </PageTitle>
+
+      {isAdmin && community && (
+        <SetupChecklist communityId={community.id} slug={slug} />
+      )}
 
       <div className="mb-8 grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {COMMUNITY_CARDS.map((card) => (

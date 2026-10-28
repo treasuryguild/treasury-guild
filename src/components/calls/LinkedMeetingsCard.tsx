@@ -11,9 +11,9 @@ import { MeetingLinkDialog } from "./MeetingLinkDialog";
 const PLATFORM_LABEL = { zoom: "Zoom", meet: "Google Meet" } as const;
 
 /**
- * The community's linked Zoom and Google Meet meetings on the Call capture
- * page: a recurring meeting tied to a workgroup, whose calls create
- * themselves when the meeting runs.
+ * Linked Zoom and Google Meet meetings on Call platforms: a recurring meeting
+ * tied to a workgroup, whose calls create themselves when the meeting runs.
+ * Host accounts are connected under Integrations.
  */
 export function LinkedMeetingsCard({ communityId }: { communityId: string }) {
   const zoom = useCallIntegration(communityId, "zoom");

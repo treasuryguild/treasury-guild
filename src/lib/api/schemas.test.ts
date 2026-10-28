@@ -49,7 +49,7 @@ import {
   reconcileMatchSchema,
   saveGovernanceCommunitySettingsSchema,
   saveGovernanceSettingsSchema,
-  setGovernanceDiscordWebhookSchema,
+  setGovernanceDiscordChannelSchema,
   setTaskAssigneesSchema,
   treasuryIdQuerySchema,
   txStatusQuerySchema,
@@ -634,14 +634,13 @@ describe("governance schemas", () => {
     expect(endProposalSchema.safeParse({ reason: "x".repeat(501) }).success).toBe(false);
   });
 
-  it("takes only a Discord webhook URL for the announcements channel", () => {
-    const url = "https://discord.com/api/webhooks/123456/aBc-DEF_123";
-    expect(setGovernanceDiscordWebhookSchema.parse({ communityId: COMMUNITY, url: ` ${url} ` })).toEqual({ communityId: COMMUNITY, url });
-    expect(setGovernanceDiscordWebhookSchema.safeParse({ communityId: COMMUNITY, url: "https://evil.test/api/webhooks/1/tok" }).success).toBe(false);
-    expect(setGovernanceDiscordWebhookSchema.safeParse({ communityId: COMMUNITY, url: `${url}/slack` }).success).toBe(false);
-    expect(setGovernanceDiscordWebhookSchema.safeParse({ communityId: COMMUNITY }).success).toBe(false);
-    expect(setGovernanceDiscordWebhookSchema.safeParse({ communityId: "demo", url }).success).toBe(false);
-    expect(setGovernanceDiscordWebhookSchema.safeParse({ url }).success).toBe(false);
+  it("takes a numeric Discord channel id for governance announcements", () => {
+    expect(setGovernanceDiscordChannelSchema.parse({ communityId: COMMUNITY, channelId: " 123456789012345678 " }))
+      .toEqual({ communityId: COMMUNITY, channelId: "123456789012345678" });
+    expect(setGovernanceDiscordChannelSchema.safeParse({ communityId: COMMUNITY, channelId: "not-a-id" }).success).toBe(false);
+    expect(setGovernanceDiscordChannelSchema.safeParse({ communityId: COMMUNITY }).success).toBe(false);
+    expect(setGovernanceDiscordChannelSchema.safeParse({ communityId: "demo", channelId: "1" }).success).toBe(false);
+    expect(setGovernanceDiscordChannelSchema.safeParse({ channelId: "1" }).success).toBe(false);
   });
 });
 

@@ -37,6 +37,7 @@ import { describeElectorate, describeMethod, voterName } from "@/lib/governance/
 import {
   budgetOwnerKey, isBudgetPayload, isTaskPayload, isWorkgroupPayload, MAX_BUDGET_STEPS, type ProposalPayload,
 } from "@/lib/governance/payload";
+import { tryEnsureProposalDiscordThread } from "@/lib/discord/proposalThreads";
 import { prepareProposal } from "@/lib/governance/propose";
 import { canonicalJson } from "@/lib/governance/rules";
 import { mintDraftToken, verifyDraftToken, type VerifiedDraft } from "@/lib/mcp/draftToken";
@@ -375,6 +376,7 @@ export async function confirmProposalCreate(caller: ApiCaller, draft: VerifiedDr
     await enforceRateLimit("proposalCreate", caller.wallet);
     // Keyed by the draft: a confirmation racing this one gets this proposal back.
     const made = await createDraftProposal(draft.draftId, proposal);
+    if (made.created) await tryEnsureProposalDiscordThread(made.id);
     return answer(made.created, made.id);
   }
 }

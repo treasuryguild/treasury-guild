@@ -255,15 +255,17 @@ to a dedicated GitHub archive repository on their App installation.
 
 ### Discord notifications (optional)
 
-No environment variable: a community admin pastes a channel's incoming
-webhook URL on the Treasury page (stored in `treasury_discord_webhooks`,
-service-role only). The reconcile cron posts a summary of each confirmed
-payout to it. A separate webhook per community, pasted on the Governance
-page (`governance_discord_webhooks`, migration 0057, service-role only),
-receives proposal announcements from the same cron: up for discussion,
-voting open, a day left, the result. While budget consent is on it also
-gets one post per outgoing transaction built outside Treasury Guild (migration
-0059; treasury, amounts and tx link, never a recipient).
+No environment variable for payouts: a community admin pastes a channel's
+incoming webhook URL on the Treasury page (stored in
+`treasury_discord_webhooks`, service-role only). The reconcile cron posts a
+summary of each confirmed payout to it. Proposal announcements use the
+community's Discord bot connection (Call capture) plus a channel chosen on
+the Governance page (`governance_discord_channels`, migration 0071): up for
+discussion (with an auto discussion thread/forum post when the proposal has
+a discussion period), voting open, a day left, the result. While budget
+consent is on it also gets one post per outgoing transaction built outside
+Treasury Guild (migration 0059; treasury, amounts and tx link, never a
+recipient).
 
 ### Call attendance: Discord, Zoom, Google (optional)
 
@@ -275,8 +277,9 @@ Each platform is independent; leave its variables empty to go without it.
   `https://app.treasuryguild.com/api/discord/oauth-callback` (members link their account
   on the profile page, scope `identify`) and
   `https://app.treasuryguild.com/api/discord/guild-callback` (an admin adds the bot to
-  the community's server). Bot token → `DISCORD_BOT_TOKEN`; voice capture
-  needs no privileged intents.
+  the community's server for call capture and, when a channel is chosen under
+  Governance, proposal announcements and discussion threads). Bot token →
+  `DISCORD_BOT_TOKEN`; voice capture needs no privileged intents.
 - **Zoom** — a General (OAuth, user-managed) app on marketplace.zoom.us →
   `ZOOM_CLIENT_ID` + `ZOOM_CLIENT_SECRET`, redirect
   `https://app.treasuryguild.com/api/zoom/oauth-callback`, scopes to read the user and

@@ -51,8 +51,10 @@ export const routes = {
   proposal: (slug: string, proposalId: string) => `/c/${slug}/proposals/${proposalId}`,
   budgets: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/budgets`, period),
   dashboard: (slug: string, period?: PeriodQuery) => withPeriod(`/c/${slug}/dashboard`, period),
+  /** Discord server, payout webhooks, and status of other community connections. */
+  integrations: (slug: string) => `/c/${slug}/settings/integrations`,
   githubSettings: (slug: string) => `/c/${slug}/settings/github`,
-  /** Connect the platforms calls are captured from (Discord server). */
+  /** Linked Zoom / Meet meetings (host accounts and Discord are under Integrations). */
   callSettings: (slug: string) => `/c/${slug}/settings/calls`,
   /** Who proposes and votes on what, per proposal kind (admins edit). */
   governanceSettings: (slug: string) => `/c/${slug}/settings/governance`,
@@ -74,6 +76,7 @@ export type CommunityRouteKey =
   | "budgets"
   | "dashboard"
   | "proposals"
+  | "integrations"
   | "githubSettings"
   | "callSettings"
   | "governanceSettings"
@@ -99,8 +102,9 @@ export const COMMUNITY_NAV: readonly CommunityNavEntry[] = [
   { key: "mint", label: "Mint" },
   { key: "reconcile", label: "Incoming" },
   { key: "funding", label: "Funding" },
+  { key: "integrations", label: "Integrations" },
   { key: "githubSettings", label: "GitHub" },
-  { key: "callSettings", label: "Call capture" },
+  { key: "callSettings", label: "Call platforms" },
   { key: "governanceSettings", label: "Governance" },
   { key: "members", label: "Members" },
 ];
@@ -122,6 +126,7 @@ export const COMMUNITY_CARDS: readonly CommunityCard[] = [
   { key: "mint", title: "🪙 Mint", blurb: "Create community tokens & NFTs" },
   { key: "reconcile", title: "🔁 Reconcile", blurb: "Match refunds sent back to the treasury" },
   { key: "funding", title: "🏦 Funding sources", blurb: "Committed funding vs what arrived" },
+  { key: "integrations", title: "🔌 Integrations", blurb: "Discord, GitHub, calls and records status" },
   { key: "githubSettings", title: "🐙 GitHub", blurb: "Connect repos & project boards" },
   { key: "members", title: "👥 Members", blurb: "Roles & workgroup leads" },
 ];
@@ -163,13 +168,14 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p.includes("/payday"), "Payday"],
   [(p) => p.includes("/payments"), "Payments"],
   // Before the /calls rows: /settings/calls contains "/calls".
-  [(p) => p.includes("/settings/calls"), "Call capture"],
+  [(p) => p.includes("/settings/calls"), "Call platforms"],
   [(p) => p.includes("/calls/") && p.endsWith("/checkin"), "Call check-in"],
   [(p) => p.includes("/calls/"), "Call"],
   [(p) => p.includes("/calls"), "Calls"],
   [(p) => p.includes("/mint"), "Mint"],
   [(p) => p.includes("/reconcile"), "Incoming & reconciliation"],
   [(p) => p.includes("/funding"), "Funding sources"],
+  [(p) => p.includes("/settings/integrations"), "Integrations"],
   [(p) => p.includes("/settings/governance"), "Governance"],
   [(p) => p.includes("/proposals/"), "Proposal"],
   [(p) => p.includes("/proposals"), "Proposals"],

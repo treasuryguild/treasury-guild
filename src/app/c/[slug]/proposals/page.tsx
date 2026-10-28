@@ -13,6 +13,7 @@ import {
 } from "@/components/governance/NewProposalDialog";
 import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
 import { ProposalList } from "@/components/governance/ProposalList";
+import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice";
 import { TaskSource } from "@/lib/constants";
 import { isOpenProposal } from "@/lib/governance/lifecycle";
 import { routes } from "@/lib/routes";
@@ -64,6 +65,9 @@ export default function ProposalsPage({ params, searchParams }: {
         {settings.data?.budget.enabled && <> Budget changes are proposed from <Link className="underline" href={routes.budgets(slug)}>Budgets</Link> and apply when they pass.</>}
       </p>
       <ErrorText error={proposals.error ?? settings.error} />
+      {isAdmin && community && (
+        <IntegrationsNotice communityId={community.id} slug={slug} kind="proposals-channel" />
+      )}
       {community && <AnchorsDueNotice slug={slug} communityId={community.id} treasuries={treasuries.data} isAdmin={isAdmin} />}
       {settings.data && !anyOn && (
         <EmptyState>

@@ -47,7 +47,7 @@ afterEach(() => {
 
 describe("zoom connect API", () => {
   it("sends an admin to Zoom's consent screen with a zoom-host state", async () => {
-    const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/calls" });
+    const response = await connect({ communityId: COMMUNITY_ID, returnTo: "/c/demo/settings/integrations" });
     expect(response.status).toBe(307);
     const url = new URL(response.headers.get("location")!);
     expect(`${url.origin}${url.pathname}`).toBe("https://zoom.us/oauth/authorize");
@@ -58,7 +58,7 @@ describe("zoom connect API", () => {
       redirect_uri: "https://vault.test/api/zoom/oauth-callback",
     });
     expect(verifyOAuthState("zoom-host", state!)).toEqual({
-      wallet: WALLET, returnTo: "/c/demo/settings/calls", communityId: COMMUNITY_ID,
+      wallet: WALLET, returnTo: "/c/demo/settings/integrations", communityId: COMMUNITY_ID,
     });
     expect(verifyOAuthState("google-host", state!)).toBeNull();
     expect(verifyOAuthState("discord-guild", state!)).toBeNull();

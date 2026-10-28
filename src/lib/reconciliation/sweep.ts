@@ -16,6 +16,7 @@ import { purgeExpiredNonces } from "@/lib/db/auth";
 import { purgeOAuth } from "@/lib/db/oauth";
 import { purgeRateLimits } from "@/lib/db/rateLimit";
 import { releaseOrphanedQueuedTasks } from "@/lib/db/tasks";
+import { notifyAnchorsDue, type AnchorNotifyResult } from "@/lib/discord/notifyAnchorsDue";
 import { notifyConfirmedPayouts } from "@/lib/discord/notifyPayouts";
 import { notifyProposalMilestones, type ProposalNotifyResult } from "@/lib/discord/notifyProposals";
 import { writeBackPayment } from "@/lib/github/writeback";
@@ -43,6 +44,8 @@ export type ReconcileSweepResult = {
   tallyDocuments: FreezeSweepResult;
   /** Frozen documents published to (or checked in) the communities' chosen stores. */
   documentCopies: PublishSweepResult;
+  /** Stale / copy-grace on-chain anchor reminders posted to governance channels. */
+  anchorAlerts: AnchorNotifyResult;
   /** Spends built outside the app announced to governance channels. */
   outsideSpends: OutsideSpendNotifyResult;
   /** Co-signed transactions the app-held co-signer signed or refused this run. */
@@ -110,6 +113,14 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     documentCopies = await publishTallyDocuments(new Date());
   } catch (err) {
     console.error("publishTallyDocuments failed", err);
+  }
+  // After freeze/publish so closed and copy-grace state is current: remind
+  // when anchors have sat due, and before a closed anchor goes without its locator.
+  let anchorAlerts: AnchorNotifyResult = { posted: 0, skipped: 0, failed: 0 };
+  try {
+    anchorAlerts = await notifyAnchorsDue(new Date());
+  } catch (err) {
+    console.error("notifyAnchorsDue failed", err);
   }
 
   const treasuries = rows<{ id: string; community_id: string; address: string; network: number }>(
@@ -301,6 +312,6 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
 
   return {
     results, writtenBack, statusMoved, discordPosted, proposals, proposalAnnouncements, tallyDocuments, documentCopies,
-    outsideSpends, cosigned, releasedTasks,
+    anchorAlerts, outsideSpends, cosigned, releasedTasks,
   };
 }

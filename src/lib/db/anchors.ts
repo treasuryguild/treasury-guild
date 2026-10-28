@@ -15,11 +15,13 @@ import {
 
 /** What the due rules read of an anchored proposal, with its anchor rows embedded. */
 export type AnchorCandidateRow = Pick<
-  ProposalRow, "id" | "number" | "state" | "content_hash" | "rules_hash" | "electorate_hash" | "voting_opened_at" | "anchored" | "tally"
+  ProposalRow,
+  | "id" | "number" | "title" | "state" | "content_hash" | "rules_hash" | "electorate_hash"
+  | "voting_opened_at" | "anchored" | "tally" | "created_at" | "closed_at"
 > & { proposal_anchors: ProposalAnchorWithTx[] };
 
 const CANDIDATE_COLUMNS =
-  `id, number, state, content_hash, rules_hash, electorate_hash, voting_opened_at, anchored, tally, proposal_anchors(${PROPOSAL_ANCHOR_WITH_TX_COLUMNS})`;
+  `id, number, title, state, content_hash, rules_hash, electorate_hash, voting_opened_at, anchored, tally, created_at, closed_at, proposal_anchors(${PROPOSAL_ANCHOR_WITH_TX_COLUMNS})`;
 
 /** Every anchored proposal of a community with its anchor rows, oldest first. */
 export async function loadAnchorCandidates(communityId: string): Promise<AnchorCandidateRow[]> {

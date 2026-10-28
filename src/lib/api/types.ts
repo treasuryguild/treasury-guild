@@ -100,6 +100,9 @@ export interface TxMetadataResponse {
 export interface CreateCommunityResponse {
   community: CommunityRow;
 }
+/** GET /api/community/integrations-status: admin completeness for Integrations hub. */
+export type { IntegrationsStatus as IntegrationsStatusResponse } from "@/lib/integrations/status";
+
 export interface JoinCommunityResponse extends OkResponse {
   slug: string;
 }
@@ -476,9 +479,20 @@ export interface ProposalStateResponse {
   state: string;
   executionState: string | null;
 }
-/** GET / POST /api/governance/discord: the community's proposal announcements webhook. */
-export interface GovernanceDiscordWebhookResponse {
-  webhook: DiscordWebhookStatus | null;
+/** GET / POST /api/governance/discord: governance Discord channel on the connected server. */
+export interface GovernanceDiscordStatus {
+  serverConnected: boolean;
+  serverLabel: string | null;
+  channelId: string | null;
+  /** Discord channel type: 0 text, 5 announcement, 15 forum. */
+  channelType: number | null;
+  lastPostedAt: string | null;
+  lastError: string | null;
+}
+export interface GovernanceDiscordResponse {
+  discord: GovernanceDiscordStatus;
+  /** Channels the bot can see (GET with channels=1, or after connect). */
+  channels?: { id: string; name: string; type: number }[];
 }
 /** GET /api/governance/community-settings: the community-level settings (0059). */
 export interface GovernanceCommunitySettingsResponse {
@@ -863,6 +877,8 @@ export interface V1Proposal {
   /** The proposal's text, cut at 2000 characters. */
   text: string;
   discussionUrl: string | null;
+  /** Auto-created Discord discussion thread URL when Governance Discord is connected. */
+  discordDiscussionUrl: string | null;
   proposer: string;
   /** What passing it changes, one line each (budget changes, the workgroup, the task). */
   changes: string[];
@@ -875,7 +891,7 @@ export interface V1Proposal {
   votingOpensAt: string;
   votingClosesAt: string | null;
   closedAt: string | null;
-  /** Counts once voting closed; ballots stay secret while it runs unless the community shows them. */
+  /** Counts once voting closed; ballots stay hidden while it runs unless the community shows them. */
   result: { outcome: string; counts: Record<string, number> } | null;
   /** Whether a passed proposal was carried out: pending, applied or failed (with why). */
   carriedOut: { state: string; error: string | null } | null;
@@ -1038,7 +1054,7 @@ export interface V1ProposalDetailResponse {
   /** Voters fixed when voting opened, and how many of them are recused. */
   voters: number;
   recused: number;
-  /** Every ballot (voter, choice, reason) once ballots are visible; null while they stay secret. */
+  /** Every ballot (voter, choice, reason) once ballots are visible; null while they stay hidden. */
   ballots: { voter: string; choice: string; reason: string | null; signedAt: string }[] | null;
   ballotsHidden: string | null;
   /** The frozen signed tally: its blake2b hash and the outside copies (IPFS CID). */

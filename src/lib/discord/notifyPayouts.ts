@@ -21,6 +21,7 @@ import { shortUnit } from "@/lib/format";
 import { fetchExchangeRate } from "@/lib/rates/coingecko";
 import { routes } from "@/lib/routes";
 import {
+  AVATAR_PATH,
   buildPayoutEmbed,
   type BudgetBalanceLine,
   type ExchangeRate,
@@ -217,7 +218,7 @@ export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promi
       community: {
         name: community.name,
         url: `${base}${routes.community(community.slug)}`,
-        iconUrl: `${base}/logo-white.png`,
+        iconUrl: `${base}${AVATAR_PATH}`,
       },
       treasuryName: treasury.name,
       txHash: tx.tx_hash,

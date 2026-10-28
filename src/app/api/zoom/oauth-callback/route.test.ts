@@ -18,7 +18,7 @@ import { GET } from "./route";
 
 const WALLET = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
 const COMMUNITY_ID = "30000000-0000-4000-8000-000000000001";
-const RETURN_TO = "/c/demo/settings/calls";
+const RETURN_TO = "/c/demo/settings/integrations";
 const TOKEN_URL = "https://zoom.us/oauth/token";
 const NOW = Date.parse("2026-09-30T12:00:00.000Z");
 

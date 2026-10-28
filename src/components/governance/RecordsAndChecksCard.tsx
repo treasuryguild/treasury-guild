@@ -14,13 +14,17 @@ import { SpendCheckMode, type GovernanceCommunitySettings } from "@/lib/governan
 import { STORE_LABELS } from "@/lib/storage/locator";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import Link from "next/link";
 import { Button, Card, ConfirmDialog, ErrorText, Field, NoticeText, Select, SectionTitle } from "@/components/ui";
+import { routes } from "@/lib/routes";
 
-export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }: {
+export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved, slug }: {
   communityId: string;
   initial: GovernanceCommunitySettings;
   canEdit: boolean;
   onSaved: () => void;
+  /** For deep links when the GitHub App is missing. */
+  slug?: string;
 }) {
   const [store, setStore] = useState<DocumentStoreName | null>(initial.documentStore);
   const [archiveRepoId, setArchiveRepoId] = useState<number | null>(initial.documentArchiveRepoId);
@@ -67,7 +71,7 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
       <SectionTitle>Records and checks</SectionTitle>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Publish signed tallies" size="sm"
-          hint="Every proposal that reached a vote gets a frozen, hashed record of its ballots and result, kept here for members. Publishing also puts a copy where anyone can fetch it by its hash. Applies to proposals closing from when it is turned on.">
+          hint="Every proposal that reached a vote gets a frozen, hashed record of its ballots and result, kept here for members. Publishing also puts a copy (with every voter's address and ballot) where it can be fetched by its hash. Applies to proposals closing from when it is turned on.">
           <Select aria-label="Publish signed tallies" value={store ?? ""} disabled={off}
             onChange={(e) => { setSaved(false); setStore((e.target.value || null) as DocumentStoreName | null); }}>
             <option value="">Keep in Treasury Guild only</option>
@@ -85,7 +89,7 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
       </div>
       {needsArchive && (
         <Field label="GitHub archive repository" size="sm"
-          hint="A dedicated public repository on this community's GitHub App installation. Tallies are committed under tallies/; prefer a repo that is not a workgroup board.">
+          hint="A dedicated repository on this community's GitHub App installation. Tallies are committed under tallies/. Prefer a public archive that is not a workgroup board, so anyone can fetch a copy by its hash; a private repo keeps the copy off the open web but is only as private as that repo.">
           <Select aria-label="GitHub archive repository"
             value={archiveRepoId == null ? "" : String(archiveRepoId)} disabled={off || repos.loading}
             onChange={(e) => {
@@ -100,7 +104,16 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
           <ErrorText error={repos.error} />
           {!repos.loading && !repos.error && archiveOptions.length === 0 && (
             <p className="mt-1 text-sm text-zinc-500">
-              Install the GitHub App and grant it access to an archive repository first.
+              Install the GitHub App and grant it access to an archive repository first
+              {slug ? (
+                <>
+                  {" "}—{" "}
+                  <Link className="underline" href={routes.githubSettings(slug)}>GitHub settings</Link>
+                  {" "}or{" "}
+                  <Link className="underline" href={`${routes.integrations(slug)}#github`}>Integrations</Link>
+                </>
+              ) : null}
+              .
             </p>
           )}
         </Field>
@@ -121,10 +134,13 @@ export function RecordsAndChecksCard({ communityId, initial, canEdit, onSaved }:
         onCancel={() => setConfirming(false)}
         onConfirm={() => void submit()}
       >
-        Each published record holds every voter&apos;s wallet address, choice, reason and signature for that proposal. A copy on{" "}
-        {store ? STORE_LABELS[store] : "the store"}
-        {store === "github" ? " (in a public archive repository)" : ""} is public and cannot be taken back: turning this off
-        later stops new records from being published but does not remove the ones already there.
+        Each published record holds every voter&apos;s wallet address, choice, reason and signature for that proposal.{" "}
+        {store === "ipfs"
+          ? "A copy on IPFS is public and permanent."
+          : store === "github"
+            ? "A copy on GitHub is as public as the archive repository you choose (prefer a public one so anyone can fetch it by its hash)."
+            : "A published copy cannot be taken back."}
+        {" "}Turning this off later stops new records from being published but does not remove the ones already there.
       </ConfirmDialog>
     </Card>
   );

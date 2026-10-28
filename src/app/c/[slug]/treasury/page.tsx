@@ -3,7 +3,6 @@
 import { use, useCallback, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
-import type { TreasuryDiscordWebhooksResponse } from "@/lib/api/types";
 import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
 import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
@@ -25,6 +24,7 @@ import { useChainImportQueue } from "@/hooks/useChainImportQueue";
 import { useChainSync } from "@/hooks/useChainSync";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useGovernanceSettings } from "@/hooks/useProposals";
+import { useIntegrationsStatus } from "@/hooks/useIntegrationsStatus";
 import { useTreasuries } from "@/hooks/useTreasuries";
 import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
@@ -43,9 +43,10 @@ import {
   TxStateBadge,
 } from "@/components/ui";
 import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
+import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice";
+import { IntegrationStatusLink } from "@/components/integrations/IntegrationStatusLink";
 import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
-import { DiscordWebhookControl } from "@/components/treasury/DiscordWebhookControl";
 import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
 
 const RECENT_TX_LIMIT = 20;
@@ -127,12 +128,7 @@ export default function TreasuryPage({
   // Which treasury's details dialog is open (native script, CBOR, signers).
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const detailsTreasury = list.find((t) => t.id === detailsId) ?? null;
-  // Admin-only: which treasuries have a Discord webhook (masked, never the URL).
-  const discord = useAsyncData(isAdmin && community ? community.id : null, () =>
-    apiFetch<TreasuryDiscordWebhooksResponse>("/api/treasury/discord", {
-      query: { communityId: community!.id },
-    }),
-  );
+  const integrations = useIntegrationsStatus(isAdmin ? community?.id : null);
 
   if (blocked) return blocked;
 
@@ -184,7 +180,26 @@ export default function TreasuryPage({
         Treasury
       </PageTitle>
 
-      <ErrorText error={discord.error ?? setPrimary.error} className="mb-3" />
+      {isAdmin && community && (
+        <>
+          <IntegrationsNotice communityId={community.id} slug={slug} kind="treasury-webhooks" />
+          {(() => {
+            const payout = integrations.data?.payoutDiscord;
+            if (!payout || payout.treasuries.length === 0) return null;
+            const connected = payout.treasuries.filter((t) => t.webhookConnected).length;
+            return (
+              <div className="mb-3">
+                <IntegrationStatusLink
+                  label="Payout Discord"
+                  href={`${routes.integrations(slug)}#payout-webhooks`}
+                  status={`${connected}/${payout.treasuries.length} webhook${payout.treasuries.length === 1 ? "" : "s"}`}
+                />
+              </div>
+            );
+          })()}
+        </>
+      )}
+      <ErrorText error={setPrimary.error} className="mb-3" />
       <div className="mb-8 grid gap-4 lg:grid-cols-2">
         {list.map((t) => {
           const balance = balances.data?.[t.address];
@@ -247,15 +262,6 @@ export default function TreasuryPage({
                     </span>
                   ))}
                 </div>
-              )}
-              {isAdmin && (
-                <DiscordWebhookControl
-                  endpoint="/api/treasury/discord"
-                  target={{ treasuryId: t.id }}
-                  removeText={`Payouts from ${t.name} will no longer be announced in the channel.`}
-                  status={discord.data?.webhooks.find((w) => w.treasuryId === t.id) ?? null}
-                  onChanged={discord.reload}
-                />
               )}
             </Card>
           );

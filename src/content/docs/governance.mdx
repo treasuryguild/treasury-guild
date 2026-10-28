@@ -1,4 +1,4 @@
-Some decisions belong to the whole community, not to its admins. **Proposals** lets members put a decision to a vote, and with **budget consent** turned on, budgets change only when the community agrees. Every ballot is signed with the voter's wallet, so anyone can check the result.
+Some decisions belong to the whole community, not to its admins. **Proposals** lets members put a decision to a vote, and with **budget consent** turned on, budgets change only when the community agrees. Every ballot is signed with the voter's wallet, so members can check the result. Votes are accountable among members once they are visible — not anonymous — so a community that decides budgets and spending can see who supported what. That is intentional for treasury decisions.
 
 Admins choose what is decided this way and by whom under [Governance settings](#governance-settings). Everything is off until they turn it on.
 
@@ -15,7 +15,7 @@ An [AI assistant](/docs/ai-assistants#making-proposals) you connected with the *
 
 ## How a proposal moves
 
-1. **In discussion**: the proposal is visible and can be discussed (add a link to a forum thread or Discord channel). Nobody votes yet. The proposer can **Withdraw** it, or **Revise** it: that opens a form filled from the proposal; submitting withdraws the old one and creates a linked replacement with a **new number** and a **fresh discussion period**. Closing the form without submitting leaves the original open. A revision shows **Revises #N** on the new proposal and **Revised as #M** on the withdrawn one. Budget amounts stay as they were: to change those, withdraw and propose again from [Budgets](/docs/budgets).
+1. **In discussion**: the proposal is visible and can be discussed (optional link to a forum thread; when [Discord announcements](#discord-announcements) are connected, a Discord discussion thread is created automatically and linked as **Discuss on Discord**). Nobody votes yet. The proposer can **Withdraw** it, or **Revise** it: that opens a form filled from the proposal; submitting withdraws the old one and creates a linked replacement with a **new number** and a **fresh discussion period**. Closing the form without submitting leaves the original open. A revision shows **Revises #N** on the new proposal and **Revised as #M** on the withdrawn one. Budget amounts stay as they were: to change those, withdraw and propose again from [Budgets](/docs/budgets).
 2. **Voting**: once the discussion period ends, the list of voters is fixed and voting opens for the voting period.
 3. **Closed**: at the deadline the ballots are counted. The result is **Passed**, **Rejected**, or **No quorum** when too few members voted.
 4. A passed budget, workgroup or task proposal is **applied**: the budget changes are saved (with "Proposal #N" in each project's budget history), the workgroup is created or the task added, and the proposal links to it. If that fails (for example the workgroup was archived meanwhile), the proposal shows why and an admin can **Retry applying** once it is fixed.
@@ -49,7 +49,7 @@ You can change your vote until the deadline by signing again (**Sign and change 
 - **Lazy consensus**: Agree or Object. An objection needs a reason.
 
 <Callout title="Ballots are hidden until the close">
-While voting runs you see only how many members voted, not what they chose, so nobody votes with the crowd. Your own vote is always visible to you. Admins can show results live instead.
+While voting runs you see only how many members voted, not what they chose, so nobody votes with the crowd. Your own vote is always visible to you. Once voting closes, every member sees each ballot (choice, reason and signature). Admins can show results live instead. That hides herd voting; it is not anonymous voting.
 </Callout>
 
 ## Results
@@ -61,6 +61,8 @@ While voting runs you see only how many members voted, not what they chose, so n
 The **quorum** is a share of the voters. Any ballot counts toward it, abstentions included. A proposal that misses it ends as **No quorum**.
 
 Once voting closes, the page shows the counts, the outcome and every signed ballot. **Signature** under a ballot shows the exact text signed, the public key and the signature, so anyone can verify it with a Cardano message-signing tool.
+
+Ballots stay with the community's members (a [private community](/docs/communities) keeps non-members out). They are not secret from other members: who voted how is the audit trail for budgets and similar decisions. To keep a signed tally off the open web, leave [Publish signed tallies](#governance-settings) off (the default). Publishing to IPFS puts voter addresses and ballots on a public network; publishing to GitHub puts them in the archive repository you choose — as public as that repo.
 
 ### Checking a result
 
@@ -79,7 +81,7 @@ Developers can run these checks with `checkTallyDocument` in the Treasury Guild 
 
 Once a proposal that reached a vote is final (passed, rejected, no quorum, or cancelled during voting), its signed tally is **frozen**: built once, stored with its hash, and served byte for byte from then on. Every later download is the same file, whatever happens to the proposal afterwards (carrying out a passed budget change is not part of it). The results show when the record was frozen and its hash. A proposal withdrawn or cancelled before voting opened has no ballots to record and no frozen record.
 
-Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Treasury Guild. The stores today are [IPFS](https://ipfs.tech/) (through Pinata) and a dedicated **GitHub** archive repository on the community's [GitHub App](/docs/github) installation (files under `tallies/`). Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. A published copy is public and permanent: turning publication off stops new records from being published but removes nothing. Prefer a public archive repo that is not a workgroup board. The results link every published copy, and Treasury Guild checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
+Admins can also have each new frozen record **published** to an outside store, so the file can be fetched by anyone who has its hash without asking Treasury Guild. The stores today are [IPFS](https://ipfs.tech/) (through Pinata) and a dedicated **GitHub** archive repository on the community's [GitHub App](/docs/github) installation (files under `tallies/`). Publication is off by default and is turned on under [Governance settings](#governance-settings); it applies to proposals closing from then on. Turning publication off stops new records from being published but removes nothing already published. An IPFS copy is public and permanent. A GitHub copy is as public as the archive repository (a private repo keeps it off the open web, but only people with access to that repo can fetch it). Prefer a **public** archive that is not a workgroup board, so independent checks do not need GitHub access. The results link every published copy, and Treasury Guild checks from time to time that a copy still resolves, publishing it again from its own copy when it is gone.
 
 ## On-chain anchors
 
@@ -99,6 +101,8 @@ Anchors are metadata under label **190002** (see [On-chain metadata](/docs/trans
 An anchor is **awaiting signatures** while its transaction is still pending, **awaiting confirmation** once that transaction has been submitted (including right after the last signature on a one-signature treasury), **anchored** once the chain confirms it, and due again if the transaction is rejected or deleted. The card shows when each anchor landed beside when voting opened: a proposed or voting-opened anchor that landed only after voting opened is marked, because it then proves less about what voters saw. The lifecycle never waits for anchors: voting opens and results apply on schedule.
 
 The closed anchor of a proposal that reached a vote waits for the frozen record, and when publication is on, for its copy in the chosen store (or a day), so it can name the copy. A proposal withdrawn or cancelled before voting opened gets a closed anchor only when its proposed anchor exists, so the chain never shows a proposal without an ending; otherwise it is never anchored. Proposals already closed when anchoring started are not anchored either.
+
+When [Discord announcements](#discord-announcements) are connected, the same channel also reminds the community if anchors sit due for three days with no pending transaction (so a quiet period without payouts does not leave fingerprints off-chain), and again in the last hours before a closed anchor would go on-chain without its published copy locator. Connecting never posts those reminders for steps that were already waiting.
 
 **Verify record and anchors** (on the card, once the record is frozen) downloads the frozen record, runs the checks under [Checking a result](#checking-a-result) in your browser, reads each anchor's record from the chain and compares: the content and rules fingerprints with the proposed anchor, the voter list with the voting-opened anchor, the state and the record's hash with the closed anchor. It lists every mismatch, or says the record matches the chain and whether the first two anchors landed before voting opened.
 
@@ -132,14 +136,14 @@ This is near-enforcement, not enforcement: every base signer together can still 
 
 ## Discord announcements
 
-An admin can connect a Discord channel under **Governance → Discord announcements** by pasting a webhook URL (in Discord: channel settings, **Integrations**, **Webhooks**). Treasury Guild posts a test message, then announces each proposal:
+An admin [connects the community's Discord server](/docs/integrations#discord-server) and picks a text or **forum** channel under [Integrations → Proposal announcements](/docs/integrations#proposal-announcements) (forum is best: one post per proposal). Governance settings only show whether a channel is set. Treasury Guild posts a test message when the channel is saved, then for each proposal with a discussion period opens a Discord discussion thread (or forum post) and links it from the proposal page as **Discuss on Discord**. Later it announces in that thread (or in the channel when there is no discussion period):
 
-- when it is **up for discussion**,
+- when the proposal is **up for discussion**,
 - when **voting opens**, with the deadline and who votes,
 - a day before voting **closes** (for votes longer than a day), with the turnout,
 - the **result**, with the counts and whether it was carried out.
 
-A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. If Discord refuses the webhook (it was deleted), the error shows under Discord announcements until you connect a new one.
+A message links to the proposal and never names who voted or how. Connecting never posts past steps: a proposal already under way is announced from its next step (for example when voting opens, or its result), and one already closed not at all. A step missed while the app was busy is skipped rather than posted late. The same channel also posts [on-chain anchor](#on-chain-anchors) reminders when due steps have sat for three days, and a heads-up before a closed anchor would go without its published copy. If Discord refuses the bot (wrong permissions, channel deleted), the error shows under Integrations until you fix the channel or re-add the bot.
 
 With budget consent on, the same channel receives the [outside-spend alerts](#spend-citations-and-the-budget-check).
 
@@ -167,13 +171,13 @@ A change to a budget's setup (switching between recurring, monthly and quarterly
 - **Decided by**: consent, majority vote or lazy consensus, with the **quorum**, the majority **threshold** or the number of **objections that reject**.
 - **Discussion** and **Voting** periods, in hours.
 - For tasks decided by lazy consensus, **Lazy consensus up to (ADA)** and the method used above it.
-- **Hide ballots until voting closes**, and for budgets, workgroups and tasks the **recusal** of those who gain from them.
+- **Hide ballots until voting closes** (turnout only while voting runs; after the close, members still see every ballot), and for budgets, workgroups and tasks the **recusal** of those who gain from them.
 
 A proposal keeps the rules it was made with, through discussion and voting. Whoever makes a decision, a new workgroup, or a budget change can set different rules for that proposal in **New proposal**, or in **Propose changes…** on the Budgets page. On a task, only an admin or a lead of that workgroup can; any other member uses the defaults here. A proposal that does not set its own rules is decided by those defaults. A change to these defaults affects only later proposals that do not set their own, and every change is listed under **Changes** with who made it.
 
 **Records and checks** holds two settings for the whole community, logged under **Changes** like the others:
 
-- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Treasury Guild only (the default), or also publish new ones to IPFS or a GitHub archive repository. Turning publication on asks for confirmation, because a published copy cannot be taken back.
+- **Publish signed tallies**: keep each [frozen record](#the-frozen-record) in Treasury Guild only (the default), or also publish new ones to IPFS or a GitHub archive repository. Turning publication on asks for confirmation, because a published copy (with every voter's address and ballot) cannot be taken back.
 - **A spend that does not fit the voted budgets**: warn the signers on the transaction page (the default) or refuse to build it. See [the budget check](#spend-citations-and-the-budget-check).
 
 Defaults for budgets: proposed by admins and leads, decided by consent of all members with a 25% quorum, 24 hours of discussion and 72 hours of voting. New workgroups and decisions: any member proposes, majority vote above 50% with a 20% quorum, 48 hours of discussion and five days of voting. Tasks: any member proposes, lazy consensus of the people of the workgroup (one objection rejects), no discussion period and three days of voting. The people of a new workgroup with no leads or history yet are nobody, and so is any electorate that the membership age or recusal empties. A proposal nobody could vote on is refused, with the reason, instead of being made and then cancelled: change who votes, how long a member must have belonged, or who is recused, or add people to that group first.

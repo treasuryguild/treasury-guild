@@ -192,10 +192,10 @@ A workgroup's payment wallet can change over time. Each change is dated and take
 
 ## Discord notifications
 
-Each treasury can announce its payouts in a Discord channel. Admins see a **Discord** row at the bottom of every treasury card on the Treasury page.
+Each treasury can announce its payouts in a Discord channel. Admins configure the webhook under [Integrations → Payout Discord webhooks](/docs/integrations#payout-discord-webhooks). The Treasury page shows how many treasuries have a webhook and links there when one is missing.
 
 1. In Discord, open the channel's settings → **Integrations** → **Webhooks** → **New Webhook**, and copy its URL.
-2. On the treasury card, click **Connect**, paste the URL and **Save**.
+2. On Integrations, open **Payout Discord webhooks**, choose the treasury, click **Connect**, paste the URL and **Save**.
 
 Treasury Guild immediately posts a short "connected" message to the channel; if that fails, the URL is rejected and nothing is saved. Afterwards only a masked form of the URL is shown (`…/webhooks/1234/••••ab12`) — the full URL is never displayed again, because anyone holding it can post to your channel — together with when the channel was **last posted** to. **Replace** swaps it for a new one, **Remove** disconnects the channel after a confirmation.
 
@@ -210,6 +210,6 @@ From then on, every payout from that treasury is announced once it is [confirmed
 
 Individual tasks and wallet addresses are not listed; the transaction page has them. Payouts confirmed before the webhook was connected are not announced, and mints, [payments](/docs/payments) or incoming funds never are.
 
-If Discord stops accepting the webhook (for example it was deleted in Discord), the error is shown on the card until you replace the webhook, and the payouts confirmed meanwhile are skipped rather than announced late.
+If Discord stops accepting the webhook (for example it was deleted in Discord), the error is shown under Integrations until you replace the webhook, and the payouts confirmed meanwhile are skipped rather than announced late.
 
 Related: [Signing transactions](/docs/transactions), [Payday](/docs/payday).

@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnchorCandidateRow, FrozenDocumentRow } from "@/lib/db/anchors";
 import type { ProposalAnchorWithTx } from "@/lib/db/types";
 import type { GovernanceCommunitySettings } from "@/lib/governance/rules";
-import { CLOSED_ANCHOR_COPY_GRACE_MS } from "./anchors";
+import {
+  ANCHOR_STALE_MS, CLOSED_ANCHOR_COPY_GRACE_MS, COPY_GRACE_REMINDER_BEFORE_MS,
+} from "./anchors";
 
 const mocks = vi.hoisted(() => ({
   loadAnchorCandidates: vi.fn(),
@@ -19,7 +21,7 @@ vi.mock("@/lib/db/anchors", () => ({
 }));
 vi.mock("@/lib/db/governance", () => ({ loadGovernanceCommunitySettings: mocks.loadGovernanceCommunitySettings }));
 
-import { loadDueAnchors, loadDueAnchorsBestEffort } from "./anchorsDue";
+import { loadAnchorAlertCandidates, loadDueAnchors, loadDueAnchorsBestEffort } from "./anchorsDue";
 
 const H = (c: string) => c.repeat(64);
 const COMMUNITY = "c-1";
@@ -45,8 +47,9 @@ function link(proposalId: string, step: ProposalAnchorWithTx["step"], state: num
 
 function candidate(id: string, number: number, patch: Partial<AnchorCandidateRow> = {}): AnchorCandidateRow {
   return {
-    id, number, state: "discussion", content_hash: H("a"), rules_hash: H("b"), electorate_hash: null,
-    voting_opened_at: null, anchored: true, tally: null, proposal_anchors: [], ...patch,
+    id, number, title: `Proposal ${number}`, state: "discussion", content_hash: H("a"), rules_hash: H("b"),
+    electorate_hash: null, voting_opened_at: null, anchored: true, tally: null,
+    created_at: "2026-09-20T00:00:00Z", closed_at: null, proposal_anchors: [], ...patch,
   };
 }
 
@@ -224,5 +227,31 @@ describe("loadDueAnchorsBestEffort", () => {
     mocks.loadFrozenDocuments.mockRejectedValue(err);
     expect(await loadDueAnchorsBestEffort(COMMUNITY)).toEqual([]);
     expect(console.error).toHaveBeenCalledExactlyOnceWith(`load due anchors of community ${COMMUNITY} failed`, err);
+  });
+});
+
+describe("loadAnchorAlertCandidates", () => {
+  it("lists stale due steps and copy-grace reminders", async () => {
+    const created = "2026-09-20T00:00:00Z";
+    arrange([candidate("p-9", 9, { created_at: created })]);
+    expect(await loadAnchorAlertCandidates(COMMUNITY, Date.parse(created) + ANCHOR_STALE_MS - 1)).toEqual([]);
+    expect(await loadAnchorAlertCandidates(COMMUNITY, Date.parse(created) + ANCHOR_STALE_MS)).toEqual([
+      {
+        proposalId: "p-9", number: 9, title: "Proposal 9", step: "proposed", kind: "stale",
+        dueSince: new Date(created).toISOString(),
+      },
+    ]);
+
+    const done = [link("p-3", "proposed", 2), link("p-3", "opened", 2)];
+    arrange([passed("p-3", 3, done)], [frozen("p-3")], PUBLISHING);
+    const graceEnd = Date.parse(FROZEN_AT) + CLOSED_ANCHOR_COPY_GRACE_MS;
+    const remindAt = graceEnd - COPY_GRACE_REMINDER_BEFORE_MS;
+    expect(await loadAnchorAlertCandidates(COMMUNITY, remindAt - 1)).toEqual([]);
+    expect(await loadAnchorAlertCandidates(COMMUNITY, remindAt)).toEqual([
+      {
+        proposalId: "p-3", number: 3, title: "Proposal 3", step: "closed", kind: "copy_grace",
+        dueSince: FROZEN_AT,
+      },
+    ]);
   });
 });

@@ -37,6 +37,8 @@ export interface DiscordEmbed {
 
 export interface DiscordWebhookPayload {
   username: string;
+  /** Per-message avatar; `postDiscordWebhook` fills this from `AVATAR_PATH` when omitted. */
+  avatar_url?: string;
   embeds: DiscordEmbed[];
 }
 
@@ -91,6 +93,8 @@ export interface PayoutMessageInput {
 }
 
 export const USERNAME = "Treasury Guild";
+/** Static asset under `public/` used as the webhook avatar (and payout embed author icon). */
+export const AVATAR_PATH = "/logo-white.png";
 /** Workgroups listed in the spending/budget blocks before "+N more" (field values cap at 1024 chars). */
 export const MAX_WORKGROUP_LINES = 8;
 const MAX_WORKGROUP_NAME = 40;

@@ -44,6 +44,7 @@ vi.mock("@/lib/db/budgetSave", () => ({
   resolveBudgetAmounts: mocks.resolveAmounts,
 }));
 vi.mock("@/lib/db/workgroups", () => ({ requireActiveWorkgroup: mocks.requireActive }));
+vi.mock("@/lib/discord/proposalThreads", () => ({ tryEnsureProposalDiscordThread: vi.fn() }));
 
 import { noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";

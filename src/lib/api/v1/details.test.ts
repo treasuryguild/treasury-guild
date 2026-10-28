@@ -365,12 +365,12 @@ describe("proposal_detail", () => {
     mocks.copies.mockResolvedValue([]);
   });
 
-  it("keeps others' ballots secret while a vote with hidden results runs", async () => {
+  it("keeps others' ballots hidden while a vote with hidden results runs", async () => {
     mocks.listing.mockResolvedValue(listing(proposal()));
     const res = await callEndpoint(proposalDetail, caller, { community: "signius", proposal: 7 });
     expect(mocks.listing).toHaveBeenCalledWith("c1", "addr_w", { open: null, limit: 1, number: 7 });
     expect(res.ballots).toBeNull();
-    expect(res.ballotsHidden).toContain("secret");
+    expect(res.ballotsHidden).toContain("hidden");
     expect(res.voters).toBe(3);
     expect(res.recused).toBe(1);
     // The full text, not the list's cut.

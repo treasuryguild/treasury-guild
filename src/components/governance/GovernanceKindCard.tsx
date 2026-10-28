@@ -2,15 +2,17 @@
 
 // One proposal kind's settings. Admins edit; members read what applies.
 // Saved settings apply to proposals made afterwards: open ones keep theirs.
+import Link from "next/link";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api/client";
-import type { OkResponse } from "@/lib/api/types";
+import type { GovernanceDiscordResponse, OkResponse } from "@/lib/api/types";
 import {
   DecisionMethod, ProposalKind, Proposers, type DecisionMethod as Method,
 } from "@/lib/constants";
 import { KIND_LABELS, METHOD_LABELS, PROPOSER_LABELS } from "@/lib/governance/labels";
 import { rulesFor, type GovernanceSettings } from "@/lib/governance/rules";
 import { ADA_ASSET, formatQuantity, scaleDecimal } from "@/lib/assets";
+import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { Button, Card, ErrorText, Field, Input, NoticeText, Select, SectionTitle } from "@/components/ui";
 import { ProposalRulesEditor } from "./ProposalRulesEditor";
@@ -61,18 +63,22 @@ function LazyCapField({ value, disabled, onChange }: {
   );
 }
 
-export function GovernanceKindCard({ communityId, kind, initial, canEdit, onSaved }: {
+export function GovernanceKindCard({ communityId, kind, initial, canEdit, onSaved, slug }: {
   communityId: string;
   kind: ProposalKind;
   initial: GovernanceSettings;
   canEdit: boolean;
   onSaved: () => void;
+  /** Community slug for Integrations / Governance deep links after enabling a kind. */
+  slug?: string;
 }) {
   const [s, setS] = useState(initial);
   const [saved, setSaved] = useState(false);
+  const [nextStep, setNextStep] = useState<string | null>(null);
   const save = useAsyncAction("Failed to save the settings");
   const set = <K extends keyof GovernanceSettings>(key: K, value: GovernanceSettings[K]) => {
     setSaved(false);
+    setNextStep(null);
     setS((current) => ({ ...current, [key]: value }));
   };
   const text = ENABLE_TEXT[kind];
@@ -81,10 +87,21 @@ export function GovernanceKindCard({ communityId, kind, initial, canEdit, onSave
   async function submit() {
     // The escalation select shows majority until one is chosen: save what it shows.
     const settings = s.lazyCapLovelace && !s.escalateMethod ? { ...s, escalateMethod: DecisionMethod.Majority } : s;
+    const turningOn = settings.enabled && !initial.enabled;
     const ok = await save.run(() => apiFetch<OkResponse>("/api/governance/settings", { body: { communityId, kind, settings } }));
     if (ok) {
       setSaved(true);
       onSaved();
+      if (turningOn && slug) {
+        try {
+          const discord = await apiFetch<GovernanceDiscordResponse>("/api/governance/discord", {
+            query: { communityId },
+          });
+          if (!discord.discord.channelId) setNextStep("discord");
+        } catch {
+          // Save already succeeded; skip the optional next-step hint.
+        }
+      }
     }
   }
 
@@ -125,6 +142,15 @@ export function GovernanceKindCard({ communityId, kind, initial, canEdit, onSave
           <NoticeText>{saved ? "Saved. New proposals use these settings." : null}</NoticeText>
           <Button loading={save.busy} onClick={() => void submit()}>Save</Button>
         </div>
+      )}
+      {nextStep === "discord" && slug && (
+        <p className="text-sm text-amber-200">
+          Want Discord announcements for these proposals?{" "}
+          <Link className="underline" href={`${routes.integrations(slug)}#announcements`}>
+            Pick a channel under Integrations
+          </Link>
+          {" "}(and optionally publish signed tallies under Records on this page).
+        </p>
       )}
     </Card>
   );

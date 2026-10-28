@@ -1,4 +1,6 @@
--- Migrations 0056-0057: workgroup and task proposals, proposal announcements.
+-- Migrations 0056-0057 (+ 0071 channel table): workgroup and task proposals,
+-- proposal announcements. 0071 replaces the 0057 webhook table with a
+-- service-role channel row; the RLS check below targets that head shape.
 -- Run with psql -f against an EMPTY disposable PostgreSQL database; everything
 -- is rolled back.
 \set ON_ERROR_STOP on
@@ -69,6 +71,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0055_governance.sql
 \ir ../migrations/0056_governance_workgroups_tasks.sql
 \ir ../migrations/0057_governance_announcements.sql
+\ir ../migrations/0071_governance_discord_channels.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -184,15 +187,15 @@ select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin
 select pg_temp.reject($q$ insert into workgroups(community_id, name) values ('10000000-0000-0000-0000-000000000000', 'Direct 2') $q$, '42501');
 reset role;
 
--- 4. The announcements webhook URL is a secret: no member reads it, even an admin.
-insert into governance_discord_webhooks(community_id, url, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'https://discord.com/api/webhooks/1/secret', 'admin');
+-- 4. The governance Discord channel row is service-role only: no member reads it.
+insert into governance_discord_channels(community_id, channel_id, channel_type, created_by)
+  values ('10000000-0000-0000-0000-000000000000', '123456789012345678', 15, 'admin');
 set local role authenticated;
 select set_config('request.jwt.claims', '{"role":"authenticated","wallet":"admin"}', true);
-select pg_temp.reject($q$ select * from governance_discord_webhooks $q$, '42501');
+select pg_temp.reject($q$ select * from governance_discord_channels $q$, '42501');
 do $$ begin
   if (select count(*) from proposals where discord_milestone is not null) <> 0 then
-    raise exception 'milestones set without a webhook';
+    raise exception 'milestones set without a channel connect stamp';
   end if;
 end $$;
 reset role;

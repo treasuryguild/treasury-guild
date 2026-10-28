@@ -476,6 +476,8 @@ export const MIN_LOCK_LEAD_MS = 60 * 60 * 1000;
 // --- Browser storage keys -------------------------------------------------
 
 export const SIDEBAR_STORAGE_KEY = "treasury-guild-sidebar";
+/** Per-community Overview setup checklist dismissals: `${communityId}:${itemId}` entries. */
+export const SETUP_CHECKLIST_STORAGE_KEY = "treasury-guild-setup-checklist";
 
 // --- Shared user-facing messages -----------------------------------------
 

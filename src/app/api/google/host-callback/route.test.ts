@@ -26,7 +26,7 @@ import { GET } from "./route";
 
 const WALLET = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
 const COMMUNITY_ID = "30000000-0000-4000-8000-000000000001";
-const RETURN_TO = "/c/demo/settings/calls";
+const RETURN_TO = "/c/demo/settings/integrations";
 const TOKENS = { access_token: "google-access", refresh_token: "google-refresh", expires_at: "2026-10-01T01:00:00.000Z" };
 
 const context = { params: Promise.resolve({}) };

@@ -55,11 +55,18 @@ export const DOCS = [
     group: "Your community",
   },
   {
+    slug: "integrations",
+    title: "Integrations",
+    summary: "Discord server, payout webhooks, and the status of GitHub, call platforms and published records.",
+    group: "Your community",
+  },
+  {
     slug: "github",
     title: "GitHub integration",
     summary: "Installing the GitHub App and turning issues into payable tasks.",
     group: "Your community",
   },
+
   {
     slug: "treasury",
     title: "Treasury",
@@ -201,12 +208,13 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.includes("/budgets"), { slug: "budgets" }],
   [(p) => p.includes("/payday"), { slug: "payday" }],
   [(p) => p.includes("/payments"), { slug: "payments" }],
-  [(p) => p.includes("/settings/calls"), { slug: "calls", hash: "connecting-a-discord-server" }],
+  [(p) => p.includes("/settings/calls"), { slug: "calls", hash: "call-platforms" }],
   [(p) => p.includes("/calls/") && p.endsWith("/checkin"), { slug: "calls", hash: "checking-in" }],
   [(p) => p.includes("/calls"), { slug: "calls" }],
   [(p) => p.includes("/mint"), { slug: "mint" }],
   [(p) => p.includes("/reconcile"), { slug: "reconciliation" }],
   [(p) => p.includes("/funding"), { slug: "funding" }],
+  [(p) => p.includes("/settings/integrations"), { slug: "integrations" }],
   [(p) => p.includes("/settings/governance"), { slug: "governance", hash: "governance-settings" }],
   [(p) => p.includes("/proposals/"), { slug: "governance", hash: "voting" }],
   [(p) => p.includes("/proposals"), { slug: "governance" }],

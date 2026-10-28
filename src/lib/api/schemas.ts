@@ -262,10 +262,10 @@ export const setTreasuryDiscordWebhookSchema = z.object({
   url: discordWebhookUrl,
 });
 export const deleteTreasuryDiscordWebhookSchema = z.object({ treasuryId: id });
-/** The community's proposal announcements webhook (Governance settings). */
-export const setGovernanceDiscordWebhookSchema = z.object({
+/** The community's governance Discord channel (Governance settings). */
+export const setGovernanceDiscordChannelSchema = z.object({
   communityId: id,
-  url: discordWebhookUrl,
+  channelId: z.string().trim().min(1).max(32).regex(/^\d+$/),
 });
 
 // --- Developer tools ----------------------------------------------------------

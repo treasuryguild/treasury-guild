@@ -28,6 +28,7 @@ describe("routes", () => {
     })).toBe("/c/dao/payments?to=40000000-0000-0000-0000-000000000002&month=2026-10&proposal=60000000-0000-0000-0000-000000000001&amounts=lovelace%3A2500");
     expect(communityHref("governanceSettings", "dao")).toBe("/c/dao/settings/governance");
     expect(communityHref("githubSettings", "dao")).toBe("/c/dao/settings/github");
+    expect(communityHref("integrations", "dao")).toBe("/c/dao/settings/integrations");
   });
 
   it("extracts the slug from a pathname", () => {
@@ -53,7 +54,8 @@ describe("routes", () => {
     expect(pageLabel("/c/dao/dashboard")).toBe("Dashboard");
     expect(pageLabel("/c/dao/settings/github")).toBe("GitHub");
     expect(pageLabel("/c/dao/calls")).toBe("Calls");
-    expect(pageLabel("/c/dao/settings/calls")).toBe("Call capture");
+    expect(pageLabel("/c/dao/settings/calls")).toBe("Call platforms");
+    expect(pageLabel("/c/dao/settings/integrations")).toBe("Integrations");
     expect(pageLabel("/c/dao/calls/abc")).toBe("Call");
     expect(pageLabel("/c/dao/calls/abc/checkin")).toBe("Call check-in");
     expect(pageLabel("/c/dao/proposals")).toBe("Proposals");
