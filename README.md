@@ -3,6 +3,10 @@
 Cardano treasury manager for communities: multisig treasuries, GitHub-synced
 task boards, batch payouts anchored on-chain, and refund reconciliation.
 
+**Live app:** [https://app.treasuryguild.com](https://app.treasuryguild.com) ·
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) ·
+[Code of Conduct](CODE_OF_CONDUCT.md) · [License](LICENSE)
+
 - **Multisig treasuries** — native-script wallets (new ones use CIP-1854 key
   ordering; an existing wallet can be imported from its native-script CBOR,
   keeping its key order), threshold signing with CIP-30 wallets, partial signatures collected in the
@@ -60,13 +64,13 @@ Stack: Next.js (App Router) · MeshJS · Koios · Supabase (RLS) · Netlify.
 
 - [Product overview](docs/OVERVIEW.md) — concepts and the contributor payment flow.
 - [Contributing](CONTRIBUTING.md) — branch/PR workflow, setup and pre-PR checks.
-- User guides at `/docs` in the running app; source in [src/content/docs](src/content/docs).
 - [Development and database commands](scripts/README.md).
-- [Signius test seeds](supabase/seeds/README.md).
+- User guides at `/docs` in the running app; source in [src/content/docs](src/content/docs).
 - [Agent API: MCP and REST](src/app/api/mcp/README.md).
 - [Development conventions](CLAUDE.md) and [repository instructions](AGENTS.md).
-- Design records: [on-chain anchoring, treasury templates and the co-signer](docs/onchain-anchoring-estimate.md)
-  and the [fix plan from the 2026-10-01 test sweep](docs/test-findings-fix-plan.md).
+- [Signius test seeds](supabase/seeds/README.md) — maintainer fixtures (need a linked remote snapshot).
+- Design records (historical): [on-chain anchoring, treasury templates and the co-signer](docs/onchain-anchoring-estimate.md),
+  [fix plan from the 2026-10-01 test sweep](docs/test-findings-fix-plan.md).
 
 When a user flow changes, update its guide in `src/content/docs/` in the
 same change. Register new guides and page help links in `src/lib/docs.ts`;
@@ -301,32 +305,36 @@ in the privacy policy (`src/content/docs/privacy.mdx`).
 
 ### 4. Run
 
+The default path for a fresh clone (including forks) is an **empty local
+stack**. You do not need access to a remote Supabase project.
+
 ```powershell
 Copy-Item .env.example .env  # first setup only; configure CRON_SECRET and the integrations you use
 npm ci
 npm run db:start             # local Supabase stack (Docker Desktop running)
+npm run db:migrate           # apply pending migrations (keeps local data)
 # copy the Supabase values from `supabase status -o env` into .env (mapping in scripts/README.md)
 npm run dev                  # http://localhost:3000 against the local stack
 ```
 
-Without a snapshot the local database starts empty: sign in, create a
-community and set up its treasury and workgroups. To use the existing
-Signius test scenarios instead, stop the dev server and run:
-
-```powershell
-npm run db:snapshot          # copy the remote data locally (dumps the linked project)
-npm run db:reset             # replaces local data: migrate from scratch + load the snapshot
-npm run seed:sandbox         # needs Signius members and its GVTT mint in the snapshot
-npm run dev                  # http://localhost:3000 against the local stack
-```
+The local database starts empty: sign in with a CIP-30 wallet, create a
+community, and set up its treasury and workgroups.
 
 `npm run dev` uses Next.js environment loading; it targets whatever `.env`
 points at (the local stack once you have copied the `supabase status -o env`
 values in), unless process variables or a higher-priority env file such as
-`.env.local` override it. To run against the remote project, load the values
-from `.env.remote` into the process environment first (snippet in
-`scripts/README.md`). Both can submit real
-transactions on each community's network.
+`.env.local` override it. To run against a remote project you control, load
+the values from `.env.remote` into the process environment first (snippet in
+`scripts/README.md`). Both can submit real transactions on each community's
+network.
+
+#### Maintainers: Signius snapshot and seeds
+
+`npm run db:snapshot` dumps the **linked** Supabase project into the
+gitignored `supabase/seeds/local/` directory. That needs `supabase link` to
+the Treasury Guild remote and is **not available to forks**. With a snapshot
+loaded (`npm run db:reset`), `npm run seed:sandbox` / `seed:live` build
+Signius preprod test scenarios — see [supabase/seeds/README.md](supabase/seeds/README.md).
 
 `npm test` runs Vitest tests for library logic, API routes, hooks, components
 and documentation links. `npm run typecheck` and `npm run lint` check types
@@ -597,3 +605,7 @@ electorateHash]` and `[n, "closed", state, tallyHash, [electorate, ballots,
 The transaction page shows each record raw with a legend of its keys
 (`src/lib/cardano/metadataLegend.ts`); the user docs under `/docs` are the
 long-form reference.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).
