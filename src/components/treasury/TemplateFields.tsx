@@ -54,7 +54,7 @@ export const emptyTemplateDraft = (): TemplateDraft => ({
 
 export const TEMPLATE_HINTS: Record<TreasuryTemplate, string> = {
   [TreasuryTemplate.Plain]:
-    "The base signers spend under the rule below. Add a stake address for every signer to make an SDK wallet that can stake and act as a DRep; leave them blank for a legacy spend-only wallet.",
+    "The base signers spend under the rule below. Tick staking below to invite each signer to connect, which is how an SDK wallet gets its stake and DRep keys. Leave it unticked for a legacy spend-only wallet.",
   [TreasuryTemplate.Clawback]: "The base signers can always spend. From the lock date, the recovery signers can move the funds out too (payments only). Staking and DRep features need a separate plain SDK treasury.",
   [TreasuryTemplate.LockUntil]: "Nobody can spend before the lock date; the treasury still receives. From the date, the base signers spend as usual. Staking and DRep features need a separate plain SDK treasury.",
   [TreasuryTemplate.Cosigner]: "Every normal spend needs the base rule plus one co-signer that signs only what passes the app's check (outputs match the stored rows, the spend fits the voted budgets, every cited decision passed). Every base signer together can spend without the co-signer. Staking and DRep features need a separate plain SDK treasury.",

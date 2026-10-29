@@ -6,6 +6,7 @@ import {
   MultisigWallet,
   addressToNetwork,
   checkValidAddress,
+  checkValidStakeKey,
   paymentKeyHash,
   stakeKeyHash,
   type MultisigKey,
@@ -32,7 +33,8 @@ import {
 import type { TreasurySignerRow } from "@/lib/db/types";
 import { setWorkgroupTreasury } from "@/lib/db/workgroupRouting";
 import { requireActiveWorkgroup, workgroupCommunityId } from "@/lib/db/workgroups";
-import { BadRequestError, ConflictError, errorMessage, InvariantError } from "@/lib/errors";
+import { deleteSignerDraft, loadOpenSignerDraft } from "@/lib/db/signerDrafts";
+import { BadRequestError, ConflictError, errorMessage, InvariantError, NotFoundError } from "@/lib/errors";
 import { describeTreasury } from "@/lib/treasury";
 
 const LINK_REASON = "Linked when the treasury was created";
@@ -173,7 +175,7 @@ function importedTreasuryRows(body: CreateTreasuryBody, shape: TreasuryShape): S
 }
 
 export const POST = sessionRoute(async (req, { session }) => {
-  const body = await parseJson(req, createTreasurySchema);
+  let body = await parseJson(req, createTreasurySchema);
   const { communityId, name, workgroupId, source } = body;
   await requireAdmin(communityId, session.wallet);
 
@@ -189,6 +191,40 @@ export const POST = sessionRoute(async (req, { session }) => {
   // signer from the other network could never produce a valid witness.
   const community = await requireCommunity(communityId);
   const network = asNetwork(community.network);
+
+  if (body.signerDraftId) {
+    if (source || body.template !== TreasuryTemplate.Plain) {
+      throw new BadRequestError("A signer invite is only for a new plain SDK treasury");
+    }
+    const draft = await loadOpenSignerDraft(body.signerDraftId, communityId);
+    if (!draft) throw new NotFoundError("Signer invite not found");
+    const wanted = body.signers.map((s) => s.address);
+    const have = new Set(draft.signers.map((s) => s.address));
+    if (wanted.length !== have.size || wanted.some((address) => !have.has(address))) {
+      throw new BadRequestError("Save the signer invite again before creating the treasury");
+    }
+    const byAddress = new Map(draft.signers.map((s) => [s.address, s]));
+    body = {
+      ...body,
+      signers: body.signers.map((s) => {
+        const row = byAddress.get(s.address)!;
+        if (!row.stakeAddress) {
+          throw new BadRequestError("Every base signer needs a stake address from their connected wallet");
+        }
+        if (!checkValidStakeKey(row.stakeAddress) || addressToNetwork(row.stakeAddress) !== network) {
+          throw new BadRequestError("A signer's stake address is on the wrong network");
+        }
+        return {
+          address: s.address,
+          name: s.name,
+          stakeAddress: row.stakeAddress,
+          ...(row.drepKeyHash ? { drepKeyHash: row.drepKeyHash } : {}),
+        };
+      }),
+    };
+  } else if (!source && body.signers.some((s) => s.stakeAddress || s.drepKeyHash)) {
+    throw new BadRequestError("Stake and DRep keys are collected through a signer invite");
+  }
 
   // CIP-0146 discovery resolves to CBOR + stake credential; a CBOR paste may
   // carry an optional stake credential from a prior discover preview.
@@ -353,6 +389,12 @@ export const POST = sessionRoute(async (req, { session }) => {
   const { link, linkError } = workgroupId
     ? await linkWorkgroup(workgroupId, treasury.id, session.wallet)
     : { link: null, linkError: null };
+
+  if (body.signerDraftId) {
+    await deleteSignerDraft(body.signerDraftId).catch((err) =>
+      console.error(`delete signer draft ${body.signerDraftId} failed`, err),
+    );
+  }
 
   return { treasury, link, linkError } satisfies CreateTreasuryResponse;
 });

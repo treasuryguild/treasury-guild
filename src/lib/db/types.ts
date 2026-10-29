@@ -104,6 +104,35 @@ export type CommunityInviteSummary = Omit<CommunityInviteRow, "token_hash">;
 export const COMMUNITY_INVITE_SUMMARY_COLUMNS =
   "id, community_id, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
 
+/** An SDK treasury waiting for each base signer to connect and provide keys. */
+export interface TreasurySignerDraftRow {
+  id: string;
+  community_id: string;
+  token_hash: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  name: string;
+  required: number;
+  workgroup_id: string | null;
+}
+
+export interface TreasurySignerDraftSignerRow {
+  draft_id: string;
+  position: number;
+  wallet_address: string;
+  display_name: string | null;
+  stake_address: string | null;
+  drep_key_hash: string | null;
+  contributed_at: string | null;
+}
+
+export const TREASURY_SIGNER_DRAFT_COLUMNS =
+  "id, community_id, token_hash, created_by, created_at, expires_at, name, required, workgroup_id";
+
+export const TREASURY_SIGNER_DRAFT_SIGNER_COLUMNS =
+  "draft_id, position, wallet_address, display_name, stake_address, drep_key_hash, contributed_at";
+
 export interface WorkgroupRow {
   id: string;
   community_id: string;
