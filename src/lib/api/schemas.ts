@@ -296,6 +296,11 @@ export const createTreasurySchema = z.object({
     z.object({ kind: z.literal("member"), address: storedWallet }),
     z.object({ kind: z.literal("app") }),
   ]).optional(),
+  /**
+   * SDK treasuries take stake and DRep keys from this invite. When set, the
+   * route ignores any stake or DRep on `signers`.
+   */
+  signerDraftId: id.optional(),
 }).superRefine((body, ctx) => {
   if (body.source) return; // the CBOR decides the template and its groups
   const needsLock = body.template === "clawback" || body.template === "lock_until";
@@ -306,9 +311,12 @@ export const createTreasurySchema = z.object({
   if (body.template === "cosigner" && !body.cosigner) ctx.addIssue({ code: "custom", path: ["cosigner"], message: "Choose the co-signer" });
   if (body.template !== "cosigner" && body.cosigner) ctx.addIssue({ code: "custom", path: ["cosigner"], message: "Only a co-signer treasury has a co-signer" });
 
+  // Stake and DRep on the body are ignored when signerDraftId is set; the
+  // route loads them from the invite. A partial set is still refused here so
+  // a pasted SDK wallet cannot skip a signer.
   const withStake = body.signers.filter((s) => s.stakeAddress);
   const withDrep = body.signers.filter((s) => s.drepKeyHash);
-  if (withStake.length > 0 || withDrep.length > 0) {
+  if (!body.signerDraftId && (withStake.length > 0 || withDrep.length > 0)) {
     if (body.template !== "plain") {
       ctx.addIssue({
         code: "custom",
@@ -325,6 +333,58 @@ export const createTreasurySchema = z.object({
     }
   }
 });
+
+const signerDraftBody = {
+  communityId: id,
+  name: nonEmpty.max(100),
+  required: z.number().int().min(1).max(MAX_TREASURY_SIGNERS),
+  workgroupId: z.uuid().nullable().optional(),
+  signers: treasurySigners,
+};
+
+function refineSignerDraft(
+  body: { required: number; signers: { address: string }[] },
+  ctx: z.RefinementCtx,
+): void {
+  if (body.required > body.signers.length) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["required"],
+      message: "Required signatures cannot exceed the number of signers",
+    });
+  }
+  if (new Set(body.signers.map((s) => s.address)).size !== body.signers.length) {
+    ctx.addIssue({ code: "custom", path: ["signers"], message: "Duplicate signer addresses" });
+  }
+}
+
+/** POST /api/treasury/signer-draft */
+export const createSignerDraftSchema = z.object(signerDraftBody).superRefine(refineSignerDraft);
+
+/** PATCH /api/treasury/signer-draft */
+export const saveSignerDraftSchema = z.object({
+  ...signerDraftBody,
+  draftId: id,
+}).superRefine(refineSignerDraft);
+
+export const deleteSignerDraftSchema = z.object({ draftId: id });
+
+export const signerDraftQuerySchema = z.object({
+  communityId: id.optional(),
+  draftId: id.optional(),
+}).superRefine((q, ctx) => {
+  if (Boolean(q.communityId) === Boolean(q.draftId)) {
+    ctx.addIssue({ code: "custom", message: "Pass a community or a draft" });
+  }
+});
+
+/** POST /api/treasury/signer-draft/keys and the public contribute route. */
+export const contributeSignerKeysSchema = z.object({
+  stakeAddress,
+  drepKeyHash: keyHash56.optional(),
+});
+
+export const signerDraftKeysSchema = contributeSignerKeysSchema.extend({ draftId: id });
 
 /** POST /api/tx/build-stake */
 export const buildStakeSchema = z.object({
@@ -1177,6 +1237,10 @@ export type WorkgroupLeadBody = z.infer<typeof workgroupLeadAddSchema>;
 export type TaskAssigneeInput = z.infer<typeof taskAssigneeInputSchema>;
 export type SetTaskAssigneesBody = z.infer<typeof setTaskAssigneesSchema>;
 export type CreateTreasuryBody = z.infer<typeof createTreasurySchema>;
+export type CreateSignerDraftBody = z.infer<typeof createSignerDraftSchema>;
+export type SaveSignerDraftBody = z.infer<typeof saveSignerDraftSchema>;
+export type SignerDraftKeysBody = z.infer<typeof signerDraftKeysSchema>;
+export type ContributeSignerKeysBody = z.infer<typeof contributeSignerKeysSchema>;
 export type SetTreasuryDiscordDestinationBody = z.infer<typeof setTreasuryDiscordDestinationSchema>;
 export type DevDiscordSendBody = z.infer<typeof devDiscordSendSchema>;
 export type DevCronRunBody = z.infer<typeof devCronRunSchema>;

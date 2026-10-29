@@ -492,6 +492,12 @@ export const RATE_LIMITS = {
   invitePreview: { limit: 60, windowSeconds: 600 },
   /** Redeeming an invite (joining), per wallet. */
   inviteRedeem: { limit: 20, windowSeconds: 600 },
+  /** Creating an SDK signer invite, per admin wallet. */
+  signerDraftCreate: { limit: 20, windowSeconds: 3600 },
+  /** Looking up an SDK signer invite before connecting, per client IP. */
+  signerDraftPreview: { limit: 60, windowSeconds: 600 },
+  /** A signer sending their stake and DRep keys, per wallet. */
+  signerDraftContribute: { limit: 20, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 /** Rate-limit counters older than this are purged by the reconcile sweep. */

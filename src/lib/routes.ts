@@ -48,6 +48,8 @@ export const routes = {
   callCheckin: (slug: string, callId: string) => `/c/${slug}/calls/${callId}/checkin`,
   /** Community invite: sign in with a wallet to join as a member. */
   invite: (token: string) => `/invite/${token}`,
+  /** SDK treasury: a listed signer connects so their stake and DRep keys can be read. */
+  treasurySignerInvite: (token: string) => `/invite/signer/${token}`,
   mint: (slug: string) => `/c/${slug}/mint`,
   reconcile: (slug: string) => `/c/${slug}/reconcile`,
   /** Outside funders, what they committed and what arrived. */
@@ -164,6 +166,7 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p === "/settings", "Profile & settings"],
   [(p) => p === "/welcome", "Welcome"],
   [(p) => p.startsWith("/oauth/consent"), "Connect an AI assistant"],
+  [(p) => p.startsWith("/invite/signer/"), "SDK signer invite"],
   [(p) => p.startsWith("/invite/"), "Join community"],
   [(p) => p === "/dev", "Developer tools"],
   // Before the `includes` rows: /docs/treasury must not read as "Treasury".

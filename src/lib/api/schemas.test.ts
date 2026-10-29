@@ -258,6 +258,36 @@ describe("schemas", () => {
     ).toBe(false);
   });
 
+  it("accepts an SDK signer draft without client stake keys", () => {
+    const communityId = "10000000-0000-4000-8000-000000000001";
+    const draftId = "30000000-0000-4000-8000-000000000001";
+    const addrB =
+      "addr_test1vzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc48zzn4";
+    const parsed = createTreasurySchema.parse({
+      communityId,
+      name: "SDK",
+      required: 1,
+      signerDraftId: draftId,
+      signers: [{ address: ADDR }, { address: addrB }],
+    });
+    expect(parsed.signerDraftId).toBe(draftId);
+    expect(parsed.signers.map((s) => s.stakeAddress)).toEqual([undefined, undefined]);
+
+    // Client-supplied keys still parse; the create route replaces them from the draft.
+    const overridden = createTreasurySchema.parse({
+      communityId,
+      name: "SDK",
+      required: 1,
+      signerDraftId: draftId,
+      signers: [
+        { address: ADDR, stakeAddress: STAKE, drepKeyHash: KEY56 },
+        { address: addrB, stakeAddress: "stake_test1uzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc40u6yl" },
+      ],
+    });
+    expect(overridden.signers[0]!.stakeAddress).toBe(STAKE);
+    expect(overridden.signerDraftId).toBe(draftId);
+  });
+
   it("validates build-stake actions and pool / DRep fields", () => {
     expect(
       buildStakeSchema.parse({

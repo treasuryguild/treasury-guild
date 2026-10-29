@@ -206,6 +206,7 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.startsWith("/oauth/consent"), { slug: "ai-assistants", hash: "approving-a-connection" }],
   [(p) => p === "/discover", { slug: "communities", hash: "discover" }],
   [(p) => p === "/communities/new", { slug: "communities", hash: "creating-a-community" }],
+  [(p) => p.startsWith("/invite/signer/"), { slug: "treasury", hash: "inviting-sdk-signers" }],
   [(p) => p.startsWith("/invite/"), { slug: "communities", hash: "invite-links" }],
   [(p) => p.includes("/treasury/new"), { slug: "treasury", hash: "creating-a-treasury" }],
   [(p) => p.includes("/treasury/import"), { slug: "treasury", hash: "importing-a-treasury" }],

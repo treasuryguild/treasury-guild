@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   purgeNonces: vi.fn(),
   purgeRateLimits: vi.fn(),
   purgeInvites: vi.fn(),
+  purgeSignerDrafts: vi.fn(),
   notifyPayouts: vi.fn(),
   notifyProposals: vi.fn(),
   writeBack: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock("@/lib/db/oauth", () => ({ purgeOAuth: mocks.purgeOAuth }));
 vi.mock("@/lib/db/auth", () => ({ purgeExpiredNonces: mocks.purgeNonces }));
 vi.mock("@/lib/db/rateLimit", () => ({ purgeRateLimits: mocks.purgeRateLimits }));
 vi.mock("@/lib/db/invites", () => ({ purgeCommunityInvites: mocks.purgeInvites }));
+vi.mock("@/lib/db/signerDrafts", () => ({ purgeSignerDrafts: mocks.purgeSignerDrafts }));
 vi.mock("@/lib/db/tasks", () => ({ releaseOrphanedQueuedTasks: mocks.releaseOrphans }));
 vi.mock("@/lib/discord/notifyPayouts", () => ({ notifyConfirmedPayouts: mocks.notifyPayouts }));
 vi.mock("@/lib/discord/notifyProposals", () => ({ notifyProposalMilestones: mocks.notifyProposals }));
@@ -148,6 +150,7 @@ describe("runReconcileSweep", () => {
     expect(mocks.syncTreasury.mock.calls.map((call) => call[0])).toEqual(TREASURIES);
     expect(mocks.purgeRateLimits).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(mocks.purgeInvites).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
+    expect(mocks.purgeSignerDrafts).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(mocks.purgeOAuth).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(mocks.purgeNonces).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
     expect(console.error).not.toHaveBeenCalled();
@@ -210,15 +213,18 @@ describe("runReconcileSweep", () => {
   it("does not let one purge failing stop the other or the sweep", async () => {
     mocks.purgeRateLimits.mockRejectedValue(new Error("purge failed"));
     mocks.purgeInvites.mockRejectedValue(new Error("purge failed"));
+    mocks.purgeSignerDrafts.mockRejectedValue(new Error("purge failed"));
     mocks.purgeOAuth.mockRejectedValue(new Error("purge failed"));
     mocks.purgeNonces.mockRejectedValue(new Error("purge failed"));
     const result = await runReconcileSweep();
     expect(result.discordPosted).toBe(4);
     expect(mocks.purgeInvites).toHaveBeenCalled();
+    expect(mocks.purgeSignerDrafts).toHaveBeenCalled();
     expect(mocks.purgeOAuth).toHaveBeenCalled();
     expect(mocks.purgeNonces).toHaveBeenCalled();
     expect(console.error).toHaveBeenCalledWith("rate limit purge failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("community invite purge failed", expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith("signer draft purge failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("oauth purge failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("login challenge purge failed", expect.any(Error));
   });
@@ -233,7 +239,7 @@ describe("runReconcileSweep", () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     for (const step of [
       mocks.advance, mocks.notifyProposals, mocks.freeze, mocks.publish, mocks.notifyAnchors, mocks.syncTreasury,
-      mocks.notifyOutside, mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeInvites, mocks.purgeOAuth,
+      mocks.notifyOutside, mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeInvites, mocks.purgeSignerDrafts, mocks.purgeOAuth,
       mocks.cosign, mocks.releaseOrphans,
     ]) {
       step.mockRejectedValue(new Error("boom"));

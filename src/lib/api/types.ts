@@ -150,6 +150,47 @@ export interface RedeemInviteResponse extends OkResponse {
   name: string;
   already: boolean;
 }
+
+/** One listed signer on an SDK invite, without their stake address or DRep hash. */
+export interface SignerDraftSigner {
+  address: string;
+  name: string | null;
+  stakeReceived: boolean;
+  drepReceived: boolean;
+}
+
+/** An open SDK signer invite as the creating admin sees it. Never includes the token. */
+export interface SignerDraftView {
+  id: string;
+  communityId: string;
+  name: string;
+  required: number;
+  workgroupId: string | null;
+  expiresAt: string;
+  signers: SignerDraftSigner[];
+}
+
+export interface SignerDraftResponse {
+  draft: SignerDraftView;
+  /** Full URL to share. Present only on create; the raw token is not stored. */
+  url?: string;
+}
+
+export interface ListSignerDraftsResponse {
+  drafts: SignerDraftView[];
+}
+
+/** GET /api/treasury-signer-invites/[token]: no payment addresses or keys. */
+export interface SignerInvitePreviewResponse {
+  communityName: string;
+  treasuryName: string;
+  slug: string;
+  network: number;
+  expiresAt: string;
+  valid: boolean;
+  filled: number;
+  total: number;
+}
 /** The routing assignment made for a treasury linked to a workgroup at creation. */
 export interface TreasuryWorkgroupLink {
   workgroupId: string;
