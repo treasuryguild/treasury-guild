@@ -14,6 +14,9 @@ vi.mock("@/lib/db/calls", () => ({
   insertAttendeeOnce: mocks.insertOnce, loadContributorName: mocks.name,
 }));
 vi.mock("@/lib/db/membership", () => ({ addMember: mocks.addMember }));
+vi.mock("@/lib/db/communities", () => ({
+  requireCommunity: async () => ({ id: "community", visibility: "public", slug: "guild", network: 0 }),
+}));
 import { POST } from "./route";
 
 const CALL_ID = "40000000-0000-4000-8000-000000000003";

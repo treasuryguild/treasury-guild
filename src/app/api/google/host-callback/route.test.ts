@@ -22,6 +22,7 @@ vi.mock("@/lib/calls/meetApi", async (importOriginal) => ({
   revokeGoogleToken: mocks.revoke,
 }));
 vi.mock("@/lib/discord/bot", () => ({ leaveGuild: vi.fn() }));
+vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: vi.fn() }));
 import { GET } from "./route";
 
 const WALLET = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";

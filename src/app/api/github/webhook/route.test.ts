@@ -47,7 +47,8 @@ const issue = (overrides: object = {}) => ({
   repository: { id: 5 },
   issue: {
     number: 12, node_id: "I_12", title: "Fix the vault", body: "Details", html_url: "https://github.com/guild/app/issues/12",
-    state: "open", labels: [{ name: "audited" }, { name: "bug" }], assignees: [{ login: "alice" }, { login: "bob" }],
+    state: "open", labels: [{ name: "audited" }, { name: "bug" }],
+    assignees: [{ login: "alice", id: 1 }, { login: "bob", id: 2 }],
     ...overrides,
   },
 });

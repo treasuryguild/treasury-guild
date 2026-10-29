@@ -65,7 +65,7 @@ describe("finalize call API", () => {
     expect(mocks.recompute).toHaveBeenCalledExactlyOnceWith(CALL_ID);
     expect(mocks.recompute.mock.invocationCallOrder[0]).toBeLessThan(mocks.attendees.mock.invocationCallOrder[0]!);
     expect(mocks.finalize).toHaveBeenCalledExactlyOnceWith({
-      callId: CALL_ID, actor: "lead", attendeeIds: ["seen", "checked-in", "confirmed", "stayed"],
+      callId: CALL_ID, actor: "lead", attendeeIds: ["seen", "confirmed", "stayed"],
       chunk: 20, bountyLovelace: "2500000", amounts: { ada: "2.5", GVT: "10" },
     });
   });
