@@ -78,7 +78,8 @@ export function LinkedMeetingsCard({ communityId }: { communityId: string }) {
       </div>
 
       {(adding || editing) && (
-        <MeetingLinkDialog open link={editing ?? undefined} platforms={platforms} workgroups={workgroups.data ?? []}
+        <MeetingLinkDialog open communityId={communityId} link={editing ?? undefined} platforms={platforms}
+          workgroups={workgroups.data ?? []}
           onClose={() => { setAdding(false); setEditing(null); }}
           onSaved={() => { setAdding(false); setEditing(null); links.reload(); }} />
       )}

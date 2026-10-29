@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import type { CreateMeetingLinkBody, PatchMeetingLinkBody } from "@/lib/api/schemas";
 import type { MeetingLinkResponse } from "@/lib/api/types";
@@ -8,6 +8,7 @@ import { rewardFromRows, rewardRows, type AmountRow } from "@/lib/boardTypes";
 import { MEET_CODE_ERROR, parseMeetingRef, ZOOM_MEETING_ID_ERROR } from "@/lib/calls/meetingRef";
 import type { CallMeetingLinkRow } from "@/lib/db/types";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useTreasuryTokenTickers } from "@/hooks/useTreasuryTokenTickers";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
 import { Button, ErrorText, Field, Input, Modal, Select } from "@/components/ui";
 import { RewardRowsField } from "./RewardRowsField";
@@ -44,6 +45,7 @@ function meetingRefOf(platform: Platform, input: string): string {
  */
 export function MeetingLinkDialog({
   open,
+  communityId,
   link,
   platforms,
   workgroups,
@@ -51,6 +53,7 @@ export function MeetingLinkDialog({
   onSaved,
 }: {
   open: boolean;
+  communityId: string;
   /** Set when editing. */
   link?: CallMeetingLinkRow;
   /** The platforms with a connected host account: what a new link can be of. */
@@ -67,6 +70,13 @@ export function MeetingLinkDialog({
   const [minMinutes, setMinMinutes] = useState(String(link?.min_minutes ?? 0));
   const [duration, setDuration] = useState(String(link?.duration_minutes ?? 60));
   const action = useAsyncAction();
+
+  const treasuryId = workgroups.find((w) => w.id === workgroupId)?.treasury_id ?? null;
+  const walletTickers = useTreasuryTokenTickers(communityId, treasuryId, open);
+  const tickers = useMemo(
+    () => ["ADA", ...walletTickers.filter((t) => t.toLowerCase() !== "ada")],
+    [walletTickers],
+  );
 
   async function save() {
     const saved = await action.run(async () => {
@@ -126,7 +136,7 @@ export function MeetingLinkDialog({
             <Input inputMode="numeric" value={duration} onChange={(e) => setDuration(e.target.value)} />
           </Field>
         </div>
-        <RewardRowsField rows={rows} onChange={setRows} />
+        <RewardRowsField rows={rows} onChange={setRows} tickers={tickers} />
       </div>
       <ErrorText error={action.error} className="mt-3" />
       <div className="mt-5 flex justify-end gap-2">

@@ -91,6 +91,7 @@ it("shows a member the task's community rules and does not send a change", async
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   expect(onClose).toHaveBeenCalledOnce();
 
+  await user.selectOptions(screen.getByLabelText("Add token"), "ADA");
   fireEvent.change(screen.getByLabelText("Reward 1 amount"), { target: { value: "10" } });
   await user.type(screen.getByLabelText("Task title"), "Write the guide");
   await user.click(screen.getByRole("button", { name: "Make proposal" }));

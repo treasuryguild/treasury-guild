@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import type { CreateCallBody, PatchCallBody } from "@/lib/api/schemas";
@@ -13,6 +13,7 @@ import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCallIntegration } from "@/hooks/useCalls";
+import { useTreasuryTokenTickers } from "@/hooks/useTreasuryTokenTickers";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
 import { Button, ErrorText, Field, Input, Modal, Select } from "@/components/ui";
 import { RewardRowsField } from "./RewardRowsField";
@@ -118,6 +119,13 @@ export function CallFormDialog({
   const [minSnapshots, setMinSnapshots] = useState(String(call?.min_snapshots ?? 1));
   const [minMinutes, setMinMinutes] = useState(String(call?.min_minutes ?? 0));
   const action = useAsyncAction();
+
+  const treasuryId = workgroups.find((w) => w.id === workgroupId)?.treasury_id ?? null;
+  const walletTickers = useTreasuryTokenTickers(communityId, treasuryId, open);
+  const tickers = useMemo(
+    () => ["ADA", ...walletTickers.filter((t) => t.toLowerCase() !== "ada")],
+    [walletTickers],
+  );
 
   const isDiscord = (call?.provider ?? provider) === CallProvider.Discord;
   const channelsFor = call?.workgroup_id ?? workgroupId;
@@ -252,7 +260,7 @@ export function CallFormDialog({
             </p>
           )
         ))}
-        <RewardRowsField rows={rows} onChange={setRows} locked={rewardLocked} />
+        <RewardRowsField rows={rows} onChange={setRows} tickers={tickers} locked={rewardLocked} />
       </div>
       <ErrorText error={action.error} className="mt-3" />
       <div className="mt-5 flex justify-end gap-2">

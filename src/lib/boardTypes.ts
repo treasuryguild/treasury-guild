@@ -266,11 +266,11 @@ export interface AmountRow {
 
 const AMOUNT_RE = /^\d+(\.\d+)?$/;
 
-/** A call's (or linked meeting's) reward as editable rows; a new one starts with an ADA row. */
+/** A call's (or linked meeting's) reward as editable rows; a new one starts empty (Add token…). */
 export function rewardRows(amounts: Record<string, string> | null | undefined): AmountRow[] {
   return amounts
     ? amountRowsFromTask({ amounts, bounty_lovelace: null })
-    : [{ ticker: ADA_ASSET.fieldName, amount: "" }];
+    : [];
 }
 
 /** Reward rows -> amounts per attendee. Throws the message to show when invalid or empty. */
