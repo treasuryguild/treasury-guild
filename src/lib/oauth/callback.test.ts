@@ -36,8 +36,11 @@ describe("readOAuthCallback", () => {
 
   it("refuses a missing code, a foreign state, no session and another wallet", () => {
     expect(outcome(callback({ state: state() })).reason).toBe("no_code");
+    expect(callback({ state: state() })).toMatchObject({ ok: false, stateVerified: true });
     const foreign = signOAuthState("google-host", { wallet, returnTo: "/", communityId: "c1" });
+    expect(callback({ code: "abc", state: foreign })).toMatchObject({ ok: false, stateVerified: false });
     expect(outcome(callback({ code: "abc", state: foreign })).reason).toBe("bad_state");
+    expect(callback({ code: "abc", state: state() }, null)).toMatchObject({ ok: false, stateVerified: true });
     expect(outcome(callback({ code: "abc", state: state() }, null)).reason).toBe("no_session");
     expect(outcome(callback({ code: "abc", state: state() }, { wallet: "addr_test1other" })).reason).toBe("wallet_mismatch");
   });

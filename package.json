@@ -16,7 +16,7 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset --local",
     "db:migrate": "supabase migration up --local",
-    "db:snapshot": "supabase db dump --linked --data-only -s public -x public.auth_nonces,public.webhook_events -f supabase/seeds/local/remote_snapshot.sql",
+    "db:snapshot": "supabase db dump --linked --data-only -s public -x public.auth_nonces,public.webhook_events,public.call_integration_secrets,public.treasury_cosigner_keys,public.treasury_discord_destinations,public.oauth_grants,public.oauth_clients,public.oauth_authorization_codes,public.oauth_refresh_tokens,public.community_invites,public.rate_limits,public.call_checkin_codes -f supabase/seeds/local/remote_snapshot.sql",
     "db:status": "supabase status",
     "seed:sandbox": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_sandbox.sql",
     "seed:live": "psql postgresql://postgres:postgres@127.0.0.1:54322/postgres -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_live.sql"

@@ -8,15 +8,19 @@ import { buildPaymentSchema } from "@/lib/api/schemas";
 import type { BuildPaymentResponse } from "@/lib/api/types";
 import type { UnitDisplay } from "@/lib/assetRegistry";
 import { ADA_ASSET, formatQuantity, LOVELACE } from "@/lib/assets";
-import { budgetTokenLabel, currentBudgetMonth } from "@/lib/budgets";
+import { budgetTokenLabel, currentBudgetMonth, isFutureBudgetMonth } from "@/lib/budgets";
 import { budgetOwnerLabel, taskBudgetPeriod } from "@/lib/budgetSetups";
 import { buildPaymentTx } from "@/lib/cardano/paymentBuilder";
 import { getProvider } from "@/lib/cardano/provider";
 import { fetchWalletAssets, type WalletAssets } from "@/lib/cardano/walletAssets";
-import { TxKind } from "@/lib/constants";
+import { ProposalKind, TxKind } from "@/lib/constants";
 import { recordProposalAnchors } from "@/lib/db/anchors";
 import { loadBudgetSetupsForTreasury, loadBudgetSources } from "@/lib/db/budgetSetups";
-import { loadAppliedBudgetProposal, loadProposalCitations } from "@/lib/db/governance";
+import {
+  loadAppliedBudgetProposal,
+  loadGovernanceSettings,
+  loadProposalCitations,
+} from "@/lib/db/governance";
 import { insertPayments, loadMemberLabels, loadSiblingTreasuries } from "@/lib/db/payments";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
 import { BadRequestError } from "@/lib/errors";
@@ -57,13 +61,14 @@ export const POST = sessionRoute(async (req, { session }) => {
   await assertNoPendingTx(treasuryId);
 
   const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId });
-  const [walletAssets, siblingTreasuries, members, setups, budgetSources, namedProposal] = await Promise.all([
+  const [walletAssets, siblingTreasuries, members, setups, budgetSources, namedProposal, budgetKind] = await Promise.all([
     fetchWalletAssets(network, treasury.address),
     loadSiblingTreasuries(treasury.community_id, treasuryId),
     loadMemberLabels(treasury.community_id, rawInputs.map((r) => r.address)),
     loadBudgetSetupsForTreasury(treasuryId),
     loadBudgetSources([ownerKey]),
     proposalId ? loadAppliedBudgetProposal(treasury.community_id, proposalId) : null,
+    loadGovernanceSettings(treasury.community_id, ProposalKind.Budget),
   ]);
   // A named proposal is checked server-side: a passed and applied budget
   // proposal of this community, or the build is refused.
@@ -97,11 +102,25 @@ export const POST = sessionRoute(async (req, { session }) => {
   if (problems.length > 0 || recipients.length === 0) {
     throw new BadRequestError("Some recipients cannot be paid", { problems });
   }
+  // Transfers skip the spend check by design; when budget governance is on,
+  // they still need a cited applied budget proposal so a sibling drain is not
+  // an unchecked sidestep of the voted budget.
+  const hasTransfer = recipients.some((r) => r.treasuryId !== null);
+  if (hasTransfer && budgetKind.enabled && !namedProposal) {
+    throw new BadRequestError(
+      "Cite an applied budget proposal to transfer to another treasury while budget governance is on",
+    );
+  }
 
   // The period the spend counts against, read through the treasury's own
   // setup in force for that month: a quarterly treasury budget stores the
   // quarter's first month and writes "YYYY-Qn" on-chain, like a task would.
   const period = taskBudgetPeriod(`${budgetMonth}-01`, setups, currentBudgetMonth());
+  // A future period has no spent totals yet, so a recurring budget would
+  // always look free; refuse it at build time (the co-signer re-checks).
+  if (isFutureBudgetMonth(period.month)) {
+    throw new BadRequestError(`Budget period ${period.code} is in the future`);
+  }
   const trimmedMemo = memo?.trim() || null;
 
   // Spend outputs count against the treasury's budget for the period and

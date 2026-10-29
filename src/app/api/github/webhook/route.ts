@@ -92,7 +92,7 @@ async function processEvent(
       html_url: string;
       state: string;
       labels: { name: string }[];
-      assignees?: { login: string }[];
+      assignees?: { login: string; id?: number }[];
     };
     const repository = payload.repository as { id: number };
     const repo = await loadRepoLink(repository.id);
@@ -124,7 +124,9 @@ async function processEvent(
         url: issue.html_url,
         labels,
         state: issue.state,
-        assigneeLogins: (issue.assignees ?? []).map((a) => a.login),
+        assignees: (issue.assignees ?? [])
+          .filter((a): a is typeof a & { id: number; login: string } => typeof a.id === "number" && !!a.login)
+          .map((a) => ({ login: a.login, id: a.id })),
         // amounts intentionally omitted: label churn must not clobber them
       },
       matchesImportFilter(repo, labels, existing.gh_status),
@@ -171,7 +173,7 @@ async function processEvent(
         body: details.issue.body,
         url: details.issue.url,
         labels: details.issue.labels,
-        assigneeLogins: details.issue.assigneeLogins,
+        assignees: details.issue.assignees,
         projectItemNodeId: details.itemNodeId,
         projectStatus: details.fields.status,
         amounts: Object.keys(amounts).length > 0 ? amounts : null,

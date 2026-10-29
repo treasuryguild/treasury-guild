@@ -23,13 +23,14 @@ import {
   deleteTreasury,
   insertTreasury,
   insertTreasurySigners,
+  isPrimaryTreasuryBaseSigner,
   loadTreasuryWithSigners,
   tagInternalTransfers,
 } from "@/lib/db/treasuries";
 import type { TreasurySignerRow } from "@/lib/db/types";
 import { setWorkgroupTreasury } from "@/lib/db/workgroupRouting";
 import { requireActiveWorkgroup, workgroupCommunityId } from "@/lib/db/workgroups";
-import { BadRequestError, ConflictError, errorMessage, InvariantError } from "@/lib/errors";
+import { BadRequestError, ConflictError, errorMessage, ForbiddenError, InvariantError } from "@/lib/errors";
 import { describeTreasury } from "@/lib/treasury";
 
 const LINK_REASON = "Linked when the treasury was created";
@@ -205,11 +206,15 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   // The community's first treasury becomes primary and must include its
   // creator: the caller is necessarily the owner (sole admin) at that point,
-  // and its base signers become the community's admins.
+  // and its base signers become the community's admins. A later sibling can
+  // receive unrestricted transfers, so only a primary base signer may add one.
   const treasuryCount = await countCommunityTreasuries(communityId);
   const isPrimary = treasuryCount === 0;
   if (isPrimary && !baseRows.some((s) => s.wallet_address === session.wallet)) {
     throw new BadRequestError("You must be a signer of the community's first treasury");
+  }
+  if (!isPrimary && !(await isPrimaryTreasuryBaseSigner(communityId, session.wallet))) {
+    throw new ForbiddenError("Only a primary treasury signer can create another treasury");
   }
   const keys = rows.map((r) => r.key_hash);
   if (new Set(keys).size !== keys.length) {

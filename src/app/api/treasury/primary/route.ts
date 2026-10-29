@@ -5,12 +5,18 @@ import { requireAdmin } from "@/lib/authz";
 import { Role } from "@/lib/constants";
 import { requireCommunity, setPrimaryTreasury } from "@/lib/db/communities";
 import { addMember, promoteMembersToAdmin } from "@/lib/db/membership";
-import { loadBaseSignerWallets, loadTreasury } from "@/lib/db/treasuries";
-import { BadRequestError } from "@/lib/errors";
+import {
+  isPrimaryTreasuryBaseSigner,
+  loadBaseSignerWallets,
+  loadTreasury,
+} from "@/lib/db/treasuries";
+import { BadRequestError, ForbiddenError } from "@/lib/errors";
 
 /**
  * Point the community at a primary treasury. Its base signers become
- * community admins; former primary signers are not auto-demoted.
+ * community admins; former primary signers are not auto-demoted. Only a
+ * current primary base signer may re-point (a non-signer admin could
+ * otherwise strip the protected admins by switching primary first).
  */
 export const POST = sessionRoute(async (req, { session }) => {
   const { communityId, treasuryId } = await parseJson(req, setPrimaryTreasurySchema);
@@ -22,6 +28,9 @@ export const POST = sessionRoute(async (req, { session }) => {
   }
   if (community.primary_treasury_id === treasuryId) {
     return { ok: true } satisfies OkResponse;
+  }
+  if (!(await isPrimaryTreasuryBaseSigner(communityId, session.wallet))) {
+    throw new ForbiddenError("Only a primary treasury signer can change the primary treasury");
   }
 
   await setPrimaryTreasury(communityId, treasuryId);

@@ -33,6 +33,15 @@ export function currentBudgetMonth(): string {
   return monthOf(new Date());
 }
 
+/**
+ * True when `month` ("YYYY-MM") is strictly after the current budget month.
+ * Used to refuse spend attributed to a future period (a recurring budget
+ * would otherwise look empty and give unlimited headroom).
+ */
+export function isFutureBudgetMonth(month: string, now: string = currentBudgetMonth()): boolean {
+  return month > now;
+}
+
 /** A budget month, "YYYY-MM". */
 export const BUDGET_MONTH_RE = /^[1-9]\d{3}-(0[1-9]|1[0-2])$/;
 

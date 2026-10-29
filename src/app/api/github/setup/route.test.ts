@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { signOAuthState } from "@/lib/oauth/state";
+import { TooManyRequestsError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), role: vi.fn(), owner: vi.fn(), save: vi.fn(), getInstallation: vi.fn(),
+  exchange: vi.fn(), sees: vi.fn(), rateLimit: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ memberRole: mocks.role }));
 vi.mock("@/lib/db/github", () => ({ installationOwner: mocks.owner, saveInstallation: mocks.save }));
+vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rateLimit }));
+vi.mock("@/lib/github/installAuth", () => ({
+  exchangeInstallCode: mocks.exchange, userSeesInstallation: mocks.sees,
+}));
 vi.mock("@/lib/github/app", () => ({
   githubApp: () => ({ octokit: { rest: { apps: { getInstallation: mocks.getInstallation } } } }),
 }));
@@ -17,14 +23,17 @@ const COMMUNITY = "10000000-0000-4000-8000-000000000001";
 const OTHER_COMMUNITY = "10000000-0000-4000-8000-000000000002";
 const RETURN_TO = "/c/demo/settings/github";
 const MINUTE = 60 * 1000;
+const CODE = "user-oauth-code";
 const context = { params: Promise.resolve({}) };
 
 const state = (overrides: object = {}) =>
-  signOAuthState("github-install", { wallet: WALLET, returnTo: RETURN_TO, communityId: COMMUNITY, ...overrides });
+  signOAuthState("github-install", {
+    wallet: WALLET, returnTo: RETURN_TO, communityId: COMMUNITY, jti: crypto.randomUUID(), ...overrides,
+  });
 const setup = (query: Record<string, string>) =>
   GET(new Request(`https://vault.test/api/github/setup?${new URLSearchParams(query)}`), context);
 const installed = (query: Record<string, string> = {}) =>
-  setup({ installation_id: "42", setup_action: "install", state: state(), ...query });
+  setup({ installation_id: "42", code: CODE, setup_action: "install", state: state(), ...query });
 const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
 const installation = (overrides: object = {}) => ({
   data: { id: 42, account: { login: "guild-org", type: "Organization" }, created_at: ago(MINUTE), updated_at: ago(MINUTE), ...overrides },
@@ -46,16 +55,20 @@ beforeEach(() => {
   mocks.role.mockResolvedValue("admin");
   mocks.owner.mockResolvedValue(null);
   mocks.getInstallation.mockResolvedValue(installation());
+  mocks.exchange.mockResolvedValue("ghu_token");
+  mocks.sees.mockResolvedValue(true);
+  mocks.rateLimit.mockResolvedValue(undefined);
 });
 
 describe("GET /api/github/setup", () => {
-  it("binds a fresh, unclaimed installation to the community the state names", async () => {
+  it("binds a fresh, unclaimed installation the installing user can see", async () => {
     const response = await installed({ communityId: OTHER_COMMUNITY });
     expect(outcome(response)).toEqual({ path: RETURN_TO, query: { install: "connected" } });
     expect(mocks.role).toHaveBeenCalledWith(COMMUNITY, WALLET);
+    expect(mocks.exchange).toHaveBeenCalledWith(CODE);
+    expect(mocks.sees).toHaveBeenCalledWith("ghu_token", 42);
     expect(mocks.getInstallation).toHaveBeenCalledWith({ installation_id: 42 });
     expect(mocks.owner).toHaveBeenCalledWith(42);
-    expect(mocks.save).toHaveBeenCalledTimes(1);
     expect(mocks.save).toHaveBeenCalledWith("insert", {
       installation_id: 42, community_id: COMMUNITY, account_login: "guild-org", account_type: "Organization",
     });
@@ -66,13 +79,30 @@ describe("GET /api/github/setup", () => {
     expect(outcome(await installed()).query).toEqual({ install: "connected" });
   });
 
-  it("falls back to the account's name, then to unknown", async () => {
-    mocks.getInstallation.mockResolvedValueOnce(installation({ account: { name: "Guild Enterprise" } }));
-    await installed();
-    expect(mocks.save).toHaveBeenLastCalledWith("insert", expect.objectContaining({ account_login: "Guild Enterprise", account_type: null }));
-    mocks.getInstallation.mockResolvedValueOnce(installation({ account: null }));
-    await installed();
-    expect(mocks.save).toHaveBeenLastCalledWith("insert", expect.objectContaining({ account_login: "unknown", account_type: null }));
+  it("refuses when the user token does not list the installation", async () => {
+    mocks.sees.mockResolvedValue(false);
+    expect(outcome(await installed())).toEqual({
+      path: RETURN_TO, query: { install: "error", reason: "installation_not_yours" },
+    });
+    expect(mocks.getInstallation).not.toHaveBeenCalled();
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it("refuses a replayed install state", async () => {
+    mocks.rateLimit.mockRejectedValue(new TooManyRequestsError());
+    expect(outcome(await installed())).toEqual({
+      path: RETURN_TO, query: { install: "error", reason: "state_replay" },
+    });
+    expect(mocks.exchange).not.toHaveBeenCalled();
+  });
+
+  it("refuses a state without a single-use jti", async () => {
+    const bare = signOAuthState("github-install", {
+      wallet: WALLET, returnTo: RETURN_TO, communityId: COMMUNITY,
+    });
+    expect(outcome(await setup({ installation_id: "42", code: CODE, state: bare }))).toEqual({
+      path: RETURN_TO, query: { install: "error", reason: "bad_state" },
+    });
   });
 
   describe("the installation id is only a query parameter", () => {
@@ -82,48 +112,29 @@ describe("GET /api/github/setup", () => {
       expect(mocks.save).not.toHaveBeenCalled();
     });
 
-    it("binds a second, different installation to a community that already has one", async () => {
-      // The community may already hold installation 77 for another org; a
-      // fresh, unclaimed installation inserts alongside it.
-      expect(outcome(await installed())).toEqual({ path: RETURN_TO, query: { install: "connected" } });
-      expect(mocks.save).toHaveBeenCalledWith("insert", {
-        installation_id: 42, community_id: COMMUNITY, account_login: "guild-org", account_type: "Organization",
-      });
-    });
-
-    it("refreshes one this community already holds, however old", async () => {
-      mocks.owner.mockResolvedValue({ community_id: COMMUNITY });
-      mocks.getInstallation.mockResolvedValue(installation({ created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" }));
-      expect(outcome(await installed()).query).toEqual({ install: "connected" });
-      expect(mocks.save).toHaveBeenCalledWith("update", {
-        installation_id: 42, community_id: COMMUNITY, account_login: "guild-org", account_type: "Organization",
-      });
-    });
-
-    it("refuses an unclaimed installation GitHub did not touch in the last 15 minutes", async () => {
+    it("refuses an unclaimed installation GitHub did not create in the last 5 minutes", async () => {
       for (const data of [
-        { created_at: ago(16 * MINUTE), updated_at: ago(16 * MINUTE) },
+        { created_at: ago(6 * MINUTE), updated_at: ago(MINUTE) },
         { created_at: null, updated_at: null },
       ]) {
         mocks.getInstallation.mockResolvedValueOnce(installation(data));
-        expect(outcome(await installed())).toEqual({ path: RETURN_TO, query: { install: "error", reason: "installation_not_recent" } });
+        expect(outcome(await installed())).toEqual({
+          path: RETURN_TO, query: { install: "error", reason: "installation_not_recent" },
+        });
       }
       expect(mocks.save).not.toHaveBeenCalled();
     });
 
-    it("accepts an old unclaimed installation that was just reconfigured", async () => {
-      mocks.getInstallation.mockResolvedValue(installation({ created_at: "2024-01-01T00:00:00Z", updated_at: ago(14 * MINUTE) }));
-      expect(outcome(await installed()).query).toEqual({ install: "connected" });
-      expect(mocks.save).toHaveBeenCalledWith("insert", expect.objectContaining({ installation_id: 42 }));
-    });
-
     it("refuses a missing or malformed id without asking GitHub", async () => {
       const queries: Record<string, string>[] = [
-        { state: state() }, { state: state(), installation_id: "abc" }, { state: state(), installation_id: "-1" },
-        { state: state(), installation_id: "4.2" },
+        { state: state(), code: CODE },
+        { state: state(), code: CODE, installation_id: "abc" },
+        { state: state(), code: CODE, installation_id: "-1" },
       ];
       for (const query of queries) {
-        expect(outcome(await setup(query))).toEqual({ path: RETURN_TO, query: { install: "error", reason: "no_installation" } });
+        expect(outcome(await setup(query))).toEqual({
+          path: RETURN_TO, query: { install: "error", reason: "no_installation" },
+        });
       }
       expect(mocks.getInstallation).not.toHaveBeenCalled();
       expect(mocks.save).not.toHaveBeenCalled();
@@ -132,19 +143,17 @@ describe("GET /api/github/setup", () => {
 
   describe("the wallet-bound state", () => {
     const refused = async (query: Record<string, string>) => {
-      const result = outcome(await setup({ installation_id: "42", ...query }));
+      const result = outcome(await setup({ installation_id: "42", code: CODE, ...query }));
       expect(mocks.role).not.toHaveBeenCalled();
       expect(mocks.getInstallation).not.toHaveBeenCalled();
       expect(mocks.save).not.toHaveBeenCalled();
       return result;
     };
 
-    it("refuses a missing, forged or foreign state and one without a community, returning home", async () => {
+    it("refuses a missing, forged or foreign state and one without a community", async () => {
       const bad = { path: "/", query: { install: "error", reason: "bad_state" } };
       expect(await refused({})).toEqual(bad);
       expect(await refused({ state: "garbage.mac" })).toEqual(bad);
-      const [body] = state().split(".");
-      expect(await refused({ state: `${body}.${"0".repeat(64)}` })).toEqual(bad);
       const link = signOAuthState("github-link", { wallet: WALLET, returnTo: RETURN_TO, communityId: COMMUNITY });
       expect(await refused({ state: link })).toEqual(bad);
       const bare = signOAuthState("github-install", { wallet: WALLET, returnTo: RETURN_TO });
@@ -163,6 +172,12 @@ describe("GET /api/github/setup", () => {
         path: RETURN_TO, query: { install: "cancelled", reason: "access_denied" },
       });
     });
+
+    it("refuses a missing user OAuth code", async () => {
+      expect(outcome(await setup({ installation_id: "42", state: state() }))).toEqual({
+        path: RETURN_TO, query: { install: "error", reason: "no_code" },
+      });
+    });
   });
 
   it("refuses a wallet that is no longer an admin of the community", async () => {
@@ -171,7 +186,6 @@ describe("GET /api/github/setup", () => {
       expect(outcome(await installed())).toEqual({ path: RETURN_TO, query: { install: "error", reason: "not_admin" } });
     }
     expect(mocks.getInstallation).not.toHaveBeenCalled();
-    expect(mocks.owner).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
 

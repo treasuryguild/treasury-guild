@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   baseSigners: vi.fn(),
   addMember: vi.fn(),
   promote: vi.fn(),
+  primarySigner: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
@@ -20,6 +21,7 @@ vi.mock("@/lib/db/communities", () => ({
 vi.mock("@/lib/db/treasuries", () => ({
   loadTreasury: mocks.loadTreasury,
   loadBaseSignerWallets: mocks.baseSigners,
+  isPrimaryTreasuryBaseSigner: mocks.primarySigner,
 }));
 vi.mock("@/lib/db/membership", () => ({
   addMember: mocks.addMember,
@@ -38,9 +40,27 @@ beforeEach(() => {
   mocks.community.mockResolvedValue({ id: COMMUNITY, primary_treasury_id: TREASURY });
   mocks.loadTreasury.mockResolvedValue({ id: OTHER, community_id: COMMUNITY });
   mocks.baseSigners.mockResolvedValue(["addr_a", "addr_b"]);
+  mocks.primarySigner.mockResolvedValue(true);
 });
 
 describe("POST /api/treasury/primary", () => {
+  it("refuses a re-point from an admin who is not a primary base signer", async () => {
+    mocks.primarySigner.mockResolvedValue(false);
+    const response = await POST(
+      new Request("http://localhost/api/treasury/primary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ communityId: COMMUNITY, treasuryId: OTHER }),
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Only a primary treasury signer can change the primary treasury",
+    });
+    expect(mocks.setPrimary).not.toHaveBeenCalled();
+  });
+
   it("re-points primary and promotes the new base signers", async () => {
     const response = await POST(
       new Request("http://localhost/api/treasury/primary", {

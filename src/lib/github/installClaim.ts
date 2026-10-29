@@ -2,11 +2,12 @@
 // the install flow. GitHub's setup redirect carries `installation_id` as a
 // plain query parameter that anyone can edit, so the id alone proves nothing:
 // an installation another community holds is never moved, and an unclaimed
-// one is accepted only while it is fresh (the admin just installed or
-// reconfigured it on GitHub), not an old installation picked by its id.
+// one is accepted only while freshly created (the admin just installed it).
+// The setup route also requires a user OAuth `code` whose token lists the
+// installation, so a neighbour id cannot be claimed by guesswork alone.
 
-/** How recently GitHub must have created or updated an unclaimed installation. */
-export const INSTALL_CLAIM_WINDOW_MS = 15 * 60 * 1000;
+/** How recently GitHub must have created an unclaimed installation. */
+export const INSTALL_CLAIM_WINDOW_MS = 5 * 60 * 1000;
 
 export type InstallClaim = "insert" | "update" | "taken" | "stale";
 
@@ -17,9 +18,8 @@ export function installationClaim(
   now: number,
 ): InstallClaim {
   if (existing) return existing.community_id === communityId ? "update" : "taken";
-  const touched = [installation.created_at, installation.updated_at]
-    .map((at) => (at ? Date.parse(at) : NaN))
-    .filter((t) => Number.isFinite(t));
-  const latest = touched.length > 0 ? Math.max(...touched) : NaN;
-  return Number.isFinite(latest) && now - latest <= INSTALL_CLAIM_WINDOW_MS ? "insert" : "stale";
+  // Only created_at: updated_at also moves when repos are added to an old
+  // installation, which would reopen the claim window for anyone.
+  const created = installation.created_at ? Date.parse(installation.created_at) : NaN;
+  return Number.isFinite(created) && now - created <= INSTALL_CLAIM_WINDOW_MS ? "insert" : "stale";
 }

@@ -6,8 +6,8 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: mocks.session }));
 vi.mock("@/lib/db/github", () => ({ linkGithubAccount: mocks.link }));
-vi.mock("@/lib/db/taskAssignees", () => ({ fillAssigneeWalletsByLogin: mocks.fill }));
-vi.mock("@/lib/db/membership", () => ({ autoJoinCommunitiesForGithubLogin: mocks.autoJoin }));
+vi.mock("@/lib/db/taskAssignees", () => ({ fillAssigneeWalletsByGithubUser: mocks.fill }));
+vi.mock("@/lib/db/membership", () => ({ autoJoinCommunitiesForGithubUser: mocks.autoJoin }));
 import { GET } from "./route";
 
 const WALLET = "addr_test1abc";
@@ -65,8 +65,8 @@ describe("GET /api/github/oauth-callback", () => {
     }]);
 
     expect(mocks.link).toHaveBeenCalledWith(WALLET, { login: "alice", id: 4242 });
-    expect(mocks.fill).toHaveBeenCalledWith("alice", WALLET);
-    expect(mocks.autoJoin).toHaveBeenCalledWith(WALLET, "alice");
+    expect(mocks.fill).toHaveBeenCalledWith(4242, WALLET);
+    expect(mocks.autoJoin).toHaveBeenCalledWith(WALLET, 4242);
   });
 
   describe("what it refuses before any token request", () => {

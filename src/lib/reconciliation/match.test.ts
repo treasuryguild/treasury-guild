@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { LOVELACE } from "@/lib/assets";
-import { scoreRefundMatches, type RefundMatchPayout } from "./match";
+import {
+  incomingQuantity,
+  refundMatchProblem,
+  scoreRefundMatches,
+  type RefundMatchPayout,
+} from "./match";
 
 const ALICE = "addr_test1alice";
 const BOB = "addr_test1bob";
@@ -16,6 +21,31 @@ function payout(patch: Partial<RefundMatchPayout> & Pick<RefundMatchPayout, "id"
     ...patch,
   };
 }
+
+describe("refundMatchProblem", () => {
+  const inflow = { from_addresses: [ALICE], amount_lovelace: "2500000", assets: { [TOKEN]: "42" } };
+
+  it("reads lovelace and asset quantities from the inflow", () => {
+    expect(incomingQuantity(inflow, LOVELACE)).toBe(2_500_000n);
+    expect(incomingQuantity(inflow, TOKEN)).toBe(42n);
+    expect(incomingQuantity(inflow, "missing")).toBeNull();
+  });
+
+  it("refuses an unknown unit, a zero/oversize amount, and a payout mismatch", () => {
+    expect(refundMatchProblem(inflow, "1", "missing", null)).toBe("This inflow did not receive that asset");
+    expect(refundMatchProblem(inflow, "0", LOVELACE, null)).toBe("Amount must be positive");
+    expect(refundMatchProblem(inflow, "2500001", LOVELACE, null)).toBe("Amount exceeds what this inflow received");
+    expect(refundMatchProblem(inflow, "2500000", LOVELACE, { amount: "100", unit: LOVELACE }))
+      .toBe("Amount exceeds the payout");
+    expect(refundMatchProblem(inflow, "42", TOKEN, { amount: "42", unit: LOVELACE }))
+      .toBe("Unit must match the payout");
+  });
+
+  it("allows a credit at or under both the inflow and the payout", () => {
+    expect(refundMatchProblem(inflow, "2500000", LOVELACE, null)).toBeNull();
+    expect(refundMatchProblem(inflow, "40", TOKEN, { amount: "42", unit: TOKEN })).toBeNull();
+  });
+});
 
 describe("scoreRefundMatches", () => {
   it("scores a refund from the paid wallet with the exact amount highest", () => {

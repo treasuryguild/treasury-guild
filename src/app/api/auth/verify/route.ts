@@ -40,6 +40,7 @@ export const POST = publicRoute(async (req) => {
   } satisfies AuthVerifyResponse);
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
+    // `__Host-` (production) requires Secure; local http keeps the plain name.
     secure: isProduction(),
     sameSite: "lax",
     path: "/",

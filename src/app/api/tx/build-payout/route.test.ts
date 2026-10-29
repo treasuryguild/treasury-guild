@@ -85,7 +85,7 @@ const buildContext = (overrides: object = {}, treasuryOverrides: object = {}) =>
   callerGroups: new Set(), communitySlug: "guild", network: 0, ...overrides,
 });
 const assignee = (wallet: string | null, position = 0, gh_login: string | null = null) => ({
-  id: `${wallet ?? "none"}-${position}`, source: "manual", gh_login, wallet_address: wallet, position,
+  id: `${wallet ?? "none"}-${position}`, source: "manual" as const, gh_login, gh_user_id: null, wallet_address: wallet, position,
 });
 /** A payable native task in the quarterly workgroup A with no budget month yet. */
 const task = (overrides: object = {}) => ({

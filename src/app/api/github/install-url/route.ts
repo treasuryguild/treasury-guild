@@ -14,6 +14,7 @@ export const GET = sessionRoute(async (req, { session }) => {
     wallet: session.wallet,
     returnTo: routes.githubSettings(await communitySlug(communityId)),
     communityId,
+    jti: crypto.randomUUID(),
   });
   return { url: installUrl(state) } satisfies InstallUrlResponse;
 });

@@ -48,7 +48,9 @@ beforeEach(() => {
   mocks.member.mockResolvedValue("member");
   mocks.incoming.mockResolvedValue(incoming());
   mocks.signer.mockResolvedValue(true);
-  mocks.payout.mockResolvedValue({ task_id: TASK_ID, treasury_id: TREASURY_ID });
+  mocks.payout.mockResolvedValue({
+    task_id: TASK_ID, treasury_id: TREASURY_ID, amount: "2500000", unit: "lovelace",
+  });
   mocks.record.mockResolvedValue(undefined);
   mocks.adjust.mockResolvedValue(undefined);
   mocks.reconcileTask.mockResolvedValue(undefined);
@@ -164,7 +166,9 @@ describe("POST /api/reconcile/match", () => {
     expect(await response.json()).toEqual({ error: "Payout not found for this treasury" });
     expect(mocks.payout).toHaveBeenCalledWith(PAYOUT_ID);
 
-    mocks.payout.mockResolvedValue({ task_id: TASK_ID, treasury_id: OTHER_TREASURY_ID });
+    mocks.payout.mockResolvedValue({
+      task_id: TASK_ID, treasury_id: OTHER_TREASURY_ID, amount: "2500000", unit: "lovelace",
+    });
     response = await post(body());
     expect(response.status).toBe(404);
     expect(await response.json()).toEqual({ error: "Payout not found for this treasury" });
@@ -173,12 +177,49 @@ describe("POST /api/reconcile/match", () => {
     expect(mocks.reconcileTask).not.toHaveBeenCalled();
   });
 
+  it("refuses an amount larger than the inflow or a unit the inflow never received", async () => {
+    let response = await post(body({ amount: "2500001" }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Amount exceeds what this inflow received" });
+
+    response = await post(body({ unit: `${"a".repeat(56)}47565454` }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "This inflow did not receive that asset" });
+    expect(mocks.record).not.toHaveBeenCalled();
+  });
+
+  it("refuses an amount larger than the payout or a mismatched unit", async () => {
+    mocks.payout.mockResolvedValue({
+      task_id: TASK_ID, treasury_id: TREASURY_ID, amount: "1000000", unit: "lovelace",
+    });
+    let response = await post(body({ amount: "2500000" }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Amount exceeds the payout" });
+
+    const token = `${"a".repeat(56)}47565454`;
+    mocks.incoming.mockResolvedValue(incoming({ assets: { [token]: "2500000" } }));
+    mocks.payout.mockResolvedValue({
+      task_id: TASK_ID, treasury_id: TREASURY_ID, amount: "2500000", unit: "lovelace",
+    });
+    response = await post(body({ unit: token }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Unit must match the payout" });
+    expect(mocks.record).not.toHaveBeenCalled();
+  });
+
   it("records the match against the payout, adjusts it and settles its task", async () => {
-    const response = await post(body({ unit: `${"a".repeat(56)}47565454`, note: "  partial refund  " }));
+    const token = `${"a".repeat(56)}47565454`;
+    mocks.incoming.mockResolvedValue(incoming({
+      amount_lovelace: "0", assets: { [token]: "2500000" },
+    }));
+    mocks.payout.mockResolvedValue({
+      task_id: TASK_ID, treasury_id: TREASURY_ID, amount: "2500000", unit: token,
+    });
+    const response = await post(body({ unit: token, note: "  partial refund  " }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(mocks.record).toHaveBeenCalledExactlyOnceWith({
-      txHash: TX_HASH, payoutId: PAYOUT_ID, amount: "2500000", unit: `${"a".repeat(56)}47565454`,
+      txHash: TX_HASH, payoutId: PAYOUT_ID, amount: "2500000", unit: token,
       note: "partial refund", createdBy: WALLET,
     });
     expect(mocks.adjust).toHaveBeenCalledExactlyOnceWith(PAYOUT_ID);
@@ -188,6 +229,10 @@ describe("POST /api/reconcile/match", () => {
   it("records a match without a payout in lovelace, touching no payout or task", async () => {
     for (const overrides of [{ payoutId: null }, { payoutId: undefined }]) {
       vi.clearAllMocks();
+      mocks.session.mockResolvedValue({ wallet: WALLET });
+      mocks.member.mockResolvedValue("member");
+      mocks.incoming.mockResolvedValue(incoming());
+      mocks.signer.mockResolvedValue(true);
       const response = await post(body({ ...overrides, unit: "", note: "   " }));
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ ok: true });

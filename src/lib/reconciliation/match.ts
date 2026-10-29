@@ -20,6 +20,41 @@ export interface RefundIncoming {
   assets?: Record<string, string> | null;
 }
 
+/** How much of `unit` the inflow actually received, or null when it has none. */
+export function incomingQuantity(incoming: RefundIncoming, unit: string): bigint | null {
+  if (unit === LOVELACE) return BigInt(incoming.amount_lovelace);
+  const qty = incoming.assets?.[unit];
+  return qty === undefined ? null : BigInt(qty);
+}
+
+/**
+ * Why a refund match amount/unit is refused, or null when it is allowed.
+ * Caps the credit at the inflow's received quantity (and the payout, when set)
+ * so a signer cannot invent a huge refund that zeros budget spend forever.
+ */
+export function refundMatchProblem(
+  incoming: RefundIncoming,
+  amount: string,
+  unit: string,
+  payout: { amount: string; unit: string } | null,
+): string | null {
+  const available = incomingQuantity(incoming, unit);
+  if (available === null) return "This inflow did not receive that asset";
+  let credit: bigint;
+  try {
+    credit = BigInt(amount);
+  } catch {
+    return "Amount must be a whole base-unit quantity";
+  }
+  if (credit <= 0n) return "Amount must be positive";
+  if (credit > available) return "Amount exceeds what this inflow received";
+  if (payout) {
+    if (payout.unit !== unit) return "Unit must match the payout";
+    if (credit > BigInt(payout.amount)) return "Amount exceeds the payout";
+  }
+  return null;
+}
+
 /**
  * Score known payouts against an incoming refund. Pure: the loader
  * (`suggestMatches`) supplies the rows.

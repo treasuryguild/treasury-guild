@@ -37,13 +37,13 @@ export interface SyncedIssue {
    */
   amounts?: Record<string, string> | null;
   /**
-   * Every GitHub assignee's login; undefined means "don't touch", [] means
-   * unassigned. The task's github assignee rows mirror this list (added on
-   * assign, removed on unassign); each row's wallet is auto-filled from the
-   * linked contributor only while null — a wallet set manually stays.
-   * Manual assignee rows are never touched by the sync.
+   * Every GitHub assignee (login + immutable user id); undefined means "don't
+   * touch", [] means unassigned. The task's github assignee rows mirror this
+   * list (added on assign, removed on unassign); each row's wallet is
+   * auto-filled from the linked contributor only while null — a wallet set
+   * manually stays. Manual assignee rows are never touched by the sync.
    */
-  assigneeLogins?: string[];
+  assignees?: { login: string; id: number }[];
 }
 
 export type RepoLink = GithubRepoRow;
@@ -156,8 +156,8 @@ export async function syncGithubIssue(
     taskId = inserted.id as string;
   }
 
-  if (issue.assigneeLogins !== undefined) {
-    const { added } = await syncGithubAssignees(taskId, issue.assigneeLogins);
+  if (issue.assignees !== undefined) {
+    const { added } = await syncGithubAssignees(taskId, issue.assignees);
     // A newly assigned linked contributor becomes a community member — the
     // private-community access path for GitHub-driven communities. Only new
     // logins are joined so hourly sweeps don't re-upsert membership.
@@ -269,7 +269,7 @@ export async function fullSyncRepo(
         url: issue.url,
         labels: issue.labels,
         state: issue.state,
-        assigneeLogins: issue.assigneeLogins,
+        assignees: issue.assignees,
         projectItemNodeId: item.itemNodeId,
         projectStatus: item.fields.status,
         amounts: Object.keys(amounts).length > 0 ? amounts : null,

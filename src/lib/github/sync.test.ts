@@ -180,7 +180,7 @@ describe("failed database reads", () => {
     it("aborts on a failed task read for an issue before the deletion pass", async () => {
       mocks.fetchIssues.mockResolvedValue([{
         number: 7, nodeId: "node", title: "Issue", body: null, url: "https://github.com/guild/repo/issues/7", state: "OPEN",
-        labels: ["audited"], assigneeLogins: [],
+        labels: ["audited"], assignees: [],
         projectItems: [{ projectId: "proj-1", itemNodeId: "item-1", fields: { status: "In review", numbers: { ADA: 50 } } }],
       }]);
       // The per-issue read filters on the issue number; the repo-wide ones do not.

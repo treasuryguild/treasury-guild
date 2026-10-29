@@ -12,9 +12,11 @@ export type AssigneeWrite =
   | { source: "github"; id: string; wallet: string | null }
   | { source: "manual"; wallet: string };
 
-const TASK_ASSIGNEE_ROW_COLUMNS = "id, task_id, source, gh_login, wallet_address, position";
+const TASK_ASSIGNEE_ROW_COLUMNS = "id, task_id, source, gh_login, gh_user_id, wallet_address, position";
 // GitHub logins are [A-Za-z0-9-]; anything else never reaches a filter string.
 const LOGIN_RE = /^[A-Za-z0-9-]+$/;
+
+export type GithubAssigneeRef = { login: string; id: number };
 
 export async function loadTaskAssignees(taskId: string): Promise<TaskAssigneeRow[]> {
   return rows<TaskAssigneeRow>(
@@ -60,19 +62,22 @@ async function walletsByLogin(logins: string[]): Promise<Map<string, string>> {
 
 /**
  * Mirror the issue's assignee list onto the task's github rows: delete rows
- * for logins no longer assigned, insert rows for new ones, then fill any
- * github row still without a wallet from the linked contributor (never
- * overwriting, and never duplicating a wallet already on the task). Manual
- * rows are untouched. Returns the newly assigned logins with their wallet
- * (when linked) so the caller can auto-join them to the community.
+ * for logins no longer assigned, insert rows for new ones (with GitHub user
+ * id), stamp ids onto existing rows, then fill any github row still without a
+ * wallet from the linked contributor (never overwriting, and never
+ * duplicating a wallet already on the task). Manual rows are untouched.
+ * Returns the newly assigned logins with their wallet (when linked) so the
+ * caller can auto-join them to the community.
  */
 export async function syncGithubAssignees(
   taskId: string,
-  logins: string[],
+  assignees: readonly GithubAssigneeRef[],
 ): Promise<{ added: { login: string; wallet: string | null }[] }> {
   const db = serviceClient();
   const all = await loadTaskAssignees(taskId);
   const github = all.filter((a) => a.source === "github");
+  const logins = assignees.map((a) => a.login);
+  const idByLogin = new Map(assignees.map((a) => [a.login.toLowerCase(), a.id]));
   const diff = diffAssigneeLogins(
     github.map((a) => a.gh_login as string),
     logins,
@@ -94,10 +99,23 @@ export async function syncGithubAssignees(
           task_id: taskId,
           source: "github",
           gh_login: login,
+          gh_user_id: idByLogin.get(login.toLowerCase()) ?? null,
           position: nextPosition + i,
         })),
       ),
       "insert github assignees",
+    );
+  }
+
+  // Stamp the immutable id onto rows that only have a login (pre-0077 or a
+  // rename that kept the row): never clear an id that disagrees.
+  for (const row of github) {
+    const id = idByLogin.get((row.gh_login as string).toLowerCase());
+    if (id === undefined || row.gh_user_id === id) continue;
+    if (row.gh_user_id !== null) continue;
+    check(
+      await db.from("task_assignees").update({ gh_user_id: id }).eq("id", row.id),
+      "stamp assignee github user id",
     );
   }
 
@@ -126,16 +144,16 @@ export async function syncGithubAssignees(
 }
 
 /**
- * OAuth link backfill: give this wallet to every unlinked github row bearing
- * the login, on active tasks only (the archived guard would abort the link
- * flow) and never where the task already pays this wallet. Returns the number
- * of rows filled.
+ * OAuth link backfill: give this wallet to every unlinked github row carrying
+ * this GitHub user id, on active tasks only (the archived guard would abort
+ * the link flow) and never where the task already pays this wallet. Login
+ * alone is unverified (a renamed handle could be re-registered). Returns the
+ * number of rows filled.
  */
-export async function fillAssigneeWalletsByLogin(
-  login: string,
+export async function fillAssigneeWalletsByGithubUser(
+  githubUserId: number,
   wallet: string,
 ): Promise<number> {
-  if (!LOGIN_RE.test(login)) return 0;
   const db = serviceClient();
   const candidates = rows<{
     id: string;
@@ -145,9 +163,9 @@ export async function fillAssigneeWalletsByLogin(
     await db
       .from("task_assignees")
       .select("id, task_id, tasks!inner(archived_at, workgroups!inner(archived_at))")
-      .ilike("gh_login", login)
+      .eq("gh_user_id", githubUserId)
       .is("wallet_address", null),
-    "load unlinked assignee rows",
+    "load unlinked assignee rows by github user id",
   );
   const active = candidates.filter(
     (c) => !c.tasks?.archived_at && !c.tasks?.workgroups?.archived_at,

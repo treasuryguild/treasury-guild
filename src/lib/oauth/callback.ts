@@ -24,11 +24,11 @@ export function oauthRedirect(queryKey: string): OAuthRedirect {
 
 export type OAuthReturn =
   | { ok: true; state: OAuthState; wallet: string; returnTo: string }
-  | { ok: false; response: NextResponse };
+  | { ok: false; response: NextResponse; stateVerified: boolean };
 
 export type OAuthCallback =
   | { ok: true; code: string; state: OAuthState; wallet: string; returnTo: string }
-  | { ok: false; response: NextResponse };
+  | { ok: false; response: NextResponse; stateVerified: boolean };
 
 type ReturnOptions = { purpose: OAuthPurpose; fallback: string; redirect: OAuthRedirect; needsCommunity?: boolean };
 
@@ -70,9 +70,12 @@ function readReturn(
   const code = url.searchParams.get("code");
   const state = verifyOAuthState(purpose, url.searchParams.get("state") ?? "");
   const returnTo = state?.returnTo ?? fallback;
+  // stateVerified: host adapters may undo a provider-side consent only when
+  // the state was ours — a forged code must not trigger abandon.
   const fail = (outcome: string, reason: string): OAuthReturn => ({
     ok: false,
     response: redirect(returnTo, outcome, reason),
+    stateVerified: !!state,
   });
 
   // Authorize-step failures (access_denied, redirect_uri_mismatch) arrive as ?error=.

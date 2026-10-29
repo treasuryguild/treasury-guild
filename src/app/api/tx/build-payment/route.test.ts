@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(), context: vi.fn(), noPending: vi.fn(), withTx: vi.fn(),
   wallet: vi.fn(), siblings: vi.fn(), members: vi.fn(), setups: vi.fn(), sources: vi.fn(),
   insert: vi.fn(), build: vi.fn(), script: vi.fn(), provider: vi.fn(),
-  citations: vi.fn(), budgetProposal: vi.fn(), guard: vi.fn(), dueAnchors: vi.fn(), recordAnchors: vi.fn(),
+  citations: vi.fn(), budgetProposal: vi.fn(), budgetSettings: vi.fn(),
+  guard: vi.fn(), dueAnchors: vi.fn(), recordAnchors: vi.fn(),
 }));
 vi.mock("@/lib/governance/anchorsDue", () => ({ loadDueAnchorsBestEffort: mocks.dueAnchors }));
 vi.mock("@/lib/db/anchors", () => ({ recordProposalAnchors: mocks.recordAnchors }));
@@ -24,7 +25,9 @@ vi.mock("@/lib/db/payments", () => ({
 }));
 vi.mock("@/lib/db/budgetSetups", () => ({ loadBudgetSetupsForTreasury: mocks.setups, loadBudgetSources: mocks.sources }));
 vi.mock("@/lib/db/governance", () => ({
-  loadProposalCitations: mocks.citations, loadAppliedBudgetProposal: mocks.budgetProposal,
+  loadProposalCitations: mocks.citations,
+  loadAppliedBudgetProposal: mocks.budgetProposal,
+  loadGovernanceSettings: mocks.budgetSettings,
 }));
 vi.mock("@/lib/governance/spendGuard", async (importOriginal) => ({
   ...(await importOriginal<typeof SpendGuardModule>()),
@@ -75,6 +78,7 @@ beforeEach(() => {
   mocks.sources.mockResolvedValue({ setups: new Map(), plans: [] });
   mocks.citations.mockResolvedValue(new Map());
   mocks.budgetProposal.mockResolvedValue(null);
+  mocks.budgetSettings.mockResolvedValue({ enabled: false });
   mocks.guard.mockResolvedValue([]);
   mocks.script.mockReturnValue({ address: TREASURY, scriptCbor: "00" });
   mocks.provider.mockReturnValue({});
@@ -214,6 +218,16 @@ describe("build-payment API", () => {
     mocks.budgetProposal.mockResolvedValue(null);
     const response = await POST(request(body({ proposalId: "40000000-0000-4000-8000-000000000010" })), context);
     expect(response.status).toBe(400);
+    expect(mocks.build).not.toHaveBeenCalled();
+  });
+
+  it("refuses a transfer without a cited proposal while budget governance is on", async () => {
+    mocks.budgetSettings.mockResolvedValue({ enabled: true });
+    const response = await POST(request(body()), context);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Cite an applied budget proposal to transfer to another treasury while budget governance is on",
+    });
     expect(mocks.build).not.toHaveBeenCalled();
   });
 

@@ -17,6 +17,7 @@ function assignee(wallet: string | null, position = 0): PayableTask["task_assign
     id: `a${nextId++}`,
     source: wallet ? "manual" : "github",
     gh_login: wallet ? null : "carol",
+    gh_user_id: null,
     wallet_address: wallet,
     position,
     contributors: null,

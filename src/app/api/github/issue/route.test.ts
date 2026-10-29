@@ -118,8 +118,8 @@ describe("POST /api/github/issue (task)", () => {
 
   it("pushes assignees to GitHub and returns the synced github rows", async () => {
     mocks.loadAssignees.mockResolvedValue([
-      { id: "ga", source: "github", gh_login: "alice", wallet_address: "addr1a", position: 0 },
-      { id: "ma", source: "manual", gh_login: null, wallet_address: "addr1b", position: 1 },
+      { id: "ga", source: "github", gh_login: "alice", gh_user_id: 1, wallet_address: "addr1a", position: 0 },
+      { id: "ma", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr1b", position: 1 },
     ]);
     const response = await POST(
       request({ kind: "task", taskId: TASK, assignees: ["alice"] }),

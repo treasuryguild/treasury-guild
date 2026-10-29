@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NotFoundError, UnauthorizedError } from "@/lib/errors";
 
-const mocks = vi.hoisted(() => ({ session: vi.fn(), community: vi.fn(), add: vi.fn() }));
+const mocks = vi.hoisted(() => ({ session: vi.fn(), community: vi.fn(), add: vi.fn(), rate: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/db/communities", () => ({ requireCommunity: mocks.community }));
 vi.mock("@/lib/db/membership", () => ({ addMember: mocks.add }));
+vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rate }));
 import { POST } from "./route";
 
 const WALLET = "addr_test1newcomer";
@@ -18,6 +19,7 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({ wallet: WALLET });
   mocks.community.mockResolvedValue({ id: COMMUNITY, slug: "signius", visibility: "public" });
   mocks.add.mockResolvedValue(undefined);
+  mocks.rate.mockResolvedValue(undefined);
 });
 
 describe("POST /api/community/join", () => {

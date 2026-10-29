@@ -77,6 +77,21 @@ describe("developer access", () => {
     expect(mocks.context).not.toHaveBeenCalled();
   });
 
+  it("is absent in production even for an allowlisted wallet", async () => {
+    const env = process.env as Record<string, string | undefined>;
+    const before = env.NODE_ENV;
+    env.NODE_ENV = "production";
+    try {
+      expect((await get()).status).toBe(404);
+      expect((await post()).status).toBe(404);
+      expect(mocks.list).not.toHaveBeenCalled();
+      expect(mocks.context).not.toHaveBeenCalled();
+    } finally {
+      if (before === undefined) delete env.NODE_ENV;
+      else env.NODE_ENV = before;
+    }
+  });
+
   it("refuses wallets that are not on the allowlist, and everyone when it is empty", async () => {
     mocks.session.mockResolvedValue({ wallet: "addr_test1stranger" });
     const res = await get();

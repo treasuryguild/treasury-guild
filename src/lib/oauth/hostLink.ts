@@ -7,7 +7,7 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { parseJson, parseQuery, publicRoute, sessionRoute } from "@/lib/api/route";
+import { clientIp, parseJson, parseQuery, publicRoute, sessionRoute } from "@/lib/api/route";
 import { guildConnectQuerySchema, guildDisconnectSchema, safeReturnTo } from "@/lib/api/schemas";
 import type { OkResponse } from "@/lib/api/types";
 import { memberRole, requireAdmin } from "@/lib/authz";
@@ -15,6 +15,7 @@ import type { IntegrationProvider } from "@/lib/constants";
 import {
   deleteIntegration, loadIntegration, loadIntegrationSecrets, type IntegrationSecrets,
 } from "@/lib/db/callCapture";
+import { enforceRateLimit } from "@/lib/db/rateLimit";
 import type { CallIntegrationRecord } from "@/lib/db/types";
 import { appUrl } from "@/lib/env.server";
 import { ConfigError } from "@/lib/errors";
@@ -80,11 +81,13 @@ export function hostConnectRoute(adapter: HostLinkAdapter) {
 export function hostCallbackRoute(adapter: HostLinkAdapter) {
   const redirect = oauthRedirect(adapter.queryKey);
   return publicRoute(async (req, { session }) => {
+    await enforceRateLimit("hostOauthCallback", clientIp(req));
     const callback = readOAuthCallback(req, session, {
       purpose: adapter.purpose, fallback: routes.home(), redirect, needsCommunity: true,
     });
     if (!callback.ok) {
-      await abandon(adapter, new URL(req.url).searchParams.get("code"));
+      // Forged or garbage state: never exchange the code just to leave a guild.
+      if (callback.stateVerified) await abandon(adapter, new URL(req.url).searchParams.get("code"));
       return callback.response;
     }
     const { code, wallet, returnTo } = callback;

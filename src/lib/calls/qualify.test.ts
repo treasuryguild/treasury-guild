@@ -7,9 +7,10 @@ const base = {
 } as const;
 
 describe("call attendance threshold", () => {
-  it("takes a check-in or a manager's entry as proof of presence", () => {
+  it("takes a manager's entry as proof of presence; a check-in needs confirm", () => {
     expect(meetsThreshold(call, base)).toBe(true);
-    expect(meetsThreshold(call, { ...base, provider: "checkin" })).toBe(true);
+    expect(meetsThreshold(call, { ...base, provider: "checkin" })).toBe(false);
+    expect(meetsThreshold(call, { ...base, provider: "checkin", status: "confirmed" })).toBe(true);
   });
 
   it("holds captured attendees to the call's threshold", () => {

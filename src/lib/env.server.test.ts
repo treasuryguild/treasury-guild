@@ -115,8 +115,17 @@ describe("token and state secrets", () => {
     }
   });
 
-  it("leaves OAUTH_STATE_SECRET optional everywhere, production included", () => {
-    for (const mode of ["test", "production"]) {
+  it("requires OAUTH_STATE_SECRET in production", () => {
+    env.NODE_ENV = "production";
+    delete env.OAUTH_STATE_SECRET;
+    expect(() => oauthStateSecret()).toThrow(ConfigError);
+    expect(() => oauthStateSecret()).toThrow("OAUTH_STATE_SECRET is not configured");
+    env.OAUTH_STATE_SECRET = "state-secret";
+    expect(oauthStateSecret()).toBe("state-secret");
+  });
+
+  it("leaves OAUTH_STATE_SECRET optional outside production", () => {
+    for (const mode of ["test", "development"]) {
       env.NODE_ENV = mode;
       delete env.OAUTH_STATE_SECRET;
       expect(oauthStateSecret()).toBeUndefined();

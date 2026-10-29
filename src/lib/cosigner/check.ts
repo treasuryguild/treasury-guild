@@ -17,7 +17,7 @@ import "server-only";
 import { resolveTxHash } from "@meshsdk/core-cst";
 import { unitDisplayFromRegistry, unitTicker } from "@/lib/assetRegistry";
 import { budgetOwnerLabel, taskBudgetPeriod } from "@/lib/budgetSetups";
-import { currentBudgetMonth } from "@/lib/budgets";
+import { currentBudgetMonth, isFutureBudgetMonth } from "@/lib/budgets";
 import { decodeTxMint, decodeTxOutputs, extractPayoutMetadata } from "@/lib/cardano/cborMetadata";
 import { ExecutionState, ProposalKind, ProposalState, TxKind } from "@/lib/constants";
 import { loadAssetRegistry } from "@/lib/db/assets";
@@ -104,6 +104,11 @@ async function budgetProblems(
     }
   }
   if (lines.length === 0) return [];
+
+  // Stored budget_month can be set ahead of the build; refuse a future period
+  // here too so a co-signer never signs what the build should have rejected.
+  const future = lines.find((l) => isFutureBudgetMonth(l.periodMonth));
+  if (future) return [`Budget period ${future.periodMonth} is in the future`];
 
   const sources = await loadBudgetSources([...new Set(lines.map((l) => l.ownerKey))]);
   const budgets = budgetsForLines(lines, sources);

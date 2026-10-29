@@ -11,7 +11,7 @@ import { unitDisplayFromRegistry, unitTicker } from "@/lib/assetRegistry";
 import { AssetResolutionError, resolveTaskAmounts, type AssetDef } from "@/lib/assets";
 import { assigneeProblems, assigneeWallets } from "@/lib/assignees";
 import { isTreasuryActor, leadsAllWorkgroups } from "@/lib/authz";
-import { currentBudgetMonth } from "@/lib/budgets";
+import { currentBudgetMonth, isFutureBudgetMonth } from "@/lib/budgets";
 import { taskBudgetPeriod, type TaskBudgetPeriod } from "@/lib/budgetSetups";
 import { buildPayoutTx } from "@/lib/cardano/payoutBuilder";
 import { countPayments, groupByRecipient, recipientsOffNetwork } from "@/lib/cardano/payoutRecipients";
@@ -172,6 +172,10 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
     // The wallet routed for the task's own budget period: a task from before
     // a scheduled wallet change is still paid from the wallet of its period.
     const period = periods.get(t.id)!;
+    if (isFutureBudgetMonth(period.month)) {
+      problems.push(`${t.title}: budget period ${period.code} is in the future`);
+      return false;
+    }
     const routed = routedTreasuryAt(assignmentsByWorkgroup.get(t.workgroup_id) ?? [], period.month);
     if (routed && routed !== treasuryId) {
       problems.push(

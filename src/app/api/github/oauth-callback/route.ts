@@ -1,7 +1,7 @@
 import { publicRoute } from "@/lib/api/route";
 import { linkGithubAccount } from "@/lib/db/github";
-import { autoJoinCommunitiesForGithubLogin } from "@/lib/db/membership";
-import { fillAssigneeWalletsByLogin } from "@/lib/db/taskAssignees";
+import { autoJoinCommunitiesForGithubUser } from "@/lib/db/membership";
+import { fillAssigneeWalletsByGithubUser } from "@/lib/db/taskAssignees";
 import { appUrl, githubClientId, githubClientSecret } from "@/lib/env.server";
 import { ConfigError } from "@/lib/errors";
 import { oauthRedirect, readOAuthCallback } from "@/lib/oauth/callback";
@@ -68,14 +68,15 @@ export const GET = publicRoute(async (req, { session }) => {
     const linked = await linkGithubAccount(wallet, { login: user.login, id: user.id });
     if (linked === "taken") return redirect(returnTo, "taken");
 
-    // Backfill: GitHub assignee rows for this login that have no wallet yet.
-    // Wallets already set (manually or by an earlier link) are never touched.
-    await fillAssigneeWalletsByLogin(user.login, wallet);
+    // Backfill: GitHub assignee rows for this user id that have no wallet yet.
+    // Login alone is unverified (a renamed handle can be reclaimed). Wallets
+    // already set (manually or by an earlier link) are never touched.
+    await fillAssigneeWalletsByGithubUser(user.id, wallet);
 
-    // Auto-join: every community with a task assigned to this login. This is
-    // how contributors get into private GitHub-driven communities; the hourly
-    // sync covers assignments made after linking.
-    await autoJoinCommunitiesForGithubLogin(wallet, user.login);
+    // Auto-join: every community with a task assigned to this GitHub user id.
+    // This is how contributors get into private GitHub-driven communities;
+    // the hourly sync covers assignments made after linking.
+    await autoJoinCommunitiesForGithubUser(wallet, user.id);
 
     return redirect(returnTo, "connected");
   } catch (err) {

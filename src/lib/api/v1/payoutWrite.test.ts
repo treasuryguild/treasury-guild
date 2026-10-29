@@ -41,7 +41,7 @@ const MAIN = treasury("t-main", "Main");
 const OPS = treasury("t-ops", "Ops");
 const readyTask = (id: string, number: number, workgroup_id = "wg-dev") => ({
   id, number, workgroup_id, archived_at: null, amounts: { ADA: "50" }, bounty_lovelace: null,
-  task_assignees: [{ id: "a", source: "manual", gh_login: null, wallet_address: "addr_x", position: 0, contributors: null }],
+  task_assignees: [{ id: "a", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr_x", position: 0, contributors: null }],
 });
 const plan = (quantity = 50_000_000n, problems: unknown[] = []) => ({
   treasuryId: "t-main",
@@ -106,7 +106,7 @@ describe("payout_preview", () => {
 
   it("leaves out tasks that are not ready, and shows the budget problems", async () => {
     mocks.listTasks.mockResolvedValue({
-      tasks: [readyTask("k1", 12), { ...readyTask("k2", 13), task_assignees: [{ id: "b", source: "github", gh_login: "bo", wallet_address: null, position: 0, contributors: null }] }],
+      tasks: [readyTask("k1", 12), { ...readyTask("k2", 13), task_assignees: [{ id: "b", source: "github", gh_login: "bo", gh_user_id: 2, wallet_address: null, position: 0, contributors: null }] }],
       total: 2,
     });
     mocks.plan.mockResolvedValue(plan(50_000_000n, [{ code: "no_budget", ownerName: "Development", period: "Oct 2026" }]));

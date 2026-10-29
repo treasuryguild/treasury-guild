@@ -13,9 +13,14 @@ describe("installationClaim", () => {
     expect(installationClaim({ community_id: "a" }, "a", { created_at: ago(400 * 86_400_000) }, NOW)).toBe("update");
   });
 
-  it("claims an unbound installation GitHub just created or updated", () => {
+  it("claims an unbound installation GitHub just created", () => {
     expect(installationClaim(null, "a", { created_at: ago(60_000) }, NOW)).toBe("insert");
-    expect(installationClaim(null, "a", { created_at: ago(90 * 86_400_000), updated_at: ago(60_000) }, NOW)).toBe("insert");
+  });
+
+  it("ignores updated_at so an old installation cannot be reopened by a repo change", () => {
+    expect(installationClaim(null, "a", {
+      created_at: ago(90 * 86_400_000), updated_at: ago(60_000),
+    }, NOW)).toBe("stale");
   });
 
   it("refuses an unbound installation outside the window or without dates", () => {
