@@ -68,9 +68,13 @@ describe("import treasury API", () => {
     const response = await preview(request(), context);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      address: imported.address, scriptCbor: imported.scriptCbor, template: "plain", scriptType: "all", required: 2,
+      address: imported.address, scriptCbor: imported.scriptCbor, stakeCredentialHash: null, suggestedName: null,
+      template: "plain", scriptType: "all", required: 2,
       recovery: null, lockSlot: null, lockUntil: null,
-      signers: [{ keyHash: hashA, address: addrA, group: "base" }, { keyHash: hashB, address: addrB, group: "base" }],
+      signers: [
+        { keyHash: hashA, address: addrA, group: "base", name: "" },
+        { keyHash: hashB, address: addrB, group: "base", name: "" },
+      ],
     });
     expect(mocks.insert).not.toHaveBeenCalled();
   });
