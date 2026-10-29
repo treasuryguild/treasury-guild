@@ -68,7 +68,7 @@ describe("treasury budgets", () => {
     const input = props();
     input.treasuries = [{
       id: "main", name: "Main", address: "addr_main", required: 1, script_type: "atLeast",
-      template: "plain", lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null, archived_at: null,
+      template: "plain", lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null, archived_at: null, stake_credential_hash: null,
       treasury_signers: [{ signer_group: "base" }],
     }];
     input.setups.push({

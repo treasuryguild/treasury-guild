@@ -169,6 +169,8 @@ export interface TreasuryDetailsSigner {
   displayName: string | null;
   /** base, recovery or cosigner. */
   group: SignerGroup;
+  stakeKeyHash: string | null;
+  drepKeyHash: string | null;
 }
 /** Everything the treasury details dialog shows, re-derived from the DB rows. */
 export interface TreasuryDetails {
@@ -194,6 +196,12 @@ export interface TreasuryDetails {
   scriptHash: string;
   stakeCredentialHash: string | null;
   stakeAddress: string | null;
+  /** CIP-129 script DRep id when the treasury can act as a DRep. */
+  dRepId: string | null;
+  /** Plain template with a complete role-2 stake-key set. */
+  sdk: boolean;
+  canStake: boolean;
+  canDrep: boolean;
   signers: TreasuryDetailsSigner[];
 }
 export interface TreasuryDetailsResponse {
@@ -298,6 +306,43 @@ export interface BuildMintResponse extends BuildTxResponse {
   lockSlot: number | null;
   lockUntil: string | null;
   units: string[];
+}
+export interface BuildStakeResponse extends BuildTxResponse {
+  action: string;
+  rewardAddress: string;
+}
+export interface BuildDrepResponse extends BuildTxResponse {
+  action: string;
+  dRepId: string;
+  anchorUrl: string | null;
+}
+export interface BuildVoteResponse extends BuildTxResponse {
+  dRepId: string;
+  votes: number;
+}
+export interface StakeAccountResponse {
+  rewardAddress: string;
+  active: boolean;
+  poolId: string | null;
+  dRepId: string | null;
+  rewardsAvailable: string;
+}
+export interface DrepStatusResponse {
+  dRepId: string;
+  active: boolean;
+  votingPower: string | null;
+  metaUrl: string | null;
+}
+export interface ChainProposalsResponse {
+  proposals: {
+    txHash: string;
+    certIndex: number;
+    type: string | null;
+    title: string | null;
+    abstract: string | null;
+    metaUrl: string | null;
+    expiration: number | null;
+  }[];
 }
 /** POST /api/tx/build-anchor: a metadata-only transaction carrying the community's due anchors. */
 export interface BuildAnchorResponse extends BuildTxResponse {

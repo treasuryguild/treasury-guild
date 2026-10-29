@@ -7,6 +7,7 @@ import {
   addressToNetwork,
   checkValidAddress,
   paymentKeyHash,
+  stakeKeyHash,
   type MultisigKey,
 } from "@/lib/cardano/multisigSDK";
 import { slotAt, slotTime } from "@/lib/cardano/slots";
@@ -35,7 +36,10 @@ import { describeTreasury } from "@/lib/treasury";
 
 const LINK_REASON = "Linked when the treasury was created";
 
-type SignerRow = Pick<TreasurySignerRow, "wallet_address" | "key_hash" | "display_name" | "signer_group">;
+type SignerRow = Pick<
+  TreasurySignerRow,
+  "wallet_address" | "key_hash" | "display_name" | "signer_group" | "stake_key_hash" | "drep_key_hash"
+>;
 
 /** Treasury details (native script, CBOR, signers) for any community member. */
 export const GET = sessionRoute(async (req, { session }) => {
@@ -45,12 +49,21 @@ export const GET = sessionRoute(async (req, { session }) => {
   return { treasury: describeTreasury(treasury, signers) } satisfies TreasuryDetailsResponse;
 });
 
-function signerRow(input: { address: string; name?: string }, group: SignerGroup): SignerRow {
+function signerRow(
+  input: { address: string; name?: string; stakeAddress?: string; drepKeyHash?: string },
+  group: SignerGroup,
+): SignerRow {
   return {
     wallet_address: input.address,
     key_hash: paymentKeyHash(input.address),
     display_name: input.name?.trim() || null,
     signer_group: group,
+    stake_key_hash: group === SignerGroup.Base && input.stakeAddress
+      ? stakeKeyHash(input.stakeAddress)
+      : null,
+    drep_key_hash: group === SignerGroup.Base && input.drepKeyHash
+      ? input.drepKeyHash.toLowerCase()
+      : null,
   };
 }
 
@@ -123,6 +136,8 @@ function newTreasuryRows(body: CreateTreasuryBody, network: Network): {
         key_hash: appKey.keyHash,
         display_name: COSIGNER_DISPLAY_NAME,
         signer_group: SignerGroup.Cosigner,
+        stake_key_hash: null,
+        drep_key_hash: null,
       });
       cosignerKeyHash = appKey.keyHash;
       cosignerKind = CosignerKind.App;
@@ -231,8 +246,19 @@ export const POST = sessionRoute(async (req, { session }) => {
   }
 
   const paymentScript = imported?.paymentScript ?? templateScript(shape);
-  const baseKeys: MultisigKey[] = baseRows.map((s) => ({ keyHash: s.key_hash, role: 0, name: s.display_name ?? "" }));
+  const baseKeys: MultisigKey[] = [];
+  for (const s of baseRows) {
+    baseKeys.push({ keyHash: s.key_hash, role: 0, name: s.display_name ?? "" });
+    if (s.stake_key_hash) baseKeys.push({ keyHash: s.stake_key_hash, role: 2, name: s.display_name ?? "" });
+    if (s.drep_key_hash) baseKeys.push({ keyHash: s.drep_key_hash, role: 3, name: s.display_name ?? "" });
+  }
   const msWallet = new MultisigWallet(name, baseKeys, "", shape.base.required, network, undefined, shape.base.scriptType, paymentScript);
+  if (baseRows.some((s) => s.stake_key_hash) && !msWallet.stakingEnabled()) {
+    throw new BadRequestError("Every base signer needs a stake address for a stakeable (SDK) treasury");
+  }
+  const stakeCredentialHash = msWallet.stakingEnabled()
+    ? msWallet.getStakeCredentialHash() ?? null
+    : null;
   const { address, scriptCbor } = msWallet.getScript();
   if (!scriptCbor) throw new InvariantError("Failed to derive multisig script");
 
@@ -244,6 +270,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     script_type: shape.base.scriptType,
     address,
     script_cbor: scriptCbor,
+    stake_credential_hash: stakeCredentialHash,
     template: shape.template,
     lock_slot: shape.lockSlot,
     lock_until: built.lockUntil,

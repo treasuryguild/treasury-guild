@@ -24,7 +24,7 @@ const signerRow = (key_hash: string, i: number, signer_group: TreasurySignerRow[
   treasury_id: "t1",
   wallet_address: `addr_test1signer${i}`,
   key_hash,
-  stake_key_hash: null,
+  stake_key_hash: null, drep_key_hash: null,
   display_name: null,
   signer_group,
 });
@@ -155,6 +155,10 @@ describe("describeTreasury", () => {
       nativeScript: resolved.paymentScript,
       stakeCredentialHash: null,
       stakeAddress: null,
+      dRepId: null,
+      sdk: false,
+      canStake: false,
+      canDrep: false,
     });
     expect(details.scriptHash).toMatch(/^[0-9a-f]{56}$/);
     // Signers mirror the `sig` leaves of the script, not the DB row order.
@@ -168,6 +172,8 @@ describe("describeTreasury", () => {
       keyHash: hashC,
       displayName: null,
       group: "base",
+      stakeKeyHash: null,
+      drepKeyHash: null,
     });
   });
 

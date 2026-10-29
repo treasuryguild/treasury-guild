@@ -59,7 +59,8 @@ Only admins can create a treasury, and their wallet must be on the community's n
 4. Under **Signers (payment addresses)** (**Base signers (payment addresses)** once a template is chosen), pick a community member to fill name and address (admins, then workgroup leads, then members), or paste each signer's **payment address** (`addr…` on mainnet, `addr_test…` on preprod) and give them a name. The form starts with two rows; **+ Add signer** adds more, and rows left blank are ignored. Every address must be on the community's network and listed once. When you create the community's first treasury, you must be one of its base signers.
 5. Set **Required signatures**, the number of signers that must approve each transaction; the label reads back the rule, for example **2 of 3**.
 6. Choose a **Template**: **Plain multisig** (the default) or one of the [treasury templates](/docs/treasury#treasury-templates) below, which add a lock date, recovery signers or a co-signer. Depending on the template, set the **Lock date** (at least one hour from now), the **Recovery signers (payment addresses)** with their **Recovery rule** (any, all or at least N of them), or the **Co-signer**: **A member** you pick from the member list, or **Treasury Guild (app-held key)**.
-7. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
+7. For a **plain** treasury that should stake and act as a Cardano DRep, tick **Enable staking and Cardano governance (SDK wallet)** and give every base signer a **stake address** (`stake…` / `stake_test…`). An optional **DRep key hash** per signer builds a dedicated DRep script; without a complete set, the payment script is used as the DRep. Leave the box unticked for a legacy spend-only wallet. Clawback, lock-until and co-signer templates cannot stake — create a separate plain SDK treasury instead.
+8. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
 
 When you linked a workgroup, the page then tells you when the link starts: from the current budget period, or from the **next** one when the workgroup was already paid from another wallet this period. If the workgroup already has a later wallet change scheduled, the treasury is still created but not linked; set the wallet from the workgroup's **Edit details** dialog instead. Only one workgroup can be linked here; link more from each workgroup's own dialog.
 
@@ -73,12 +74,23 @@ A treasury's native script has one of four fixed shapes. The base signers and th
 
 | Template | Script | What it means |
 |---|---|---|
-| **Plain multisig** | `base` | The base signers spend under their rule. |
-| **Clawback** | `any[ base, all[ recovery, after(slot) ] ]` | The base signers can always spend; from the lock date the recovery signers can move the funds out too. |
-| **Lock-until** | `all[ base, after(slot) ]` | Nobody can spend before the lock date; the treasury can still receive. |
-| **Co-signer** | `any[ all[ base, sig(co-signer) ], all[ every base signer ] ]` | A normal spend needs the base rule plus the co-signer, who signs only what passes a check; every base signer together can spend without the co-signer. |
+| **Plain multisig** | `base` | The base signers spend under their rule. With stake keys for every base signer it is an **SDK** wallet that can [stake and act as a DRep](/docs/treasury#staking-and-cardano-governance). |
+| **Clawback** | `any[ base, all[ recovery, after(slot) ] ]` | The base signers can always spend; from the lock date the recovery signers can move the funds out too. Spend-only — no staking or DRep. |
+| **Lock-until** | `all[ base, after(slot) ]` | Nobody can spend before the lock date; the treasury can still receive. Spend-only — no staking or DRep. |
+| **Co-signer** | `any[ all[ base, sig(co-signer) ], all[ every base signer ] ]` | A normal spend needs the base rule plus the co-signer, who signs only what passes a check; every base signer together can spend without the co-signer. Spend-only — no staking or DRep. |
 
 The **Details** dialog shows the template, the lock date with its slot, each group's rule and every signer with its group. The templates cannot be combined, and a lock or a co-signer cannot be added to an existing treasury.
+
+## Staking and Cardano governance
+
+A **plain SDK** treasury stores a stake key hash (and optionally a DRep key hash) for every base signer. Its payment address is a *base* address whose stake credential is the hash of the stake native script (same `all` / `any` / `atLeast` rule as the payment script). Legacy plain wallets created without stake keys, and every clawback / lock-until / co-signer treasury, cannot stake or vote on-chain — create a new plain SDK treasury and [transfer](/docs/payments) the funds.
+
+On the Treasury page an SDK wallet shows **Staking** and **Cardano gov** links:
+
+- **Staking** — register the stake key, delegate to a pool, withdraw rewards, deregister, or set vote-delegation (always abstain, always no confidence, or a DRep id). Signers must witness with both their payment and stake keys.
+- **Cardano governance** — register, update or retire the treasury as a script DRep, and cast on-chain votes on active Cardano governance proposals. This is separate from community [Proposals](/docs/governance). When DRep key hashes are incomplete, the payment script acts as the DRep.
+
+Imported CBOR wallets stay unstaked (the script bytes do not carry a stake credential). There is no in-place upgrade: the address would change.
 
 ### Clawback
 

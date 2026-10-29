@@ -241,6 +241,17 @@ export default function TreasuryPage({
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
+                  {t.template === "plain" && t.stake_credential_hash && !archived && (
+                    <>
+                      <Badge tone="green">SDK</Badge>
+                      <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
+                        Staking
+                      </LinkButton>
+                      <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
+                        Cardano gov
+                      </LinkButton>
+                    </>
+                  )}
                   <Button
                     variant="secondary"
                     onClick={() => setDetailsId(t.id)}
@@ -320,6 +331,7 @@ export default function TreasuryPage({
         <TreasuryDetailsModal
           treasuryId={detailsTreasury.id}
           treasuryName={detailsTreasury.name}
+          slug={slug}
           onClose={() => setDetailsId(null)}
         />
       )}

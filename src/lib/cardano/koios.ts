@@ -51,6 +51,10 @@ export async function koiosPost(
   });
 }
 
+async function koiosGet(network: Network, path: string): Promise<unknown> {
+  return koiosFetch(network, path, { method: "GET" });
+}
+
 /** POST with offset pagination until a short page arrives (8-page cap). */
 async function koiosPostAllPages<T>(
   network: Network,
@@ -201,4 +205,93 @@ export async function assetInfoBulk(
     }
   }
   return out;
+}
+
+// --- Stake account / DRep / governance proposals (SDK staking) ---------------
+
+export interface KoiosAccountInfo {
+  stake_address: string;
+  status: "registered" | "not registered" | string;
+  delegated_pool: string | null;
+  delegated_drep: string | null;
+  rewards_available: string;
+  total_balance?: string;
+}
+
+export interface StakeAccountStatus {
+  active: boolean;
+  poolId: string | null;
+  dRepId: string | null;
+  rewardsAvailable: string;
+}
+
+/** POST /account_info — empty / missing row means never registered. */
+export async function fetchStakeAccountStatus(
+  network: Network,
+  rewardAddress: string,
+): Promise<StakeAccountStatus> {
+  const rows = (await koiosPost(network, "/account_info", {
+    _stake_addresses: [rewardAddress],
+  })) as KoiosAccountInfo[];
+  const row = rows[0];
+  if (!row) return { active: false, poolId: null, dRepId: null, rewardsAvailable: "0" };
+  return {
+    active: row.status === "registered",
+    poolId: row.delegated_pool ?? null,
+    dRepId: row.delegated_drep ?? null,
+    rewardsAvailable: row.rewards_available ?? "0",
+  };
+}
+
+export interface KoiosDrepInfo {
+  drep_id: string;
+  drep_status: "registered" | "deregistered" | "not_registered" | string;
+  active: boolean;
+  amount?: string;
+  meta_url?: string | null;
+}
+
+export interface DrepOnChainStatus {
+  active: boolean;
+  votingPower: string | null;
+  metaUrl: string | null;
+}
+
+/** POST /drep_info — missing row means never registered. */
+export async function fetchDrepStatus(
+  network: Network,
+  dRepId: string,
+): Promise<DrepOnChainStatus> {
+  const rows = (await koiosPost(network, "/drep_info", {
+    _drep_ids: [dRepId],
+  })) as KoiosDrepInfo[];
+  const row = rows[0];
+  if (!row) return { active: false, votingPower: null, metaUrl: null };
+  return {
+    active: row.drep_status === "registered" && row.active === true,
+    votingPower: row.amount ?? null,
+    metaUrl: row.meta_url ?? null,
+  };
+}
+
+export interface KoiosProposal {
+  proposal_id?: string;
+  tx_hash: string;
+  cert_index: number;
+  governance_type?: string;
+  expiration?: number | null;
+  ratified_epoch?: number | null;
+  enacted_epoch?: number | null;
+  dropped_epoch?: number | null;
+  meta_url?: string | null;
+  meta_title?: string | null;
+  meta_abstract?: string | null;
+}
+
+/** Active governance proposals (not ratified/enacted/dropped). */
+export async function fetchActiveProposals(network: Network): Promise<KoiosProposal[]> {
+  const rows = (await koiosGet(network, "/proposal_list")) as KoiosProposal[];
+  return (rows ?? []).filter(
+    (p) => p.ratified_epoch == null && p.enacted_epoch == null && p.dropped_epoch == null,
+  );
 }

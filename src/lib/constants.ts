@@ -42,8 +42,33 @@ export const TxKind = {
   Payment: "payment",
   /** Metadata only, no outputs: proposal anchors (label 190002); change back to the treasury. */
   Anchor: "anchor",
+  /** Stake registration / delegation / deregistration / withdrawal / vote-delegation (SDK only). */
+  Stake: "stake",
+  /** DRep registration / update / retirement (SDK only). */
+  Drep: "drep",
+  /** On-chain governance votes as the treasury's script DRep (SDK only). */
+  Vote: "vote",
 } as const;
 export type TxKind = (typeof TxKind)[keyof typeof TxKind];
+
+/** Stake certificate / withdrawal actions stored on transactions.governance_action. */
+export const StakeAction = {
+  Register: "register",
+  RegisterAndDelegate: "register_and_delegate",
+  Delegate: "delegate",
+  Deregister: "deregister",
+  Withdraw: "withdraw",
+  VoteDelegation: "vote_delegation",
+} as const;
+export type StakeAction = (typeof StakeAction)[keyof typeof StakeAction];
+
+/** DRep certificate actions stored on transactions.governance_action. */
+export const DrepAction = {
+  Register: "register",
+  Update: "update",
+  Retire: "retire",
+} as const;
+export type DrepAction = (typeof DrepAction)[keyof typeof DrepAction];
 
 /** treasuries.template: the fixed native-script shape of a treasury (migration 0061). */
 export const TreasuryTemplate = {

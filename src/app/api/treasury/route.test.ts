@@ -9,8 +9,16 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.requireAdmin, requireMember: vi.fn() }));
 vi.mock("@/lib/cardano/multisigSDK", () => ({
-  MultisigWallet: class { getScript() { return { address: "addr_test1script", scriptCbor: "8200" }; } },
-  addressToNetwork: () => 0, checkValidAddress: () => true, paymentKeyHash: (address: string) => `hash-${address}`,
+  MultisigWallet: class {
+    getScript() { return { address: "addr_test1script", scriptCbor: "8200" }; }
+    stakingEnabled() { return false; }
+    getStakeCredentialHash() { return undefined; }
+  },
+  addressToNetwork: () => 0,
+  checkValidAddress: () => true,
+  checkValidStakeKey: () => true,
+  paymentKeyHash: (address: string) => `hash-${address}`,
+  stakeKeyHash: (address: string) => `stake-${address}`,
 }));
 vi.mock("@/lib/treasury", () => ({ describeTreasury: vi.fn() }));
 vi.mock("@/lib/db/client", () => ({

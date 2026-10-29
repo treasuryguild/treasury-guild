@@ -32,7 +32,7 @@ export function SignerMemberPick({
   function choose(wallet: string) {
     const picked: SignerMemberOption | undefined = options.find((o) => o.wallet === wallet);
     if (!picked) return;
-    onPick({ address: picked.wallet, name: picked.name });
+    onPick({ address: picked.wallet, name: picked.name, stakeAddress: "", drepKeyHash: "" });
   }
 
   return (

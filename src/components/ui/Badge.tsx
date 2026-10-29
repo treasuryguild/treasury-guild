@@ -35,11 +35,14 @@ export function TxStateBadge({ state }: { state: number }) {
   return <Badge tone={meta.tone}>{meta.label}</Badge>;
 }
 
-/** "Mint" / "Payment" / "Anchor" marker for those transaction kinds; renders nothing for payouts. */
+/** Kind marker for non-payout transactions; renders nothing for payouts. */
 export function TxKindBadge({ kind }: { kind: string }) {
   if (kind === TxKind.Mint) return <Badge tone="blue">Mint</Badge>;
   if (kind === TxKind.Payment) return <Badge tone="blue">Payment</Badge>;
   if (kind === TxKind.Anchor) return <Badge tone="blue">Anchor</Badge>;
+  if (kind === TxKind.Stake) return <Badge tone="blue">Stake</Badge>;
+  if (kind === TxKind.Drep) return <Badge tone="blue">DRep</Badge>;
+  if (kind === TxKind.Vote) return <Badge tone="blue">Vote</Badge>;
   return null;
 }
 

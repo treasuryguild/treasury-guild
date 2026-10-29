@@ -30,7 +30,9 @@ vi.mock("@/lib/db/membership", async (importOriginal) => ({
 }));
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
   ...(await importOriginal<typeof Treasuries>()),
-  countCommunityTreasuries: mocks.count, loadTreasuryWithSigners: vi.fn(),
+  countCommunityTreasuries: mocks.count,
+  findTreasuryByAddress: vi.fn(async () => null),
+  loadTreasuryWithSigners: vi.fn(),
 }));
 vi.mock("@/lib/db/workgroups", () => ({ workgroupCommunityId: async () => "10000000-0000-4000-8000-000000000001", requireActiveWorkgroup: vi.fn() }));
 vi.mock("@/lib/db/workgroupRouting", () => ({ setWorkgroupTreasury: mocks.link }));
@@ -81,8 +83,8 @@ describe("import treasury API", () => {
       template: "plain", lock_slot: null, lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null,
     }));
     expect(mocks.insert).toHaveBeenNthCalledWith(2, [
-      { treasury_id: "treasury-1", wallet_address: addrA, key_hash: hashA, display_name: null, signer_group: "base" },
-      { treasury_id: "treasury-1", wallet_address: addrB, key_hash: hashB, display_name: null, signer_group: "base" },
+      { treasury_id: "treasury-1", wallet_address: addrA, key_hash: hashA, display_name: null, signer_group: "base", stake_key_hash: null, drep_key_hash: null },
+      { treasury_id: "treasury-1", wallet_address: addrB, key_hash: hashB, display_name: null, signer_group: "base", stake_key_hash: null, drep_key_hash: null },
     ]);
     expect(mocks.promote).toHaveBeenCalledWith("10000000-0000-4000-8000-000000000001", [addrA, addrB]);
   });

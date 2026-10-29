@@ -10,16 +10,20 @@ import { templateLabel } from "@/lib/cardano/spendingPaths";
 import { describeThreshold } from "@/lib/cardano/thresholds";
 import { networkName } from "@/lib/config";
 import { formatDate, shortAddress } from "@/lib/format";
+import { routes } from "@/lib/routes";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { Button, CopyButton, ErrorText, ExplorerLink, Modal, Spinner } from "@/components/ui";
+import { Button, CopyButton, ErrorText, ExplorerLink, LinkButton, Modal, Spinner } from "@/components/ui";
 
 export function TreasuryDetailsModal({
   treasuryId,
   treasuryName,
+  slug,
   onClose,
 }: {
   treasuryId: string;
   treasuryName: string;
+  /** Community slug for staking / Cardano gov links. */
+  slug?: string;
   onClose: () => void;
 }) {
   const titleId = useId();
@@ -94,6 +98,7 @@ export function TreasuryDetailsModal({
             <Row label="Script hash" hint="Also the policy id of tokens minted without a time lock.">
               <Hex value={t.scriptHash} />
             </Row>
+            {t.sdk && <Row label="Wallet kind">SDK (staking and Cardano governance)</Row>}
             {t.stakeAddress && (
               <Row label="Stake address">
                 <Hex value={t.stakeAddress} />
@@ -104,7 +109,24 @@ export function TreasuryDetailsModal({
                 <Hex value={t.stakeCredentialHash} />
               </Row>
             )}
+            {t.dRepId && (
+              <Row label="DRep id">
+                <Hex value={t.dRepId} />
+              </Row>
+            )}
           </dl>
+          {slug && t.canStake && (
+            <div className="flex flex-wrap gap-2">
+              <LinkButton href={routes.treasuryStaking(slug, treasuryId)} variant="secondary">
+                Staking
+              </LinkButton>
+              {t.canDrep && (
+                <LinkButton href={routes.treasuryCardanoGov(slug, treasuryId)} variant="secondary">
+                  Cardano governance
+                </LinkButton>
+              )}
+            </div>
+          )}
 
           <section>
             <SectionLabel>Signers ({t.signers.length}, in script order)</SectionLabel>

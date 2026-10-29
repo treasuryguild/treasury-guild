@@ -203,6 +203,7 @@ export async function insertTreasury(row: {
   script_type: string;
   address: string;
   script_cbor: string;
+  stake_credential_hash?: string | null;
   template: TreasuryTemplate;
   lock_slot: number | null;
   lock_until: string | null;
@@ -259,7 +260,10 @@ export async function deleteTreasury(treasuryId: string): Promise<void> {
 
 export async function insertTreasurySigners(
   treasuryId: string,
-  signers: Pick<TreasurySignerRow, "wallet_address" | "key_hash" | "display_name" | "signer_group">[],
+  signers: Pick<
+    TreasurySignerRow,
+    "wallet_address" | "key_hash" | "display_name" | "signer_group" | "stake_key_hash" | "drep_key_hash"
+  >[],
 ): Promise<void> {
   check(
     await serviceClient()
