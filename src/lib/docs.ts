@@ -230,6 +230,7 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.includes("/proposals"), { slug: "governance" }],
   [(p) => p.includes("/settings/github"), { slug: "github" }],
   [(p) => p.includes("/settings/members"), { slug: "members-roles" }],
+  [(p) => p.includes("/workgroups"), { slug: "workgroups-boards" }],
   [(p) => p.includes("/boards/"), { slug: "workgroups-boards" }],
   [(p) => p.includes("/tx/"), { slug: "transactions" }],
   [(p) => p.startsWith("/c/"), { slug: "communities", hash: "community-overview" }],

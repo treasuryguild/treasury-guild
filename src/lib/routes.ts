@@ -69,6 +69,8 @@ export const routes = {
   /** Who proposes and votes on what, per proposal kind (admins edit). */
   governanceSettings: (slug: string) => `/c/${slug}/settings/governance`,
   members: (slug: string) => `/c/${slug}/settings/members`,
+  /** Catalog of boards; the kanban itself stays at `board`. */
+  workgroups: (slug: string) => `/c/${slug}/workgroups`,
   board: (slug: string, workgroupId: string) =>
     `/c/${slug}/boards/${workgroupId}`,
   tx: (slug: string, txId: string) => `/c/${slug}/tx/${txId}`,
@@ -76,6 +78,7 @@ export const routes = {
 
 export type CommunityRouteKey =
   | "community"
+  | "workgroups"
   | "treasury"
   | "payday"
   | "payments"
@@ -97,11 +100,21 @@ export interface CommunityNavEntry {
   label: string;
   /** Match the path exactly (overview) rather than by prefix. */
   exact?: boolean;
+  /**
+   * Also mark this entry active when the path matches (e.g. Workgroups while
+   * on a board page, whose URL is still `/boards/…`).
+   */
+  activeOn?: (pathname: string) => boolean;
 }
 
 /** Sidebar entries for a community, in display order. Icons live in AppShell. */
 export const COMMUNITY_NAV: readonly CommunityNavEntry[] = [
   { key: "community", label: "Overview", exact: true },
+  {
+    key: "workgroups",
+    label: "Workgroups",
+    activeOn: (pathname) => /\/c\/[^/]+\/boards\//.test(pathname),
+  },
   { key: "treasury", label: "Treasury" },
   { key: "budgets", label: "Budgets" },
   { key: "dashboard", label: "Dashboard" },
@@ -193,6 +206,7 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p.includes("/proposals"), "Proposals"],
   [(p) => p.includes("/settings/github"), "GitHub"],
   [(p) => p.includes("/settings/members"), "Members"],
+  [(p) => p.includes("/workgroups"), "Workgroups"],
   [(p) => p.includes("/boards/"), "Workgroup board"],
   [(p) => p.includes("/tx/"), "Transaction"],
   [(p) => p.startsWith("/c/"), "Community overview"],

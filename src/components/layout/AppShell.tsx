@@ -13,6 +13,7 @@ import {
   Compass,
   FolderGit2,
   Home,
+  Kanban,
   Landmark,
   Scale,
   LayoutDashboard,
@@ -53,6 +54,7 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
   exact?: boolean;
+  activeOn?: (pathname: string) => boolean;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
@@ -68,6 +70,7 @@ const DEV_ITEM: NavItem = { label: "Dev tools", href: routes.dev(), icon: Wrench
 
 const COMMUNITY_ICONS: Record<CommunityRouteKey, LucideIcon> = {
   community: LayoutDashboard,
+  workgroups: Kanban,
   treasury: Landmark,
   budgets: ChartNoAxesCombined,
   dashboard: ChartPie,
@@ -91,6 +94,7 @@ function communityItems(slug: string): NavItem[] {
     href: communityHref(entry.key, slug),
     icon: COMMUNITY_ICONS[entry.key],
     exact: entry.exact,
+    activeOn: entry.activeOn,
   }));
 }
 
@@ -106,7 +110,9 @@ function NavLink({
   const pathname = usePathname();
   const active = item.exact
     ? pathname === item.href
-    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+    : pathname === item.href ||
+      pathname.startsWith(`${item.href}/`) ||
+      !!item.activeOn?.(pathname);
   const Icon = item.icon;
 
   return (

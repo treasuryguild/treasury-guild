@@ -13,6 +13,7 @@ describe("routes", () => {
   it("builds community-scoped paths", () => {
     expect(routes.community("dao")).toBe("/c/dao");
     expect(routes.tx("dao", "abc")).toBe("/c/dao/tx/abc");
+    expect(routes.workgroups("dao")).toBe("/c/dao/workgroups");
     expect(routes.board("dao", "wg")).toBe("/c/dao/boards/wg");
     expect(routes.dashboard("dao")).toBe("/c/dao/dashboard");
     expect(routes.dashboard("dao", { month: "2026-07", view: "quarter" })).toBe("/c/dao/dashboard?month=2026-07&view=quarter");
@@ -64,6 +65,7 @@ describe("routes", () => {
     expect(pageLabel("/c/dao/proposals")).toBe("Proposals");
     expect(pageLabel("/c/dao/proposals/abc")).toBe("Proposal");
     expect(pageLabel("/c/dao/settings/governance")).toBe("Governance");
+    expect(pageLabel("/c/dao/workgroups")).toBe("Workgroups");
     expect(pageLabel("/c/dao/boards/wg")).toBe("Workgroup board");
     expect(pageLabel("/c/dao/tx/abc")).toBe("Transaction");
     expect(pageLabel("/c/dao")).toBe("Community overview");

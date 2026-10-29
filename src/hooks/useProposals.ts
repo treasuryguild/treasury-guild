@@ -6,7 +6,7 @@
 import { apiFetch } from "@/lib/api/client";
 import type { AnchorsDueResponse, IpfsGatewayResponse } from "@/lib/api/types";
 import { browserClient } from "@/lib/supabase/browser";
-import { ProposalKind, type VoteChoice } from "@/lib/constants";
+import { ProposalKind, ProposalState, type VoteChoice } from "@/lib/constants";
 import {
   GOVERNANCE_COMMUNITY_SETTINGS_COLUMNS, GOVERNANCE_SETTING_CHANGE_COLUMNS, GOVERNANCE_SETTINGS_COLUMNS,
   PROPOSAL_ANCHOR_WITH_TX_COLUMNS, PROPOSAL_BUDGET_OWNER_COLUMNS, PROPOSAL_COLUMNS,
@@ -29,6 +29,19 @@ export function useProposals(communityId: string | null | undefined): AsyncData<
   return useAsyncData(communityId, async () => unwrap<ProposalRow[]>(
     await browserClient().from("proposals").select(PROPOSAL_COLUMNS)
       .eq("community_id", communityId).order("created_at", { ascending: false }),
+  ));
+}
+
+/** Open workgroup proposals (discussion or voting) — not yet created as boards. */
+export function useProposedWorkgroups(
+  communityId: string | null | undefined,
+): AsyncData<ProposalRow[]> {
+  return useAsyncData(communityId, async () => unwrap<ProposalRow[]>(
+    await browserClient().from("proposals").select(PROPOSAL_COLUMNS)
+      .eq("community_id", communityId)
+      .eq("kind", ProposalKind.Workgroup)
+      .in("state", [ProposalState.Discussion, ProposalState.Voting])
+      .order("created_at", { ascending: false }),
   ));
 }
 
