@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type * as Match from "@/lib/reconciliation/match";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +15,7 @@ vi.mock("@/lib/db/incoming", () => ({
 vi.mock("@/lib/db/tasks", () => ({ markTaskReconciled: mocks.reconcileTask }));
 vi.mock("@/lib/db/treasuries", () => ({ isTreasurySigner: mocks.signer }));
 vi.mock("@/lib/reconciliation/match", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/reconciliation/match")>()),
+  ...(await importOriginal<typeof Match>()),
   suggestMatches: mocks.suggest,
 }));
 import { GET, POST } from "./route";
