@@ -1203,6 +1203,8 @@ export const githubIssueEditSchema = z.discriminatedUnion("kind", [
 export type GithubIssueEditBody = z.infer<typeof githubIssueEditSchema>;
 export const githubSetupQuerySchema = z.object({
   installation_id: z.coerce.number().int().positive(),
+  /** User OAuth code from "Request user authorization (OAuth) during installation". */
+  code: z.string().min(1),
   state: z.string().min(1),
 });
 

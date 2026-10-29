@@ -14,8 +14,8 @@ import {
 } from "@/lib/db/incoming";
 import { markTaskReconciled } from "@/lib/db/tasks";
 import { isTreasurySigner } from "@/lib/db/treasuries";
-import { ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { suggestMatches } from "@/lib/reconciliation/match";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { refundMatchProblem, suggestMatches } from "@/lib/reconciliation/match";
 
 // GET: ranked suggestions for an incoming tx.
 export const GET = sessionRoute(async (req, { session }) => {
@@ -55,11 +55,20 @@ export const POST = sessionRoute(async (req, { session }) => {
     throw new NotFoundError("Payout not found for this treasury");
   }
 
+  const matchUnit = unit || LOVELACE;
+  const problem = refundMatchProblem(
+    incoming,
+    amount,
+    matchUnit,
+    payout ? { amount: payout.amount, unit: payout.unit } : null,
+  );
+  if (problem) throw new BadRequestError(problem);
+
   await recordReconciliation({
     txHash,
     payoutId: payoutId ?? null,
     amount,
-    unit: unit || LOVELACE,
+    unit: matchUnit,
     note: note?.trim() || null,
     createdBy: session.wallet,
   });

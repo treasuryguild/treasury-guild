@@ -42,6 +42,7 @@ function builder(table: string) {
     insert: write("insert"),
     upsert: write("upsert"),
     eq: record,
+    in: record,
     not: (k: string, op: string, v: unknown) => record(`not:${k}`, [op, v]),
     maybeSingle: () => chain,
     then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => {
@@ -102,11 +103,11 @@ function inflow(tx_hash: string, patch: Partial<KoiosTxInfo> = {}): KoiosTxInfo 
 const of = (table: string, op: Op = "select") => calls.filter((c) => c.table === table && c.op === op);
 const has = (call: Call, key: string) => call.filters.some(([k]) => k === key);
 
-/** The transactions table: the known-hash read (a `not` filter) and the submitted read (a `state` filter). */
-function transactions(known: string[], submitted: { id: string; tx_hash: string | null }[]): Handler {
+/** The transactions table: the known-hash read (a `not` filter) and the pending/submitted read (a `state` filter). */
+function transactions(known: string[], awaiting: { id: string; tx_hash: string | null }[]): Handler {
   return (call) => {
     if (call.op !== "select") return undefined;
-    if (has(call, "state")) return { data: submitted, error: null };
+    if (has(call, "state")) return { data: awaiting, error: null };
     return { data: known.map((tx_hash) => ({ tx_hash })), error: null };
   };
 }
@@ -211,7 +212,7 @@ describe("pollTreasury", () => {
     });
   });
 
-  describe("confirming submitted transactions", () => {
+  describe("confirming pending and submitted transactions", () => {
     it("confirms a submitted transaction the chain shows in one call carrying its block time", async () => {
       handlers.transactions = transactions(["h-1", "h-2"], [{ id: "tx-1", tx_hash: "h-1" }, { id: "tx-2", tx_hash: "h-2" }, { id: "tx-3", tx_hash: null }]);
       chain([listed("h-1", 900)], [outgoing("h-1")]);
@@ -252,6 +253,14 @@ describe("pollTreasury", () => {
       expect(await pollTreasury(TREASURY)).toEqual({ newIncoming: 0, confirmed: 1, newExternal: 0 });
       expect(mocks.confirm).toHaveBeenCalledTimes(2);
       expect(calls.filter((c) => c.op === "update" || c.op === "insert")).toEqual([]);
+    });
+
+    it("confirms a pending transaction whose hash is already on-chain", async () => {
+      handlers.transactions = transactions(["h-pending"], [{ id: "tx-pending", tx_hash: "h-pending" }]);
+      chain([listed("h-pending", 900)], [outgoing("h-pending")]);
+      expect(await pollTreasury(TREASURY)).toEqual({ newIncoming: 0, confirmed: 1, newExternal: 0 });
+      expect(mocks.confirm).toHaveBeenCalledExactlyOnceWith("tx-pending", TS_ISO);
+      expect(of("external_txs", "insert")).toEqual([]);
     });
   });
 

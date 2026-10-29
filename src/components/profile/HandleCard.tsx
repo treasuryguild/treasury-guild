@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { PgCode } from "@/lib/constants";
+import { isValidHandle } from "@/lib/handles";
 import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useContributorProfile } from "@/hooks/useContributorProfile";
@@ -25,6 +26,9 @@ export function HandleCard() {
     const trimmed = handle.trim();
     if (!trimmed || !sessionWallet) return;
     await save.run(async () => {
+      if (!isValidHandle(trimmed)) {
+        throw new Error("Use 2–32 letters, digits, underscores or hyphens — no spaces.");
+      }
       const { error } = await browserClient()
         .from("contributors")
         .update({ handle: trimmed })
@@ -33,7 +37,9 @@ export function HandleCard() {
         throw new Error(
           error.code === PgCode.UniqueViolation
             ? "That handle is already taken."
-            : "Could not save the handle.",
+            : error.code === PgCode.CheckViolation
+              ? "Use 2–32 letters, digits, underscores or hyphens — no spaces."
+              : "Could not save the handle.",
         );
       }
       setData((prev) => ({ github_username: null, ...prev, handle: trimmed }));
@@ -47,7 +53,8 @@ export function HandleCard() {
       <h3 className="font-medium">Display handle</h3>
       <p className="mt-1 text-sm text-zinc-400">
         Optional name shown to other members instead of your address — no
-        GitHub account needed. Used in member lists and assignee dropdowns.
+        GitHub account needed. 2–32 letters, digits, underscores or hyphens;
+        unique ignoring case.
       </p>
       <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <Input

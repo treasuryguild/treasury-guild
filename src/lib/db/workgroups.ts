@@ -1,18 +1,26 @@
 import "server-only";
 
 import { DEFAULT_BOARD_COLUMNS } from "@/lib/boardTypes";
-import { TaskSource } from "@/lib/constants";
+import { ProposalKind, TaskSource } from "@/lib/constants";
 import type { WorkgroupLifecycleStatus } from "@/lib/api/types";
 import { check, maybe, must, rows, rpc, serviceClient } from "./client";
-import { ConflictError, NotFoundError } from "@/lib/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import type { ContributorProfile, WorkgroupRow } from "./types";
+import { loadGovernanceSettings } from "./governance";
 
 /**
  * A native workgroup with the default board, as the community page creates
  * one from the browser. Used where the server creates it on an admin's
- * behalf (the chain import's "create this workgroup").
+ * behalf (the chain import's "create this workgroup"). Refused while
+ * workgroup governance is on — same gate as the browser's workgroups_insert.
  */
 export async function createWorkgroupWithBoard(communityId: string, name: string): Promise<string> {
+  const workgroupKind = await loadGovernanceSettings(communityId, ProposalKind.Workgroup);
+  if (workgroupKind.enabled) {
+    throw new BadRequestError(
+      "New workgroups need a passed proposal while workgroup governance is on. Map the name to an existing workgroup instead.",
+    );
+  }
   const db = serviceClient();
   const group = must<{ id: string }>(
     await db

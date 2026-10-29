@@ -28,6 +28,7 @@
 // elements.
 
 import { formatQuantity } from "@/lib/assets";
+import { MAX_TASK_NUMBER } from "@/lib/constants";
 import { isRecord, isStringArray } from "@/lib/guards";
 
 export const PAYOUT_METADATA_LABEL = "190001";
@@ -154,6 +155,7 @@ export function parsePayoutMetadata(value: unknown): PayoutMetadata | null {
     typeof t[0] === "number" &&
     Number.isInteger(t[0]) &&
     t[0] > 0 &&
+    t[0] <= MAX_TASK_NUMBER &&
     isIndex(t[1], w.length) &&
     isIndex(t[2], b.length) &&
     isStringArray(t[3]) &&

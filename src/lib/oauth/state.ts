@@ -67,6 +67,8 @@ export interface OAuthState {
   returnTo: string;
   /** Flows that connect something to a community (github-install, discord-guild, zoom-host, google-host). */
   communityId?: string;
+  /** Single-use id for github-install: claimed once at setup so a state cannot be replayed. */
+  jti?: string;
 }
 
 const STATE_TTL_MS = 10 * 60 * 1000;
@@ -84,5 +86,6 @@ export function verifyOAuthState(purpose: OAuthPurpose, state: string): OAuthSta
     wallet: parsed.wallet,
     returnTo: parsed.returnTo,
     ...(typeof parsed.communityId === "string" && { communityId: parsed.communityId }),
+    ...(typeof parsed.jti === "string" && { jti: parsed.jti }),
   };
 }

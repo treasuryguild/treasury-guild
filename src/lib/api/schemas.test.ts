@@ -965,12 +965,15 @@ describe("query-string coercion", () => {
   });
 
   it("reads the GitHub installation id as a positive integer and needs a state", () => {
-    expect(githubSetupQuerySchema.parse({ installation_id: "12345", state: "s.mac" })).toEqual({ installation_id: 12345, state: "s.mac" });
+    expect(githubSetupQuerySchema.parse({ installation_id: "12345", state: "s.mac", code: "gh-code" }))
+      .toEqual({ installation_id: 12345, state: "s.mac", code: "gh-code" });
     for (const installation_id of ["0", "-5", "1.5", "abc"]) {
-      expect(githubSetupQuerySchema.safeParse({ installation_id, state: "s" }).success, installation_id).toBe(false);
+      expect(githubSetupQuerySchema.safeParse({ installation_id, state: "s", code: "c" }).success, installation_id).toBe(false);
     }
+    expect(githubSetupQuerySchema.safeParse({ installation_id: "1", state: "s" }).success).toBe(false);
+    expect(githubSetupQuerySchema.safeParse({ installation_id: "1", state: "s", code: "" }).success).toBe(false);
     expect(githubSetupQuerySchema.safeParse({ installation_id: "1" }).success).toBe(false);
-    expect(githubSetupQuerySchema.safeParse({ installation_id: "1", state: "" }).success).toBe(false);
+    expect(githubSetupQuerySchema.safeParse({ installation_id: "1", state: "", code: "c" }).success).toBe(false);
   });
 });
 

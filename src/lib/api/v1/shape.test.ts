@@ -45,8 +45,8 @@ describe("taskReward", () => {
 describe("assigneeSummaries", () => {
   it("names assignees in stored order, as the board does", () => {
     expect(assigneeSummaries([
-      { id: "2", source: "manual", gh_login: null, wallet_address: "addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqzzzzzz", position: 1, contributors: null },
-      { id: "1", source: "github", gh_login: "alice", wallet_address: null, position: 0, contributors: { handle: "Alice", github_username: "alice" } },
+      { id: "2", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqzzzzzz", position: 1, contributors: null },
+      { id: "1", source: "github", gh_login: "alice", gh_user_id: 1, wallet_address: null, position: 0, contributors: { handle: "Alice", github_username: "alice" } },
     ])).toEqual([
       { name: "Alice (@alice)", wallet: null },
       { name: "addr_test1…zzzzzz", wallet: "addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqzzzzzz" },

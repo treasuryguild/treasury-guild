@@ -31,6 +31,7 @@ vi.mock("@/lib/db/membership", async (importOriginal) => ({
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
   ...(await importOriginal<typeof Treasuries>()),
   countCommunityTreasuries: mocks.count,
+  isPrimaryTreasuryBaseSigner: vi.fn(async () => true),
   findTreasuryByAddress: vi.fn(async () => null),
   loadTreasuryWithSigners: vi.fn(),
 }));

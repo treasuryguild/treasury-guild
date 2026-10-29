@@ -9,7 +9,7 @@ function task(over: Partial<PayableTask> = {}): PayableTask {
   return {
     id: "task-1", number: 7, title: "Ship it", body: null, source: "native", column_id: null,
     task_assignees: [
-      { id: "a1", source: "manual", gh_login: null, wallet_address: "addr1alice", position: 0, contributors: null },
+      { id: "a1", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr1alice", position: 0, contributors: null },
     ],
     bounty_lovelace: null, amounts: { ADA: "10" }, pay_state: "payable", archived_at: null,
     budget_month: null, paid_tx_hash: null, chain_number: null,

@@ -34,6 +34,7 @@ import {
   errorMessage,
   ForbiddenError,
   HttpError,
+  NotFoundError,
   UnauthorizedError,
   UpstreamError,
 } from "@/lib/errors";
@@ -145,6 +146,10 @@ export function sessionRoute<P extends RouteParams = NoParams>(
 }
 
 async function requireDevSession(): Promise<SessionClaims> {
+  // Production builds never expose /api/dev even if DEV_WALLETS is set.
+  if (process.env.NODE_ENV === "production") {
+    throw new NotFoundError("Not found");
+  }
   const session = await requireSession();
   if (!isDevWallet(session.wallet, devWallets())) {
     throw new ForbiddenError("Developer access required");
@@ -152,7 +157,7 @@ async function requireDevSession(): Promise<SessionClaims> {
   return session;
 }
 
-/** Internal tools (/api/dev/*): a signed-in wallet listed in DEV_WALLETS; 403 otherwise. */
+/** Internal tools (/api/dev/*): a signed-in wallet listed in DEV_WALLETS; 403 otherwise. Absent in production. */
 export function devRoute<P extends RouteParams = NoParams>(
   handler: RouteHandler<P, SessionClaims>,
 ): NextRouteHandler<P> {

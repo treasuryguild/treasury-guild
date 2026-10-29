@@ -277,6 +277,8 @@ describe("parsePayoutMetadata", () => {
     expect(parsePayoutMetadata({ ...record, p: [[0, [[50, 1, 0, ["5"]]]]] })).toBeNull();
     expect(parsePayoutMetadata({ ...record, p: [[0, [[50, 0, 0, ["5", "1"]]]]] })).toBeNull();
     expect(parsePayoutMetadata({ ...record, p: [[0, [[0, 0, 0, ["5"]]]]] })).toBeNull();
+    // A huge chain number would overflow the next assign_task_number (integer).
+    expect(parsePayoutMetadata({ ...record, p: [[0, [[2_147_483_647, 0, 0, ["5"]]]]] })).toBeNull();
     // A payment record shares the label but has no `p`.
     expect(parsePayoutMetadata({ v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "", k: [], o: [] })).toBeNull();
   });

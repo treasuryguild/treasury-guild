@@ -39,7 +39,11 @@ afterAll(() => {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.session.mockResolvedValue({ wallet: WALLET });
-  mocks.client.mockResolvedValue({ client_id: REQUEST.clientId });
+  mocks.client.mockResolvedValue({
+    client_id: REQUEST.clientId,
+    // Loopback port is ignored when matching (RFC 8252).
+    redirect_uris: ["http://127.0.0.1/callback"],
+  });
   mocks.grant.mockResolvedValue(undefined);
   mocks.code.mockResolvedValue(undefined);
 });
@@ -130,6 +134,16 @@ describe("POST /api/oauth/decision", () => {
   it("refuses a client that is no longer registered", async () => {
     mocks.client.mockResolvedValue(null);
     expect((await post({ request: encodeAuthorizationRequest(REQUEST), approved: true })).status).toBe(400);
+    nothingGranted();
+  });
+
+  it("refuses a redirect URI the client did not register", async () => {
+    mocks.client.mockResolvedValue({
+      client_id: REQUEST.clientId,
+      redirect_uris: ["https://assistant.example/cb"],
+    });
+    expect((await post({ request: encodeAuthorizationRequest(REQUEST), approved: true })).status).toBe(400);
+    expect((await post({ request: encodeAuthorizationRequest(REQUEST), approved: false })).status).toBe(400);
     nothingGranted();
   });
 

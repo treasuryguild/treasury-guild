@@ -1,7 +1,8 @@
 // Who on a call's list is rewarded. Pure: the finalize route, the call page
 // and the tests share one answer.
 //
-// A check-in or a manager's entry is its own proof of presence. Captured
+// A manager's entry is its own proof of presence. A check-in needs a
+// manager's confirm (a code on a shared screen is guessable). Captured
 // attendees (Discord snapshots, Zoom/Meet minutes) must meet the call's
 // threshold unless a manager confirmed them. finalize_call re-checks what
 // money depends on: a wallet, no task yet, not excluded.
@@ -23,6 +24,10 @@ export function meetsThreshold(call: Threshold, attendee: Presence): boolean {
     case AttendeeSource.Zoom:
     case AttendeeSource.Meet:
       return attendee.minutes >= call.min_minutes;
+    // A leaked check-in code must not auto-qualify; a manager confirms them.
+    case AttendeeSource.Checkin:
+      return false;
+    // A manager's own entry is its own proof of presence.
     default:
       return true;
   }

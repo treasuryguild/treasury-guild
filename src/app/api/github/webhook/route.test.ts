@@ -47,7 +47,8 @@ const issue = (overrides: object = {}) => ({
   repository: { id: 5 },
   issue: {
     number: 12, node_id: "I_12", title: "Fix the vault", body: "Details", html_url: "https://github.com/guild/app/issues/12",
-    state: "open", labels: [{ name: "audited" }, { name: "bug" }], assignees: [{ login: "alice" }, { login: "bob" }],
+    state: "open", labels: [{ name: "audited" }, { name: "bug" }],
+    assignees: [{ login: "alice", id: 1 }, { login: "bob", id: 2 }],
     ...overrides,
   },
 });
@@ -62,7 +63,7 @@ const details = (fields: object = {}) => ({
   fields: { status: "In review", numbers: { ADA: 25, AGIX: 1.5 }, ...fields },
   issue: {
     nodeId: "I_12", number: 12, title: "Fix the vault", body: null, url: "https://github.com/guild/app/issues/12",
-    repoId: 5, labels: ["Audited"], assigneeLogins: ["alice"],
+    repoId: 5, labels: ["Audited"], assignees: [{ login: "alice", id: 1 }],
   },
 });
 
@@ -197,7 +198,7 @@ describe("POST /api/github/webhook", () => {
       expect(mocks.syncIssue).toHaveBeenCalledWith(repo(), {
         repoId: 5, issueNumber: 12, nodeId: "I_12", title: "Fix the vault", body: "Details",
         url: "https://github.com/guild/app/issues/12", labels: ["audited", "bug"], state: "open",
-        assigneeLogins: ["alice", "bob"],
+        assignees: [{ login: "alice", id: 1 }, { login: "bob", id: 2 }],
       }, true);
       expect(mocks.syncIssue.mock.calls[0]![1]).not.toHaveProperty("amounts");
       expect(mocks.projectItem).not.toHaveBeenCalled();
@@ -207,7 +208,7 @@ describe("POST /api/github/webhook", () => {
     it("reports a task that lost its payable label as outside the filter", async () => {
       await POST(await delivery("issues", issue({ labels: [{ name: "bug" }], assignees: undefined })), context);
       expect(mocks.syncIssue).toHaveBeenCalledWith(
-        repo(), expect.objectContaining({ labels: ["bug"], assigneeLogins: [] }), false,
+        repo(), expect.objectContaining({ labels: ["bug"], assignees: [] }), false,
       );
     });
 
@@ -246,7 +247,7 @@ describe("POST /api/github/webhook", () => {
       expect(mocks.projectLink).toHaveBeenCalledWith("PVT_1", 77, "wg");
       expect(mocks.syncIssue).toHaveBeenCalledWith(repo(), {
         repoId: 5, issueNumber: 12, nodeId: "I_12", title: "Fix the vault", body: null,
-        url: "https://github.com/guild/app/issues/12", labels: ["Audited"], assigneeLogins: ["alice"],
+        url: "https://github.com/guild/app/issues/12", labels: ["Audited"], assignees: [{ login: "alice", id: 1 }],
         projectItemNodeId: "PVTI_1", projectStatus: "In review", amounts: { ADA: "25", AGIX: "1.5" },
       }, true);
       expect(mocks.processed).toHaveBeenCalledWith("d-1", null);

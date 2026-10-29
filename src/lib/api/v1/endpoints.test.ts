@@ -321,7 +321,7 @@ describe("task_list", () => {
         bounty_lovelace: null, amounts: { ADA: "50" }, budget_month: "2026-09-01", paid_tx_hash: null, gh_url: null,
         created_at: "2026-09-01T00:00:00Z", workgroup_id: "wg-dev", workgroups: { name: "Development" },
         board_columns: [{ name: "Audited" }],
-        task_assignees: [{ id: "a", source: "manual", gh_login: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } }],
+        task_assignees: [{ id: "a", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } }],
       }],
     });
     const res = await callEndpoint(listTasks, caller, { community: "signius", workgroup: "development", limit: "10" });
@@ -339,7 +339,7 @@ describe("task_list", () => {
       id: "k1", number: 12, title: "Fix login", source: "native", pay_state: "payable", archived_at: null,
       bounty_lovelace: null, amounts: { ADA: "50" }, budget_month: null, paid_tx_hash: null, gh_url: null,
       created_at: "2026-09-01T00:00:00Z", workgroup_id: "wg-dev", workgroups: { name: "Development" }, board_columns: null,
-      task_assignees: [{ id: "a", source: "manual", gh_login: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } }],
+      task_assignees: [{ id: "a", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } }],
       ...patch,
     });
     mocks.tasks.mockResolvedValue({
@@ -350,8 +350,8 @@ describe("task_list", () => {
         task({
           id: "k3", number: 14,
           task_assignees: [
-            { id: "a", source: "manual", gh_login: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } },
-            { id: "b", source: "github", gh_login: "octo", wallet_address: null, position: 1, contributors: null },
+            { id: "a", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr_x", position: 0, contributors: { handle: "Xi", github_username: null } },
+            { id: "b", source: "github", gh_login: "octo", gh_user_id: 9, wallet_address: null, position: 1, contributors: null },
           ],
         }),
       ],

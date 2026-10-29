@@ -17,6 +17,7 @@ function row(over: Partial<TaskAssignee>): TaskAssignee {
     id: "a",
     source: "manual",
     gh_login: null,
+    gh_user_id: null,
     wallet_address: null,
     position: 0,
     contributors: null,

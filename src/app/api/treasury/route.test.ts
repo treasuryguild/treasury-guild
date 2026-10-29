@@ -37,7 +37,9 @@ vi.mock("@/lib/db/communities", () => ({
 vi.mock("@/lib/db/membership", () => ({ addMember: vi.fn(), promoteMembersToAdmin: vi.fn() }));
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
   ...(await importOriginal<typeof Treasuries>()),
-  countCommunityTreasuries: async () => 1, loadTreasuryWithSigners: vi.fn(),
+  countCommunityTreasuries: async () => 1,
+  isPrimaryTreasuryBaseSigner: async () => true,
+  loadTreasuryWithSigners: vi.fn(),
   findTreasuryByAddress: mocks.findByAddress,
 }));
 vi.mock("@/lib/db/workgroups", () => ({

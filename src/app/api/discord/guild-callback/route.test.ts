@@ -16,6 +16,7 @@ vi.mock("@/lib/db/callCapture", () => ({
   loadIntegration: mocks.load, loadIntegrationSecrets: vi.fn(), deleteIntegration: vi.fn(), accountConnectedElsewhere: mocks.elsewhere,
 }));
 vi.mock("@/lib/discord/bot", () => ({ leaveGuild: mocks.leave }));
+vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: vi.fn() }));
 import { GET } from "./route";
 
 const WALLET = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
@@ -154,15 +155,15 @@ describe("discord guild-callback API", () => {
   });
 
   describe("what it refuses, and the bot it takes back out", () => {
-    // Discord adds the bot at consent, before the callback is checked: a
-    // refused callback with a code exchanges it only to learn that server,
-    // saves nothing, and takes the bot out of a server no community uses.
-    const refused = async (query: Record<string, string>, expected: object) => {
+    // Discord adds the bot at consent: a refused callback with a verified
+    // state exchanges the code only to leave that server. Forged or garbage
+    // state never triggers abandon (a forged code must not drive Discord).
+    const refused = async (query: Record<string, string>, expected: object, abandons = false) => {
       mocks.fetch.mockClear();
       mocks.leave.mockClear();
       expect(outcome(await callback(query))).toMatchObject(expected);
       expect(mocks.save).not.toHaveBeenCalled();
-      if (query.code) {
+      if (abandons) {
         expect(mocks.fetch).toHaveBeenCalledTimes(1);
         expect(Object.fromEntries((mocks.fetch.mock.calls[0] as [string, RequestInit])[1].body as URLSearchParams))
           .toMatchObject({ code: query.code, redirect_uri: "https://vault.test/api/discord/guild-callback" });
@@ -175,21 +176,22 @@ describe("discord guild-callback API", () => {
 
     it("keeps the bot in a server another community is connected to, and reports the same refusal when the exchange or the leave fails", async () => {
       const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      mocks.role.mockResolvedValue("member");
       mocks.elsewhere.mockResolvedValue(true);
-      expect(outcome(await callback({ code: "c", state: "garbage.mac" }))).toMatchObject({ reason: "bad_state" });
+      expect(outcome(await callback({ code: "c", state: state() }))).toMatchObject({ reason: "not_admin" });
       expect(mocks.elsewhere).toHaveBeenCalledWith("discord", "guild-1");
       expect(mocks.leave).not.toHaveBeenCalled();
 
       mocks.elsewhere.mockResolvedValue(false);
       discordAnswers({ error: "invalid_grant" }, 400);
-      expect(outcome(await callback({ code: "c", state: "garbage.mac" }))).toMatchObject({ reason: "bad_state" });
+      expect(outcome(await callback({ code: "c", state: state() }))).toMatchObject({ reason: "not_admin" });
       expect(mocks.leave).not.toHaveBeenCalled();
 
       discordAnswers({ access_token: "a", guild: { id: "guild-1" } });
       mocks.leave.mockRejectedValue(new Error("Discord 500"));
-      expect(outcome(await callback({ code: "c", state: "garbage.mac" }))).toMatchObject({ reason: "bad_state" });
+      expect(outcome(await callback({ code: "c", state: state() }))).toMatchObject({ reason: "not_admin" });
       mocks.fetch.mockRejectedValue(new Error("socket hang up"));
-      expect(outcome(await callback({ code: "c", state: "garbage.mac" }))).toMatchObject({ reason: "bad_state" });
+      expect(outcome(await callback({ code: "c", state: state() }))).toMatchObject({ reason: "not_admin" });
       expect(logged).toHaveBeenCalledTimes(2);
       expect(mocks.save).not.toHaveBeenCalled();
     });
@@ -213,7 +215,12 @@ describe("discord guild-callback API", () => {
       for (const purpose of ["discord-link", "zoom-host", "google-host", "github-install"] as const) {
         await refused({ code: "c", state: state(purpose) }, { discord_server: "error", reason: "bad_state" });
       }
-      await refused({ code: "c", state: state("discord-guild", {}) }, { discord_server: "error", reason: "bad_state" });
+      // Verified purpose but no communityId: still ours, so abandon runs.
+      await refused(
+        { code: "c", state: state("discord-guild", {}) },
+        { discord_server: "error", reason: "bad_state" },
+        true,
+      );
       expect(mocks.role).not.toHaveBeenCalled();
     });
 
@@ -237,16 +244,16 @@ describe("discord guild-callback API", () => {
 
     it("refuses a callback finished without a session, or by another wallet", async () => {
       mocks.session.mockResolvedValue(null);
-      await refused({ code: "c", state: state() }, { discord_server: "error", reason: "no_session" });
+      await refused({ code: "c", state: state() }, { discord_server: "error", reason: "no_session" }, true);
       mocks.session.mockResolvedValue({ wallet: OTHER });
-      await refused({ code: "c", state: state() }, { discord_server: "error", reason: "wallet_mismatch" });
+      await refused({ code: "c", state: state() }, { discord_server: "error", reason: "wallet_mismatch" }, true);
       expect(mocks.role).not.toHaveBeenCalled();
     });
 
     it("refuses a wallet that is no longer an admin when the round trip ends", async () => {
       for (const role of ["member", null]) {
         mocks.role.mockResolvedValue(role);
-        await refused({ code: "c", state: state() }, { path: RETURN_TO, discord_server: "error", reason: "not_admin" });
+        await refused({ code: "c", state: state() }, { path: RETURN_TO, discord_server: "error", reason: "not_admin" }, true);
       }
     });
   });

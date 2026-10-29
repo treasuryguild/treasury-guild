@@ -11,7 +11,6 @@ vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.admin, memberRole: mocks.role }));
 vi.mock("@/lib/db/treasuries", () => ({
   isCommunityTreasurySigner: mocks.signer,
-  isPrimaryTreasuryBaseSigner: mocks.signer,
 }));
 // removeMember stays real: its two deletes (lead assignments, then the membership) run
 // against the fake service client below.
@@ -169,22 +168,22 @@ describe("members API", () => {
       expect(mocks.setRole).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, "admin");
     });
 
-    it("keeps a primary treasury base signer an admin", async () => {
+    it("keeps any treasury base signer an admin", async () => {
       mocks.role.mockResolvedValue("admin");
       mocks.signer.mockResolvedValue(true);
       const response = await patch({ communityId: COMMUNITY, wallet: BOB, role: "member" });
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: "Primary treasury signers must remain admins" });
-      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB);
+      expect(await response.json()).toEqual({ error: "Treasury base signers must remain admins" });
+      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, ["base"]);
       expect(mocks.setRole).not.toHaveBeenCalled();
     });
 
-    it("demotes an admin who is not a primary treasury base signer", async () => {
+    it("demotes an admin who is not a treasury base signer", async () => {
       mocks.role.mockResolvedValue("admin");
       mocks.signer.mockResolvedValue(false);
       const response = await patch({ communityId: COMMUNITY, wallet: BOB, role: "member" });
       expect(response.status).toBe(200);
-      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB);
+      expect(mocks.signer).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, ["base"]);
       expect(mocks.setRole).toHaveBeenCalledExactlyOnceWith(COMMUNITY, BOB, "member");
     });
   });

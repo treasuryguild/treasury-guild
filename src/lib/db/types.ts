@@ -436,6 +436,8 @@ export interface TaskAssigneeRow {
   task_id: string;
   source: "github" | "manual";
   gh_login: string | null;
+  /** Immutable GitHub user id; null until the sync writes it (login alone is unverified). */
+  gh_user_id: number | null;
   wallet_address: string | null;
   position: number;
 }
@@ -445,7 +447,7 @@ export type TaskAssignee = Omit<TaskAssigneeRow, "task_id"> & {
   contributors?: ContributorProfile | null;
 };
 
-export const TASK_ASSIGNEE_COLUMNS = "id, source, gh_login, wallet_address, position";
+export const TASK_ASSIGNEE_COLUMNS = "id, source, gh_login, gh_user_id, wallet_address, position";
 /** Embed for task selects; the contributor join is a left join (null while unlinked). */
 export const TASK_ASSIGNEES_EMBED = `task_assignees(${TASK_ASSIGNEE_COLUMNS}, contributors(handle, github_username))`;
 

@@ -54,8 +54,8 @@ describe("TaskModal assignees", () => {
       task({
         source: "github",
         task_assignees: [
-          { id: "ga", source: "github", gh_login: "carol", wallet_address: null, position: 0, contributors: null },
-          { id: "ma", source: "manual", gh_login: null, wallet_address: "addr1bob", position: 1, contributors: null },
+          { id: "ga", source: "github", gh_login: "carol", gh_user_id: 1, wallet_address: null, position: 0, contributors: null },
+          { id: "ma", source: "manual", gh_login: null, gh_user_id: null, wallet_address: "addr1bob", position: 1, contributors: null },
         ],
       }),
     );
@@ -81,7 +81,7 @@ describe("TaskModal assignees", () => {
       task({
         source: "github",
         task_assignees: [
-          { id: "ga", source: "github", gh_login: "carol", wallet_address: "addr1alice", position: 0, contributors: null },
+          { id: "ga", source: "github", gh_login: "carol", gh_user_id: 1, wallet_address: "addr1alice", position: 0, contributors: null },
         ],
       }),
     );
@@ -194,7 +194,7 @@ describe("TaskModal GitHub issue editing", () => {
       task({
         source: "github",
         task_assignees: [
-          { id: "ga", source: "github", gh_login: "carol", wallet_address: null, position: 0, contributors: null },
+          { id: "ga", source: "github", gh_login: "carol", gh_user_id: 1, wallet_address: null, position: 0, contributors: null },
         ],
       }),
     );

@@ -71,9 +71,12 @@ describe("auth token API", () => {
     expect(body).toEqual({ token: expect.any(String), wallet: WALLET, developer: false });
 
     expect(body.token).not.toBe(cookie);
-    expect(await verifySessionJwt(body.token)).toEqual({ wallet: WALLET });
+    // The access token must not verify as a session cookie (kind: rls).
+    expect(await verifySessionJwt(body.token)).toBeNull();
     const claims = decodeJwt(body.token);
-    expect(claims).toMatchObject({ wallet: WALLET, sub: WALLET, role: "authenticated", aud: "authenticated" });
+    expect(claims).toMatchObject({
+      wallet: WALLET, sub: WALLET, role: "authenticated", aud: "authenticated", kind: "rls",
+    });
     expect(claims.exp! - claims.iat!).toBe(ACCESS_TOKEN_MINUTES * 60);
     expect(ACCESS_TOKEN_MINUTES).toBe(15);
     // The cookie itself is never set, refreshed or echoed by this route.

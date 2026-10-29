@@ -30,9 +30,13 @@ describe("GET /api/github/install-url", () => {
     expect(`${url.origin}${url.pathname}`).toBe("https://github.com/apps/treasury-guild-test/installations/new");
     expect([...url.searchParams.keys()]).toEqual(["state"]);
     const state = url.searchParams.get("state")!;
-    expect(verifyOAuthState("github-install", state)).toEqual({
+    const decoded = verifyOAuthState("github-install", state);
+    expect(decoded).toMatchObject({
       wallet: WALLET, returnTo: "/c/demo/settings/github", communityId: COMMUNITY,
     });
+    expect(decoded?.jti).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
     expect(verifyOAuthState("github-link", state)).toBeNull();
     expect(mocks.requireAdmin).toHaveBeenCalledWith(COMMUNITY, WALLET);
     expect(mocks.slug).toHaveBeenCalledWith(COMMUNITY);

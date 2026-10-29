@@ -9,7 +9,7 @@ import { BadRequestError } from "@/lib/errors";
 import { generateOpaqueToken, hashToken } from "@/lib/oauthServer/accessToken";
 import { authorizationResponseUrl } from "@/lib/oauthServer/authorize";
 import { AUTHORIZATION_CODE_TTL_SECONDS, issuerOrigin } from "@/lib/oauthServer/config";
-import { isAcceptableRedirectUri } from "@/lib/oauthServer/redirects";
+import { findMatchingRedirectUri, isAcceptableRedirectUri } from "@/lib/oauthServer/redirects";
 import { decodeAuthorizationRequest } from "@/lib/oauthServer/request";
 
 export const POST = sessionRoute(async (req, { session }) => {
@@ -21,6 +21,14 @@ export const POST = sessionRoute(async (req, { session }) => {
   // The last check before the URL reaches window.location.
   if (!isAcceptableRedirectUri(decoded.redirectUri)) {
     throw new BadRequestError("The assistant's return address is not permitted");
+  }
+  const client = await findOAuthClient(decoded.clientId);
+  if (!client) {
+    throw new BadRequestError("This AI assistant is no longer registered. Start again from it.");
+  }
+  // Re-check against the registered list: the handle alone must not invent a URI.
+  if (!findMatchingRedirectUri(client.redirect_uris, decoded.redirectUri)) {
+    throw new BadRequestError("The assistant's return address is not registered for this client");
   }
   const issuer = issuerOrigin();
   const state = decoded.state ?? null;
@@ -37,9 +45,6 @@ export const POST = sessionRoute(async (req, { session }) => {
   const granted = scopes ? decoded.scopes.filter((s) => scopes.includes(s)) : decoded.scopes;
   if (granted.length === 0) {
     throw new BadRequestError("Select at least one permission, or deny the request.");
-  }
-  if (!(await findOAuthClient(decoded.clientId))) {
-    throw new BadRequestError("This AI assistant is no longer registered. Start again from it.");
   }
 
   await saveOAuthGrant(session.wallet, decoded.clientId, granted);

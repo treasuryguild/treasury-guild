@@ -35,10 +35,13 @@ export const appUrl = () => optionalEnv("APP_URL") ?? "http://localhost:3000";
 export const cronSecret = () => requireEnv("CRON_SECRET");
 /**
  * Key for the HMAC-signed OAuth / install `state` (src/lib/oauth/state.ts).
- * Optional so existing deployments keep working: unset, a key derived from
- * CRON_SECRET is used, and then a leaked cron secret also forges states.
+ * Required in production (a key derived from CRON_SECRET would let a leaked
+ * cron secret forge consent handles). Outside production an unset value
+ * falls back to that derived key in state.ts.
  */
-export const oauthStateSecret = () => optionalEnv("OAUTH_STATE_SECRET");
+export function oauthStateSecret(): string | undefined {
+  return isProduction() ? requireEnv("OAUTH_STATE_SECRET") : optionalEnv("OAUTH_STATE_SECRET");
+}
 /**
  * Key for the agent API's OAuth access tokens (src/lib/oauthServer). Never
  * the Supabase JWT secret, so an access token is never a database session and

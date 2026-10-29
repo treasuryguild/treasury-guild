@@ -492,6 +492,12 @@ export const RATE_LIMITS = {
   invitePreview: { limit: 60, windowSeconds: 600 },
   /** Redeeming an invite (joining), per wallet. */
   inviteRedeem: { limit: 20, windowSeconds: 600 },
+  /** GitHub App install state: one use per jti (matches the 10-minute OAuth state TTL). */
+  githubInstallState: { limit: 1, windowSeconds: 600 },
+  /** Public community join, per client IP. */
+  communityJoinIp: { limit: 30, windowSeconds: 600 },
+  /** Host OAuth callbacks (Discord / Zoom / Google), per client IP. */
+  hostOauthCallback: { limit: 30, windowSeconds: 600 },
   /** Creating an SDK signer invite, per admin wallet. */
   signerDraftCreate: { limit: 20, windowSeconds: 3600 },
   /** Looking up an SDK signer invite before connecting, per client IP. */
@@ -502,6 +508,13 @@ export const RATE_LIMITS = {
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 /** Rate-limit counters older than this are purged by the reconcile sweep. */
 export const RATE_LIMIT_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Highest task number metadata or chain import may invent. Postgres
+ * `integer` tops out at 2^31-1; staying below leaves headroom for
+ * `max(number) + 1` assignment without overflow.
+ */
+export const MAX_TASK_NUMBER = 2_000_000_000;
 
 /** Signers one treasury's native script may list. */
 export const MAX_TREASURY_SIGNERS = 50;
@@ -528,6 +541,7 @@ export const MSG = {
     "The connected wallet is not the one you signed in with. Use Switch account in the top bar to sign as the connected wallet.",
   requestFailed: "Request failed",
   txNotPending: "Transaction is no longer pending",
+  txAlreadyOnChain: "This transaction is already on-chain",
   txChanged: "This transaction changed while you were responding. Reload it and try again.",
   pendingTxExists:
     "A pending transaction already exists for this treasury. Submit or reject it first.",

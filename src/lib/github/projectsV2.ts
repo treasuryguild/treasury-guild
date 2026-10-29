@@ -51,7 +51,18 @@ export interface ProjectItemDetails {
     repoId: number;
     labels: string[];
     assigneeLogins: string[];
+    /** Login + immutable GitHub user id for sync / OAuth backfill. */
+    assignees: { login: string; id: number }[];
   } | null;
+}
+
+function githubAssignees(
+  nodes: { login: string; databaseId?: number | null }[] | undefined,
+): { login: string; id: number }[] {
+  return (nodes ?? [])
+    .filter((a): a is { login: string; databaseId: number } =>
+      !!a.login && typeof a.databaseId === "number")
+    .map((a) => ({ login: a.login, id: a.databaseId }));
 }
 
 const ITEM_QUERY = `
@@ -70,7 +81,7 @@ query($id: ID!) {
           url
           repository { databaseId }
           labels(first: 50) { nodes { name } }
-          assignees(first: 10) { nodes { login } }
+          assignees(first: 10) { nodes { login databaseId } }
         }
       }
     }
@@ -95,7 +106,7 @@ export async function fetchProjectItem(
         url?: string;
         repository?: { databaseId: number };
         labels?: { nodes: { name: string }[] };
-        assignees?: { nodes: { login: string }[] };
+        assignees?: { nodes: { login: string; databaseId?: number | null }[] };
       } | null;
     } | null;
   };
@@ -103,6 +114,7 @@ export async function fetchProjectItem(
   if (!node) return null;
 
   const content = node.content;
+  const assignees = githubAssignees(content?.assignees?.nodes);
   const issue =
     content?.number && content.repository
       ? {
@@ -113,7 +125,8 @@ export async function fetchProjectItem(
           url: content.url ?? "",
           repoId: content.repository.databaseId,
           labels: (content.labels?.nodes ?? []).map((l) => l.name),
-          assigneeLogins: (content.assignees?.nodes ?? []).map((a) => a.login),
+          assigneeLogins: assignees.map((a) => a.login),
+          assignees,
         }
       : null;
 
@@ -134,6 +147,7 @@ export interface ImportedIssue {
   labels: string[];
   state: string;
   assigneeLogins: string[];
+  assignees: { login: string; id: number }[];
   projectItems: {
     itemNodeId: string;
     projectId: string | null;
@@ -153,7 +167,7 @@ query($owner: String!, $name: String!, $label: String!, $cursor: String) {
         url
         state
         labels(first: 50) { nodes { name } }
-        assignees(first: 10) { nodes { login } }
+        assignees(first: 10) { nodes { login databaseId } }
         projectItems(first: 10) {
           nodes {
             id
@@ -200,7 +214,7 @@ export async function fetchRepoIssuesWithProjectFields(
             url: string;
             state: string;
             labels: { nodes: { name: string }[] } | null;
-            assignees: { nodes: { login: string }[] } | null;
+            assignees: { nodes: { login: string; databaseId?: number | null }[] } | null;
             projectItems: {
               nodes: {
                 id: string;
@@ -217,6 +231,7 @@ export async function fetchRepoIssuesWithProjectFields(
     if (!issues) break;
 
     for (const n of issues.nodes) {
+      const assignees = githubAssignees(n.assignees?.nodes ?? undefined);
       out.push({
         nodeId: n.id,
         number: n.number,
@@ -225,7 +240,8 @@ export async function fetchRepoIssuesWithProjectFields(
         url: n.url,
         labels: (n.labels?.nodes ?? []).map((l) => l.name),
         state: n.state,
-        assigneeLogins: (n.assignees?.nodes ?? []).map((a) => a.login),
+        assigneeLogins: assignees.map((a) => a.login),
+        assignees,
         projectItems: (n.projectItems?.nodes ?? []).map((item) => ({
           itemNodeId: item.id,
           projectId: item.project?.id ?? null,
@@ -268,7 +284,7 @@ query($projectId: ID!, $cursor: String) {
               url
               state
               labels(first: 20) { nodes { name } }
-              assignees(first: 10) { nodes { login } }
+              assignees(first: 10) { nodes { login databaseId } }
               repository { databaseId nameWithOwner }
             }
             ... on DraftIssue { title }

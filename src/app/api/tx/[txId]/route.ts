@@ -1,8 +1,10 @@
 import { sessionRoute } from "@/lib/api/route";
 import type { DeleteTxResponse } from "@/lib/api/types";
+import { asNetwork } from "@/lib/config";
 import { MSG } from "@/lib/constants";
 import { deletePendingTransaction } from "@/lib/db/transactions";
 import { ConflictError } from "@/lib/errors";
+import { confirmIfOnChain } from "@/lib/reconciliation/onChain";
 import { loadPendingTxForSigner } from "@/lib/tx";
 
 /**
@@ -13,12 +15,17 @@ import { loadPendingTxForSigner } from "@/lib/tx";
  *
  * Queued tasks are released back to `payable` in the same database step
  * as the delete; `payouts` and `mints` rows cascade away with the
- * transaction.
+ * transaction. A pending row whose hash is already on-chain is confirmed
+ * instead, so its tasks stay paid.
  */
 export const DELETE = sessionRoute<{ txId: string }>(
   async (_req, { params, session }) => {
     const { txId } = params;
-    await loadPendingTxForSigner(txId, session.wallet);
+    const { tx, treasury } = await loadPendingTxForSigner(txId, session.wallet);
+
+    if (await confirmIfOnChain(tx, asNetwork(treasury.network))) {
+      throw new ConflictError(MSG.txAlreadyOnChain);
+    }
 
     // Guard on state again so a concurrent submit can't be wiped out.
     if (!(await deletePendingTransaction(txId))) throw new ConflictError(MSG.txNotPending);

@@ -1,8 +1,8 @@
 // Incoming (received) transactions of a treasury, service role.
 import "server-only";
 
-import { NotFoundError } from "@/lib/errors";
-import { PayoutStatus } from "@/lib/constants";
+import { ConflictError, NotFoundError } from "@/lib/errors";
+import { PayoutStatus, PgCode } from "@/lib/constants";
 import { check, maybe, relation, serviceClient } from "./client";
 import type { IncomingTxRow } from "./types";
 
@@ -46,17 +46,29 @@ export async function saveIncomingDetails(txHash: string, patch: Record<string, 
   );
 }
 
-/** A payout's task and the treasury that paid it, or null when there is no such payout. */
-export async function loadPayoutTreasury(payoutId: string): Promise<{ task_id: string; treasury_id: string } | null> {
-  const payout = maybe<{ task_id: string; transactions: { treasury_id: string } | { treasury_id: string }[] }>(
+/** A payout's task, treasury, amount and unit, or null when there is no such payout. */
+export async function loadPayoutTreasury(
+  payoutId: string,
+): Promise<{ task_id: string; treasury_id: string; amount: string; unit: string } | null> {
+  const payout = maybe<{
+    task_id: string;
+    amount: string;
+    unit: string;
+    transactions: { treasury_id: string } | { treasury_id: string }[];
+  }>(
     await serviceClient()
       .from("payouts")
-      .select("task_id, transactions!inner(treasury_id)")
+      .select("task_id, amount, unit, transactions!inner(treasury_id)")
       .eq("id", payoutId)
       .maybeSingle(),
     "load payout",
   );
-  return payout && { task_id: payout.task_id, treasury_id: relation(payout.transactions).treasury_id };
+  return payout && {
+    task_id: payout.task_id,
+    treasury_id: relation(payout.transactions).treasury_id,
+    amount: payout.amount,
+    unit: payout.unit,
+  };
 }
 
 /** Record the match and mark the inflow reconciled. */
@@ -69,17 +81,18 @@ export async function recordReconciliation(input: {
   createdBy: string;
 }): Promise<void> {
   const db = serviceClient();
-  check(
-    await db.from("reconciliations").insert({
-      incoming_tx_hash: input.txHash,
-      payout_id: input.payoutId,
-      amount: input.amount,
-      unit: input.unit,
-      note: input.note,
-      created_by: input.createdBy,
-    }),
-    "record reconciliation",
-  );
+  const res = await db.from("reconciliations").insert({
+    incoming_tx_hash: input.txHash,
+    payout_id: input.payoutId,
+    amount: input.amount,
+    unit: input.unit,
+    note: input.note,
+    created_by: input.createdBy,
+  });
+  if (res.error?.code === PgCode.UniqueViolation) {
+    throw new ConflictError("This incoming transaction is already reconciled");
+  }
+  check(res, "record reconciliation");
   check(
     await db.from("incoming_txs").update({ matched: true }).eq("tx_hash", input.txHash),
     "mark incoming matched",

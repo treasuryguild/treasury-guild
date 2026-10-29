@@ -84,15 +84,15 @@ export async function promoteMembersToAdmin(
 
 /**
  * Join the wallet to every community that has a task assigned to this GitHub
- * login (task_assignees.gh_login -> tasks -> workgroups -> community). Called
- * when a user links GitHub; the hourly sync covers assignments made after that.
+ * user id (task_assignees.gh_user_id -> tasks -> workgroups -> community).
+ * Called when a user links GitHub; the hourly sync covers assignments made
+ * after that. Login alone is unverified (a renamed handle can be reclaimed).
  * Note: membership grants community-wide read (treasuries, members, boards) —
  * that is the intended access model for GitHub-driven communities.
- * GitHub logins are [A-Za-z0-9-], so ilike needs no wildcard escaping.
  */
-export async function autoJoinCommunitiesForGithubLogin(
+export async function autoJoinCommunitiesForGithubUser(
   wallet: string,
-  login: string,
+  githubUserId: number,
 ): Promise<string[]> {
   const assignees = rows<{
     tasks: { workgroups: { community_id: string } | null } | null;
@@ -100,8 +100,8 @@ export async function autoJoinCommunitiesForGithubLogin(
     await serviceClient()
       .from("task_assignees")
       .select("tasks!inner(workgroups!inner(community_id))")
-      .ilike("gh_login", login),
-    "load tasks by assignee",
+      .eq("gh_user_id", githubUserId),
+    "load tasks by assignee github user id",
   );
   const communityIds = [
     ...new Set(

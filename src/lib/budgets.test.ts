@@ -11,6 +11,7 @@ import {
   budgetTokenLabel,
   budgetUsagePercent,
   currentBudgetMonth,
+  isFutureBudgetMonth,
   currentPeriodStart,
   effectiveBudgets,
   inBudgetPeriod,
@@ -254,6 +255,13 @@ describe("current budget month", () => {
     // Still December somewhere west of Greenwich, already January in UTC.
     vi.setSystemTime(new Date("2026-12-31T23:30:00-05:00"));
     expect(currentBudgetMonth()).toBe("2027-01");
+  });
+
+  it("flags a month strictly after the current budget month as future", () => {
+    expect(isFutureBudgetMonth("2026-10", "2026-10")).toBe(false);
+    expect(isFutureBudgetMonth("2026-09", "2026-10")).toBe(false);
+    expect(isFutureBudgetMonth("2026-11", "2026-10")).toBe(true);
+    expect(isFutureBudgetMonth("2030-01", "2026-10")).toBe(true);
   });
 
   it("reads a month from a query value, else falls back to the current month", () => {

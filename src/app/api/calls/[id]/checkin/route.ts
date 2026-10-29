@@ -1,16 +1,19 @@
 // An attendee confirms presence with the code the host shared. Any signed-in
-// wallet may check in while the call runs: the code doubles as an invite, so
-// the wallet joins the community as a member (it has to be one to be paid and
-// to see its reward). One row per wallet per call, however often it is sent.
+// wallet may check in while the call runs. On a public community the code
+// doubles as an invite (join as member); a private community stays invite-
+// only. Check-in attendees need a manager's confirm before they qualify for
+// the reward. One row per wallet per call, however often it is sent.
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { callCheckinSchema } from "@/lib/api/schemas";
 import type { CallCheckinResponse } from "@/lib/api/types";
+import { memberRole } from "@/lib/authz";
 import { assertWalletOnCallNetwork } from "@/lib/calls/access";
 import { checkinCodeMatches, checkinWindow } from "@/lib/calls/checkinCode";
-import { AttendeeSource } from "@/lib/constants";
+import { AttendeeSource, Visibility } from "@/lib/constants";
 import {
   insertAttendeeOnce, loadCall, loadCallAttendees, loadCheckinCode, loadContributorName,
 } from "@/lib/db/calls";
+import { requireCommunity } from "@/lib/db/communities";
 import { addMember } from "@/lib/db/membership";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -42,7 +45,13 @@ export const POST = sessionRoute<{ id: string }>(async (req, { params, session }
   const attendees = await loadCallAttendees(call.id);
   if (attendees.some((a) => a.wallet_address === wallet)) return response(true);
 
-  await addMember(call.community_id, wallet);
+  // Public communities: the code is also an invite. Private ones stay
+  // invite-only; an outsider can still sit on the attendee list for the
+  // manager to confirm, but does not become a member from the code alone.
+  const community = await requireCommunity(call.community_id);
+  if (community.visibility === Visibility.Public || (await memberRole(call.community_id, wallet))) {
+    await addMember(call.community_id, wallet);
+  }
   const now = new Date().toISOString();
   const inserted = await insertAttendeeOnce({
     call_id: call.id,
