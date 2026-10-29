@@ -70,14 +70,14 @@ describe("buildStakeTx", () => {
       poolId: "pool1abc",
     });
     expect(result.txHash).toHaveLength(64);
-    const { builder } = await mocks.complete.mock.results[0].value;
+    const { builder } = await mocks.complete.mock.results[0]!.value;
     expect(builder.calls).toEqual([
       "register:stake_test1reward",
       "certificateScript:stake",
       "delegate:stake_test1reward:pool1abc",
       "certificateScript:stake",
     ]);
-    expect(mocks.complete.mock.calls[0][0].depositLovelace).toBe(2_000_000n);
+    expect(mocks.complete.mock.calls[0]![0].depositLovelace).toBe(2_000_000n);
   });
 
   it("withdraws through withdrawalScript (not certificateScript alone)", async () => {
@@ -86,7 +86,7 @@ describe("buildStakeTx", () => {
       action: StakeAction.Withdraw,
       rewards: "5000000",
     });
-    const { builder } = await mocks.complete.mock.results[0].value;
+    const { builder } = await mocks.complete.mock.results[0]!.value;
     expect(builder.calls).toEqual([
       "withdraw:stake_test1reward:5000000",
       "withdrawalScript:stake",
@@ -105,7 +105,7 @@ describe("buildStakeTx", () => {
       action: StakeAction.VoteDelegation,
       dRepId: "always_abstain",
     });
-    const { builder } = await mocks.complete.mock.results[0].value;
+    const { builder } = await mocks.complete.mock.results[0]!.value;
     expect(builder.calls[0]).toContain("alwaysAbstain");
     expect(builder.calls).toContain("certificateScript:stake");
   });

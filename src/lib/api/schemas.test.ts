@@ -224,7 +224,7 @@ describe("schemas", () => {
       "addr_test1vzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc48zzn4";
     const stakeB = "stake_test1uzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc40u6yl";
     const legacy = { communityId, name: "Legacy", signers: [{ address: ADDR }] };
-    expect(createTreasurySchema.parse(legacy).signers[0].stakeAddress).toBeUndefined();
+    expect(createTreasurySchema.parse(legacy).signers[0]!.stakeAddress).toBeUndefined();
 
     const sdk = createTreasurySchema.parse({
       ...legacy,
@@ -236,7 +236,7 @@ describe("schemas", () => {
       required: 1,
     });
     expect(sdk.signers.map((s) => s.stakeAddress)).toEqual([STAKE, stakeB]);
-    expect(sdk.signers[0].drepKeyHash).toBe(KEY56);
+    expect(sdk.signers[0]!.drepKeyHash).toBe(KEY56);
 
     expect(
       createTreasurySchema.safeParse({
