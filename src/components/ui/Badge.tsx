@@ -43,6 +43,7 @@ export function TxKindBadge({ kind }: { kind: string }) {
   if (kind === TxKind.Stake) return <Badge tone="blue">Stake</Badge>;
   if (kind === TxKind.Drep) return <Badge tone="blue">DRep</Badge>;
   if (kind === TxKind.Vote) return <Badge tone="blue">Vote</Badge>;
+  if (kind === TxKind.Registration) return <Badge tone="blue">Registration</Badge>;
   return null;
 }
 

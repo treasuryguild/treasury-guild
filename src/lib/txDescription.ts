@@ -27,6 +27,13 @@ export function anchorDescription(proposalNumbers: readonly number[]): string {
   return `Anchors: ${numbers.length === 1 ? "proposal" : "proposals"} ${numbers.map((n) => `#${n}`).join(", ")}`;
 }
 
+/** Fixed description so pending registration txs are recognisable on the details modal. */
+export const REGISTRATION_TX_DESCRIPTION = "CIP-0146 wallet registration";
+
+export function registrationDescription(): string {
+  return REGISTRATION_TX_DESCRIPTION;
+}
+
 export function paymentDescription(p: {
   memo: string | null;
   recipients: number;

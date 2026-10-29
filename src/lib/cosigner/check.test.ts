@@ -205,6 +205,15 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
     expect(mocks.proposals).not.toHaveBeenCalled();
   });
 
+  it("checks a CIP-0146 registration like an anchor (change only, no spend)", async () => {
+    mocks.outputs.mockReturnValue([CHANGE]);
+    expect(await runCosignerCheck(tx({ kind: TxKind.Registration }), TREASURY)).toEqual({ passed: true, problems: [] });
+    expect(mocks.compare).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      kind: TxKind.Registration, outputs: [CHANGE], mint: [],
+    }));
+    expect(mocks.settings).not.toHaveBeenCalled();
+  });
+
   it("hands a mint its forged assets and stored mints, and runs no budget check", async () => {
     mocks.settings.mockResolvedValue({ enabled: true });
     const policy = "q".repeat(56);

@@ -57,12 +57,13 @@ describe("POST /api/treasury/import/preview", () => {
     const res = await post({ communityId: COMMUNITY, source: { type: "cbor", cbor: ` ${scriptCbor!.toUpperCase()}\n` } });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      address: scriptAddress, scriptCbor, template: "plain", scriptType: "atLeast", required: 2,
+      address: scriptAddress, scriptCbor, stakeCredentialHash: null, suggestedName: null,
+      template: "plain", scriptType: "atLeast", required: 2,
       recovery: null, lockSlot: null, lockUntil: null,
       signers: [
-        { keyHash: hashA, address: addrA, group: "base" },
-        { keyHash: hashB, address: addrB, group: "base" },
-        { keyHash: hashC, address: "", group: "base" },
+        { keyHash: hashA, address: addrA, group: "base", name: "" },
+        { keyHash: hashB, address: addrB, group: "base", name: "" },
+        { keyHash: hashC, address: "", group: "base", name: "" },
       ],
     });
     expect(mocks.admin).toHaveBeenCalledWith(COMMUNITY, addrA);
@@ -111,8 +112,8 @@ describe("POST /api/treasury/import/preview", () => {
     expect(json.address.startsWith("addr1")).toBe(true);
     expect(json.lockUntil).toBe(slotTime(1, SLOT));
     expect(json.signers).toEqual([
-      { keyHash: hashA, address: address(hashA, 1), group: "base" }, { keyHash: hashB, address: "", group: "base" },
-      { keyHash: hashC, address: address(hashC, 1), group: "recovery" }, { keyHash: hashD, address: "", group: "recovery" },
+      { keyHash: hashA, address: address(hashA, 1), group: "base", name: "" }, { keyHash: hashB, address: "", group: "base", name: "" },
+      { keyHash: hashC, address: address(hashC, 1), group: "recovery", name: "" }, { keyHash: hashD, address: "", group: "recovery", name: "" },
     ]);
   });
 

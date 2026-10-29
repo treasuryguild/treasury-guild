@@ -327,11 +327,12 @@ export default function TreasuryPage({
         />
       )}
 
-      {detailsTreasury && (
+      {detailsTreasury && community && (
         <TreasuryDetailsModal
           treasuryId={detailsTreasury.id}
           treasuryName={detailsTreasury.name}
           slug={slug}
+          communityId={community.id}
           onClose={() => setDetailsId(null)}
         />
       )}

@@ -12,6 +12,7 @@ import {
 } from "@/lib/cardano/multisigSDK";
 import { slotAt, slotTime } from "@/lib/cardano/slots";
 import { shapeProblem, sortedGroup, templateScript, type KeyGroup, type TreasuryShape } from "@/lib/cardano/templates";
+import { resolveRegistrationImport } from "@/lib/cardano/cip146Lookup";
 import { decodeTreasuryCbor } from "@/lib/cardano/treasuryImport";
 import { asNetwork, networkName, type Network } from "@/lib/config";
 import { COSIGNER_DISPLAY_NAME, CosignerKind, MIN_LOCK_LEAD_MS, Role, SignerGroup, TreasuryTemplate } from "@/lib/constants";
@@ -175,7 +176,6 @@ export const POST = sessionRoute(async (req, { session }) => {
   const body = await parseJson(req, createTreasurySchema);
   const { communityId, name, workgroupId, source } = body;
   await requireAdmin(communityId, session.wallet);
-  const imported = source ? decodeTreasuryCbor(source.cbor) : null;
 
   // A bad workgroup pick fails here, before any wallet exists.
   if (workgroupId) {
@@ -189,6 +189,17 @@ export const POST = sessionRoute(async (req, { session }) => {
   // signer from the other network could never produce a valid witness.
   const community = await requireCommunity(communityId);
   const network = asNetwork(community.network);
+
+  // CIP-0146 discovery resolves to CBOR + stake credential; a CBOR paste may
+  // carry an optional stake credential from a prior discover preview.
+  let imported = source?.type === "cbor" ? decodeTreasuryCbor(source.cbor) : null;
+  let importStakeCredentialHash: string | null =
+    source?.type === "cbor" ? source.stakeCredentialHash?.toLowerCase() ?? null : null;
+  if (source?.type === "cip146") {
+    const discovered = await resolveRegistrationImport(network, source.txHash);
+    imported = discovered.decoded;
+    importStakeCredentialHash = discovered.stakeCredentialHash;
+  }
   const everyAddress = [
     ...body.signers.map((s) => s.address),
     ...(imported ? [] : (body.recovery?.signers ?? []).map((s) => s.address)),
@@ -252,13 +263,22 @@ export const POST = sessionRoute(async (req, { session }) => {
     if (s.stake_key_hash) baseKeys.push({ keyHash: s.stake_key_hash, role: 2, name: s.display_name ?? "" });
     if (s.drep_key_hash) baseKeys.push({ keyHash: s.drep_key_hash, role: 3, name: s.display_name ?? "" });
   }
-  const msWallet = new MultisigWallet(name, baseKeys, "", shape.base.required, network, undefined, shape.base.scriptType, paymentScript);
+  const msWallet = new MultisigWallet(
+    name,
+    baseKeys,
+    "",
+    shape.base.required,
+    network,
+    importStakeCredentialHash ?? undefined,
+    shape.base.scriptType,
+    paymentScript,
+  );
   if (baseRows.some((s) => s.stake_key_hash) && !msWallet.stakingEnabled()) {
     throw new BadRequestError("Every base signer needs a stake address for a stakeable (SDK) treasury");
   }
   const stakeCredentialHash = msWallet.stakingEnabled()
     ? msWallet.getStakeCredentialHash() ?? null
-    : null;
+    : importStakeCredentialHash;
   const { address, scriptCbor } = msWallet.getScript();
   if (!scriptCbor) throw new InvariantError("Failed to derive multisig script");
 

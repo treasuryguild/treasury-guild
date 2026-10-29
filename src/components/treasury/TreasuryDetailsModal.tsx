@@ -12,18 +12,22 @@ import { networkName } from "@/lib/config";
 import { formatDate, shortAddress } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { RegisterTreasury } from "@/components/treasury/RegisterTreasury";
 import { Button, CopyButton, ErrorText, ExplorerLink, LinkButton, Modal, Spinner } from "@/components/ui";
 
 export function TreasuryDetailsModal({
   treasuryId,
   treasuryName,
   slug,
+  communityId,
   onClose,
 }: {
   treasuryId: string;
   treasuryName: string;
-  /** Community slug for staking / Cardano gov links. */
+  /** Community slug for staking / Cardano gov links and registration builds. */
   slug?: string;
+  /** Needed for the CIP-0146 registration card (treasury-actor gate). */
+  communityId?: string;
   onClose: () => void;
 }) {
   const titleId = useId();
@@ -126,6 +130,10 @@ export function TreasuryDetailsModal({
                 </LinkButton>
               )}
             </div>
+          )}
+
+          {slug && communityId && (
+            <RegisterTreasury treasury={t} slug={slug} communityId={communityId} />
           )}
 
           <section>

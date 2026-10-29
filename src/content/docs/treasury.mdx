@@ -45,7 +45,8 @@ Click **Details** on a treasury card to open the wallet details dialog:
 - the **script hash**, which is also the policy id of tokens [minted](/docs/mint) without a time lock,
 - the stake address and stake credential, when the wallet has one,
 - the **signers** in native-script order (new wallets sort by key hash within each group; imports keep their original order), each with their name, wallet address, payment key hash and, outside the base group, whether they are a recovery signer or the co-signer,
-- the payment **native script as JSON** and as **CBOR hex**, each with a copy button.
+- the payment **native script as JSON** and as **CBOR hex**, each with a copy button,
+- **Register wallet**: a CIP-0146 (label 1854) registration transaction so co-signers can [discover and import](/docs/treasury#importing-a-treasury) this treasury from the chain. Base signers build it like any other transaction; the card shows whether the on-chain record matches the current name and signers, and offers **Update registration** when it does not.
 
 The script is checked against the stored signers and treasury address when the dialog opens, so what you see is exactly what transactions are witnessed with. Use it to verify the wallet in another tool or to register the treasury's script elsewhere.
 
@@ -121,14 +122,23 @@ Each signer approves with their own CIP-30 wallet (Eternl, Lace…). Make sure t
 
 ## Importing a treasury
 
-Admins can import an existing treasury from its payment **native script CBOR hex**.
+Admins can import an existing treasury from its payment **native script CBOR hex**, or by **discovering** a wallet that was [registered on-chain](/docs/treasury#wallet-details) with CIP-0146 (label 1854).
 
-1. On **Treasury**, click **Import treasury** and enter a name.
+### Native script CBOR
+
+1. On **Treasury**, click **Import treasury**, choose **Native script CBOR**, and enter a name.
 2. Paste the CBOR and click **Read CBOR**. Review the signing rule and derived treasury address.
 3. Match every signer key to its payment wallet address. Known community wallets are filled in automatically; enter any missing addresses and optional names.
 4. Optionally choose a workgroup under **Used for**, then click **Import treasury**.
 
 Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. The preview names the template, each group's rule and the lock date, and lists every key with its group, so recovery signers and a co-signer are matched like the base signers. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
+
+### Discover on-chain
+
+1. Choose **Discover on-chain (CIP-0146)**.
+2. Leave the search blank to look up registrations that list your connected wallet's payment key, or paste a payment address, key hash, or registration transaction hash.
+3. Pick a match (or resolve a transaction hash). The app reconstructs the native script from the registration transaction's witnesses, refuses anything that is not a Treasury Guild template shape, and fills known member addresses and participant names from the metadata.
+4. Confirm the derived address (including a stake credential when the registration was for an SDK wallet), finish matching any missing payment addresses, and import as usual.
 
 As with new treasuries, base signers of the first (primary) treasury become community admins; later imports add them as members only (recovery signers and a co-signer must already be members). You must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
 

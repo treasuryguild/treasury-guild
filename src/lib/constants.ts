@@ -48,6 +48,8 @@ export const TxKind = {
   Drep: "drep",
   /** On-chain governance votes as the treasury's script DRep (SDK only). */
   Vote: "vote",
+  /** CIP-0146 (label 1854) self-spend: on-chain registration for co-signer discovery. */
+  Registration: "registration",
 } as const;
 export type TxKind = (typeof TxKind)[keyof typeof TxKind];
 

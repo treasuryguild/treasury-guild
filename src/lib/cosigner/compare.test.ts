@@ -118,6 +118,7 @@ describe("compareTxToRows: payments", () => {
 describe("compareTxToRows: anchors and mints", () => {
   it("lets an anchor through only with change and no mint", () => {
     expect(compareTxToRows({ ...base, kind: "anchor", outputs: [change] })).toEqual([]);
+    expect(compareTxToRows({ ...base, kind: "registration", outputs: [change] })).toEqual([]);
     expect(compareTxToRows({ ...base, kind: "anchor", outputs: [change, { address: ALICE, lovelace: "1000000", assets: [] }] }))
       .toEqual([expect.stringMatching(/anchor transaction moves no funds/i)]);
   });

@@ -231,6 +231,7 @@ export function compareTxToRows(input: CompareInput): string[] {
       break;
     }
     case TxKind.Anchor:
+    case TxKind.Registration:
     case TxKind.Stake:
     case TxKind.Drep:
     case TxKind.Vote: {
@@ -241,7 +242,9 @@ export function compareTxToRows(input: CompareInput): string[] {
             ? "A DRep"
             : input.kind === TxKind.Vote
               ? "A vote"
-              : "An anchor";
+              : input.kind === TxKind.Registration
+                ? "A registration"
+                : "An anchor";
       if (leaving.length > 0) {
         problems.push(`${label} transaction moves no funds; this transaction has ${leaving.length} output(s) leaving the treasury`);
       }

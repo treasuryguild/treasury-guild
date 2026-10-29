@@ -72,6 +72,30 @@ export const txStatusQuerySchema = z.object({
   network: z.coerce.number().pipe(network),
 });
 
+/** GET /api/chain/cip146/lookup — find label-1854 registrations by participant key hash. */
+export const cip146LookupQuerySchema = z.object({
+  network: z.coerce.number().pipe(network),
+  /** Comma-separated 56-hex payment/stake/dRep key hashes. */
+  pubKeyHashes: z
+    .string()
+    .min(56)
+    .max(56 * 50 + 49)
+    .transform((s) =>
+      s
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter((h) => /^[0-9a-f]{56}$/.test(h)),
+    )
+    .refine((hashes) => hashes.length > 0, "Provide at least one pubKeyHash")
+    .refine((hashes) => hashes.length <= 50, "Too many pubKeyHashes (max 50)"),
+});
+
+/** GET /api/chain/cip146/resolve — reconstruct a treasury from a registration tx. */
+export const cip146ResolveQuerySchema = z.object({
+  network: z.coerce.number().pipe(network),
+  txHash,
+});
+
 // --- Community / membership --------------------------------------------------
 
 export const communityIdSchema = z.object({ communityId: id });
@@ -211,8 +235,22 @@ export const setTaskAssigneesSchema = z
 
 // --- Treasury -----------------------------------------------------------------
 
+const keyHash56 = z.string().regex(/^[0-9a-f]{56}$/i, "must be a 28-byte key hash (56 hex chars)");
+
 export const treasuryImportSourceSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("cbor"), cbor: z.string().min(1).max(65_536) }),
+  z.object({
+    type: z.literal("cbor"),
+    cbor: z.string().min(1).max(65_536),
+    /**
+     * Optional stake credential from a CIP-0146 discovery (CBOR paste stays
+     * unstaked). When set, the imported address is derived with this credential.
+     */
+    stakeCredentialHash: keyHash56.optional(),
+  }),
+  z.object({
+    type: z.literal("cip146"),
+    txHash,
+  }),
 ]);
 
 export const previewTreasuryImportSchema = z.object({
@@ -220,7 +258,6 @@ export const previewTreasuryImportSchema = z.object({
   source: treasuryImportSourceSchema,
 });
 
-const keyHash56 = z.string().regex(/^[0-9a-f]{56}$/i, "must be a 28-byte key hash (56 hex chars)");
 const stakeAddress = z.string().min(1).max(200).refine(checkValidStakeKey, "Invalid stake address");
 const treasurySignerInput = z.object({
   address: storedWallet,
@@ -405,6 +442,9 @@ export const devAnchorTestSchema = z.object({ treasuryId: id, path: spendingPath
 
 /** /api/tx/build-anchor: the treasury that pays the fee of a dedicated anchor transaction. */
 export const buildAnchorSchema = z.object({ treasuryId: id, path: spendingPath });
+
+/** /api/tx/build-registration: CIP-0146 label-1854 self-spend for on-chain discovery. */
+export const buildRegistrationSchema = z.object({ treasuryId: id, path: spendingPath });
 
 // --- Transactions -------------------------------------------------------------
 

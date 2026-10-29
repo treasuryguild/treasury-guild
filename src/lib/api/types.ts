@@ -34,6 +34,10 @@ export interface ApiErrorBody {
 export interface TreasuryImportPreview {
   address: string;
   scriptCbor: string;
+  /** Stake credential from CIP-0146 discovery; null for a CBOR paste. */
+  stakeCredentialHash: string | null;
+  /** Suggested name from on-chain registration metadata, when discovered. */
+  suggestedName: string | null;
   /** plain, clawback, lock_until or cosigner, as read from the script. */
   template: TreasuryTemplate;
   /** The base group's rule. */
@@ -45,7 +49,7 @@ export interface TreasuryImportPreview {
   /** The lock slot as a time on the community's network. */
   lockUntil: string | null;
   /** Every key in script order, with the wallet found for it ("" when unknown) and its group. */
-  signers: { keyHash: string; address: string; group: SignerGroup }[];
+  signers: { keyHash: string; address: string; group: SignerGroup; name: string }[];
 }
 
 export interface OkResponse {
@@ -350,6 +354,33 @@ export interface BuildAnchorResponse extends BuildTxResponse {
   proposals: number[];
   /** Due steps that did not fit and stay due. */
   remaining: number;
+}
+/** POST /api/tx/build-registration: CIP-0146 on-chain registration self-spend. */
+export type BuildRegistrationResponse = BuildTxResponse;
+
+/** GET /api/chain/cip146/lookup */
+export interface Cip146LookupResponse {
+  registrations: {
+    txHash: string;
+    name: string;
+    description: string;
+    types: number[];
+    participants: Record<string, { name: string }>;
+  }[];
+}
+
+/** GET /api/chain/cip146/resolve */
+export interface Cip146ResolveResponse {
+  txHash: string;
+  address: string;
+  scriptCbor: string;
+  stakeCredentialHash: string | null;
+  name: string;
+  description: string;
+  participants: Record<string, { name: string }>;
+  template: string;
+  scriptType: string;
+  required: number;
 }
 /** GET /api/proposals/anchors-due: the steps a payout, payment or anchor transaction would carry. */
 export interface AnchorsDueResponse {

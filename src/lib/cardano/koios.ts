@@ -295,3 +295,64 @@ export async function fetchActiveProposals(network: Network): Promise<KoiosPropo
     (p) => p.ratified_epoch == null && p.enacted_epoch == null && p.dropped_epoch == null,
   );
 }
+
+// --- CIP-0146 label-1854 registration discovery ------------------------------
+
+const METALABEL_PAGE_SIZE = 100;
+/** Bound fan-out like multisig's Blockfrost 10×100 ceiling. */
+const METALABEL_MAX_PAGES = 10;
+
+export interface KoiosMetalabelTx {
+  tx_hash: string;
+  block_height?: number;
+  epoch_no?: number;
+  absolute_slot?: number;
+}
+
+/**
+ * Transactions that carry a given metadata label, oldest first.
+ * Koios `GET /tx_by_metalabel?_label=…` with offset pagination.
+ */
+export async function txsByMetalabel(
+  network: Network,
+  label: number | string,
+): Promise<string[]> {
+  const hashes: string[] = [];
+  for (let page = 0; page < METALABEL_MAX_PAGES; page++) {
+    const rows = (await koiosGet(
+      network,
+      `/tx_by_metalabel?_label=${encodeURIComponent(String(label))}&offset=${page * METALABEL_PAGE_SIZE}&limit=${METALABEL_PAGE_SIZE}`,
+    )) as KoiosMetalabelTx[];
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    for (const row of rows) {
+      if (typeof row.tx_hash === "string") hashes.push(row.tx_hash.toLowerCase());
+    }
+    if (rows.length < METALABEL_PAGE_SIZE) break;
+  }
+  return hashes;
+}
+
+export interface KoiosTxMetadataRow {
+  tx_hash: string;
+  metadata: Record<string, unknown> | null;
+}
+
+/** POST /tx_metadata — metadata keyed by label for each hash. */
+export async function txMetadataBulk(
+  network: Network,
+  txHashes: string[],
+): Promise<Map<string, Record<string, unknown>>> {
+  const out = new Map<string, Record<string, unknown>>();
+  if (txHashes.length === 0) return out;
+  for (let i = 0; i < txHashes.length; i += 50) {
+    const rows = (await koiosPost(network, "/tx_metadata", {
+      _tx_hashes: txHashes.slice(i, i + 50),
+    })) as KoiosTxMetadataRow[];
+    for (const row of rows) {
+      if (row.metadata && typeof row.metadata === "object") {
+        out.set(row.tx_hash.toLowerCase(), row.metadata as Record<string, unknown>);
+      }
+    }
+  }
+  return out;
+}
