@@ -1,7 +1,7 @@
-An AI assistant such as Claude can read Treasury Guild for you: which communities you belong to, what their treasuries hold, which tasks are waiting to be paid, and how spending compares with the budget. If you allow it, it can also prepare changes for you to confirm: [proposals](/docs/governance), tasks and calls, and payouts for the signers to sign. You connect it once, approve it with your wallet, and can disconnect it at any time.
+An AI assistant such as Claude can read Treasury Guild for you: which communities you belong to, what their treasuries hold, which tasks are waiting to be paid, and how spending compares with the budget. If you allow it, it can also prepare changes for you to confirm: [proposals](/docs/governance), tasks and calls, payouts, and stake / Cardano DRep / on-chain vote transactions for the signers to sign. You connect it once, approve it with your wallet, and can disconnect it at any time.
 
 <Callout title="Assistants cannot vote, sign or pay">
-Nothing an assistant does through Treasury Guild can sign a transaction, pay anyone or vote. Every change goes through a preview, needs a permission you ticked, and the assistant is instructed to carry it out only after you agree to that preview in the conversation. A payout it prepares is only a draft transaction: the treasury's signers still sign it in the app with their wallets, and nothing is paid until they do.
+Nothing an assistant does through Treasury Guild can sign a transaction, pay anyone or cast a community proposal ballot. Every change goes through a preview, needs a permission you ticked, and the assistant is instructed to carry it out only after you agree to that preview in the conversation. A payout or Cardano stake / DRep / vote it prepares is only a draft transaction: the treasury's signers still sign it in the app with their wallets, and nothing is paid or submitted until they do.
 </Callout>
 
 ## Connecting an assistant
@@ -24,6 +24,7 @@ The assistant opens the **Connect an AI assistant** page in your browser.
    - **proposals:write**: make proposals, and withdraw your own.
    - **tasks:write**: create and edit tasks on app boards you manage, create calls and pay their attendance into tasks.
    - **payouts:write**: prepare payout transactions for tasks ready to pay.
+   - **governance:write**: prepare stake, DRep and Cardano governance vote transactions for plain [SDK treasuries](/docs/treasury#staking-and-cardano-governance) you sign for.
 
    **Deny** sends the assistant away with nothing.
 
@@ -35,7 +36,7 @@ With the **communities:read** permission an assistant can:
 
 - list your communities and your role in each,
 - list the transactions waiting for your signature, across all your communities: on which treasury, how many signatures they have and need, whether you already signed or rejected them, and whether they are ready to submit,
-- show each treasury's [template](/docs/treasury#treasury-templates) and lock date, its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
+- show each treasury's [template](/docs/treasury#treasury-templates) and lock date, whether it is [archived](/docs/treasury#archiving-a-treasury), its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
 - list transactions (payouts, payments and transfers, mints and anchors) with their treasury, state, on-chain hash, signatures and any budget problems found when they were built,
 - show one transaction in detail: who has signed and who still needs to, every payout or payment line (task, recipient, token, amount), minted tokens, the fee, the Treasury Guild record it carries on chain and the co-signer's decisions. Ask it to check a transaction before you sign it in the app,
 - list what arrived in the treasuries: amounts, the sending treasury of a transfer, the type and whether it waits for review on the Incoming page,
@@ -85,9 +86,17 @@ With **tasks:write**, on workgroups you lead (or any, as an admin):
 
 With **payouts:write**, as a base signer of that treasury, or lead of every workgroup concerned:
 
-- **prepare a payout** of tasks ready to pay, the ones you name or all of them, from the treasury their workgroups are paid from. The preview shows each recipient and amount, the totals, how many signatures it needs and any problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) finds. Confirming creates the treasury's pending transaction, as **Build payout** on [Payday](/docs/payday) does: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected. Tokens a bounty names that Payday would ask you to connect by hand are left to Payday.
+- **prepare a payout** of tasks ready to pay, the ones you name or all of them, from the treasury their workgroups are paid from. An archived treasury cannot be used; restore it in the app first. The preview shows each recipient and amount, the totals, how many signatures it needs and any problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) finds. Confirming creates the treasury's pending transaction, as **Build payout** on [Payday](/docs/payday) does: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected. Tokens a bounty names that Payday would ask you to connect by hand are left to Payday.
 
-Nothing is paid until the treasury's signers sign the transaction in the app with their wallets.
+With **governance:write**, as a base signer of a plain [SDK treasury](/docs/treasury#staking-and-cardano-governance):
+
+- **prepare a stake transaction** (register, register and delegate, delegate, deregister, withdraw rewards, or vote-delegation),
+- **prepare a DRep transaction** (register, update or retire the treasury as a script DRep),
+- **prepare an on-chain Cardano governance vote** as that DRep (one or more proposal votes; the DRep must already be registered).
+
+These are separate from community [proposals](/docs/governance): the assistant still cannot cast a community ballot for you. Confirming creates the treasury's pending transaction, as the Staking and Cardano gov pages do; signers sign in the app (payment and stake or DRep keys as required). An archived or non-SDK treasury is refused.
+
+Nothing is paid or submitted until the treasury's signers sign the transaction in the app with their wallets.
 
 ## Disconnecting
 
@@ -121,6 +130,9 @@ The same reads and writes are plain HTTP endpoints, returning the JSON the assis
 | `POST /api/v1/communities/{slug}/calls/preview` | Previews creating a call (`workgroup`, `provider`, `title`, `startsAt`, `endsAt`, `reward`; optional `meeting`, `minSnapshots`, `minMinutes`) |
 | `POST /api/v1/communities/{slug}/calls/finalize/preview` | Previews paying a call's attendance `{ "call": id }` |
 | `POST /api/v1/communities/{slug}/payouts/preview` | Previews a payout (`tasks`, `treasury`, `workgroup`, all optional) |
+| `POST /api/v1/communities/{slug}/governance/stake/preview` | Previews a stake action (`treasury`, `action`, optional `poolId` / `dRepId`) for a plain SDK treasury |
+| `POST /api/v1/communities/{slug}/governance/drep/preview` | Previews a DRep register / update / retire (`treasury`, `action`, metadata) |
+| `POST /api/v1/communities/{slug}/governance/vote/preview` | Previews on-chain Cardano votes (`treasury`, `votes`, optional `rationaleJson`) |
 | `POST /api/v1/drafts/confirm` | Carries out any preview, a proposal's included, from `{ "draftToken": "…" }` (an optional `community` must be the previewed one); repeating it does the change once and answers `created: false` |
 
 A request authenticates with `Authorization: Bearer <access token>` from Treasury Guild's OAuth sign-in (the flow an assistant runs), or with your browser session when you open the URL while signed in (a write then refuses a request sent from another site). Amounts are exact decimal strings in display units (ADA, not lovelace). Requests are rate limited per wallet.

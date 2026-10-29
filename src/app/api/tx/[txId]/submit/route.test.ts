@@ -38,7 +38,7 @@ const FILTERED = "84a1filtered";
 const HASH = "e".repeat(64);
 
 const signer = (wallet: string, group: SignerGroup): TreasurySignerRow => ({
-  treasury_id: TREASURY_ID, wallet_address: wallet, key_hash: "ab".repeat(28), stake_key_hash: null, display_name: null, signer_group: group,
+  treasury_id: TREASURY_ID, wallet_address: wallet, key_hash: "ab".repeat(28), stake_key_hash: null, drep_key_hash: null, display_name: null, signer_group: group,
 });
 const BASE = [signer(ALICE, SignerGroup.Base), signer(BOB, SignerGroup.Base), signer(CAROL, SignerGroup.Base)];
 const RECOVERY = [signer(RECOVERY1, SignerGroup.Recovery), signer(RECOVERY2, SignerGroup.Recovery)];
@@ -46,6 +46,7 @@ const plain: TreasuryRow = {
   id: TREASURY_ID, community_id: COMMUNITY, name: "Main", network: 0, required: 2, script_type: "atLeast",
   address: "addr_test1treasury", script_cbor: "00", stake_credential_hash: null, template: TreasuryTemplate.Plain,
   lock_slot: null, lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null,
+  archived_at: null, archived_by: null,
 };
 const clawback: TreasuryRow = {
   ...plain, template: TreasuryTemplate.Clawback, lock_slot: 1000, lock_until: "2026-09-01T00:00:00.000Z",
@@ -57,7 +58,7 @@ const tx = (overrides: Partial<TransactionRow> = {}): TransactionRow => ({
   id: TX, treasury_id: TREASURY_ID, kind: "payout", tx_cbor: "84a0", tx_hash: "f".repeat(64), description: null,
   signed_addresses: [ALICE, BOB], rejected_addresses: [], state: TxState.Pending, created_by: ALICE, submitted_at: null,
   created_at: "2026-10-01T00:00:00.000Z", discord_notified_at: null, spend_problems: [], block_time: null,
-  spending_path: SpendingPath.Base, ...overrides,
+  spending_path: SpendingPath.Base, governance_action: null, ...overrides,
 });
 
 /** The service client as loadTxContext uses it: transactions.select("*").eq("id").maybeSingle(). */

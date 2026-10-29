@@ -6,6 +6,7 @@ import { Role } from "@/lib/constants";
 import { requireCommunity, setPrimaryTreasury } from "@/lib/db/communities";
 import { addMember, promoteMembersToAdmin } from "@/lib/db/membership";
 import {
+  assertTreasuryActive,
   isPrimaryTreasuryBaseSigner,
   loadBaseSignerWallets,
   loadTreasury,
@@ -26,6 +27,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   if (treasury.community_id !== communityId) {
     throw new BadRequestError("Choose a treasury of this community");
   }
+  assertTreasuryActive(treasury, "Restore this treasury before making it primary");
   if (community.primary_treasury_id === treasuryId) {
     return { ok: true } satisfies OkResponse;
   }

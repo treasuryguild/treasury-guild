@@ -57,14 +57,18 @@ unnecessary.
 | `call_create_preview` | `POST …/calls/preview` | `previewCallCreate` (`callWrite.ts`, `tasks:write`) |
 | `call_finalize_preview` | `POST …/calls/finalize/preview` | `previewCallFinalize` (same) |
 | `payout_preview` | `POST …/payouts/preview` | `previewPayout` (`payoutWrite.ts`, `payouts:write`) |
+| `stake_preview` | `POST …/governance/stake/preview` | `previewStake` (`governanceWrite.ts`, `governance:write`) |
+| `drep_preview` | `POST …/governance/drep/preview` | `previewDrep` (same) |
+| `vote_preview` | `POST …/governance/vote/preview` | `previewVote` (same) |
 | `draft_confirm` | `POST /api/v1/drafts/confirm` | `confirmDraft` (`drafts.ts`, any write scope; the action's own scope inside) |
 
 **Almost every tool reads.** Results carry member-written text (task titles, names,
 descriptions) that reaches the model. A signing or paying tool next to that would turn
-prompt injection into a funds-movement path, so no tool signs, submits or votes, and every
-write goes through a preview the user agrees to. `src/lib/mcp/tools.test.ts` pins the whole
-list, the two tools that carry a write out (`proposal_create`, `draft_confirm`), which
-previews each write scope offers, and that every write sits behind a `:write` scope only.
+prompt injection into a funds-movement path, so no tool signs, submits or casts a community
+proposal ballot, and every write goes through a preview the user agrees to.
+`src/lib/mcp/tools.test.ts` pins the whole list, the two tools that carry a write out
+(`proposal_create`, `draft_confirm`), which previews each write scope offers, and that
+every write sits behind a `:write` scope only.
 
 ## Proposals: preview → confirm
 
@@ -135,8 +139,9 @@ nothing until members vote on it with their wallets.
 
 ## Other writes: `*_preview` → `draft_confirm`
 
-Withdrawing a proposal, saving a task, creating a call, paying a call's attendance and
-drafting a payout follow the same pattern with one shared confirm tool.
+Withdrawing a proposal, saving a task, creating a call, paying a call's attendance,
+drafting a payout, and preparing stake / DRep / on-chain vote transactions follow the
+same pattern with one shared confirm tool.
 
 - **The token names its action** (`act` claim, `DRAFT_ACTIONS` in `draftToken.ts`; a token
   without one reads as `proposal_create`). `DRAFT_ACTION_DEFS` (`src/lib/api/v1/drafts.ts`)
@@ -150,6 +155,9 @@ drafting a payout follow the same pattern with one shared confirm tool.
   | `call_create` | `tasks:write` | `call_create_preview` |
   | `call_finalize` | `tasks:write` | `call_finalize_preview` |
   | `payout_create` | `payouts:write` | `payout_preview` |
+  | `stake_create` | `governance:write` | `stake_preview` |
+  | `drep_create` | `governance:write` | `drep_preview` |
+  | `vote_create` | `governance:write` | `vote_preview` |
   - `draft_confirm` is offered to a connection holding *any* write scope; an endpoint
     `scope` may be a list, meaning any one of them (`endpointScopes`, `endpointAllowed`).
   - `draft_confirm` then checks the action's own scope, so a `tasks:write` connection
@@ -183,6 +191,12 @@ drafting a payout follow the same pattern with one shared confirm tool.
   - The fingerprint covers recipients, tasks and amounts, the path and the budget
     problems, not the fee or inputs. The confirm re-plans from the chain and stores the
     pending transaction; signers sign in the app. Manual token connections stay on Payday.
+- **Cardano stake / DRep / vote** (`governance:write`). Shared with the session build
+  routes in `src/lib/cardano/governanceBuild.ts` (`planStake` / `planDrep` /
+  `planVote` + `persistGovernanceTx`). Plain SDK treasuries only; base path; base
+  signers; fingerprint covers the action and chain-relevant inputs (not the pin URL).
+  Confirm stores a pending `transactions` row (`kind` stake/drep/vote); never a community
+  proposal ballot.
 - **Tasks.** Service-role writes re-check in code what the browser's RLS and column grants
   check: a manager, an active app board, and never a task past `pay_state 'none'`.
   - Create goes in the first column neither payable nor paid (`firstOpenColumn`).

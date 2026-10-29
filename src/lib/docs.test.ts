@@ -60,6 +60,7 @@ describe("docs registry", () => {
     expect(docForPath("/docs/treasury")).toBeNull();
     expect(docForPath("/dev")).toBeNull();
     expect(docForPath("/c/dao/treasury/new")).toEqual({ slug: "treasury", hash: "creating-a-treasury" });
+    expect(docForPath("/invite/signer/abc")).toEqual({ slug: "treasury", hash: "inviting-sdk-signers" });
     expect(docForPath("/c/dao")).toEqual({ slug: "communities", hash: "community-overview" });
     expect(docForPath("/c/dao/treasury/import")).toEqual({ slug: "treasury", hash: "importing-a-treasury" });
     expect(docForPath("/c/dao/treasury/history")).toEqual({ slug: "treasury", hash: "payment-history-from-a-previous-wallet" });

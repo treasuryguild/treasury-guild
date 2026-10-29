@@ -6,6 +6,7 @@ import "server-only";
 import { resolveNativeScriptHash, type NativeScript } from "@meshsdk/core";
 import type { TreasuryDetails } from "./api/types";
 import { MultisigWallet, type MultisigKey } from "./cardano/multisigSDK";
+import { canDrep, canStake, isSdkTreasury } from "./cardano/sdkCapabilities";
 import type { KeyGroup, TreasuryShape } from "./cardano/templates";
 import { decodeTreasuryCbor } from "./cardano/treasuryImport";
 import { asNetwork } from "./config";
@@ -61,6 +62,9 @@ export function buildTreasuryWallet(
     keys.push({ keyHash: signer.key_hash, role: 0, name: signer.display_name ?? "" });
     if (signer.stake_key_hash) {
       keys.push({ keyHash: signer.stake_key_hash, role: 2, name: signer.display_name ?? "" });
+    }
+    if (signer.drep_key_hash) {
+      keys.push({ keyHash: signer.drep_key_hash, role: 3, name: signer.display_name ?? "" });
     }
   }
   const wallet = new MultisigWallet(
@@ -147,11 +151,17 @@ export function describeTreasury(
     scriptHash: resolveNativeScriptHash(paymentScript),
     stakeCredentialHash: treasury.stake_credential_hash,
     stakeAddress: wallet.getStakeAddress() ?? null,
+    dRepId: canDrep(treasury, wallet) ? wallet.getDRepId() ?? null : null,
+    sdk: isSdkTreasury(treasury, wallet),
+    canStake: canStake(treasury, wallet),
+    canDrep: canDrep(treasury, wallet),
     signers: ordered.map((s) => ({
       walletAddress: s.wallet_address,
       keyHash: s.key_hash,
       displayName: s.display_name,
       group: s.signer_group,
+      stakeKeyHash: s.stake_key_hash,
+      drepKeyHash: s.drep_key_hash,
     })),
   };
 }

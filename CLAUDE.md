@@ -222,6 +222,16 @@ Supabase (RLS, no ORM) + Netlify.
   wallet or name. `external_txs` has two FKs to `treasuries`, so its embed
   names `external_txs_treasury_id_fkey`. The Treasury page reads such rows
   **Built outside Treasury Guild** while the budget kind is on.
+- **CIP-0146 registration** (label **1854**, `TxKind.Registration`,
+  migration 0076): a treasury self-spend built only in
+  `src/lib/cardano/registrationBuilder.ts` / `POST /api/tx/build-registration`
+  so co-signers can discover and import it. Metadata helpers in
+  `cip146Registration.ts` (participants = every signer group plus base
+  stake/DRep hashes); lookup/resolve via Koios in `cip146Lookup.ts` /
+  `/api/chain/cip146/*`; discovery reconstructs through `decodeTreasuryCbor`
+  (`cip146Discovery.ts`). The Details dialog registers; Import offers
+  Discover on-chain. Same change-only cosigner check as anchors; recovery
+  path refused.
 - **Proposal anchors** (migration 0060, label **190002**, the one home
   `src/lib/cardano/anchorMetadata.ts`): `{v:1, src, c, a}` with one positional
   entry per (proposal, step): `[n, "proposed", contentHash, rulesHash]`,
@@ -571,7 +581,7 @@ Supabase (RLS, no ORM) + Netlify.
   `purge_oauth` (reconcile sweep) also drops ungranted CIMD clients unseen
   for a day. Scopes live in
   `src/lib/mcp/scopes.ts` (`communities:read`, `proposals:write`,
-  `tasks:write`, `payouts:write`) and the 401 challenge names all of them; a
+  `tasks:write`, `payouts:write`, `governance:write`) and the 401 challenge names all of them; a
   write scope is never in a scope-less request's default (`READ_SCOPES`) and
   starts unticked on the consent page. **Only `proposal_create` and
   `draft_confirm` write** (`src/lib/mcp/tools.test.ts` pins the list, the two

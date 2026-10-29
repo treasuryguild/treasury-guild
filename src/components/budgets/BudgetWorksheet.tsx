@@ -93,7 +93,7 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
       id: group.id, name: group.name, kind: "workgroup", archived_at: group.archived_at, treasury_id: group.treasury_id,
     })),
     ...treasuries.map((treasury): BudgetOwner => ({
-      id: treasury.id, name: treasury.name, kind: "treasury", archived_at: null, treasury_id: treasury.id,
+      id: treasury.id, name: treasury.name, kind: "treasury", archived_at: treasury.archived_at, treasury_id: treasury.id,
     })),
   ];
   const ownerFor = (id: string) => owners.find((owner) => owner.id === id);

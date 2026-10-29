@@ -16,6 +16,10 @@ export const MAX_INVITE_USES = 10_000;
 /** Active (unrevoked) invites one community may hold at once. */
 export const MAX_ACTIVE_INVITES_PER_COMMUNITY = 20;
 
+/** How long an SDK signer invite stays open for signers to connect. */
+export const SIGNER_DRAFT_DAYS = 7;
+export const SIGNER_DRAFT_TTL_MS = SIGNER_DRAFT_DAYS * 24 * 60 * 60 * 1000;
+
 export function inviteExpiresAt(
   expiresInDays: InviteExpiryDays | null,
   now = Date.now(),

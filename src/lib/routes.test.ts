@@ -86,6 +86,9 @@ describe("pageLabel: the remaining pages", () => {
     expect(pageLabel(routes.invite("AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg"))).toBe(
       "Join community",
     );
+    expect(pageLabel(routes.treasurySignerInvite("AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcdefg"))).toBe(
+      "SDK signer invite",
+    );
   });
 
   it("labels the community pages", () => {

@@ -16,6 +16,9 @@ describe("draft actions", () => {
       call_create: "tasks:write",
       call_finalize: "tasks:write",
       payout_create: "payouts:write",
+      stake_create: "governance:write",
+      drep_create: "governance:write",
+      vote_create: "governance:write",
     });
   });
 

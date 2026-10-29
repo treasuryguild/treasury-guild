@@ -30,7 +30,7 @@ import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useNow } from "@/hooks/useNow";
 import { useGovernanceSettings, useProposal } from "@/hooks/useProposals";
-import { useTreasuries } from "@/hooks/useTreasuries";
+import { activeTreasuries, useTreasuries } from "@/hooks/useTreasuries";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
 import { useWorkgroupTreasuryAssignments } from "@/hooks/useWorkgroupTreasuryAssignments";
 
@@ -96,7 +96,7 @@ export default function ProposalPage({ params }: { params: Promise<{ slug: strin
         replaces={replaces} revisedBy={revisedBy} />
       {proposal.kind === ProposalKind.Budget && (
         <BudgetProposalView slug={slug} proposal={proposal} ownerNames={ownerNames} isAdmin={isAdmin}
-          treasuryCount={treasuries.data?.length ?? 0} assignments={assignments} />
+          treasuryCount={activeTreasuries(treasuries.data).length} assignments={assignments} />
       )}
       {proposal.kind === ProposalKind.Workgroup && <WorkgroupProposalView slug={slug} proposal={proposal} names={names} />}
       {proposal.kind === ProposalKind.Task && (

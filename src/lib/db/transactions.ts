@@ -4,7 +4,7 @@ import { MSG, PayoutStatus, PgCode, TxState, type SpendingPath, type TxKind } fr
 import { ConflictError } from "@/lib/errors";
 import { check, maybe, must, rows, rpc, serviceClient } from "./client";
 import type { SpendProblem } from "@/lib/governance/spendCheck";
-import type { TransactionRow } from "./types";
+import type { GovernanceAction, TransactionRow } from "./types";
 
 /**
  * One pending tx per treasury: a second would spend the same UTxOs.
@@ -38,6 +38,8 @@ export interface NewTransaction {
   spend_problems?: SpendProblem[];
   /** The agent API draft that made it (0065); one draft, one transaction. */
   agent_draft_id?: string;
+  /** Stake / DRep / vote details (0075). */
+  governance_action?: GovernanceAction;
 }
 
 export async function insertTransaction(

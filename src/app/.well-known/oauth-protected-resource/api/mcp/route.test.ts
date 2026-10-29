@@ -32,7 +32,7 @@ describe("GET /.well-known/oauth-protected-resource/api/mcp (path-aware form)", 
     expect(JSON.parse(text)).toEqual({
       resource: `${APP}/api/mcp`,
       authorization_servers: [APP],
-      scopes_supported: ["communities:read", "proposals:write", "tasks:write", "payouts:write"],
+      scopes_supported: ["communities:read", "proposals:write", "tasks:write", "payouts:write", "governance:write"],
       bearer_methods_supported: ["header"],
       resource_name: "Treasury Guild",
       resource_documentation: `${APP}/docs/ai-assistants`,

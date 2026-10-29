@@ -45,7 +45,8 @@ Click **Details** on a treasury card to open the wallet details dialog:
 - the **script hash**, which is also the policy id of tokens [minted](/docs/mint) without a time lock,
 - the stake address and stake credential, when the wallet has one,
 - the **signers** in native-script order (new wallets sort by key hash within each group; imports keep their original order), each with their name, wallet address, payment key hash and, outside the base group, whether they are a recovery signer or the co-signer,
-- the payment **native script as JSON** and as **CBOR hex**, each with a copy button.
+- the payment **native script as JSON** and as **CBOR hex**, each with a copy button,
+- **Register wallet**: a CIP-0146 (label 1854) registration transaction so co-signers can [discover and import](/docs/treasury#importing-a-treasury) this treasury from the chain. Base signers build it like any other transaction; the card shows whether the on-chain record matches the current name and signers, and offers **Update registration** when it does not.
 
 The script is checked against the stored signers and treasury address when the dialog opens, so what you see is exactly what transactions are witnessed with. Use it to verify the wallet in another tool or to register the treasury's script elsewhere.
 
@@ -59,7 +60,12 @@ Only admins can create a treasury, and their wallet must be on the community's n
 4. Under **Signers (payment addresses)** (**Base signers (payment addresses)** once a template is chosen), pick a community member to fill name and address (admins, then workgroup leads, then members), or paste each signer's **payment address** (`addr…` on mainnet, `addr_test…` on preprod) and give them a name. The form starts with two rows; **+ Add signer** adds more, and rows left blank are ignored. Every address must be on the community's network and listed once. When you create the community's first treasury, you must be one of its base signers.
 5. Set **Required signatures**, the number of signers that must approve each transaction; the label reads back the rule, for example **2 of 3**.
 6. Choose a **Template**: **Plain multisig** (the default) or one of the [treasury templates](/docs/treasury#treasury-templates) below, which add a lock date, recovery signers or a co-signer. Depending on the template, set the **Lock date** (at least one hour from now), the **Recovery signers (payment addresses)** with their **Recovery rule** (any, all or at least N of them), or the **Co-signer**: **A member** you pick from the member list, or **Treasury Guild (app-held key)**.
-7. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
+7. For a **plain** treasury that should stake and act as a Cardano DRep, tick **Enable staking and Cardano governance (SDK wallet)**. That does not take a pasted stake address. **Save and invite signers** stores the payment addresses and shows a link once. Each listed signer opens it and connects that wallet; Treasury Guild reads the stake address and, when the wallet provides one, the DRep key hash. **Create treasury** stays unavailable until every stake address is in. A missing DRep key is allowed: without a complete set, the payment script is used as the DRep. Leave the box unticked for a legacy spend-only wallet. Clawback, lock-until and co-signer templates cannot stake — create a separate plain SDK treasury instead.
+
+### Inviting SDK signers
+
+The invite lasts 7 days. The page lists each payment address as waiting or received, and notes when a DRep key has not arrived. If your own wallet is one of the signers and it is connected, its keys are read when you save. Changing the signer list and choosing **Update invite** keeps keys for addresses that are still listed and drops the rest. The link is shown only when the invite is first saved; discard the invite to make a new one. A community can have 10 open invites at once.
+8. Click **Create treasury**. A templated treasury first shows a confirmation that states, in plain words, the date (for a lock), what each group can do and from when, and that none of it can be changed later.
 
 When you linked a workgroup, the page then tells you when the link starts: from the current budget period, or from the **next** one when the workgroup was already paid from another wallet this period. If the workgroup already has a later wallet change scheduled, the treasury is still created but not linked; set the wallet from the workgroup's **Edit details** dialog instead. Only one workgroup can be linked here; link more from each workgroup's own dialog.
 
@@ -73,12 +79,23 @@ A treasury's native script has one of four fixed shapes. The base signers and th
 
 | Template | Script | What it means |
 |---|---|---|
-| **Plain multisig** | `base` | The base signers spend under their rule. |
-| **Clawback** | `any[ base, all[ recovery, after(slot) ] ]` | The base signers can always spend; from the lock date the recovery signers can move the funds out too. |
-| **Lock-until** | `all[ base, after(slot) ]` | Nobody can spend before the lock date; the treasury can still receive. |
-| **Co-signer** | `any[ all[ base, sig(co-signer) ], all[ every base signer ] ]` | A normal spend needs the base rule plus the co-signer, who signs only what passes a check; every base signer together can spend without the co-signer. |
+| **Plain multisig** | `base` | The base signers spend under their rule. With stake keys for every base signer it is an **SDK** wallet that can [stake and act as a DRep](/docs/treasury#staking-and-cardano-governance). |
+| **Clawback** | `any[ base, all[ recovery, after(slot) ] ]` | The base signers can always spend; from the lock date the recovery signers can move the funds out too. Spend-only — no staking or DRep. |
+| **Lock-until** | `all[ base, after(slot) ]` | Nobody can spend before the lock date; the treasury can still receive. Spend-only — no staking or DRep. |
+| **Co-signer** | `any[ all[ base, sig(co-signer) ], all[ every base signer ] ]` | A normal spend needs the base rule plus the co-signer, who signs only what passes a check; every base signer together can spend without the co-signer. Spend-only — no staking or DRep. |
 
 The **Details** dialog shows the template, the lock date with its slot, each group's rule and every signer with its group. The templates cannot be combined, and a lock or a co-signer cannot be added to an existing treasury.
+
+## Staking and Cardano governance
+
+A **plain SDK** treasury stores a stake key hash (and optionally a DRep key hash) for every base signer. Its payment address is a *base* address whose stake credential is the hash of the stake native script (same `all` / `any` / `atLeast` rule as the payment script). Legacy plain wallets created without stake keys, and every clawback / lock-until / co-signer treasury, cannot stake or vote on-chain — create a new plain SDK treasury and [transfer](/docs/payments) the funds.
+
+On the Treasury page an SDK wallet shows **Staking** and **Cardano gov** links:
+
+- **Staking** — register the stake key, delegate to a pool, withdraw rewards, deregister, or set vote-delegation (always abstain, always no confidence, or a DRep id). Signers must witness with both their payment and stake keys.
+- **Cardano governance** — register, update or retire the treasury as a script DRep, and cast on-chain votes on active Cardano governance proposals. This is separate from community [Proposals](/docs/governance). When DRep key hashes are incomplete, the payment script acts as the DRep.
+
+Imported CBOR wallets stay unstaked (the script bytes do not carry a stake credential). There is no in-place upgrade: the address would change.
 
 ### Clawback
 
@@ -109,14 +126,23 @@ Each signer approves with their own CIP-30 wallet (Eternl, Lace…). Make sure t
 
 ## Importing a treasury
 
-Admins can import an existing treasury from its payment **native script CBOR hex**.
+Admins can import an existing treasury from its payment **native script CBOR hex**, or by **discovering** a wallet that was [registered on-chain](/docs/treasury#wallet-details) with CIP-0146 (label 1854).
 
-1. On **Treasury**, click **Import treasury** and enter a name.
+### Native script CBOR
+
+1. On **Treasury**, click **Import treasury**, choose **Native script CBOR**, and enter a name.
 2. Paste the CBOR and click **Read CBOR**. Review the signing rule and derived treasury address.
 3. Match every signer key to its payment wallet address. Known community wallets are filled in automatically; enter any missing addresses and optional names.
 4. Optionally choose a workgroup under **Used for**, then click **Import treasury**.
 
 Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. The preview names the template, each group's rule and the lock date, and lists every key with its group, so recovery signers and a co-signer are matched like the base signers. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
+
+### Discover on-chain
+
+1. Choose **Discover on-chain (CIP-0146)**.
+2. Leave the search blank to look up registrations that list your connected wallet's payment key, or paste a payment address, key hash, or registration transaction hash.
+3. Pick a match (or resolve a transaction hash). The app reconstructs the native script from the registration transaction's witnesses, refuses anything that is not a Treasury Guild template shape, and fills known member addresses and participant names from the metadata.
+4. Confirm the derived address (including a stake credential when the registration was for an SDK wallet), finish matching any missing payment addresses, and import as usual.
 
 As with new treasuries, base signers of the first (primary) treasury become community admins; later imports add them as members only (recovery signers and a co-signer must already be members). You must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
 
@@ -178,7 +204,7 @@ Send ADA or tokens to the treasury address from any wallet. The balance appears 
 
 ## Primary treasury
 
-One treasury per community is **primary**: its base signers are community admins and cannot be demoted while they remain so. The first treasury created (or imported) becomes primary automatically. Admins can **Set as primary** on another treasury card; that promotes its base signers to admin and does not auto-demote the previous primary's signers — review [Members](/docs/members-roles) afterwards if you want to demote them. Signing a non-primary treasury never grants community-wide admin powers.
+One treasury per community is **primary**: its base signers are community admins and cannot be demoted while they remain so. The first treasury created (or imported) becomes primary automatically. Admins can **Set as primary** on another treasury card; that promotes its base signers to admin and does not auto-demote the previous primary's signers — review [Members](/docs/members-roles) afterwards if you want to demote them. An archived treasury cannot be made primary. Signing a non-primary treasury never grants community-wide admin powers.
 
 ## Several treasuries
 
@@ -189,6 +215,22 @@ To move money between your treasuries from inside the app, use the [Payments pag
 With [proposals](/docs/governance) on, several treasuries also limit what a spend against a vote can reach: keep most funds in a **reserve treasury** with a higher threshold or a wider signer set, route each workgroup to an **operating treasury**, and move only each voted budget there with **Fund this budget** on the applied budget proposal (see [Funding a voted budget](/docs/governance#funding-a-voted-budget)). Each such transfer cites the decision that put the money there.
 
 A workgroup's payment wallet can change over time. Each change is dated and takes effect at the start of a **budget period** (a month or a quarter, following the workgroup's [budget setup](/docs/budgets#budget-setups)): the next period, or the current one while nothing has been paid in it from another wallet yet. Payouts already made keep the wallet they came from, and a task from an earlier period is still paid from that period's wallet, so a period is never split across two wallets. The history of changes, with who made them and why, is kept with the workgroup.
+
+## Archiving a treasury
+
+When a project wallet is finished, an admin archives it from its card on the Treasury page. Archiving hides it from the lists used to start something new: Payday, payments, minting, anchor builds, a workgroup's payment wallet, transfer recipients, **Set as primary**, and the count of treasuries behind **Fund this budget**. It does not delete the wallet. The address, its transactions, its payout history and its on-chain anchor links stay on the same row. Tick **Show archived** on the Treasury page to see the card and its transactions again. The Dashboard, Incoming page, transaction pages and anyone still signing a transaction that was already built keep seeing it too.
+
+An archived treasury cannot start a new payout, mint or anchor. It can still send what it holds to another treasury of the community: that transfer does not attach proposal anchors. Its budget cannot be edited until it is restored, and a workgroup cannot be pointed at it.
+
+Archive is refused while any of these is still true:
+
+- this treasury is the community's primary (set another primary first),
+- it has a transaction that is still pending or submitted,
+- an active workgroup pays from it now, or is scheduled to pay from it in a future period.
+
+Move the primary and those payment wallets first, and finish or reject the transaction in progress. **Restore** on the card (or **Restore this treasury** when creating or importing the same script) puts the same row back into the pickers. Creating or importing a script whose address already belongs to an archived treasury of this community restores that row; it does not add a second treasury. The same address in another community, or a live wallet in this one, is still a conflict with nothing to restore. A different signer set or threshold is a different address and a new treasury.
+
+There is no way to delete a treasury that has built a transaction. Deleting the row would drop the app's record of the anchors that wallet published.
 
 ## Discord notifications
 

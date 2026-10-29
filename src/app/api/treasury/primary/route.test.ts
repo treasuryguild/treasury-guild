@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(),
@@ -22,6 +23,9 @@ vi.mock("@/lib/db/treasuries", () => ({
   loadTreasury: mocks.loadTreasury,
   loadBaseSignerWallets: mocks.baseSigners,
   isPrimaryTreasuryBaseSigner: mocks.primarySigner,
+  assertTreasuryActive: (treasury: { archived_at?: string | null }, message = "Restore this treasury before building from it") => {
+    if (treasury.archived_at) throw new ConflictError(message);
+  },
 }));
 vi.mock("@/lib/db/membership", () => ({
   addMember: mocks.addMember,
@@ -89,6 +93,20 @@ describe("POST /api/treasury/primary", () => {
     expect(response.status).toBe(200);
     expect(mocks.setPrimary).not.toHaveBeenCalled();
     expect(mocks.promote).not.toHaveBeenCalled();
+  });
+
+  it("refuses an archived treasury", async () => {
+    mocks.loadTreasury.mockResolvedValue({ id: OTHER, community_id: COMMUNITY, archived_at: "2026-10-01T00:00:00Z" });
+    const response = await POST(
+      new Request("http://localhost/api/treasury/primary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ communityId: COMMUNITY, treasuryId: OTHER }),
+      }),
+      { params: Promise.resolve({}) },
+    );
+    expect(response.status).toBe(409);
+    expect(mocks.setPrimary).not.toHaveBeenCalled();
   });
 
   it("refuses a treasury of another community", async () => {

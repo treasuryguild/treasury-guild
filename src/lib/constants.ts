@@ -42,8 +42,35 @@ export const TxKind = {
   Payment: "payment",
   /** Metadata only, no outputs: proposal anchors (label 190002); change back to the treasury. */
   Anchor: "anchor",
+  /** Stake registration / delegation / deregistration / withdrawal / vote-delegation (SDK only). */
+  Stake: "stake",
+  /** DRep registration / update / retirement (SDK only). */
+  Drep: "drep",
+  /** On-chain governance votes as the treasury's script DRep (SDK only). */
+  Vote: "vote",
+  /** CIP-0146 (label 1854) self-spend: on-chain registration for co-signer discovery. */
+  Registration: "registration",
 } as const;
 export type TxKind = (typeof TxKind)[keyof typeof TxKind];
+
+/** Stake certificate / withdrawal actions stored on transactions.governance_action. */
+export const StakeAction = {
+  Register: "register",
+  RegisterAndDelegate: "register_and_delegate",
+  Delegate: "delegate",
+  Deregister: "deregister",
+  Withdraw: "withdraw",
+  VoteDelegation: "vote_delegation",
+} as const;
+export type StakeAction = (typeof StakeAction)[keyof typeof StakeAction];
+
+/** DRep certificate actions stored on transactions.governance_action. */
+export const DrepAction = {
+  Register: "register",
+  Update: "update",
+  Retire: "retire",
+} as const;
+export type DrepAction = (typeof DrepAction)[keyof typeof DrepAction];
 
 /** treasuries.template: the fixed native-script shape of a treasury (migration 0061). */
 export const TreasuryTemplate = {
@@ -471,6 +498,12 @@ export const RATE_LIMITS = {
   communityJoinIp: { limit: 30, windowSeconds: 600 },
   /** Host OAuth callbacks (Discord / Zoom / Google), per client IP. */
   hostOauthCallback: { limit: 30, windowSeconds: 600 },
+  /** Creating an SDK signer invite, per admin wallet. */
+  signerDraftCreate: { limit: 20, windowSeconds: 3600 },
+  /** Looking up an SDK signer invite before connecting, per client IP. */
+  signerDraftPreview: { limit: 60, windowSeconds: 600 },
+  /** A signer sending their stake and DRep keys, per wallet. */
+  signerDraftContribute: { limit: 20, windowSeconds: 600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 /** Rate-limit counters older than this are purged by the reconcile sweep. */

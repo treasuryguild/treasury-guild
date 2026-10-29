@@ -107,7 +107,7 @@ export async function syncGithubAssignees(
     );
   }
 
-  // Stamp the immutable id onto rows that only have a login (pre-0077 or a
+  // Stamp the immutable id onto rows that only have a login (pre-0081 or a
   // rename that kept the row): never clear an id that disagrees.
   for (const row of github) {
     const id = idByLogin.get((row.gh_login as string).toLowerCase());

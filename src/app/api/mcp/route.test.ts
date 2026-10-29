@@ -78,7 +78,7 @@ describe("/api/mcp", () => {
     const res = await POST(rpc("initialize", INITIALIZE, { authorization: "" }));
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toBe(
-      'Bearer resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/api/mcp", scope="communities:read proposals:write tasks:write payouts:write"',
+      'Bearer resource_metadata="http://localhost:3000/.well-known/oauth-protected-resource/api/mcp", scope="communities:read proposals:write tasks:write payouts:write governance:write"',
     );
   });
 

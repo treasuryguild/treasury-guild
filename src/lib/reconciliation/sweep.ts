@@ -14,6 +14,7 @@ import { loadAssetRegistry } from "@/lib/db/assets";
 import { cosignReadyTransactions, type CosignSweepResult } from "@/lib/cosigner/sign";
 import { purgeExpiredNonces } from "@/lib/db/auth";
 import { purgeCommunityInvites } from "@/lib/db/invites";
+import { purgeSignerDrafts } from "@/lib/db/signerDrafts";
 import { purgeOAuth } from "@/lib/db/oauth";
 import { purgeRateLimits } from "@/lib/db/rateLimit";
 import { releaseOrphanedQueuedTasks } from "@/lib/db/tasks";
@@ -281,6 +282,13 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     await purgeCommunityInvites(new Date());
   } catch (err) {
     console.error("community invite purge failed", err);
+  }
+
+  // SDK signer invites whose signers did not all connect in time.
+  try {
+    await purgeSignerDrafts(new Date());
+  } catch (err) {
+    console.error("signer draft purge failed", err);
   }
 
   // Expired OAuth codes and refresh tokens, and AI-client registrations nobody

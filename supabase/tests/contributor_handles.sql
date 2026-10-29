@@ -1,4 +1,4 @@
--- Migration 0078: case-insensitive unique handles with a charset check, and
+-- Migration 0082: case-insensitive unique handles with a charset check, and
 -- contributors_read only when jwt_wallet() is set. Run with psql -f against
 -- an EMPTY disposable PostgreSQL database; everything is rolled back.
 \set ON_ERROR_STOP on
@@ -86,11 +86,15 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0071_governance_discord_channels.sql
 \ir ../migrations/0072_treasury_discord_destinations.sql
 \ir ../migrations/0073_community_invites.sql
-\ir ../migrations/0074_reconcile_refund_cap.sql
-\ir ../migrations/0075_future_budget_month.sql
-\ir ../migrations/0076_confirm_pending_on_chain.sql
-\ir ../migrations/0077_assignee_github_user_id.sql
-\ir ../migrations/0078_p2_hardening.sql
+\ir ../migrations/0074_treasury_lifecycle.sql
+\ir ../migrations/0075_sdk_staking_drep.sql
+\ir ../migrations/0076_registration_tx_kind.sql
+\ir ../migrations/0077_treasury_signer_drafts.sql
+\ir ../migrations/0078_reconcile_refund_cap.sql
+\ir ../migrations/0079_future_budget_month.sql
+\ir ../migrations/0080_confirm_pending_on_chain.sql
+\ir ../migrations/0081_assignee_github_user_id.sql
+\ir ../migrations/0082_p2_hardening.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -112,7 +116,7 @@ select pg_temp.reject($$update contributors set handle = 'ada lovelace' where wa
 update contributors set handle = 'bob_42' where wallet_address = 'bob';
 
 -- Anon has no SELECT grant (0046). Authenticated without a wallet claim sees
--- zero rows under the 0078 policy (grant still present; RLS filters).
+-- zero rows under the 0082 policy (grant still present; RLS filters).
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 select pg_temp.reject($$select * from contributors$$, '42501');

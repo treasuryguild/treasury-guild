@@ -1,14 +1,30 @@
 import "server-only";
 
 import { PgCode, SignerGroup, TxState, type CosignerKind, type TreasuryTemplate } from "@/lib/constants";
-import { InvariantError, NotFoundError } from "@/lib/errors";
-import { check, maybe, rows, serviceClient } from "./client";
+import { ConflictError, InvariantError, NotFoundError } from "@/lib/errors";
+import { check, maybe, rpc, rows, serviceClient } from "./client";
+import type { TreasuryLifecycleStatus } from "@/lib/api/types";
 import type {
   TreasuryDiscordChannelType,
   TreasuryDiscordDestinationRow,
   TreasuryRow,
   TreasurySignerRow,
 } from "./types";
+
+/** New payouts, mints and anchors from a treasury an admin has archived. */
+export const ARCHIVED_TREASURY_BUILD = "Restore this treasury before building from it";
+
+/** A payment from an archived treasury that is not entirely a transfer to another treasury. */
+export const ARCHIVED_TREASURY_PAYMENT =
+  "Restore this treasury before paying out. A transfer to another treasury is still allowed.";
+
+/** Refuses a build from an archived treasury. Signing an in-flight transaction does not call this. */
+export function assertTreasuryActive(
+  treasury: { archived_at?: string | null },
+  message = ARCHIVED_TREASURY_BUILD,
+): void {
+  if (treasury.archived_at) throw new ConflictError(message);
+}
 
 export async function loadTreasury(treasuryId: string): Promise<TreasuryRow> {
   const treasury = maybe<TreasuryRow>(
@@ -161,7 +177,7 @@ export async function countCommunityTreasuries(
 
 export type TreasuryWithSigners = Pick<
   TreasuryRow,
-  "id" | "name" | "address" | "network" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind"
+  "id" | "name" | "address" | "network" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind" | "archived_at"
 > & {
   treasury_signers: Pick<TreasurySignerRow, "wallet_address" | "display_name" | "signer_group">[];
 };
@@ -171,7 +187,7 @@ export async function listCommunityTreasuries(communityId: string): Promise<Trea
   return rows<TreasuryWithSigners>(
     await serviceClient()
       .from("treasuries")
-      .select("id, name, address, network, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, treasury_signers(wallet_address, display_name, signer_group)")
+      .select("id, name, address, network, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, archived_at, treasury_signers(wallet_address, display_name, signer_group)")
       .eq("community_id", communityId)
       .order("name"),
     "list community treasuries",
@@ -187,6 +203,7 @@ export async function insertTreasury(row: {
   script_type: string;
   address: string;
   script_cbor: string;
+  stake_credential_hash?: string | null;
   template: TreasuryTemplate;
   lock_slot: number | null;
   lock_until: string | null;
@@ -202,6 +219,40 @@ export async function insertTreasury(row: {
   return data as TreasuryRow;
 }
 
+/** The treasury that already uses this address, if one does. */
+export async function findTreasuryByAddress(
+  address: string,
+): Promise<Pick<TreasuryRow, "id" | "community_id" | "archived_at"> | null> {
+  return maybe(
+    await serviceClient()
+      .from("treasuries")
+      .select("id, community_id, archived_at")
+      .eq("address", address)
+      .maybeSingle(),
+    "find treasury by address",
+  );
+}
+
+/** What archiving this treasury would meet (treasury_lifecycle_status); null when it is gone. */
+export async function loadTreasuryLifecycleStatus(treasuryId: string): Promise<TreasuryLifecycleStatus | null> {
+  return rpc<TreasuryLifecycleStatus | null>(
+    await serviceClient().rpc("treasury_lifecycle_status", { p_treasury_id: treasuryId }),
+  );
+}
+
+/** Archive or restore a treasury; the rules live in change_treasury_lifecycle. */
+export async function changeTreasuryLifecycle(input: {
+  treasuryId: string;
+  action: "archive" | "restore";
+  actor: string;
+}): Promise<void> {
+  rpc(
+    await serviceClient().rpc("change_treasury_lifecycle", {
+      p_treasury_id: input.treasuryId, p_action: input.action, p_actor: input.actor,
+    }),
+  );
+}
+
 /** Compensating delete of a treasury row whose dependent writes failed (creation only). */
 export async function deleteTreasury(treasuryId: string): Promise<void> {
   check(await serviceClient().from("treasuries").delete().eq("id", treasuryId), "delete treasury");
@@ -209,7 +260,10 @@ export async function deleteTreasury(treasuryId: string): Promise<void> {
 
 export async function insertTreasurySigners(
   treasuryId: string,
-  signers: Pick<TreasurySignerRow, "wallet_address" | "key_hash" | "display_name" | "signer_group">[],
+  signers: Pick<
+    TreasurySignerRow,
+    "wallet_address" | "key_hash" | "display_name" | "signer_group" | "stake_key_hash" | "drep_key_hash"
+  >[],
 ): Promise<void> {
   check(
     await serviceClient()

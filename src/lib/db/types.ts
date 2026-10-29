@@ -18,6 +18,7 @@ import type {
   CosignerKind,
   CosignTrigger,
   DecisionMethod,
+  DrepAction,
   Electorate,
   ExecutionState,
   IdentityProvider,
@@ -27,6 +28,7 @@ import type {
   ProposalState,
   SignerGroup,
   SpendingPath,
+  StakeAction,
   TreasuryTemplate,
   VoteChoice,
 } from "@/lib/constants";
@@ -102,6 +104,35 @@ export type CommunityInviteSummary = Omit<CommunityInviteRow, "token_hash">;
 export const COMMUNITY_INVITE_SUMMARY_COLUMNS =
   "id, community_id, created_by, created_at, expires_at, max_uses, use_count, last_used_at, revoked_at, label";
 
+/** An SDK treasury waiting for each base signer to connect and provide keys. */
+export interface TreasurySignerDraftRow {
+  id: string;
+  community_id: string;
+  token_hash: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  name: string;
+  required: number;
+  workgroup_id: string | null;
+}
+
+export interface TreasurySignerDraftSignerRow {
+  draft_id: string;
+  position: number;
+  wallet_address: string;
+  display_name: string | null;
+  stake_address: string | null;
+  drep_key_hash: string | null;
+  contributed_at: string | null;
+}
+
+export const TREASURY_SIGNER_DRAFT_COLUMNS =
+  "id, community_id, token_hash, created_by, created_at, expires_at, name, required, workgroup_id";
+
+export const TREASURY_SIGNER_DRAFT_SIGNER_COLUMNS =
+  "draft_id, position, wallet_address, display_name, stake_address, drep_key_hash, contributed_at";
+
 export interface WorkgroupRow {
   id: string;
   community_id: string;
@@ -147,24 +178,30 @@ export interface TreasuryRow {
   recovery_required: number | null;
   /** Who holds the co-signer key of a cosigner treasury. */
   cosigner_kind: CosignerKind | null;
+  /** Set while an admin has archived the treasury; null while it can be chosen for new builds. */
+  archived_at: string | null;
+  /** Wallet of the admin who archived it; cleared on restore. */
+  archived_by: string | null;
 }
 
 /** The columns list pages need to render/pick a treasury. */
 export type TreasurySummary = Pick<
   TreasuryRow,
-  "id" | "name" | "address" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind"
+  "id" | "name" | "address" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind" | "archived_at" | "stake_credential_hash"
 > & {
   /** The signers' groups only, so pages can count each group ("2 of 3"). */
   treasury_signers: Pick<TreasurySignerRow, "signer_group">[];
 };
 export const TREASURY_SUMMARY_COLUMNS =
-  "id, name, address, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, treasury_signers(signer_group)";
+  "id, name, address, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, archived_at, stake_credential_hash, treasury_signers(signer_group)";
 
 export interface TreasurySignerRow {
   treasury_id: string;
   wallet_address: string;
   key_hash: string;
   stake_key_hash: string | null;
+  /** CIP-1854 role-3 DRep key hash (0075); null when unused / payment-script DRep fallback. */
+  drep_key_hash: string | null;
   display_name: string | null;
   /** Which group of the script the key belongs to (0061). */
   signer_group: SignerGroup;
@@ -185,6 +222,27 @@ export interface CosignerDecisionRow {
   error: string | null;
 }
 export const COSIGNER_DECISION_COLUMNS = "id, transaction_id, decided_at, trigger, passed, problems, signed, error";
+
+/** Typed payload for stake / DRep / vote transactions (0075). */
+export type GovernanceAction =
+  | {
+      kind: "stake";
+      action: StakeAction;
+      poolId?: string | null;
+      dRepId?: string | null;
+      rewards?: string | null;
+    }
+  | {
+      kind: "drep";
+      action: DrepAction;
+      dRepId: string;
+      anchorUrl?: string | null;
+    }
+  | {
+      kind: "vote";
+      dRepId: string;
+      votes: { txHash: string; certIndex: number; voteKind: "Yes" | "No" | "Abstain" }[];
+    };
 
 export interface TransactionRow {
   id: string;
@@ -207,6 +265,8 @@ export interface TransactionRow {
   block_time: string | null;
   /** The branch of the treasury script it was built for (0061); whose signatures count. */
   spending_path: SpendingPath;
+  /** Stake / DRep / vote action details (0075); null for other kinds. */
+  governance_action: GovernanceAction | null;
 }
 
 export type TransactionSummary = Pick<

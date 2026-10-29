@@ -30,7 +30,7 @@ function periodLabel(startsOn: string, cadence: BudgetCadence): string {
  */
 function WalletRouting({ workgroup, treasuries, disabled, onChanged }: {
   workgroup: WorkgroupDetails;
-  treasuries: { id: string; name: string }[];
+  treasuries: { id: string; name: string; archived_at?: string | null }[];
   disabled: boolean;
   onChanged: (treasuryId: string | null, effective: "current" | "next") => void;
 }) {
@@ -48,6 +48,9 @@ function WalletRouting({ workgroup, treasuries, disabled, onChanged }: {
   const walletName = (id: string | null) => id === null ? "Any wallet"
     : treasuries.find((treasury) => treasury.id === id)?.name ?? "Assigned wallet";
   const unchanged = (treasuryId || null) === (workgroup.treasury_id ?? null) && chosenEffective === "current";
+  // Archived wallets stay out of the list, except the one this workgroup
+  // already pays from, so its name stays visible until the routing moves.
+  const choices = treasuries.filter((treasury) => !treasury.archived_at || treasury.id === (workgroup.treasury_id ?? ""));
 
   async function submit() {
     if (change.busy || disabled) return;
@@ -72,8 +75,12 @@ function WalletRouting({ workgroup, treasuries, disabled, onChanged }: {
       <Field label="Wallet" hint="Choose a wallet to restrict payouts, or allow any community wallet.">
         <Select aria-label="Payment wallet" value={treasuryId} disabled={disabled || change.busy} onChange={(event) => setTreasuryId(event.target.value)}>
           <option value={ANY_WALLET}>Any wallet</option>
-          {treasuryId && !treasuries.some((treasury) => treasury.id === treasuryId) && <option value={treasuryId}>Assigned wallet</option>}
-          {treasuries.map((treasury) => <option key={treasury.id} value={treasury.id}>{treasury.name}</option>)}
+          {treasuryId && !choices.some((treasury) => treasury.id === treasuryId) && <option value={treasuryId}>Assigned wallet</option>}
+          {choices.map((treasury) => (
+            <option key={treasury.id} value={treasury.id}>
+              {treasury.name}{treasury.archived_at ? " (archived)" : ""}
+            </option>
+          ))}
         </Select>
       </Field>
       <fieldset className="space-y-1 text-sm" disabled={disabled || change.busy}>
