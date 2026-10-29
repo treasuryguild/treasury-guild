@@ -1,7 +1,8 @@
 // User-facing words for proposals: kinds, electorates, methods, choices, and
 // one-line descriptions of a proposal's frozen rules. Client-safe.
 import {
-  DecisionMethod, Electorate, ProposalKind, Proposers, VoteChoice, type StateTone,
+  DecisionMethod, Electorate, ProposalKind, Proposers, VoteChoice,
+  type ProposalState, type StateTone,
 } from "@/lib/constants";
 import type { GovernanceCommunitySettingsRow, GovernanceSettingChangeRow, GovernanceSettingsRow } from "@/lib/db/types";
 import { COMMUNITY_SETTINGS_KIND } from "@/lib/db/types";
@@ -119,7 +120,7 @@ export function relativeTime(iso: string, now: number): string {
 
 /** Where a proposal stands in time, for lists and headers. */
 export function proposalTiming(
-  p: { state: string; voting_starts_at: string; closes_at: string | null; closed_at: string | null },
+  p: { state: ProposalState; voting_starts_at: string; closes_at: string | null; closed_at: string | null },
   now: number,
 ): string {
   if (p.state === "discussion") {
@@ -133,7 +134,7 @@ export function proposalTiming(
 
 /** List-row badge for the caller's own ballot: omit when ineligible or still in discussion. */
 export function proposalVoteIndicator(
-  p: { state: string; closes_at: string | null },
+  p: { state: ProposalState; closes_at: string | null },
   now: number,
   seat: { recused: boolean } | undefined,
   choice: VoteChoice | undefined,
