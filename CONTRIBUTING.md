@@ -4,6 +4,10 @@ Thanks for helping out. This guide covers the contribution workflow;
 development conventions and hard invariants live in `CLAUDE.md`, and the
 product overview is `docs/OVERVIEW.md` — read both before changing code.
 
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Report security issues privately via the [security policy](SECURITY.md),
+not in public issues or pull requests.
+
 ## Workflow
 
 1. **Never commit directly to `main`.** Work on a branch and open a pull
@@ -46,15 +50,23 @@ npm run db:migrate            # apply pending migrations (keeps local data)
 npm run dev                   # http://localhost:3000 against the local stack
 ```
 
-Day-to-day development runs against the **local** stack. Local database
-commands never write to the remote; `supabase db push` deploys schema
-changes — check the link target before running it. Never commit `.env`
-files, secrets, or the gitignored `supabase/seeds/local/` snapshot.
+Day-to-day development runs against the **local** stack. Without a data
+snapshot the database starts empty — sign in, create a community, and set
+up its treasury and workgroups. A remote Signius snapshot (`npm run
+db:snapshot`) is maintainer-only (needs a linked Supabase project) and is
+not required for contributing.
+
+Local database commands never write to the remote; `supabase db push`
+deploys schema changes — check the link target before running it. Never
+commit `.env` files, secrets, or the gitignored `supabase/seeds/local/`
+snapshot.
 
 ## Before opening a PR
 
 CI (`.github/workflows/ci.yml`) runs on every PR into `main` with no
-secrets and never touches the Supabase project. Run the same checks first:
+secrets and never touches the Supabase project. PRs also run CodeQL
+(`.github/workflows/codeql.yml`); findings show under the repo Security
+tab and on the PR checks. Run the same local checks first:
 
 ```powershell
 npx next typegen      # needed on a fresh clone; generates types tsc includes
