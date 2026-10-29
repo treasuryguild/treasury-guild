@@ -101,7 +101,7 @@ export default function PaydayPage({
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
   const allTreasuries = treasuriesQuery.data ?? [];
-  const treasuries = pickable ?? [];
+  const treasuries = useMemo(() => pickable ?? [], [pickable]);
   const registry = registryQuery.data ?? EMPTY_REGISTRY;
   const wallet = useWalletAssets(selectedTreasury?.address).data;
 

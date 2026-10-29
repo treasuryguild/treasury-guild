@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ApiCaller } from "@/lib/api/caller";
+import type * as Treasuries from "@/lib/db/treasuries";
 import { BadRequestError, ConflictError, ForbiddenError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/communities", () => ({ requireCommunityBySlug: mocks.community }));
 vi.mock("@/lib/authz", () => ({ memberRole: mocks.role }));
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/db/treasuries")>()),
+  ...(await importOriginal<typeof Treasuries>()),
   listCommunityTreasuries: mocks.treasuries,
 }));
 vi.mock("@/lib/cardano/governanceBuild", () => ({

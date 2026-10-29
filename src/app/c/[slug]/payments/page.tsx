@@ -69,7 +69,7 @@ export default function PaymentsPage({ params, searchParams }: {
   const [nowMs] = useState(() => Date.now());
 
   const allTreasuries = useMemo(() => treasuriesQuery.data ?? [], [treasuriesQuery.data]);
-  const treasuries = pickable ?? [];
+  const treasuries = useMemo(() => pickable ?? [], [pickable]);
   const wallet = useWalletAssets(selectedTreasury?.address).data ?? null;
   const setups = useTreasuryBudgetSetups(treasuryId || null);
   const memberOptions = useMemo(() => toMemberOptions(members.data ?? []), [members.data]);

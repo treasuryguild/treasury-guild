@@ -85,30 +85,8 @@ export default function NewTreasury({
     return used;
   }, [signers, draft.recoverySigners, draft.cosignerKind, draft.cosignerAddress]);
 
-  if (blocked) return blocked;
-
-  const workgroupList = workgroups.data ?? [];
-  if (created) {
-    return (
-      <div className="mx-auto max-w-2xl">
-        <PageTitle>New multisig treasury</PageTitle>
-        <TreasuryCreatedNotice
-          slug={slug}
-          result={created}
-          workgroupName={workgroupList.find((w) => w.id === workgroupId)?.name ?? "the workgroup"}
-        />
-      </div>
-    );
-  }
-
-  const filled = signers.filter((s) => s.address.trim());
-  const baseRule = describeThreshold("atLeast", required, filled.length);
   const plain = draft.template === TreasuryTemplate.Plain;
   const sdk = plain && enableSdk;
-  const becomesPrimary = !community?.primary_treasury_id;
-  const leadWallets = leads.data ?? new Set<string>();
-  const sdkReady = !sdk || filled.every((s) => s.stakeAddress.trim());
-
   useEffect(() => {
     if (!sdk || !meshWallet || !sessionWallet) return;
     void (async () => {
@@ -137,6 +115,28 @@ export default function NewTreasury({
       }
     })();
   }, [sdk, meshWallet, sessionWallet]);
+
+  if (blocked) return blocked;
+
+  const workgroupList = workgroups.data ?? [];
+  if (created) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <PageTitle>New multisig treasury</PageTitle>
+        <TreasuryCreatedNotice
+          slug={slug}
+          result={created}
+          workgroupName={workgroupList.find((w) => w.id === workgroupId)?.name ?? "the workgroup"}
+        />
+      </div>
+    );
+  }
+
+  const filled = signers.filter((s) => s.address.trim());
+  const baseRule = describeThreshold("atLeast", required, filled.length);
+  const becomesPrimary = !community?.primary_treasury_id;
+  const leadWallets = leads.data ?? new Set<string>();
+  const sdkReady = !sdk || filled.every((s) => s.stakeAddress.trim());
 
   function updateSigner(i: number, patch: Partial<SignerDraft>) {
     setSigners((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)));
