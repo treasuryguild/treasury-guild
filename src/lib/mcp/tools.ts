@@ -12,11 +12,12 @@
 // draft token, and only proposal_create (for proposal_preview) or
 // draft_confirm (for every other preview) carries a token out, after the user
 // agreed. Each write needs a write scope the user ticks separately
-// (proposals:write, tasks:write, payouts:write). A payout draft only creates
-// the pending transaction: the treasury's signers sign it in the app.
-// src/lib/mcp/tools.test.ts pins the list and the two writing tools; a new
-// write is a deliberate decision with its own scope, never a quiet addition.
-// No tool signs, submits or votes.
+// (proposals:write, tasks:write, payouts:write, governance:write). A payout or
+// Cardano governance draft only creates the pending transaction: the
+// treasury's signers sign it in the app. src/lib/mcp/tools.test.ts pins the
+// list and the two writing tools; a new write is a deliberate decision with
+// its own scope, never a quiet addition. No tool signs, submits or casts a
+// community proposal ballot.
 import "server-only";
 
 import { endpointAllowed, type ApiEndpoint } from "@/lib/api/v1/endpoint";
@@ -26,6 +27,7 @@ import { listCalls } from "@/lib/api/v1/calls";
 import { listCommunities, whoami } from "@/lib/api/v1/communities";
 import { confirmDraft } from "@/lib/api/v1/drafts";
 import { fundingSummary } from "@/lib/api/v1/funding";
+import { previewDrep, previewStake, previewVote } from "@/lib/api/v1/governanceWrite";
 import { listIncoming } from "@/lib/api/v1/incoming";
 import { listMembers } from "@/lib/api/v1/members";
 import { previewPayout } from "@/lib/api/v1/payoutWrite";
@@ -269,10 +271,37 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     annotations: { ...PREVIEWS, openWorldHint: true },
   },
   {
+    name: "stake_preview",
+    title: "Preview a stake transaction",
+    description:
+      "Prepare a stake register, register-and-delegate, delegate, deregister, withdraw or vote-delegation transaction for a plain SDK treasury the user signs for, running the same checks as the Staking page, without creating anything. Confirming (draft_confirm) only creates the pending transaction: signers still sign in the app with payment and stake keys. Not a community proposal ballot.",
+    endpoint: previewStake,
+    restPath: "/api/v1/communities/{community}/governance/stake/preview",
+    annotations: { ...PREVIEWS, openWorldHint: true },
+  },
+  {
+    name: "drep_preview",
+    title: "Preview a DRep transaction",
+    description:
+      "Prepare a Cardano DRep register, update or retire transaction for a plain SDK treasury the user signs for, without creating anything. Metadata is pinned for register/update. Confirming (draft_confirm) only creates the pending transaction; signers still sign in the app. Separate from community proposals.",
+    endpoint: previewDrep,
+    restPath: "/api/v1/communities/{community}/governance/drep/preview",
+    annotations: { ...PREVIEWS, openWorldHint: true },
+  },
+  {
+    name: "vote_preview",
+    title: "Preview an on-chain governance vote",
+    description:
+      "Prepare an on-chain Cardano governance vote as the treasury's script DRep (one or more proposal votes, optional CIP-100 rationale), without creating anything. The DRep must already be registered. Confirming (draft_confirm) only creates the pending transaction; signers still sign in the app. Cannot cast community proposal ballots.",
+    endpoint: previewVote,
+    restPath: "/api/v1/communities/{community}/governance/vote/preview",
+    annotations: { ...PREVIEWS, openWorldHint: true },
+  },
+  {
     name: "draft_confirm",
     title: "Carry out a previewed change",
     description:
-      "Carry out what a *_preview tool (other than proposal_preview, which proposal_create confirms) showed, from its draftToken only: withdraw the proposal, save the task, create the call, pay the call's attendance into tasks, or create the payout's pending transaction. Call it only after the user explicitly agreed to that preview. Refused when anything changed since the preview (preview again). Safe to retry: a repeated token answers with what the first one did (created: false). Never signs, submits or votes.",
+      "Carry out what a *_preview tool (other than proposal_preview, which proposal_create confirms) showed, from its draftToken only: withdraw the proposal, save the task, create the call, pay the call's attendance into tasks, create the payout's pending transaction, or create a stake / DRep / on-chain vote pending transaction. Call it only after the user explicitly agreed to that preview. Refused when anything changed since the preview (preview again). Safe to retry: a repeated token answers with what the first one did (created: false). Never signs, submits or casts a community proposal ballot.",
     endpoint: confirmDraft,
     restPath: "/api/v1/drafts/confirm",
     annotations: CONFIRMS,

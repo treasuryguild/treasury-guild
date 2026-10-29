@@ -571,7 +571,7 @@ Supabase (RLS, no ORM) + Netlify.
   `purge_oauth` (reconcile sweep) also drops ungranted CIMD clients unseen
   for a day. Scopes live in
   `src/lib/mcp/scopes.ts` (`communities:read`, `proposals:write`,
-  `tasks:write`, `payouts:write`) and the 401 challenge names all of them; a
+  `tasks:write`, `payouts:write`, `governance:write`) and the 401 challenge names all of them; a
   write scope is never in a scope-less request's default (`READ_SCOPES`) and
   starts unticked on the consent page. **Only `proposal_create` and
   `draft_confirm` write** (`src/lib/mcp/tools.test.ts` pins the list, the two

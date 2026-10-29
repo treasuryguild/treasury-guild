@@ -1196,7 +1196,7 @@ export interface V1ProposalPreviewResponse {
  */
 export interface V1DraftPreview {
   community: { slug: string; name: string };
-  /** The action draft_confirm will run: proposal_withdraw, payout_create, task_save, call_create or call_finalize. */
+  /** The action draft_confirm will run (payout_create, stake_create, drep_create, vote_create, …). */
   action: string;
   /** One line saying what confirming does. */
   summary: string;
@@ -1272,6 +1272,19 @@ export interface V1PayoutCreateResponse {
   url: string;
 }
 
+/** stake_create / drep_create / vote_create via draft_confirm: pending Cardano governance tx. */
+export interface V1GovernanceTxCreateResponse {
+  community: { slug: string; name: string };
+  /** False when this draft had already made its transaction. */
+  created: boolean;
+  txId: string;
+  txHash: string | null;
+  treasury: string;
+  /** Signatures it needs before it can be submitted, in the app. */
+  requiredSignatures: number;
+  url: string;
+}
+
 /** POST /api/v1/drafts/confirm (MCP draft_confirm): the action's own answer. */
 export type V1DraftConfirmResponse = { action: string } & (
   | V1ProposalCreateResponse
@@ -1280,6 +1293,7 @@ export type V1DraftConfirmResponse = { action: string } & (
   | V1CallCreateResponse
   | V1CallFinalizeResponse
   | V1PayoutCreateResponse
+  | V1GovernanceTxCreateResponse
 );
 
 /** POST /api/v1/communities/[community]/proposals/create (MCP proposal_create). */

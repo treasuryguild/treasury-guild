@@ -16,6 +16,7 @@ import { verifyDraftToken, type DraftAction, type VerifiedDraft } from "@/lib/mc
 import type { ApiScope } from "@/lib/mcp/scopes";
 import { confirmCallCreate, confirmCallFinalize } from "./callWrite";
 import { defineEndpoint } from "./endpoint";
+import { confirmDrep, confirmStake, confirmVote } from "./governanceWrite";
 import { confirmPayout } from "./payoutWrite";
 import { confirmProposalWithdraw } from "./proposalWithdraw";
 import { confirmProposalCreate } from "./proposalWrite";
@@ -36,6 +37,9 @@ export const DRAFT_ACTION_DEFS: Record<DraftAction, DraftActionDef> = {
   call_create: { scope: "tasks:write", confirm: confirmCallCreate },
   call_finalize: { scope: "tasks:write", confirm: confirmCallFinalize },
   payout_create: { scope: "payouts:write", confirm: confirmPayout },
+  stake_create: { scope: "governance:write", confirm: confirmStake },
+  drep_create: { scope: "governance:write", confirm: confirmDrep },
+  vote_create: { scope: "governance:write", confirm: confirmVote },
 };
 
 /** The write scopes some action needs: holding any of them offers draft_confirm. */
