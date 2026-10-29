@@ -6,7 +6,7 @@
 import { apiFetch } from "@/lib/api/client";
 import type { AnchorsDueResponse, IpfsGatewayResponse } from "@/lib/api/types";
 import { browserClient } from "@/lib/supabase/browser";
-import { ProposalKind } from "@/lib/constants";
+import { ProposalKind, ProposalState, type VoteChoice } from "@/lib/constants";
 import {
   GOVERNANCE_COMMUNITY_SETTINGS_COLUMNS, GOVERNANCE_SETTING_CHANGE_COLUMNS, GOVERNANCE_SETTINGS_COLUMNS,
   PROPOSAL_ANCHOR_WITH_TX_COLUMNS, PROPOSAL_BUDGET_OWNER_COLUMNS, PROPOSAL_COLUMNS,
@@ -30,6 +30,53 @@ export function useProposals(communityId: string | null | undefined): AsyncData<
     await browserClient().from("proposals").select(PROPOSAL_COLUMNS)
       .eq("community_id", communityId).order("created_at", { ascending: false }),
   ));
+}
+
+/** Open workgroup proposals (discussion or voting) — not yet created as boards. */
+export function useProposedWorkgroups(
+  communityId: string | null | undefined,
+): AsyncData<ProposalRow[]> {
+  return useAsyncData(communityId, async () => unwrap<ProposalRow[]>(
+    await browserClient().from("proposals").select(PROPOSAL_COLUMNS)
+      .eq("community_id", communityId)
+      .eq("kind", ProposalKind.Workgroup)
+      .in("state", [ProposalState.Discussion, ProposalState.Voting])
+      .order("created_at", { ascending: false }),
+  ));
+}
+
+export interface MyProposalVotes {
+  /** The wallet's own ballot choice per proposal id. */
+  myVotes: Map<string, VoteChoice>;
+  /** The wallet's electorate seat per proposal id (once voting has opened). */
+  mySeats: Map<string, { recused: boolean }>;
+}
+
+/** The caller's seats and ballots in the community, for the proposals list. */
+export function useMyProposalVotes(
+  communityId: string | null | undefined,
+  wallet: string | null | undefined,
+): AsyncData<MyProposalVotes> {
+  const key = communityId && wallet ? `${communityId}:${wallet}` : null;
+  return useAsyncData(key, async () => {
+    const db = browserClient();
+    const [votes, seats] = await Promise.all([
+      db.from("proposal_votes").select("proposal_id, choice")
+        .eq("community_id", communityId!).eq("voter", wallet!),
+      db.from("proposal_voters").select("proposal_id, recused, proposals!inner(community_id)")
+        .eq("wallet_address", wallet!).eq("proposals.community_id", communityId!),
+    ]);
+    const myVotes = new Map(
+      unwrap<{ proposal_id: string; choice: VoteChoice }[]>(votes).map((row) => [row.proposal_id, row.choice]),
+    );
+    const mySeats = new Map(
+      unwrap<{ proposal_id: string; recused: boolean }[]>(seats).map((row) => [
+        row.proposal_id,
+        { recused: row.recused },
+      ]),
+    );
+    return { myVotes, mySeats };
+  });
 }
 
 /** A linked proposal in a revise chain (0068). */

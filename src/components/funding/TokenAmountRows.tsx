@@ -25,7 +25,10 @@ export function TokenAmountRows({ rows, options, onChange, label }: {
   onChange: (rows: AmountRow[]) => void;
   label: string;
 }) {
+  const used = new Set(rows.map((row) => row.unit).filter(Boolean));
+  const available = options.filter((o) => !used.has(o.unit));
   const set = (index: number, patch: Partial<AmountRow>) => onChange(rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+
   return (
     <div className="space-y-2">
       {rows.map((row, index) => {
@@ -44,16 +47,24 @@ export function TokenAmountRows({ rows, options, onChange, label }: {
             )}
             <Input aria-label={`${label} amount ${index + 1}`} inputMode="decimal" value={row.amount} placeholder="0"
               onChange={(e) => set(index, { amount: e.target.value.trim() })} />
-            <Button variant="ghost" onClick={() => onChange(rows.filter((_, i) => i !== index))} disabled={rows.length === 1}>
+            <Button variant="ghost" onClick={() => onChange(rows.filter((_, i) => i !== index))}>
               Remove
             </Button>
           </div>
         );
       })}
-      <Button variant="ghost" className="!px-0 text-sm"
-        onClick={() => onChange([...rows, { unit: options.find((o) => !rows.some((r) => r.unit === o.unit))?.unit ?? "", amount: "" }])}>
-        Add token
-      </Button>
+      <Select aria-label={`Add ${label.toLowerCase()} token`} value=""
+        onChange={(e) => {
+          const value = e.target.value;
+          if (!value) return;
+          onChange([...rows, { unit: value === OTHER ? "" : value, amount: "" }]);
+        }}>
+        <option value="">+ Add token…</option>
+        {available.map((o) => (
+          <option key={o.unit} value={o.unit}>{o.ticker}</option>
+        ))}
+        <option value={OTHER}>Other token…</option>
+      </Select>
     </div>
   );
 }

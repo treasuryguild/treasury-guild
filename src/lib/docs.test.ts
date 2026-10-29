@@ -65,6 +65,7 @@ describe("docs registry", () => {
     expect(docForPath("/c/dao/treasury/import")).toEqual({ slug: "treasury", hash: "importing-a-treasury" });
     expect(docForPath("/c/dao/treasury/history")).toEqual({ slug: "treasury", hash: "payment-history-from-a-previous-wallet" });
     // A slug that names a page does not decide the match.
+    expect(docForPath("/c/mint-guild/workgroups")).toEqual({ slug: "workgroups-boards" });
     expect(docForPath("/c/mint-guild/boards/abc")).toEqual({ slug: "workgroups-boards" });
     expect(docForPath("/c/treasury")).toEqual({ slug: "communities", hash: "community-overview" });
   });

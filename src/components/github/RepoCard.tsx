@@ -41,56 +41,81 @@ export function RepoCard({
 
   return (
     <Card>
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-0 basis-full sm:min-w-48 sm:flex-1">
-          <p className="font-medium">{repo.fullName}</p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
+        <div className="min-w-0 lg:w-52 lg:shrink-0 lg:pt-5">
+          <p className="truncate font-medium">{repo.fullName}</p>
           <p className="text-xs text-zinc-500">
-            {archived ? "Archived workgroup — imports paused. Restore the workgroup to make changes." : repo.workgroupId ? "linked" : "not linked"}
+            {archived
+              ? "Archived workgroup — imports paused. Restore the workgroup to make changes."
+              : repo.workgroupId
+                ? "linked"
+                : "not linked"}
           </p>
         </div>
-        <Field label="Workgroup" size="sm">
-          <Select
-            value={workgroupId}
-            disabled={busy || archived}
-            onChange={(e) => setWorkgroupId(e.target.value)}
+        <div className="grid min-w-0 flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
+          <Field label="Workgroup" size="sm" className="min-w-0">
+            <Select
+              value={workgroupId}
+              disabled={busy || archived}
+              onChange={(e) => setWorkgroupId(e.target.value)}
+            >
+              <option value="">—</option>
+              {workgroups
+                .filter((w) => !w.archived_at || w.id === repo.workgroupId)
+                .map((w) => (
+                  <option key={w.id} value={w.id} disabled={!!w.archived_at}>
+                    {w.name}
+                    {w.archived_at ? " (Archived)" : ""}
+                  </option>
+                ))}
+            </Select>
+          </Field>
+          <Field label="Payable label" size="sm" className="min-w-0">
+            <Input
+              value={label}
+              disabled={busy || archived}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </Field>
+          <Field label="Import status" size="sm" className="min-w-0">
+            <Input
+              value={importStatus}
+              disabled={busy || archived}
+              onChange={(e) => setImportStatus(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Paid status"
+            size="sm"
+            className="min-w-0"
+            hint="Status column paid issues move to. Must exist on the project; leave empty to disable."
           >
-            <option value="">—</option>
-            {workgroups.filter((w) => !w.archived_at || w.id === repo.workgroupId).map((w) => (
-              <option key={w.id} value={w.id} disabled={!!w.archived_at}>
-                {w.name}{w.archived_at ? " (Archived)" : ""}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Payable label" size="sm">
-          <Input value={label} disabled={busy || archived} onChange={(e) => setLabel(e.target.value)} />
-        </Field>
-        <Field label="Import status" size="sm">
-          <Input
-            value={importStatus}
-            disabled={busy || archived}
-            onChange={(e) => setImportStatus(e.target.value)}
-          />
-        </Field>
-        <Field label="Paid status" size="sm" hint="Status column paid issues move to. Must exist on the project; leave empty to disable.">
-          <Input
-            value={paidStatus}
-            disabled={busy || archived}
-            placeholder="(disabled)"
-            onChange={(e) => setPaidStatus(e.target.value)}
-          />
-        </Field>
-        <Button
-          disabled={busy || archived || !workgroupId}
-          onClick={() => onLink({ workgroupId, label, importStatus, paidStatus })}
-        >
-          {repo.workgroupId ? "Update" : "Link"}
-        </Button>
-        {repo.workgroupId && (
-          <Button variant="secondary" loading={busy} disabled={archived} onClick={onSync}>
-            {busy ? "Syncing…" : "Full sync"}
+            <Input
+              value={paidStatus}
+              disabled={busy || archived}
+              placeholder="(disabled)"
+              onChange={(e) => setPaidStatus(e.target.value)}
+            />
+          </Field>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2 lg:pt-5">
+          <Button
+            disabled={busy || archived || !workgroupId}
+            onClick={() => onLink({ workgroupId, label, importStatus, paidStatus })}
+          >
+            {repo.workgroupId ? "Update" : "Link"}
           </Button>
-        )}
+          {repo.workgroupId && (
+            <Button
+              variant="secondary"
+              loading={busy}
+              disabled={archived}
+              onClick={onSync}
+            >
+              {busy ? "Syncing…" : "Full sync"}
+            </Button>
+          )}
+        </div>
       </div>
     </Card>
   );

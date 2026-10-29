@@ -26,7 +26,7 @@ Admins click **Add funding source** and give it a name (for example "Project Cat
 - **Recurring amount** — the same amount every month or quarter, from a **first period** to an optional **last period**.
 - **Schedule** — a different amount each period, for example a release plan that shrinks every month. After adding it, the schedule editor opens to load its periods.
 
-Amounts are entered in whole units with a dot for decimals (`20000`, `211800.72389063`). Choose the token from ADA, your payout tokens and the tokens your treasuries hold, or pick **Other token…** and enter its unit (policy id followed by the asset name, in hex), which is checked against the chain. Amounts are stored exactly, never rounded: more decimals than a token has are refused. **Edit** changes a commitment's name, dates, amounts, link and note (its kind and cadence stay); **Remove** deletes it, and its inflows stay tied to the source.
+Amounts are added one token at a time with **Add token…**: choose from ADA, your payout tokens and the tokens your treasuries hold, or **Other token…** and enter its unit (policy id followed by the asset name, in hex), which is checked against the chain. Enter amounts in whole units with a dot for decimals (`20000`, `211800.72389063`). Amounts are stored exactly, never rounded: more decimals than a token has are refused. **Edit** changes a commitment's name, dates, amounts, link and note (its kind and cadence stay); **Remove** deletes it, and its inflows stay tied to the source.
 
 ## Loading a schedule from a CSV
 

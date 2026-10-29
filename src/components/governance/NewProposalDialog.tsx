@@ -21,6 +21,7 @@ import { mayPropose } from "@/lib/roles";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { GovernanceSettingsByKind } from "@/hooks/useProposals";
+import { useTreasuryTokenTickers } from "@/hooks/useTreasuryTokenTickers";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
 import { Button, ErrorText, Field, Input, Modal, Select, Textarea, WarningText } from "@/components/ui";
 import { RewardRowsField } from "@/components/calls/RewardRowsField";
@@ -98,6 +99,13 @@ export function NewProposalDialog({
   const [assignSelf, setAssignSelf] = useState(taskPayload?.assignSelf ?? true);
   const create = useAsyncAction(revising ? "Failed to revise the proposal" : "Failed to make the proposal");
 
+  const boardTreasuryId = boards.find((b) => b.id === workgroupId)?.treasury_id ?? null;
+  const walletTickers = useTreasuryTokenTickers(communityId, boardTreasuryId, kind === ProposalKind.Task);
+  const tickers = useMemo(
+    () => ["ADA", ...walletTickers.filter((t) => t.toLowerCase() !== "ada")],
+    [walletTickers],
+  );
+
   // The bounty as the board stores it; null (and the error) while it is invalid.
   let amounts: Record<string, string> | null = null;
   let amountsError: string | null = null;
@@ -143,7 +151,7 @@ export function NewProposalDialog({
   const dirty = revising || !!(title.trim() || body.trim() || discussionUrl.trim() || name.trim() || description.trim()
     || !assignSelf || customized
     || leads.length !== defaultLeads.length || leads.some((w, i) => w !== defaultLeads[i])
-    || rows.length !== 1 || rows[0]?.ticker !== "ADA" || rows[0]?.amount.trim());
+    || rows.length > 0);
 
   function requestClose() {
     if (create.busy) return;
@@ -229,8 +237,8 @@ export function NewProposalDialog({
             <Field label="What needs doing" hint="Becomes the task's description.">
               <Textarea aria-label="Task description" value={body} maxLength={MAX_PROPOSAL_BODY} rows={5} onChange={(e) => setBody(e.target.value)} />
             </Field>
-            <RewardRowsField rows={rows} onChange={setRows} label="Bounty"
-              hint="Each assignee receives the full amount. A ticker is matched to a treasury token at payout." />
+            <RewardRowsField rows={rows} onChange={setRows} tickers={tickers} label="Bounty"
+              hint="Add tokens the paying wallet holds; Custom… is matched at payout. Each assignee receives the full amount." />
             <ErrorText error={rows.some((r) => r.amount.trim()) ? amountsError : null} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={assignSelf} onChange={(e) => setAssignSelf(e.target.checked)} />

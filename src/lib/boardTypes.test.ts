@@ -350,9 +350,9 @@ describe("amountsFromRows", () => {
 });
 
 describe("rewardRows", () => {
-  it("starts a new reward with one empty ADA row", () => {
-    expect(rewardRows(null)).toEqual([{ ticker: "ADA", amount: "" }]);
-    expect(rewardRows(undefined)).toEqual([{ ticker: "ADA", amount: "" }]);
+  it("starts a new reward with no rows", () => {
+    expect(rewardRows(null)).toEqual([]);
+    expect(rewardRows(undefined)).toEqual([]);
   });
 
   it("turns stored amounts into rows, in order", () => {
@@ -387,10 +387,6 @@ describe("rewardFromRows", () => {
     expect(() => rewardFromRows([])).toThrow("Set a reward per attendee");
     expect(() => rewardFromRows([{ ticker: "", amount: "" }])).toThrow("Set a reward per attendee");
     expect(() => rewardFromRows([{ ticker: "  ", amount: " " }])).toThrow("Set a reward per attendee");
-  });
-
-  it("refuses the untouched starting row: a ticker without an amount", () => {
-    expect(() => rewardFromRows(rewardRows(null))).toThrow("Invalid amount for ADA");
   });
 
   it("passes on what is wrong with an invalid row", () => {

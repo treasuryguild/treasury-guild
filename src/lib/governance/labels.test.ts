@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { METHOD_CHOICES } from "@/lib/constants";
+import { METHOD_CHOICES, ProposalState, VoteChoice } from "@/lib/constants";
 import {
-  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, describeRulesChanges, proposalTiming, relativeTime, voterName,
+  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, describeRulesChanges,
+  proposalTiming, proposalVoteIndicator, relativeTime, voterName,
 } from "./labels";
 import { DEFAULT_SETTINGS, rulesFor } from "./rules";
 
@@ -55,14 +56,41 @@ describe("timing", () => {
 
   it("describes where a proposal stands", () => {
     const base = { voting_starts_at: "2026-09-30T12:00:00Z", closes_at: null, closed_at: null };
-    expect(proposalTiming({ ...base, state: "discussion" }, now)).toBe("Voting opens in 24 hours");
-    expect(proposalTiming({ ...base, state: "voting", closes_at: "2026-10-04T12:00:00Z" }, now)).toBe("Voting closes in 5 days");
-    expect(proposalTiming({ ...base, state: "voting", closes_at: "2026-09-29T11:00:00Z" }, now)).toBe("Voting closed, counting shortly");
-    expect(proposalTiming({ ...base, state: "passed", closed_at: "2026-09-26T12:00:00Z" }, now)).toBe("Closed 3 days ago");
+    expect(proposalTiming({ ...base, state: ProposalState.Discussion }, now)).toBe("Voting opens in 24 hours");
+    expect(proposalTiming({ ...base, state: ProposalState.Voting, closes_at: "2026-10-04T12:00:00Z" }, now)).toBe("Voting closes in 5 days");
+    expect(proposalTiming({ ...base, state: ProposalState.Voting, closes_at: "2026-09-29T11:00:00Z" }, now)).toBe("Voting closed, counting shortly");
+    expect(proposalTiming({ ...base, state: ProposalState.Passed, closed_at: "2026-09-26T12:00:00Z" }, now)).toBe("Closed 3 days ago");
   });
 
   it("names voters by handle, else a short wallet", () => {
     expect(voterName("addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "  ")).toBe("addr_test1…qqqqqq");
     expect(voterName("addr", "ana")).toBe("ana");
+  });
+});
+
+describe("proposalVoteIndicator", () => {
+  const now = Date.parse("2026-09-29T12:00:00Z");
+  const open = { state: ProposalState.Voting, closes_at: "2026-10-04T12:00:00Z" };
+  const discussion = { state: ProposalState.Discussion, closes_at: null };
+  const closed = { state: ProposalState.Passed, closes_at: "2026-09-28T12:00:00Z" };
+  const seat = { recused: false };
+
+  it("flags an open vote the caller still owes", () => {
+    expect(proposalVoteIndicator(open, now, seat, undefined))
+      .toEqual({ label: "Not voted", tone: "yellow" });
+  });
+
+  it("shows the caller's choice once they have voted", () => {
+    expect(proposalVoteIndicator(open, now, seat, VoteChoice.Agree))
+      .toEqual({ label: "Voted · Agree", tone: "green" });
+    expect(proposalVoteIndicator(closed, now, seat, VoteChoice.No))
+      .toEqual({ label: "Voted · No", tone: "green" });
+  });
+
+  it("omits discussion, ineligible seats and recusals without a ballot", () => {
+    expect(proposalVoteIndicator(discussion, now, seat, undefined)).toBeNull();
+    expect(proposalVoteIndicator(open, now, undefined, undefined)).toBeNull();
+    expect(proposalVoteIndicator(open, now, { recused: true }, undefined)).toBeNull();
+    expect(proposalVoteIndicator(closed, now, seat, undefined)).toBeNull();
   });
 });

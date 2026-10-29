@@ -38,7 +38,7 @@ export function CommitmentDialog({ sourceId, commitment, initialKind, options, o
   const [url, setUrl] = useState(commitment?.url ?? "");
   const [note, setNote] = useState(commitment?.note ?? "");
   const [rows, setRows] = useState<AmountRow[]>(
-    commitment?.amounts.length ? amountRowsFrom(commitment.amounts) : [{ unit: options[0]?.unit ?? "lovelace", amount: "" }],
+    commitment?.amounts.length ? amountRowsFrom(commitment.amounts) : [],
   );
   const save = useAsyncAction("Failed to save the commitment");
   const editing = !!commitment;
