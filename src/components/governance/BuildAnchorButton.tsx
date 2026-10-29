@@ -25,7 +25,8 @@ export function BuildAnchorButton({ slug, communityId, treasuries, disabled = fa
 }) {
   const roles = useMyTreasuryRoles(communityId);
   const { build, busy, error } = useBuildTx(slug);
-  const eligible = treasuries.filter((t) => actsForTreasury(roles, t.id));
+  const active = treasuries.filter((t) => !t.archived_at);
+  const eligible = active.filter((t) => actsForTreasury(roles, t.id));
   const [treasuryId, setTreasuryId] = useState("");
   const [path, setPath] = useState<SpendingPath | "">("");
   // Fixed at mount: a render must not read the clock.
@@ -37,6 +38,9 @@ export function BuildAnchorButton({ slug, communityId, treasuries, disabled = fa
 
   if (treasuries.length === 0) {
     return <p className="text-sm text-zinc-500">Anchoring needs a treasury: the anchor is a transaction its signers sign.</p>;
+  }
+  if (active.length === 0) {
+    return <p className="text-sm text-zinc-500">Restore a treasury before building an anchor from it.</p>;
   }
   if (eligible.length === 0) return null;
   return (

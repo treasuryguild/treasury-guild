@@ -903,6 +903,10 @@ export const budgetResetSchema = z.object({
   confirmation: z.string().min(1).max(500),
   reason: z.string().trim().min(1).max(500),
 });
+export const treasuryLifecycleSchema = z.object({
+  treasuryId: z.uuid(),
+  action: z.enum(["archive", "restore"]),
+});
 export const workgroupLifecycleSchema = z.object({
   workgroupId: z.uuid(),
   action: z.enum(["archive", "restore", "delete"]),

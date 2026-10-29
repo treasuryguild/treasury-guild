@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import type { CreateTreasuryResponse, TreasuryImportPreview } from "@/lib/api/types";
 import { templateLabel } from "@/lib/cardano/spendingPaths";
 import { describeThreshold } from "@/lib/cardano/thresholds";
@@ -14,6 +14,7 @@ import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
+import { RestoreArchivedTreasury } from "@/components/treasury/RestoreArchivedTreasury";
 import { COMMUNITY_TREASURY, TreasuryCreatedNotice, TreasuryLinkField } from "@/components/treasury/TreasuryWorkgroupLink";
 import { Button, Card, CopyButton, ErrorText, Field, Input, LinkButton, PageTitle, Select, Textarea, WarningText } from "@/components/ui";
 
@@ -35,6 +36,7 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
   const [signers, setSigners] = useState<{ keyHash: string; address: string; name: string; group: SignerGroup }[]>([]);
   const [workgroupId, setWorkgroupId] = useState(COMMUNITY_TREASURY);
   const [created, setCreated] = useState<CreateTreasuryResponse | null>(null);
+  const [restoreId, setRestoreId] = useState<string | null>(null);
   const review = useAsyncAction("Failed to read treasury CBOR");
   const save = useAsyncAction("Failed to import treasury");
   const busy = review.busy || save.busy;
@@ -52,15 +54,23 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
 
   async function submit() {
     if (!preview) return;
-    const result = await save.run(() => apiFetch<CreateTreasuryResponse>("/api/treasury", {
-      body: {
-        communityId: community!.id,
-        name: name.trim(),
-        source: { type: "cbor", cbor: preview.scriptCbor },
-        signers: signers.map((s) => ({ address: s.address.trim(), name: s.name.trim() })),
-        workgroupId: workgroupId || null,
-      },
-    }));
+    setRestoreId(null);
+    const result = await save.run(async () => {
+      try {
+        return await apiFetch<CreateTreasuryResponse>("/api/treasury", {
+          body: {
+            communityId: community!.id,
+            name: name.trim(),
+            source: { type: "cbor", cbor: preview.scriptCbor },
+            signers: signers.map((s) => ({ address: s.address.trim(), name: s.name.trim() })),
+            workgroupId: workgroupId || null,
+          },
+        });
+      } catch (err) {
+        if (err instanceof ApiError && err.body.restoreTreasuryId) setRestoreId(err.body.restoreTreasuryId);
+        throw err;
+      }
+    });
     if (!result) return;
     if (workgroupId) setCreated(result);
     else router.push(routes.treasury(slug));
@@ -147,6 +157,7 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
               {!!workgroups.data?.length && <TreasuryLinkField workgroups={workgroups.data} value={workgroupId}
                 disabled={busy} onChange={setWorkgroupId} />}
               <ErrorText error={save.error} />
+              {restoreId && <RestoreArchivedTreasury slug={slug} treasuryId={restoreId} />}
               <Button onClick={() => void submit()} loading={save.busy}
                 disabled={busy || !name.trim() || signers.some((s) => !s.address.trim()) || !!networkReason}>
                 Import treasury

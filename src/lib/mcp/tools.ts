@@ -90,7 +90,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     name: "treasury_overview",
     title: "Treasury overview",
     description:
-      "A community's multisig treasuries: address, template (plain, clawback, lock_until or cosigner) with its lock date, signing rule and signers with their group (base, recovery, cosigner), current balance (ADA and tokens, read from the chain) and the pending transaction waiting for signatures, if any, with its spending path. Pass balances: false to skip the chain read.",
+      "A community's multisig treasuries: address, template (plain, clawback, lock_until or cosigner) with its lock date, signing rule and signers with their group (base, recovery, cosigner), whether it is archived, current balance (ADA and tokens, read from the chain) and the pending transaction waiting for signatures, if any, with its spending path. Pass balances: false to skip the chain read.",
     endpoint: treasuryOverview,
     restPath: "/api/v1/communities/{community}/treasuries",
     annotations: READ_ONLY_CHAIN,

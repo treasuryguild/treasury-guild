@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import type { CreateTreasuryResponse } from "@/lib/api/types";
 import { CosignerKind, TreasuryTemplate } from "@/lib/constants";
 import { templateLabel } from "@/lib/cardano/spendingPaths";
@@ -25,6 +25,7 @@ import {
   type SignerDraft,
   type TemplateDraft,
 } from "@/components/treasury/TemplateFields";
+import { RestoreArchivedTreasury } from "@/components/treasury/RestoreArchivedTreasury";
 import { SignerMemberPick } from "@/components/treasury/SignerMemberPick";
 import {
   COMMUNITY_TREASURY,
@@ -51,6 +52,7 @@ export default function NewTreasury({
   const [confirming, setConfirming] = useState(false);
   const [workgroupId, setWorkgroupId] = useState(COMMUNITY_TREASURY);
   const [created, setCreated] = useState<CreateTreasuryResponse | null>(null);
+  const [restoreId, setRestoreId] = useState<string | null>(null);
   const workgroups = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
   const leads = useAsyncData(community?.id, async () => {
@@ -108,21 +110,27 @@ export default function NewTreasury({
 
   async function submit() {
     setConfirming(false);
-    const result = await run(() =>
-      apiFetch<CreateTreasuryResponse>("/api/treasury", {
-        body: {
-          communityId: community!.id,
-          name,
-          required,
-          signers: filled.map((s) => ({
-            address: s.address.trim(),
-            name: s.name.trim(),
-          })),
-          workgroupId: workgroupId || null,
-          ...templateRequest(draft),
-        },
-      }),
-    );
+    setRestoreId(null);
+    const result = await run(async () => {
+      try {
+        return await apiFetch<CreateTreasuryResponse>("/api/treasury", {
+          body: {
+            communityId: community!.id,
+            name,
+            required,
+            signers: filled.map((s) => ({
+              address: s.address.trim(),
+              name: s.name.trim(),
+            })),
+            workgroupId: workgroupId || null,
+            ...templateRequest(draft),
+          },
+        });
+      } catch (err) {
+        if (err instanceof ApiError && err.body.restoreTreasuryId) setRestoreId(err.body.restoreTreasuryId);
+        throw err;
+      }
+    });
     if (!result) return;
     // A requested link has an outcome worth reading (this period, next
     // period, or refused); a community treasury goes straight to the list.
@@ -221,6 +229,7 @@ export default function NewTreasury({
 
         <WarningText small>{networkReason}</WarningText>
         <ErrorText error={error} />
+        {restoreId && <RestoreArchivedTreasury slug={slug} treasuryId={restoreId} />}
         <Button
           onClick={() => (plain ? void submit() : setConfirming(true))}
           disabled={!name || filled.length === 0 || !!networkReason || !templateComplete(draft)}

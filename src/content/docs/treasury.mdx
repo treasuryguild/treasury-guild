@@ -178,7 +178,7 @@ Send ADA or tokens to the treasury address from any wallet. The balance appears 
 
 ## Primary treasury
 
-One treasury per community is **primary**: its base signers are community admins and cannot be demoted while they remain so. The first treasury created (or imported) becomes primary automatically. Admins can **Set as primary** on another treasury card; that promotes its base signers to admin and does not auto-demote the previous primary's signers — review [Members](/docs/members-roles) afterwards if you want to demote them. Signing a non-primary treasury never grants community-wide admin powers.
+One treasury per community is **primary**: its base signers are community admins and cannot be demoted while they remain so. The first treasury created (or imported) becomes primary automatically. Admins can **Set as primary** on another treasury card; that promotes its base signers to admin and does not auto-demote the previous primary's signers — review [Members](/docs/members-roles) afterwards if you want to demote them. An archived treasury cannot be made primary. Signing a non-primary treasury never grants community-wide admin powers.
 
 ## Several treasuries
 
@@ -189,6 +189,22 @@ To move money between your treasuries from inside the app, use the [Payments pag
 With [proposals](/docs/governance) on, several treasuries also limit what a spend against a vote can reach: keep most funds in a **reserve treasury** with a higher threshold or a wider signer set, route each workgroup to an **operating treasury**, and move only each voted budget there with **Fund this budget** on the applied budget proposal (see [Funding a voted budget](/docs/governance#funding-a-voted-budget)). Each such transfer cites the decision that put the money there.
 
 A workgroup's payment wallet can change over time. Each change is dated and takes effect at the start of a **budget period** (a month or a quarter, following the workgroup's [budget setup](/docs/budgets#budget-setups)): the next period, or the current one while nothing has been paid in it from another wallet yet. Payouts already made keep the wallet they came from, and a task from an earlier period is still paid from that period's wallet, so a period is never split across two wallets. The history of changes, with who made them and why, is kept with the workgroup.
+
+## Archiving a treasury
+
+When a project wallet is finished, an admin archives it from its card on the Treasury page. Archiving hides it from the lists used to start something new: Payday, payments, minting, anchor builds, a workgroup's payment wallet, transfer recipients, **Set as primary**, and the count of treasuries behind **Fund this budget**. It does not delete the wallet. The address, its transactions, its payout history and its on-chain anchor links stay on the same row. Tick **Show archived** on the Treasury page to see the card and its transactions again. The Dashboard, Incoming page, transaction pages and anyone still signing a transaction that was already built keep seeing it too.
+
+An archived treasury cannot start a new payout, mint or anchor. It can still send what it holds to another treasury of the community: that transfer does not attach proposal anchors. Its budget cannot be edited until it is restored, and a workgroup cannot be pointed at it.
+
+Archive is refused while any of these is still true:
+
+- this treasury is the community's primary (set another primary first),
+- it has a transaction that is still pending or submitted,
+- an active workgroup pays from it now, or is scheduled to pay from it in a future period.
+
+Move the primary and those payment wallets first, and finish or reject the transaction in progress. **Restore** on the card (or **Restore this treasury** when creating or importing the same script) puts the same row back into the pickers. Creating or importing a script whose address already belongs to an archived treasury of this community restores that row; it does not add a second treasury. The same address in another community, or a live wallet in this one, is still a conflict with nothing to restore. A different signer set or threshold is a different address and a new treasury.
+
+There is no way to delete a treasury that has built a transaction. Deleting the row would drop the app's record of the anchors that wallet published.
 
 ## Discord notifications
 

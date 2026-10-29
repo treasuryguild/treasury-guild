@@ -35,7 +35,7 @@ With the **communities:read** permission an assistant can:
 
 - list your communities and your role in each,
 - list the transactions waiting for your signature, across all your communities: on which treasury, how many signatures they have and need, whether you already signed or rejected them, and whether they are ready to submit,
-- show each treasury's [template](/docs/treasury#treasury-templates) and lock date, its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
+- show each treasury's [template](/docs/treasury#treasury-templates) and lock date, whether it is [archived](/docs/treasury#archiving-a-treasury), its signers with their group (base, recovery or co-signer) and signing rule, its current balance (read from the chain) and the transaction waiting for signatures, if any, with its spending path and how many signatures that path needs,
 - list transactions (payouts, payments and transfers, mints and anchors) with their treasury, state, on-chain hash, signatures and any budget problems found when they were built,
 - show one transaction in detail: who has signed and who still needs to, every payout or payment line (task, recipient, token, amount), minted tokens, the fee, the Treasury Guild record it carries on chain and the co-signer's decisions. Ask it to check a transaction before you sign it in the app,
 - list what arrived in the treasuries: amounts, the sending treasury of a transfer, the type and whether it waits for review on the Incoming page,
@@ -85,7 +85,7 @@ With **tasks:write**, on workgroups you lead (or any, as an admin):
 
 With **payouts:write**, as a base signer of that treasury, or lead of every workgroup concerned:
 
-- **prepare a payout** of tasks ready to pay, the ones you name or all of them, from the treasury their workgroups are paid from. The preview shows each recipient and amount, the totals, how many signatures it needs and any problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) finds. Confirming creates the treasury's pending transaction, as **Build payout** on [Payday](/docs/payday) does: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected. Tokens a bounty names that Payday would ask you to connect by hand are left to Payday.
+- **prepare a payout** of tasks ready to pay, the ones you name or all of them, from the treasury their workgroups are paid from. An archived treasury cannot be used; restore it in the app first. The preview shows each recipient and amount, the totals, how many signatures it needs and any problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) finds. Confirming creates the treasury's pending transaction, as **Build payout** on [Payday](/docs/payday) does: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected. Tokens a bounty names that Payday would ask you to connect by hand are left to Payday.
 
 Nothing is paid until the treasury's signers sign the transaction in the app with their wallets.
 

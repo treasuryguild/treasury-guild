@@ -13,6 +13,7 @@ import { getProvider } from "@/lib/cardano/provider";
 import { TxKind } from "@/lib/constants";
 import { recordProposalAnchors } from "@/lib/db/anchors";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
+import { assertTreasuryActive } from "@/lib/db/treasuries";
 import { BadRequestError } from "@/lib/errors";
 import { loadDueAnchors } from "@/lib/governance/anchorsDue";
 import { resolveTreasuryScript } from "@/lib/treasury";
@@ -22,6 +23,7 @@ import { anchorDescription } from "@/lib/txDescription";
 export const POST = sessionRoute(async (req, { session }) => {
   const { treasuryId, path: requestedPath } = await parseJson(req, buildAnchorSchema);
   const ctx = await loadBuildContext(treasuryId, session.wallet);
+  assertTreasuryActive(ctx.treasury);
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Anchor);
   requirePathBuilder(ctx, path, "Only treasury signers can build an anchor transaction");
   await assertNoPendingTx(treasuryId);

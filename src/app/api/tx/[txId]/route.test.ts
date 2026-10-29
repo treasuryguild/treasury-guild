@@ -40,6 +40,7 @@ const plain: TreasuryRow = {
   id: TREASURY_ID, community_id: COMMUNITY, name: "Main", network: 0, required: 2, script_type: "atLeast",
   address: "addr_test1treasury", script_cbor: "00", stake_credential_hash: null, template: TreasuryTemplate.Plain,
   lock_slot: null, lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null,
+  archived_at: null, archived_by: null,
 };
 const clawback: TreasuryRow = {
   ...plain, template: TreasuryTemplate.Clawback, lock_slot: 1000, lock_until: "2026-09-01T00:00:00.000Z",

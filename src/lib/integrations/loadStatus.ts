@@ -85,7 +85,7 @@ export async function loadIntegrationsStatus(communityId: string): Promise<Integ
       channelId: discord.channelId,
       lastError: discord.lastError,
     },
-    treasuries: treasuries.map((t) => ({ id: t.id, name: t.name })),
+    treasuries: treasuries.filter((t) => !t.archived_at).map((t) => ({ id: t.id, name: t.name })),
     payoutDiscordTreasuryIds: destinations.map((d) => d.treasury_id),
     rateConfigured: community.discord_rate_coin !== null,
     github: {

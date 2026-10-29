@@ -19,7 +19,7 @@ import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { usePayableTasks } from "@/hooks/usePayableTasks";
 import { useTaskSave } from "@/hooks/useTaskSave";
-import { useTreasuries } from "@/hooks/useTreasuries";
+import { activeTreasuries, useTreasuries } from "@/hooks/useTreasuries";
 import { useTreasuryWalletTokens } from "@/hooks/useTreasuryTokenTickers";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useCommunityBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
@@ -83,7 +83,11 @@ export default function PaydayPage({
   const save = useTaskSave(tasksQuery.reload);
   const [editing, setEditing] = useState<PayableTask | null>(null);
 
-  const { treasuryId, setTreasuryId, selectedTreasury } = useTreasuryChoice(treasuriesQuery.data);
+  const pickable = useMemo(
+    () => (treasuriesQuery.data ? activeTreasuries(treasuriesQuery.data) : undefined),
+    [treasuriesQuery.data],
+  );
+  const { treasuryId, setTreasuryId, selectedTreasury } = useTreasuryChoice(pickable);
   // Only the unticks are state: the selection is every ready task this
   // treasury may pay minus these, so a reload after an edit keeps the choices.
   const [optedOut, setOptedOut] = useState<ReadonlySet<string>>(new Set());
@@ -96,7 +100,8 @@ export default function PaydayPage({
   const listRef = useRef<HTMLDivElement>(null);
 
   const tasks = useMemo(() => tasksQuery.data ?? [], [tasksQuery.data]);
-  const treasuries = treasuriesQuery.data ?? [];
+  const allTreasuries = treasuriesQuery.data ?? [];
+  const treasuries = pickable ?? [];
   const registry = registryQuery.data ?? EMPTY_REGISTRY;
   const wallet = useWalletAssets(selectedTreasury?.address).data;
 
@@ -110,10 +115,10 @@ export default function PaydayPage({
   );
   const readyCounts = useMemo(
     () =>
-      tasksQuery.data && treasuriesQuery.data && treasuriesQuery.data.length > 1
-        ? readyCountByTreasury(tasksQuery.data, treasuriesQuery.data.map((t) => t.id), routing)
+      tasksQuery.data && treasuries.length > 1
+        ? readyCountByTreasury(tasksQuery.data, treasuries.map((t) => t.id), routing)
         : undefined,
-    [tasksQuery.data, treasuriesQuery.data, routing],
+    [tasksQuery.data, treasuries, routing],
   );
 
   const summary = useMemo(() => summarizeSelection(tasks, selected), [tasks, selected]);
@@ -239,7 +244,7 @@ export default function PaydayPage({
         <ElsewhereSection
           elsewhere={view.elsewhere}
           total={view.elsewhereCount}
-          treasuries={treasuries}
+          treasuries={allTreasuries}
           open={showElsewhere}
           onOpenChange={setShowElsewhere}
           onPayFrom={payFrom}

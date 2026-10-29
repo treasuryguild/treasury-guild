@@ -9,6 +9,7 @@ export interface SiblingTreasury {
   id: string;
   name: string;
   address: string;
+  archived_at: string | null;
 }
 
 /** The community's other treasuries: an output to one of them is a transfer. */
@@ -19,7 +20,7 @@ export async function loadSiblingTreasuries(
   return rows<SiblingTreasury>(
     await serviceClient()
       .from("treasuries")
-      .select("id, name, address")
+      .select("id, name, address, archived_at")
       .eq("community_id", communityId)
       .neq("id", exceptTreasuryId),
     "load sibling treasuries",

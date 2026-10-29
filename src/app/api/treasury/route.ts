@@ -21,6 +21,7 @@ import { addMember, promoteMembersToAdmin } from "@/lib/db/membership";
 import {
   countCommunityTreasuries,
   deleteTreasury,
+  findTreasuryByAddress,
   insertTreasury,
   insertTreasurySigners,
   loadTreasuryWithSigners,
@@ -251,6 +252,13 @@ export const POST = sessionRoute(async (req, { session }) => {
     cosigner_kind: built.cosignerKind,
   });
   if (!treasury) {
+    const existing = await findTreasuryByAddress(address);
+    if (existing?.community_id === communityId && existing.archived_at) {
+      throw new ConflictError(
+        "This treasury is archived. Restore it to use the same wallet again.",
+        { restoreTreasuryId: existing.id },
+      );
+    }
     throw new ConflictError(
       imported
         ? "A treasury with this address already exists"

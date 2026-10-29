@@ -102,6 +102,7 @@ export const treasuryOverview = defineEndpoint({
           balance,
           balanceError,
           pendingTransaction: describePending(community.slug, pending.get(treasury.id), treasury),
+          archived: Boolean(treasury.archived_at),
         };
       }),
     );

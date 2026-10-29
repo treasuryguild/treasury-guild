@@ -4,6 +4,7 @@ import { ConflictError } from "@/lib/errors";
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), requireAdmin: vi.fn(), insert: vi.fn(), single: vi.fn(), rpc: vi.fn(),
   workgroupCommunity: vi.fn(), requireActive: vi.fn(), setWorkgroupTreasury: vi.fn(),
+  findByAddress: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.requireAdmin, requireMember: vi.fn() }));
@@ -29,6 +30,7 @@ vi.mock("@/lib/db/membership", () => ({ addMember: vi.fn(), promoteMembersToAdmi
 vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
   ...(await importOriginal<typeof Treasuries>()),
   countCommunityTreasuries: async () => 1, loadTreasuryWithSigners: vi.fn(),
+  findTreasuryByAddress: mocks.findByAddress,
 }));
 vi.mock("@/lib/db/workgroups", () => ({
   workgroupCommunityId: mocks.workgroupCommunity, requireActiveWorkgroup: mocks.requireActive,
@@ -54,6 +56,7 @@ beforeEach(() => {
   mocks.rpc.mockResolvedValue({ data: 0, error: null });
   mocks.workgroupCommunity.mockResolvedValue("10000000-0000-4000-8000-000000000001");
   mocks.setWorkgroupTreasury.mockResolvedValue("2026-09-01");
+  mocks.findByAddress.mockResolvedValue(null);
 });
 
 describe("create treasury API", () => {
@@ -93,6 +96,20 @@ describe("create treasury API", () => {
       treasury: { id: "treasury-1" }, link: null, linkError: "A later wallet change is already scheduled",
     });
     expect(mocks.setWorkgroupTreasury).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers to restore an archived treasury with the same address", async () => {
+    mocks.single.mockResolvedValue({ data: null, error: { code: "23505", message: "duplicate key" } });
+    mocks.findByAddress.mockResolvedValue({
+      id: "40000000-0000-4000-8000-000000000009",
+      community_id: "10000000-0000-4000-8000-000000000001",
+      archived_at: "2026-10-01T00:00:00Z",
+    });
+    const result = await POST(request(), context);
+    expect(result.status).toBe(409);
+    expect(await result.json()).toMatchObject({
+      restoreTreasuryId: "40000000-0000-4000-8000-000000000009",
+    });
   });
 
   it("refuses a workgroup of another community or an archived one before creating anything", async () => {

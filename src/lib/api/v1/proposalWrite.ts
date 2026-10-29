@@ -157,8 +157,14 @@ async function budgetSaves(communityId: string, changes: readonly BudgetChange[]
   const registry = await loadAssetRegistry(communityId);
   const saves = [];
   for (const change of changes) {
-    const owner = change.ownerType === "treasury"
-      ? { workgroupId: null, treasuryId: (await resolveCommunityTreasury(communityId, change.owner)).id }
+    const resolvedTreasury = change.ownerType === "treasury"
+      ? await resolveCommunityTreasury(communityId, change.owner)
+      : null;
+    if (resolvedTreasury?.archived_at) {
+      throw new ConflictError("Restore this treasury before changing its budget");
+    }
+    const owner = resolvedTreasury
+      ? { workgroupId: null, treasuryId: resolvedTreasury.id }
       : { workgroupId: (await resolveCommunityWorkgroup(communityId, change.owner)).id, treasuryId: null };
     const context = owner.workgroupId
       ? await loadWorkgroupBudgetOwner(owner.workgroupId)

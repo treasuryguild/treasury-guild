@@ -47,6 +47,8 @@ function treasury(address: string): TreasuryRow {
     recovery_script_type: null,
     recovery_required: null,
     cosigner_kind: null,
+    archived_at: null,
+    archived_by: null,
   };
 }
 

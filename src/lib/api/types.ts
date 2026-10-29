@@ -27,6 +27,8 @@ export interface ApiErrorBody {
   problems?: string[];
   /** Optimistic-concurrency conflict: the client should refetch. */
   conflict?: boolean;
+  /** Set when creating or importing a script that belongs to an archived treasury of this community. */
+  restoreTreasuryId?: string;
 }
 
 export interface TreasuryImportPreview {
@@ -769,6 +771,11 @@ export interface IpfsSignUploadResponse {
   url: string;
   gateway: string;
 }
+export interface TreasuryLifecycleStatus {
+  archivedAt: string | null;
+  /** Why archive cannot proceed yet; empty when it can. */
+  blockers: string[];
+}
 export interface WorkgroupLifecycleStatus {
   archivedAt: string | null;
   outstandingTasks: number;
@@ -849,6 +856,8 @@ export interface V1Treasury {
   balance: V1TreasuryBalance | null;
   balanceError: string | null;
   pendingTransaction: V1PendingTransaction | null;
+  /** True while an admin has archived the treasury. History stays; new payouts, mints and anchors do not. */
+  archived: boolean;
 }
 
 /** GET /api/v1/communities/[community]/treasuries (MCP treasury_overview). */

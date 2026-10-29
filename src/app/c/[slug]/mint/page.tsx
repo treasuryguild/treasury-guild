@@ -14,7 +14,7 @@ import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useIpfsGateway } from "@/hooks/useIpfsGateway";
 import { useMints } from "@/hooks/useMints";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
-import { useTreasuries } from "@/hooks/useTreasuries";
+import { activeTreasuries, useTreasuries } from "@/hooks/useTreasuries";
 import { BusyOverlay, EmptyState, PageTitle, SectionTitle } from "@/components/ui";
 import { MintForm } from "@/components/mint/MintForm";
 import { MintedAssetsList } from "@/components/mint/MintedAssetsList";
@@ -35,7 +35,8 @@ export default function MintPage({
 
   if (blocked) return blocked;
 
-  const treasuryList = treasuries.data ?? [];
+  const allTreasuries = treasuries.data ?? [];
+  const treasuryList = activeTreasuries(allTreasuries);
   const mintList = mints.data ?? [];
   const canMintAnywhere = roles.signerTreasuryIds.size > 0;
   const ready = !treasuries.loading && !roles.loading;
@@ -64,12 +65,18 @@ export default function MintPage({
         <EmptyState>Only treasury signers can mint tokens.</EmptyState>
       ) : treasuryList.length === 0 ? (
         <EmptyState>
-          Create a multisig treasury first — its signers become the minting
-          policy.{" "}
-          {isAdmin && (
-            <Link href={routes.newTreasury(slug)} className="text-indigo-400 hover:underline">
-              New treasury
-            </Link>
+          {allTreasuries.length > 0 ? (
+            "Restore a treasury before minting from it."
+          ) : (
+            <>
+              Create a multisig treasury first — its signers become the minting
+              policy.{" "}
+              {isAdmin && (
+                <Link href={routes.newTreasury(slug)} className="text-indigo-400 hover:underline">
+                  New treasury
+                </Link>
+              )}
+            </>
           )}
         </EmptyState>
       ) : (

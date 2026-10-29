@@ -147,18 +147,22 @@ export interface TreasuryRow {
   recovery_required: number | null;
   /** Who holds the co-signer key of a cosigner treasury. */
   cosigner_kind: CosignerKind | null;
+  /** Set while an admin has archived the treasury; null while it can be chosen for new builds. */
+  archived_at: string | null;
+  /** Wallet of the admin who archived it; cleared on restore. */
+  archived_by: string | null;
 }
 
 /** The columns list pages need to render/pick a treasury. */
 export type TreasurySummary = Pick<
   TreasuryRow,
-  "id" | "name" | "address" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind"
+  "id" | "name" | "address" | "required" | "script_type" | "template" | "lock_until" | "recovery_script_type" | "recovery_required" | "cosigner_kind" | "archived_at"
 > & {
   /** The signers' groups only, so pages can count each group ("2 of 3"). */
   treasury_signers: Pick<TreasurySignerRow, "signer_group">[];
 };
 export const TREASURY_SUMMARY_COLUMNS =
-  "id, name, address, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, treasury_signers(signer_group)";
+  "id, name, address, required, script_type, template, lock_until, recovery_script_type, recovery_required, cosigner_kind, archived_at, treasury_signers(signer_group)";
 
 export interface TreasurySignerRow {
   treasury_id: string;

@@ -52,6 +52,7 @@ const TREASURY: TreasuryRow = {
   address: "addr_test1treasury", script_cbor: "8200", stake_credential_hash: null,
   template: TreasuryTemplate.Cosigner, lock_slot: null, lock_until: null,
   recovery_script_type: null, recovery_required: null, cosigner_kind: CosignerKind.App,
+  archived_at: null, archived_by: null,
 };
 
 function tx(patch: Partial<TransactionRow> = {}): TransactionRow {

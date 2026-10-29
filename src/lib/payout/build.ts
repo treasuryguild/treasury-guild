@@ -25,6 +25,7 @@ import { loadBudgetSetupsForWorkgroups, loadBudgetSources } from "@/lib/db/budge
 import { loadProposalCitations } from "@/lib/db/governance";
 import { loadTasksForBuild, markTasksQueued, setBudgetMonthIfNull, tasksWithLivePayouts, type TaskForBuild } from "@/lib/db/tasks";
 import { assertNoPendingTx, insertPayouts, withTransactionRow } from "@/lib/db/transactions";
+import { assertTreasuryActive } from "@/lib/db/treasuries";
 import type { TransactionRow } from "@/lib/db/types";
 import { loadTreasuryAssignmentsForWorkgroups } from "@/lib/db/workgroupRouting";
 import { BadRequestError, ConflictError, ForbiddenError } from "@/lib/errors";
@@ -76,6 +77,7 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   const { treasuryId, path: requestedPath, taskIds, connections } = input;
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
+  assertTreasuryActive(treasury);
   // Base signers of this treasury can build for any workgroup; a workgroup
   // lead can build only when every selected task is in a workgroup they
   // lead (checked below, once tasks are loaded). Community admin alone is
