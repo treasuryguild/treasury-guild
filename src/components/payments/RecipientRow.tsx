@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 import { contributorLabel } from "@/lib/assignees";
 import type { MemberOption } from "@/lib/boardTypes";
 import type { TreasurySummary } from "@/lib/db/types";
+import { shortUnit } from "@/lib/format";
 import type { DraftToken, RecipientDraft, RecipientKind } from "@/lib/payments/form";
 import { Button, Input, Select } from "@/components/ui";
 
@@ -34,15 +35,36 @@ export function RecipientRow({
   onClearDrain: () => void;
 }) {
   const label = `Recipient ${index + 1}`;
+  const known = new Set(tokens.map((token) => token.unit));
+  const added = [
+    ...tokens.filter((token) => token.unit in row.amounts),
+    ...Object.keys(row.amounts)
+      .filter((unit) => !known.has(unit))
+      .map((unit) => ({ unit, ticker: shortUnit(unit), decimals: 0, held: 0n })),
+  ];
+  const available = tokens.filter((token) => !(token.unit in row.amounts));
+
+  function setAmount(unit: string, amount: string) {
+    onChange({ amounts: { ...row.amounts, [unit]: amount } });
+  }
+
+  function removeAmount(unit: string) {
+    const next = { ...row.amounts };
+    delete next[unit];
+    onChange({ amounts: next });
+  }
+
   return (
     <div role="group" aria-label={label} className="rounded-xl border border-[var(--border)] p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-        <Select aria-label={`${label} kind`} className="w-full shrink-0 sm:w-52" value={row.kind} disabled={disabled}
-          onChange={(event) => onChange({ kind: event.target.value as RecipientKind, address: "" })}>
-          {(Object.keys(KIND_LABELS) as RecipientKind[]).map((kind) => (
-            <option key={kind} value={kind} disabled={kind === "treasury" && treasuries.length === 0}>{KIND_LABELS[kind]}</option>
-          ))}
-        </Select>
+        <div className="w-full shrink-0 sm:w-52">
+          <Select aria-label={`${label} kind`} value={row.kind} disabled={disabled}
+            onChange={(event) => onChange({ kind: event.target.value as RecipientKind, address: "" })}>
+            {(Object.keys(KIND_LABELS) as RecipientKind[]).map((kind) => (
+              <option key={kind} value={kind} disabled={kind === "treasury" && treasuries.length === 0}>{KIND_LABELS[kind]}</option>
+            ))}
+          </Select>
+        </div>
         <div className="min-w-0 flex-1 space-y-2">
           {row.kind === "member" && (
             <Select aria-label={`${label} member`} value={row.address} disabled={disabled}
@@ -67,16 +89,36 @@ export function RecipientRow({
               placeholder="addr…" spellCheck={false}
               onChange={(event) => onChange({ address: event.target.value })} />
           )}
-          <div className="flex flex-wrap gap-2">
-            {tokens.map((token) => (
-              <label key={token.unit} className="flex min-w-0 items-center gap-2 text-sm">
+          <div className="space-y-2">
+            {added.map((token) => (
+              <div key={token.unit} className="flex min-w-0 items-center gap-2 text-sm">
                 <span className="w-14 shrink-0 truncate text-zinc-400" title={token.ticker}>{token.ticker}</span>
                 <Input aria-label={`${label} ${token.ticker} amount`} inputMode="decimal" className="!w-36 text-right font-mono tabular-nums"
                   value={row.amounts[token.unit] ?? ""} disabled={disabled || drain} placeholder="0" readOnly={drain}
-                  onChange={(event) => onChange({ amounts: { ...row.amounts, [token.unit]: event.target.value } })} />
-              </label>
+                  onChange={(event) => setAmount(token.unit, event.target.value)} />
+                {!drain && (
+                  <Button type="button" variant="ghost" className="!min-h-8 !p-1.5" aria-label={`Remove ${token.ticker}`}
+                    disabled={disabled} onClick={() => removeAmount(token.unit)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             ))}
-            {tokens.length === 0 && <span className="text-xs text-zinc-500">Choose a treasury to see what it can pay.</span>}
+            {tokens.length === 0 && (
+              <span className="text-xs text-zinc-500">Choose a treasury to see what it can pay.</span>
+            )}
+            {!drain && available.length > 0 && (
+              <Select aria-label={`${label} add asset`} value="" disabled={disabled}
+                onChange={(event) => {
+                  const unit = event.target.value;
+                  if (unit) setAmount(unit, "");
+                }}>
+                <option value="">+ Add asset…</option>
+                {available.map((token) => (
+                  <option key={token.unit} value={token.unit}>{token.ticker}</option>
+                ))}
+              </Select>
+            )}
           </div>
           {drain ? (
             <div className="flex flex-wrap items-center gap-2">
