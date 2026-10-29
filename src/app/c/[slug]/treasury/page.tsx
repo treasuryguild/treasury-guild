@@ -12,6 +12,7 @@ import {
   TRANSACTION_SUMMARY_COLUMNS,
   type ExternalTxRow,
   type TransactionSummary,
+  type TreasurySummary,
 } from "@/lib/db/types";
 import { describeExternalTx, recentTreasuryActivity } from "@/lib/externalTx";
 import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, shortUnit } from "@/lib/format";
@@ -36,6 +37,7 @@ import {
   EmptyState,
   ErrorText,
   ExplorerLink,
+  NoticeText,
   LinkButton,
   PageTitle,
   SectionTitle,
@@ -48,6 +50,7 @@ import { IntegrationStatusLink } from "@/components/integrations/IntegrationStat
 import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
 import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
+import { TreasuryLifecycleDialog } from "@/components/treasury/TreasuryLifecycleDialog";
 
 const RECENT_TX_LIMIT = 20;
 
@@ -59,8 +62,14 @@ export default function TreasuryPage({
   const { slug } = use(params);
   const { community, isAdmin, blocked, reload: reloadCommunity } = useCommunityGate(slug);
   const treasuries = useTreasuries(community?.id);
+  const [showArchived, setShowArchived] = useState(false);
+  const [managing, setManaging] = useState<TreasurySummary | null>(null);
+  const [lifecycleMessage, setLifecycleMessage] = useState("");
   const list = treasuries.data ?? [];
-  const treasuryIds = list.map((t) => t.id);
+  const hasArchived = list.some((t) => t.archived_at);
+  const visible = showArchived ? list : list.filter((t) => !t.archived_at);
+  const treasuryIds = visible.map((t) => t.id);
+  const allTreasuryIds = list.map((t) => t.id);
   const setPrimary = useAsyncAction("Failed to set primary treasury");
 
   const txs = useAsyncData(
@@ -104,7 +113,7 @@ export default function TreasuryPage({
   );
   // On-chain payouts and payments the import holds for an admin (not capped
   // by the activity list's limit).
-  const importQueue = useChainImportQueue(isAdmin ? treasuryIds : []);
+  const importQueue = useChainImportQueue(isAdmin ? allTreasuryIds : []);
   const workgroups = useWorkgroups(isAdmin ? community?.id : null);
   const registry = useAssetRegistry(community?.id);
   // With budget consent on, a spend the app did not build is flagged: it
@@ -124,7 +133,7 @@ export default function TreasuryPage({
     reloadQueue();
   }, [reloadTxs, reloadPending, reloadExternals, reloadQueue]);
   const sync = useChainSync(community?.id, reloadActivity);
-  const balances = useWalletAssetsMany(list.map((t) => t.address));
+  const balances = useWalletAssetsMany(visible.map((t) => t.address));
   // Which treasury's details dialog is open (native script, CBOR, signers).
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const detailsTreasury = list.find((t) => t.id === detailsId) ?? null;
@@ -151,7 +160,7 @@ export default function TreasuryPage({
         <div className="min-w-0">
           <p className="text-sm">{tx.description ?? "Transaction"}</p>
           <p className="mt-1 text-xs text-zinc-500">
-            {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+            {visible.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
             {formatDate(tx.created_at, "datetime")} ·{" "}
             {tx.signed_addresses.length} signature(s)
           </p>
@@ -200,10 +209,22 @@ export default function TreasuryPage({
         </>
       )}
       <ErrorText error={setPrimary.error} className="mb-3" />
+      <NoticeText className="mb-3">{lifecycleMessage}</NoticeText>
+      {hasArchived && (
+        <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+          />
+          Show archived
+        </label>
+      )}
       <div className="mb-8 grid gap-4 lg:grid-cols-2">
-        {list.map((t) => {
+        {visible.map((t) => {
           const balance = balances.data?.[t.address];
           const isPrimary = community?.primary_treasury_id === t.id;
+          const archived = !!t.archived_at;
           return (
             <Card key={t.id}>
               <div className="flex min-w-0 items-start justify-between gap-3">
@@ -211,6 +232,7 @@ export default function TreasuryPage({
                   <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
                     <span className="min-w-0 truncate">{t.name}</span>
                     {isPrimary && <Badge tone="blue">Primary</Badge>}
+                    {archived && <Badge>Archived</Badge>}
                   </h3>
                   <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
                     {shortAddress(t.address)}
@@ -219,6 +241,17 @@ export default function TreasuryPage({
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
+                  {t.template === "plain" && t.stake_credential_hash && !archived && (
+                    <>
+                      <Badge tone="green">SDK</Badge>
+                      <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
+                        Staking
+                      </LinkButton>
+                      <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
+                        Cardano gov
+                      </LinkButton>
+                    </>
+                  )}
                   <Button
                     variant="secondary"
                     onClick={() => setDetailsId(t.id)}
@@ -226,7 +259,7 @@ export default function TreasuryPage({
                   >
                     Details
                   </Button>
-                  {isAdmin && !isPrimary && (
+                  {isAdmin && !isPrimary && !archived && (
                     <Button
                       variant="secondary"
                       disabled={setPrimary.busy}
@@ -239,6 +272,11 @@ export default function TreasuryPage({
                       })}
                     >
                       Set as primary
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button variant="secondary" onClick={() => setManaging(t)}>
+                      {archived ? "Restore" : "Archive"}
                     </Button>
                   )}
                 </div>
@@ -266,18 +304,35 @@ export default function TreasuryPage({
             </Card>
           );
         })}
-        {!treasuries.loading && list.length === 0 && (
+        {!treasuries.loading && visible.length === 0 && (
           <EmptyState>
-            No treasury yet.{" "}
-            {isAdmin ? "Create a multisig treasury to hold community funds." : ""}
+            {list.length > 0
+              ? "Archived treasuries are hidden. Show archived to see them."
+              : <>No treasury yet. {isAdmin ? "Create a multisig treasury to hold community funds." : ""}</>}
           </EmptyState>
         )}
       </div>
 
-      {detailsTreasury && (
+      {managing && (
+        <TreasuryLifecycleDialog
+          treasury={managing}
+          onClose={() => setManaging(null)}
+          onChanged={(action) => {
+            setManaging(null);
+            setLifecycleMessage(action === "archive"
+              ? "Treasury archived. Use Show archived to find it."
+              : "Treasury restored.");
+            treasuries.reload();
+          }}
+        />
+      )}
+
+      {detailsTreasury && community && (
         <TreasuryDetailsModal
           treasuryId={detailsTreasury.id}
           treasuryName={detailsTreasury.name}
+          slug={slug}
+          communityId={community.id}
           onClose={() => setDetailsId(null)}
         />
       )}
@@ -295,7 +350,7 @@ export default function TreasuryPage({
 
       {community && (
         <div className="mb-6">
-          <AnchorsDueNotice slug={slug} communityId={community.id} treasuries={treasuries.data} isAdmin={isAdmin} />
+          <AnchorsDueNotice slug={slug} communityId={community.id} treasuries={list} isAdmin={isAdmin} />
         </div>
       )}
 
@@ -330,7 +385,7 @@ export default function TreasuryPage({
                 <div className="min-w-0">
                   <p className="text-sm">{title}</p>
                   <p className="mt-1 text-xs text-zinc-500">
-                    {list.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
+                    {visible.length > 1 && <>{treasuryName(tx.treasury_id)} · </>}
                     {formatDate(tx.block_time, "datetime")} · {detail} ·{" "}
                     <span className="font-mono">{shortHash(tx.tx_hash, 12)}</span>
                   </p>

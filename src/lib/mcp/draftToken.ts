@@ -31,6 +31,9 @@ export const DRAFT_ACTIONS = [
   "task_save",
   "call_create",
   "call_finalize",
+  "stake_create",
+  "drep_create",
+  "vote_create",
 ] as const;
 export type DraftAction = (typeof DRAFT_ACTIONS)[number];
 

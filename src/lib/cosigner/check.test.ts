@@ -52,6 +52,7 @@ const TREASURY: TreasuryRow = {
   address: "addr_test1treasury", script_cbor: "8200", stake_credential_hash: null,
   template: TreasuryTemplate.Cosigner, lock_slot: null, lock_until: null,
   recovery_script_type: null, recovery_required: null, cosigner_kind: CosignerKind.App,
+  archived_at: null, archived_by: null,
 };
 
 function tx(patch: Partial<TransactionRow> = {}): TransactionRow {
@@ -59,7 +60,7 @@ function tx(patch: Partial<TransactionRow> = {}): TransactionRow {
     id: "tx-1", treasury_id: "t-1", kind: TxKind.Payout, tx_cbor: CBOR, tx_hash: TX_HASH, description: null,
     signed_addresses: [ALICE], rejected_addresses: [], state: TxState.Pending, created_by: ALICE,
     submitted_at: null, created_at: "2026-10-01T00:00:00Z", discord_notified_at: null, spend_problems: [],
-    block_time: null, spending_path: SpendingPath.Cosigned, ...patch,
+    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, ...patch,
   };
 }
 
@@ -202,6 +203,15 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
     expect(mocks.settings).not.toHaveBeenCalled();
     expect(mocks.spent).not.toHaveBeenCalled();
     expect(mocks.proposals).not.toHaveBeenCalled();
+  });
+
+  it("checks a CIP-0146 registration like an anchor (change only, no spend)", async () => {
+    mocks.outputs.mockReturnValue([CHANGE]);
+    expect(await runCosignerCheck(tx({ kind: TxKind.Registration }), TREASURY)).toEqual({ passed: true, problems: [] });
+    expect(mocks.compare).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      kind: TxKind.Registration, outputs: [CHANGE], mint: [],
+    }));
+    expect(mocks.settings).not.toHaveBeenCalled();
   });
 
   it("hands a mint its forged assets and stored mints, and runs no budget check", async () => {

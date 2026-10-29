@@ -18,8 +18,9 @@ import { recordProposalAnchors } from "@/lib/db/anchors";
 import { loadBudgetSetupsForTreasury, loadBudgetSources } from "@/lib/db/budgetSetups";
 import { loadAppliedBudgetProposal, loadProposalCitations } from "@/lib/db/governance";
 import { insertPayments, loadMemberLabels, loadSiblingTreasuries } from "@/lib/db/payments";
+import { ARCHIVED_TREASURY_PAYMENT } from "@/lib/db/treasuries";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
-import { BadRequestError } from "@/lib/errors";
+import { BadRequestError, ConflictError } from "@/lib/errors";
 import { loadDueAnchorsBestEffort } from "@/lib/governance/anchorsDue";
 import { citationsOf } from "@/lib/governance/citations";
 import { budgetOwnerKey } from "@/lib/governance/payload";
@@ -57,7 +58,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   await assertNoPendingTx(treasuryId);
 
   const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId });
-  const [walletAssets, siblingTreasuries, members, setups, budgetSources, namedProposal] = await Promise.all([
+  const [walletAssets, allSiblings, members, setups, budgetSources, namedProposal] = await Promise.all([
     fetchWalletAssets(network, treasury.address),
     loadSiblingTreasuries(treasury.community_id, treasuryId),
     loadMemberLabels(treasury.community_id, rawInputs.map((r) => r.address)),
@@ -87,6 +88,11 @@ export const POST = sessionRoute(async (req, { session }) => {
       return [{ address: rawInputs[0]!.address, amounts }];
     })()
     : rawInputs;
+  const siblingTreasuries = allSiblings.filter((t) => !t.archived_at);
+  const archivedAddresses = new Set(allSiblings.filter((t) => t.archived_at).map((t) => t.address));
+  if (inputs.some((input) => archivedAddresses.has(input.address.trim()))) {
+    throw new ConflictError("Restore that treasury before transferring to it.");
+  }
   const { recipients, problems } = resolvePaymentRecipients(inputs, {
     network,
     treasuryAddress: treasury.address,
@@ -96,6 +102,9 @@ export const POST = sessionRoute(async (req, { session }) => {
   });
   if (problems.length > 0 || recipients.length === 0) {
     throw new BadRequestError("Some recipients cannot be paid", { problems });
+  }
+  if (treasury.archived_at && recipients.some((r) => r.treasuryId === null)) {
+    throw new ConflictError(ARCHIVED_TREASURY_PAYMENT);
   }
 
   // The period the spend counts against, read through the treasury's own
@@ -120,7 +129,8 @@ export const POST = sessionRoute(async (req, { session }) => {
   const citations = citationsOf([budgetProposalId, namedProposal?.id], cited);
   const spendProblems = await guardSpend(treasury.community_id, lines, budgetSources);
   // Due proposal anchors ride along (label 190002); a failure to load them never blocks the payment.
-  const anchors = await loadDueAnchorsBestEffort(treasury.community_id);
+  // A drain of an archived treasury moves funds only; it does not carry anchors.
+  const anchors = treasury.archived_at ? [] : await loadDueAnchorsBestEffort(treasury.community_id);
 
   const { scriptCbor } = resolveTreasuryScript(treasury, signers);
   const built = await buildPaymentTx({

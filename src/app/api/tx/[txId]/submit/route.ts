@@ -1,8 +1,7 @@
 import { sessionRoute } from "@/lib/api/route";
 import type { SubmitTxResponse } from "@/lib/api/types";
 import { getProvider } from "@/lib/cardano/provider";
-import { pathRule } from "@/lib/cardano/spendingPaths";
-import { describeRule, thresholdReached } from "@/lib/cardano/thresholds";
+import { governanceReadyToSubmit } from "@/lib/cardano/scriptWitnessThreshold";
 import { filterWitnessesToScripts } from "@/lib/cardano/txSignUtils";
 import { asNetwork } from "@/lib/config";
 import { markTransactionSubmitted } from "@/lib/db/transactions";
@@ -16,13 +15,15 @@ export const POST = sessionRoute<{ txId: string }>(
       txId,
       session.wallet,
     );
-    // Only signatures that count on the transaction's own spending path.
-    const rule = pathRule(treasury, signers, tx.spending_path);
-    if (!thresholdReached(rule, tx.signed_addresses)) {
-      throw new BadRequestError(
-        `Not enough signatures: ${tx.signed_addresses.length} collected, ${describeRule(rule)} required`,
-      );
-    }
+    const ready = governanceReadyToSubmit(
+      tx.kind,
+      treasury,
+      signers,
+      tx.spending_path,
+      tx.signed_addresses,
+      tx.tx_cbor,
+    );
+    if (!ready.ok) throw new BadRequestError(ready.reason);
 
     // Strip extraneous wallet witnesses (Conway InvalidWitnessesUTXOW guard)
     const txHex = filterWitnessesToScripts(tx.tx_cbor);

@@ -2,7 +2,13 @@
 // defines no scope names, only the machinery; these are ours. Client-safe:
 // the consent page shows the descriptions.
 
-export const API_SCOPES = ["communities:read", "proposals:write", "tasks:write", "payouts:write"] as const;
+export const API_SCOPES = [
+  "communities:read",
+  "proposals:write",
+  "tasks:write",
+  "payouts:write",
+  "governance:write",
+] as const;
 
 export type ApiScope = (typeof API_SCOPES)[number];
 
@@ -16,6 +22,8 @@ export const API_SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
     "Create and edit tasks on app boards you manage, create calls and pay attendance into tasks, each after you confirm it in the conversation. Cannot make a task payable, sign or pay anything.",
   "payouts:write":
     "Prepare payout transactions for tasks ready to pay, after you confirm each one in the conversation. The treasury's signers still sign in the app; nothing is paid until they do.",
+  "governance:write":
+    "Prepare stake, DRep and Cardano governance vote transactions for plain SDK treasuries you sign for, after you confirm each one in the conversation. The treasury's signers still sign in the app; cannot cast community proposal ballots or pay anything.",
 };
 
 /** A scope that lets the assistant change something. Never granted unless asked for and ticked. */

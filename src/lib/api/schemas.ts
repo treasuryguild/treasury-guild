@@ -6,11 +6,11 @@ import { z } from "zod";
 import { LOVELACE } from "@/lib/assets";
 import { rewardFromRows } from "@/lib/boardTypes";
 import { isMeetingRef, MEET_CODE_ERROR, ZOOM_MEETING_ID_ERROR } from "@/lib/calls/meetingRef";
-import { checkValidAddress } from "@/lib/cardano/multisigSDK";
+import { checkValidAddress, checkValidStakeKey } from "@/lib/cardano/multisigSDK";
 import {
-  AttendeeStatus, CallProvider, DecisionMethod, Electorate, LEGACY_MAX_CSV_CHARS, LEGACY_MAX_TICKERS, MAX_PASTED_ATTENDEES,
+  AttendeeStatus, CallProvider, DecisionMethod, DrepAction, Electorate, LEGACY_MAX_CSV_CHARS, LEGACY_MAX_TICKERS, MAX_PASTED_ATTENDEES,
   MAX_PAYMENT_MEMO_BYTES, MAX_PAYOUT_CONTRIBUTORS, MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, MAX_TASK_ASSIGNEES,
-  MAX_TREASURY_SIGNERS, MAX_VOTE_REASON, ProposalKind, Proposers, Role, SPENDING_PATHS, TREASURY_TEMPLATES, VoteChoice, Visibility,
+  MAX_TREASURY_SIGNERS, MAX_VOTE_REASON, ProposalKind, Proposers, Role, SPENDING_PATHS, StakeAction, TREASURY_TEMPLATES, VoteChoice, Visibility,
 } from "@/lib/constants";
 import { MAX_BUDGET_STEPS } from "@/lib/governance/payload";
 import { SpendCheckMode } from "@/lib/governance/rules";
@@ -70,6 +70,30 @@ export const addressQuerySchema = z.object({ address: walletAddress });
 export const txStatusQuerySchema = z.object({
   hash: txHash,
   network: z.coerce.number().pipe(network),
+});
+
+/** GET /api/chain/cip146/lookup — find label-1854 registrations by participant key hash. */
+export const cip146LookupQuerySchema = z.object({
+  network: z.coerce.number().pipe(network),
+  /** Comma-separated 56-hex payment/stake/dRep key hashes. */
+  pubKeyHashes: z
+    .string()
+    .min(56)
+    .max(56 * 50 + 49)
+    .transform((s) =>
+      s
+        .split(",")
+        .map((h) => h.trim().toLowerCase())
+        .filter((h) => /^[0-9a-f]{56}$/.test(h)),
+    )
+    .refine((hashes) => hashes.length > 0, "Provide at least one pubKeyHash")
+    .refine((hashes) => hashes.length <= 50, "Too many pubKeyHashes (max 50)"),
+});
+
+/** GET /api/chain/cip146/resolve — reconstruct a treasury from a registration tx. */
+export const cip146ResolveQuerySchema = z.object({
+  network: z.coerce.number().pipe(network),
+  txHash,
 });
 
 // --- Community / membership --------------------------------------------------
@@ -211,8 +235,22 @@ export const setTaskAssigneesSchema = z
 
 // --- Treasury -----------------------------------------------------------------
 
+const keyHash56 = z.string().regex(/^[0-9a-f]{56}$/i, "must be a 28-byte key hash (56 hex chars)");
+
 export const treasuryImportSourceSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("cbor"), cbor: z.string().min(1).max(65_536) }),
+  z.object({
+    type: z.literal("cbor"),
+    cbor: z.string().min(1).max(65_536),
+    /**
+     * Optional stake credential from a CIP-0146 discovery (CBOR paste stays
+     * unstaked). When set, the imported address is derived with this credential.
+     */
+    stakeCredentialHash: keyHash56.optional(),
+  }),
+  z.object({
+    type: z.literal("cip146"),
+    txHash,
+  }),
 ]);
 
 export const previewTreasuryImportSchema = z.object({
@@ -220,7 +258,15 @@ export const previewTreasuryImportSchema = z.object({
   source: treasuryImportSourceSchema,
 });
 
-const treasurySignerInput = z.object({ address: storedWallet, name: text(100).optional() });
+const stakeAddress = z.string().min(1).max(200).refine(checkValidStakeKey, "Invalid stake address");
+const treasurySignerInput = z.object({
+  address: storedWallet,
+  name: text(100).optional(),
+  /** Reward address of this base signer (SDK plain treasuries). */
+  stakeAddress: stakeAddress.optional(),
+  /** CIP-1854 role-3 DRep public key hash (optional; payment-script fallback when incomplete). */
+  drepKeyHash: keyHash56.optional(),
+});
 const treasurySigners = z.array(treasurySignerInput).min(1).max(MAX_TREASURY_SIGNERS);
 
 export const createTreasurySchema = z.object({
@@ -259,7 +305,90 @@ export const createTreasurySchema = z.object({
   if (body.template !== "clawback" && body.recovery) ctx.addIssue({ code: "custom", path: ["recovery"], message: "Only a clawback treasury has recovery signers" });
   if (body.template === "cosigner" && !body.cosigner) ctx.addIssue({ code: "custom", path: ["cosigner"], message: "Choose the co-signer" });
   if (body.template !== "cosigner" && body.cosigner) ctx.addIssue({ code: "custom", path: ["cosigner"], message: "Only a co-signer treasury has a co-signer" });
+
+  const withStake = body.signers.filter((s) => s.stakeAddress);
+  const withDrep = body.signers.filter((s) => s.drepKeyHash);
+  if (withStake.length > 0 || withDrep.length > 0) {
+    if (body.template !== "plain") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["template"],
+        message: "Stake and DRep keys are only for a plain multisig treasury",
+      });
+    }
+    if (withStake.length > 0 && withStake.length !== body.signers.length) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["signers"],
+        message: "Every base signer needs a stake address, or leave them all blank for a legacy wallet",
+      });
+    }
+  }
 });
+
+/** POST /api/tx/build-stake */
+export const buildStakeSchema = z.object({
+  treasuryId: id,
+  path: z.enum(SPENDING_PATHS).optional(),
+  action: z.enum([
+    StakeAction.Register,
+    StakeAction.RegisterAndDelegate,
+    StakeAction.Delegate,
+    StakeAction.Deregister,
+    StakeAction.Withdraw,
+    StakeAction.VoteDelegation,
+  ]),
+  /** Pool bech32 (`pool1…`) or 56-char hex; required for delegate / register_and_delegate. */
+  poolId: z.string().min(1).max(120).optional(),
+  /** DRep id, `always_abstain`, or `always_no_confidence`; required for vote_delegation. */
+  dRepId: z.string().min(1).max(120).optional(),
+}).superRefine((body, ctx) => {
+  if (
+    (body.action === StakeAction.Delegate || body.action === StakeAction.RegisterAndDelegate) &&
+    !body.poolId
+  ) {
+    ctx.addIssue({ code: "custom", path: ["poolId"], message: "Choose a stake pool" });
+  }
+  if (body.action === StakeAction.VoteDelegation && !body.dRepId) {
+    ctx.addIssue({ code: "custom", path: ["dRepId"], message: "Choose a DRep or always abstain / no confidence" });
+  }
+});
+
+/** POST /api/tx/build-drep */
+export const buildDrepSchema = z.object({
+  treasuryId: id,
+  path: z.enum(SPENDING_PATHS).optional(),
+  action: z.enum([DrepAction.Register, DrepAction.Update, DrepAction.Retire]),
+  /** CIP-119 metadata object; required for register/update. Hashed server-side. */
+  anchorJson: z.record(z.string(), z.unknown()).optional(),
+  /** Display givenName / motivations etc. for a minimal CIP-119 doc when anchorJson is omitted. */
+  givenName: text(100).optional(),
+  motivations: text(2000).optional(),
+  objectives: text(2000).optional(),
+  qualifications: text(2000).optional(),
+  imageUrl: z.string().url().max(500).optional(),
+}).superRefine((body, ctx) => {
+  if (body.action === DrepAction.Retire) return;
+  if (!body.anchorJson && !body.givenName) {
+    ctx.addIssue({ code: "custom", path: ["givenName"], message: "Provide DRep metadata (given name) or an anchor JSON document" });
+  }
+});
+
+/** POST /api/tx/build-vote */
+export const buildVoteSchema = z.object({
+  treasuryId: id,
+  path: z.enum(SPENDING_PATHS).optional(),
+  votes: z.array(z.object({
+    txHash,
+    certIndex: z.number().int().min(0).max(10_000),
+    voteKind: z.enum(["Yes", "No", "Abstain"]),
+  })).min(1).max(50),
+  /** Optional CIP-100 rationale JSON; pinned and hashed when present. */
+  rationaleJson: z.record(z.string(), z.unknown()).optional(),
+});
+
+/** GET /api/chain/stake-account and /api/chain/drep */
+export const treasuryIdOnlyQuerySchema = z.object({ treasuryId: id });
 
 /** Discord incoming-webhook URL (discord.com, discordapp.com, ptb/canary). */
 export const DISCORD_WEBHOOK_URL_RE =
@@ -313,6 +442,9 @@ export const devAnchorTestSchema = z.object({ treasuryId: id, path: spendingPath
 
 /** /api/tx/build-anchor: the treasury that pays the fee of a dedicated anchor transaction. */
 export const buildAnchorSchema = z.object({ treasuryId: id, path: spendingPath });
+
+/** /api/tx/build-registration: CIP-0146 label-1854 self-spend for on-chain discovery. */
+export const buildRegistrationSchema = z.object({ treasuryId: id, path: spendingPath });
 
 // --- Transactions -------------------------------------------------------------
 
@@ -903,6 +1035,10 @@ export const budgetResetSchema = z.object({
   confirmation: z.string().min(1).max(500),
   reason: z.string().trim().min(1).max(500),
 });
+export const treasuryLifecycleSchema = z.object({
+  treasuryId: z.uuid(),
+  action: z.enum(["archive", "restore"]),
+});
 export const workgroupLifecycleSchema = z.object({
   workgroupId: z.uuid(),
   action: z.enum(["archive", "restore", "delete"]),
@@ -1046,6 +1182,9 @@ export type DevDiscordSendBody = z.infer<typeof devDiscordSendSchema>;
 export type DevCronRunBody = z.infer<typeof devCronRunSchema>;
 export type DevAnchorTestBody = z.infer<typeof devAnchorTestSchema>;
 export type SignTxBody = z.infer<typeof signTxSchema>;
+export type BuildStakeBody = z.infer<typeof buildStakeSchema>;
+export type BuildDrepBody = z.infer<typeof buildDrepSchema>;
+export type BuildVoteBody = z.infer<typeof buildVoteSchema>;
 export type BuildPayoutBody = z.infer<typeof buildPayoutSchema>;
 export type BuildPaymentBody = z.infer<typeof buildPaymentSchema>;
 export type BuildMintBody = z.infer<typeof buildMintSchema>;

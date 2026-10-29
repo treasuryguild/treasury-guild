@@ -12,7 +12,7 @@ import { buildAnchorTestMetadata } from "@/lib/cardano/anchorMetadata";
 import { getProvider } from "@/lib/cardano/provider";
 import { TxKind } from "@/lib/constants";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
-import { listTreasuriesForWallet } from "@/lib/db/treasuries";
+import { assertTreasuryActive, listTreasuriesForWallet } from "@/lib/db/treasuries";
 import { resolveTreasuryScript } from "@/lib/treasury";
 import { loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor } from "@/lib/tx";
 
@@ -32,6 +32,7 @@ export const GET = devRoute(async (_req, { session }) => {
 export const POST = devRoute(async (req, { session }) => {
   const { treasuryId, path: requestedPath } = await parseJson(req, devAnchorTestSchema);
   const ctx = await loadBuildContext(treasuryId, session.wallet);
+  assertTreasuryActive(ctx.treasury);
   const path = resolveSpendingPath(ctx, requestedPath, TxKind.Anchor);
   requirePathBuilder(ctx, path, "Only treasury signers can build from this treasury");
   await assertNoPendingTx(treasuryId);

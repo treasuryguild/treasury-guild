@@ -1,8 +1,8 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api/client";
+import { ApiError, apiFetch } from "@/lib/api/client";
 import type { CreateTreasuryResponse } from "@/lib/api/types";
 import { CosignerKind, TreasuryTemplate } from "@/lib/constants";
 import { templateLabel } from "@/lib/cardano/spendingPaths";
@@ -14,6 +14,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
+import { useSession } from "@/hooks/useSession";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
 import {
   emptySigner,
@@ -25,6 +26,7 @@ import {
   type SignerDraft,
   type TemplateDraft,
 } from "@/components/treasury/TemplateFields";
+import { RestoreArchivedTreasury } from "@/components/treasury/RestoreArchivedTreasury";
 import { SignerMemberPick } from "@/components/treasury/SignerMemberPick";
 import {
   COMMUNITY_TREASURY,
@@ -41,6 +43,7 @@ export default function NewTreasury({
   const { slug } = use(params);
   const router = useRouter();
   const { community, blocked } = useCommunityGate(slug, { require: "admin" });
+  const { wallet: meshWallet, walletAddress: sessionWallet } = useSession();
   const [name, setName] = useState("");
   const [signers, setSigners] = useState<SignerDraft[]>([
     emptySigner(),
@@ -48,9 +51,11 @@ export default function NewTreasury({
   ]);
   const [required, setRequired] = useState(2);
   const [draft, setDraft] = useState<TemplateDraft>(emptyTemplateDraft);
+  const [enableSdk, setEnableSdk] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [workgroupId, setWorkgroupId] = useState(COMMUNITY_TREASURY);
   const [created, setCreated] = useState<CreateTreasuryResponse | null>(null);
+  const [restoreId, setRestoreId] = useState<string | null>(null);
   const workgroups = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
   const leads = useAsyncData(community?.id, async () => {
@@ -80,6 +85,37 @@ export default function NewTreasury({
     return used;
   }, [signers, draft.recoverySigners, draft.cosignerKind, draft.cosignerAddress]);
 
+  const plain = draft.template === TreasuryTemplate.Plain;
+  const sdk = plain && enableSdk;
+  useEffect(() => {
+    if (!sdk || !meshWallet || !sessionWallet) return;
+    void (async () => {
+      try {
+        const rewards = await meshWallet.getRewardAddresses();
+        const stakeAddress = rewards[0] ?? "";
+        let drepKeyHash = "";
+        const anyWallet = meshWallet as { getDRep?: () => Promise<{ publicKeyHash?: string } | undefined> };
+        if (typeof anyWallet.getDRep === "function") {
+          const drep = await anyWallet.getDRep();
+          drepKeyHash = drep?.publicKeyHash ?? "";
+        }
+        setSigners((prev) =>
+          prev.map((s) =>
+            s.address.trim() === sessionWallet
+              ? {
+                  ...s,
+                  stakeAddress: s.stakeAddress || stakeAddress,
+                  drepKeyHash: s.drepKeyHash || drepKeyHash,
+                }
+              : s,
+          ),
+        );
+      } catch {
+        // Connected wallet may lack stake/DRep; paste stays available.
+      }
+    })();
+  }, [sdk, meshWallet, sessionWallet]);
+
   if (blocked) return blocked;
 
   const workgroupList = workgroups.data ?? [];
@@ -98,9 +134,9 @@ export default function NewTreasury({
 
   const filled = signers.filter((s) => s.address.trim());
   const baseRule = describeThreshold("atLeast", required, filled.length);
-  const plain = draft.template === TreasuryTemplate.Plain;
   const becomesPrimary = !community?.primary_treasury_id;
   const leadWallets = leads.data ?? new Set<string>();
+  const sdkReady = !sdk || filled.every((s) => s.stakeAddress.trim());
 
   function updateSigner(i: number, patch: Partial<SignerDraft>) {
     setSigners((prev) => prev.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -108,21 +144,33 @@ export default function NewTreasury({
 
   async function submit() {
     setConfirming(false);
-    const result = await run(() =>
-      apiFetch<CreateTreasuryResponse>("/api/treasury", {
-        body: {
-          communityId: community!.id,
-          name,
-          required,
-          signers: filled.map((s) => ({
-            address: s.address.trim(),
-            name: s.name.trim(),
-          })),
-          workgroupId: workgroupId || null,
-          ...templateRequest(draft),
-        },
-      }),
-    );
+    setRestoreId(null);
+    const result = await run(async () => {
+      try {
+        return await apiFetch<CreateTreasuryResponse>("/api/treasury", {
+          body: {
+            communityId: community!.id,
+            name,
+            required,
+            signers: filled.map((s) => ({
+              address: s.address.trim(),
+              name: s.name.trim(),
+              ...(sdk
+                ? {
+                    stakeAddress: s.stakeAddress.trim(),
+                    ...(s.drepKeyHash.trim() ? { drepKeyHash: s.drepKeyHash.trim() } : {}),
+                  }
+                : {}),
+            })),
+            workgroupId: workgroupId || null,
+            ...templateRequest(draft),
+          },
+        });
+      } catch (err) {
+        if (err instanceof ApiError && err.body.restoreTreasuryId) setRestoreId(err.body.restoreTreasuryId);
+        throw err;
+      }
+    });
     if (!result) return;
     // A requested link has an outcome worth reading (this period, next
     // period, or refused); a community treasury goes straight to the list.
@@ -187,6 +235,22 @@ export default function NewTreasury({
                       placeholder="Name"
                     />
                   </div>
+                  {sdk && (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        className="font-mono text-xs"
+                        value={s.stakeAddress}
+                        onChange={(e) => updateSigner(i, { stakeAddress: e.target.value })}
+                        placeholder="stake… / stake_test…"
+                      />
+                      <Input
+                        className="font-mono text-xs sm:max-w-56"
+                        value={s.drepKeyHash}
+                        onChange={(e) => updateSigner(i, { drepKeyHash: e.target.value })}
+                        placeholder="DRep key hash (optional)"
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -199,6 +263,22 @@ export default function NewTreasury({
             + Add signer
           </Button>
         </Field>
+
+        {plain && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={enableSdk}
+              disabled={busy}
+              onChange={(e) => setEnableSdk(e.target.checked)}
+            />
+            <span>
+              <span className="font-medium">Enable staking and Cardano governance (SDK wallet).</span>{" "}
+              Every base signer needs a stake address. DRep key hashes are optional; without a full set the payment script acts as the DRep. Legacy wallets cannot stake or vote — create a new SDK treasury and move funds instead.
+            </span>
+          </label>
+        )}
 
         <Field label={`Required signatures (${required} of ${filled.length})`}>
           <Input
@@ -221,9 +301,10 @@ export default function NewTreasury({
 
         <WarningText small>{networkReason}</WarningText>
         <ErrorText error={error} />
+        {restoreId && <RestoreArchivedTreasury slug={slug} treasuryId={restoreId} />}
         <Button
           onClick={() => (plain ? void submit() : setConfirming(true))}
-          disabled={!name || filled.length === 0 || !!networkReason || !templateComplete(draft)}
+          disabled={!name || filled.length === 0 || !!networkReason || !templateComplete(draft) || !sdkReady}
           loading={busy}
         >
           {busy ? "Deriving script address…" : "Create treasury"}

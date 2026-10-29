@@ -51,6 +51,10 @@ export async function koiosPost(
   });
 }
 
+async function koiosGet(network: Network, path: string): Promise<unknown> {
+  return koiosFetch(network, path, { method: "GET" });
+}
+
 /** POST with offset pagination until a short page arrives (8-page cap). */
 async function koiosPostAllPages<T>(
   network: Network,
@@ -198,6 +202,156 @@ export async function assetInfoBulk(
     })) as KoiosAssetInfo[];
     for (const row of rows) {
       out.set(joinUnit(row.policy_id, row.asset_name), row);
+    }
+  }
+  return out;
+}
+
+// --- Stake account / DRep / governance proposals (SDK staking) ---------------
+
+export interface KoiosAccountInfo {
+  stake_address: string;
+  status: "registered" | "not registered" | string;
+  delegated_pool: string | null;
+  delegated_drep: string | null;
+  rewards_available: string;
+  total_balance?: string;
+}
+
+export interface StakeAccountStatus {
+  active: boolean;
+  poolId: string | null;
+  dRepId: string | null;
+  rewardsAvailable: string;
+}
+
+/** POST /account_info — empty / missing row means never registered. */
+export async function fetchStakeAccountStatus(
+  network: Network,
+  rewardAddress: string,
+): Promise<StakeAccountStatus> {
+  const rows = (await koiosPost(network, "/account_info", {
+    _stake_addresses: [rewardAddress],
+  })) as KoiosAccountInfo[];
+  const row = rows[0];
+  if (!row) return { active: false, poolId: null, dRepId: null, rewardsAvailable: "0" };
+  return {
+    active: row.status === "registered",
+    poolId: row.delegated_pool ?? null,
+    dRepId: row.delegated_drep ?? null,
+    rewardsAvailable: row.rewards_available ?? "0",
+  };
+}
+
+export interface KoiosDrepInfo {
+  drep_id: string;
+  drep_status: "registered" | "deregistered" | "not_registered" | string;
+  active: boolean;
+  amount?: string;
+  meta_url?: string | null;
+}
+
+export interface DrepOnChainStatus {
+  active: boolean;
+  votingPower: string | null;
+  metaUrl: string | null;
+}
+
+/** POST /drep_info — missing row means never registered. */
+export async function fetchDrepStatus(
+  network: Network,
+  dRepId: string,
+): Promise<DrepOnChainStatus> {
+  const rows = (await koiosPost(network, "/drep_info", {
+    _drep_ids: [dRepId],
+  })) as KoiosDrepInfo[];
+  const row = rows[0];
+  if (!row) return { active: false, votingPower: null, metaUrl: null };
+  return {
+    active: row.drep_status === "registered" && row.active === true,
+    votingPower: row.amount ?? null,
+    metaUrl: row.meta_url ?? null,
+  };
+}
+
+export interface KoiosProposal {
+  proposal_id?: string;
+  tx_hash: string;
+  cert_index: number;
+  governance_type?: string;
+  expiration?: number | null;
+  ratified_epoch?: number | null;
+  enacted_epoch?: number | null;
+  dropped_epoch?: number | null;
+  meta_url?: string | null;
+  meta_title?: string | null;
+  meta_abstract?: string | null;
+}
+
+/** Active governance proposals (not ratified/enacted/dropped). */
+export async function fetchActiveProposals(network: Network): Promise<KoiosProposal[]> {
+  const rows = (await koiosGet(network, "/proposal_list")) as KoiosProposal[];
+  return (rows ?? []).filter(
+    (p) => p.ratified_epoch == null && p.enacted_epoch == null && p.dropped_epoch == null,
+  );
+}
+
+// --- CIP-0146 label-1854 registration discovery ------------------------------
+
+const METALABEL_PAGE_SIZE = 100;
+/** Bound fan-out like multisig's Blockfrost 10×100 ceiling. */
+const METALABEL_MAX_PAGES = 10;
+
+export interface KoiosMetalabelTx {
+  tx_hash: string;
+  block_height?: number;
+  epoch_no?: number;
+  absolute_slot?: number;
+}
+
+/**
+ * Transactions that carry a given metadata label, oldest first.
+ * Koios `GET /tx_by_metalabel?_label=…` with offset pagination.
+ */
+export async function txsByMetalabel(
+  network: Network,
+  label: number | string,
+): Promise<string[]> {
+  const hashes: string[] = [];
+  for (let page = 0; page < METALABEL_MAX_PAGES; page++) {
+    const rows = (await koiosGet(
+      network,
+      `/tx_by_metalabel?_label=${encodeURIComponent(String(label))}&offset=${page * METALABEL_PAGE_SIZE}&limit=${METALABEL_PAGE_SIZE}`,
+    )) as KoiosMetalabelTx[];
+    if (!Array.isArray(rows) || rows.length === 0) break;
+    for (const row of rows) {
+      if (typeof row.tx_hash === "string") hashes.push(row.tx_hash.toLowerCase());
+    }
+    if (rows.length < METALABEL_PAGE_SIZE) break;
+  }
+  return hashes;
+}
+
+export interface KoiosTxMetadataRow {
+  tx_hash: string;
+  metadata: Record<string, unknown> | null;
+}
+
+/** POST /tx_metadata — metadata keyed by label for each hash. */
+export async function txMetadataBulk(
+  network: Network,
+  txHashes: string[],
+): Promise<Map<string, Record<string, unknown>>> {
+  const out = new Map<string, Record<string, unknown>>();
+  if (txHashes.length === 0) return out;
+  for (let i = 0; i < txHashes.length; i += 50) {
+    const rows = (await koiosPost(network, "/tx_metadata", {
+      _tx_hashes: txHashes.slice(i, i + 50),
+    })) as KoiosTxMetadataRow[];
+    for (const row of rows) {
+      if (row.metadata && typeof row.metadata === "object") {
+        out.set(row.tx_hash.toLowerCase(), row.metadata as Record<string, unknown>);
+      }
     }
   }
   return out;

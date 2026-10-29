@@ -297,6 +297,44 @@ describe("build-payment API", () => {
     expect(mocks.build).not.toHaveBeenCalled();
   });
 
+  it("refuses a payout from an archived treasury that is not a transfer", async () => {
+    mocks.context.mockResolvedValue({
+      treasury: { id: TREASURY_ID, community_id: "community", address: TREASURY, network: 0, archived_at: "2026-10-01T00:00:00Z" },
+      signers: [], role: "member", isSigner: true, communitySlug: "guild", network: 0,
+    });
+    const response = await POST(request(body({ recipients: [{ address: ALICE, amounts: { lovelace: "1" } }] })), context);
+    expect(response.status).toBe(409);
+    expect(mocks.build).not.toHaveBeenCalled();
+  });
+
+  it("lets an archived treasury transfer out and does not attach anchors", async () => {
+    mocks.context.mockResolvedValue({
+      treasury: { id: TREASURY_ID, community_id: "community", address: TREASURY, network: 0, archived_at: "2026-10-01T00:00:00Z" },
+      signers: [], role: "member", isSigner: true, communitySlug: "guild", network: 0,
+    });
+    mocks.dueAnchors.mockResolvedValue([{ proposalId: "p1" }]);
+    mocks.build.mockResolvedValue({
+      unsignedTxHex: "84a0", txHash: "f".repeat(64),
+      outputs: [], totalByUnit: new Map(), anchorsCarried: [],
+      recipients: [{ address: DEV, treasuryId: DEV_ID, label: "Dev wallet", amounts: [{ unit: "lovelace", quantity: 1_000_000n }] }],
+    });
+    const response = await POST(request(body({ recipients: [{ address: DEV, amounts: { lovelace: "1" } }] })), context);
+    expect(response.status).toBe(200);
+    expect(mocks.dueAnchors).not.toHaveBeenCalled();
+    expect(mocks.build).toHaveBeenCalledWith(expect.objectContaining({ anchors: [] }));
+  });
+
+  it("refuses a transfer to an archived treasury", async () => {
+    mocks.siblings.mockResolvedValue([
+      { id: DEV_ID, name: "Dev wallet", address: DEV, archived_at: null },
+      { id: "old", name: "Old", address: ALICE, archived_at: "2026-01-01T00:00:00Z" },
+    ]);
+    const response = await POST(request(body({ recipients: [{ address: ALICE, amounts: { lovelace: "1" } }] })), context);
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "Restore that treasury before transferring to it." });
+    expect(mocks.build).not.toHaveBeenCalled();
+  });
+
   it("refuses a drain when the paying treasury holds nothing", async () => {
     mocks.wallet.mockResolvedValue({ lovelace: 0n, utxoCount: 0, tokens: [] });
     const response = await POST(request(body({

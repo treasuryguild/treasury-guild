@@ -7,7 +7,14 @@ import {
 } from "@/lib/db/types";
 import { useAsyncData, type AsyncData } from "./useAsyncData";
 
-/** The community's treasuries (RLS-visible). */
+/** Treasuries that can be chosen for a new payout, payment, mint or anchor. */
+export function activeTreasuries<T extends { archived_at?: string | null }>(
+  list: readonly T[] | null | undefined,
+): T[] {
+  return (list ?? []).filter((t) => !t.archived_at);
+}
+
+/** The community's treasuries, archived ones included (RLS-visible). */
 export function useTreasuries(
   communityId: string | null | undefined,
 ): AsyncData<TreasurySummary[]> {

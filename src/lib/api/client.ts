@@ -61,6 +61,7 @@ export async function apiFetch<T>(
       error: body.error ?? `Request failed (${res.status})`,
       problems: body.problems,
       conflict: body.conflict,
+      restoreTreasuryId: body.restoreTreasuryId,
     });
   }
   return data as T;

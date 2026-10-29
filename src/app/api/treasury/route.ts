@@ -7,10 +7,12 @@ import {
   addressToNetwork,
   checkValidAddress,
   paymentKeyHash,
+  stakeKeyHash,
   type MultisigKey,
 } from "@/lib/cardano/multisigSDK";
 import { slotAt, slotTime } from "@/lib/cardano/slots";
 import { shapeProblem, sortedGroup, templateScript, type KeyGroup, type TreasuryShape } from "@/lib/cardano/templates";
+import { resolveRegistrationImport } from "@/lib/cardano/cip146Lookup";
 import { decodeTreasuryCbor } from "@/lib/cardano/treasuryImport";
 import { asNetwork, networkName, type Network } from "@/lib/config";
 import { COSIGNER_DISPLAY_NAME, CosignerKind, MIN_LOCK_LEAD_MS, Role, SignerGroup, TreasuryTemplate } from "@/lib/constants";
@@ -21,6 +23,7 @@ import { addMember, promoteMembersToAdmin } from "@/lib/db/membership";
 import {
   countCommunityTreasuries,
   deleteTreasury,
+  findTreasuryByAddress,
   insertTreasury,
   insertTreasurySigners,
   loadTreasuryWithSigners,
@@ -34,7 +37,10 @@ import { describeTreasury } from "@/lib/treasury";
 
 const LINK_REASON = "Linked when the treasury was created";
 
-type SignerRow = Pick<TreasurySignerRow, "wallet_address" | "key_hash" | "display_name" | "signer_group">;
+type SignerRow = Pick<
+  TreasurySignerRow,
+  "wallet_address" | "key_hash" | "display_name" | "signer_group" | "stake_key_hash" | "drep_key_hash"
+>;
 
 /** Treasury details (native script, CBOR, signers) for any community member. */
 export const GET = sessionRoute(async (req, { session }) => {
@@ -44,12 +50,21 @@ export const GET = sessionRoute(async (req, { session }) => {
   return { treasury: describeTreasury(treasury, signers) } satisfies TreasuryDetailsResponse;
 });
 
-function signerRow(input: { address: string; name?: string }, group: SignerGroup): SignerRow {
+function signerRow(
+  input: { address: string; name?: string; stakeAddress?: string; drepKeyHash?: string },
+  group: SignerGroup,
+): SignerRow {
   return {
     wallet_address: input.address,
     key_hash: paymentKeyHash(input.address),
     display_name: input.name?.trim() || null,
     signer_group: group,
+    stake_key_hash: group === SignerGroup.Base && input.stakeAddress
+      ? stakeKeyHash(input.stakeAddress)
+      : null,
+    drep_key_hash: group === SignerGroup.Base && input.drepKeyHash
+      ? input.drepKeyHash.toLowerCase()
+      : null,
   };
 }
 
@@ -122,6 +137,8 @@ function newTreasuryRows(body: CreateTreasuryBody, network: Network): {
         key_hash: appKey.keyHash,
         display_name: COSIGNER_DISPLAY_NAME,
         signer_group: SignerGroup.Cosigner,
+        stake_key_hash: null,
+        drep_key_hash: null,
       });
       cosignerKeyHash = appKey.keyHash;
       cosignerKind = CosignerKind.App;
@@ -159,7 +176,6 @@ export const POST = sessionRoute(async (req, { session }) => {
   const body = await parseJson(req, createTreasurySchema);
   const { communityId, name, workgroupId, source } = body;
   await requireAdmin(communityId, session.wallet);
-  const imported = source ? decodeTreasuryCbor(source.cbor) : null;
 
   // A bad workgroup pick fails here, before any wallet exists.
   if (workgroupId) {
@@ -173,6 +189,17 @@ export const POST = sessionRoute(async (req, { session }) => {
   // signer from the other network could never produce a valid witness.
   const community = await requireCommunity(communityId);
   const network = asNetwork(community.network);
+
+  // CIP-0146 discovery resolves to CBOR + stake credential; a CBOR paste may
+  // carry an optional stake credential from a prior discover preview.
+  let imported = source?.type === "cbor" ? decodeTreasuryCbor(source.cbor) : null;
+  let importStakeCredentialHash: string | null =
+    source?.type === "cbor" ? source.stakeCredentialHash?.toLowerCase() ?? null : null;
+  if (source?.type === "cip146") {
+    const discovered = await resolveRegistrationImport(network, source.txHash);
+    imported = discovered.decoded;
+    importStakeCredentialHash = discovered.stakeCredentialHash;
+  }
   const everyAddress = [
     ...body.signers.map((s) => s.address),
     ...(imported ? [] : (body.recovery?.signers ?? []).map((s) => s.address)),
@@ -230,8 +257,28 @@ export const POST = sessionRoute(async (req, { session }) => {
   }
 
   const paymentScript = imported?.paymentScript ?? templateScript(shape);
-  const baseKeys: MultisigKey[] = baseRows.map((s) => ({ keyHash: s.key_hash, role: 0, name: s.display_name ?? "" }));
-  const msWallet = new MultisigWallet(name, baseKeys, "", shape.base.required, network, undefined, shape.base.scriptType, paymentScript);
+  const baseKeys: MultisigKey[] = [];
+  for (const s of baseRows) {
+    baseKeys.push({ keyHash: s.key_hash, role: 0, name: s.display_name ?? "" });
+    if (s.stake_key_hash) baseKeys.push({ keyHash: s.stake_key_hash, role: 2, name: s.display_name ?? "" });
+    if (s.drep_key_hash) baseKeys.push({ keyHash: s.drep_key_hash, role: 3, name: s.display_name ?? "" });
+  }
+  const msWallet = new MultisigWallet(
+    name,
+    baseKeys,
+    "",
+    shape.base.required,
+    network,
+    importStakeCredentialHash ?? undefined,
+    shape.base.scriptType,
+    paymentScript,
+  );
+  if (baseRows.some((s) => s.stake_key_hash) && !msWallet.stakingEnabled()) {
+    throw new BadRequestError("Every base signer needs a stake address for a stakeable (SDK) treasury");
+  }
+  const stakeCredentialHash = msWallet.stakingEnabled()
+    ? msWallet.getStakeCredentialHash() ?? null
+    : importStakeCredentialHash;
   const { address, scriptCbor } = msWallet.getScript();
   if (!scriptCbor) throw new InvariantError("Failed to derive multisig script");
 
@@ -243,6 +290,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     script_type: shape.base.scriptType,
     address,
     script_cbor: scriptCbor,
+    stake_credential_hash: stakeCredentialHash,
     template: shape.template,
     lock_slot: shape.lockSlot,
     lock_until: built.lockUntil,
@@ -251,6 +299,13 @@ export const POST = sessionRoute(async (req, { session }) => {
     cosigner_kind: built.cosignerKind,
   });
   if (!treasury) {
+    const existing = await findTreasuryByAddress(address);
+    if (existing?.community_id === communityId && existing.archived_at) {
+      throw new ConflictError(
+        "This treasury is archived. Restore it to use the same wallet again.",
+        { restoreTreasuryId: existing.id },
+      );
+    }
     throw new ConflictError(
       imported
         ? "A treasury with this address already exists"

@@ -27,11 +27,17 @@ export interface ApiErrorBody {
   problems?: string[];
   /** Optimistic-concurrency conflict: the client should refetch. */
   conflict?: boolean;
+  /** Set when creating or importing a script that belongs to an archived treasury of this community. */
+  restoreTreasuryId?: string;
 }
 
 export interface TreasuryImportPreview {
   address: string;
   scriptCbor: string;
+  /** Stake credential from CIP-0146 discovery; null for a CBOR paste. */
+  stakeCredentialHash: string | null;
+  /** Suggested name from on-chain registration metadata, when discovered. */
+  suggestedName: string | null;
   /** plain, clawback, lock_until or cosigner, as read from the script. */
   template: TreasuryTemplate;
   /** The base group's rule. */
@@ -43,7 +49,7 @@ export interface TreasuryImportPreview {
   /** The lock slot as a time on the community's network. */
   lockUntil: string | null;
   /** Every key in script order, with the wallet found for it ("" when unknown) and its group. */
-  signers: { keyHash: string; address: string; group: SignerGroup }[];
+  signers: { keyHash: string; address: string; group: SignerGroup; name: string }[];
 }
 
 export interface OkResponse {
@@ -167,6 +173,8 @@ export interface TreasuryDetailsSigner {
   displayName: string | null;
   /** base, recovery or cosigner. */
   group: SignerGroup;
+  stakeKeyHash: string | null;
+  drepKeyHash: string | null;
 }
 /** Everything the treasury details dialog shows, re-derived from the DB rows. */
 export interface TreasuryDetails {
@@ -192,6 +200,12 @@ export interface TreasuryDetails {
   scriptHash: string;
   stakeCredentialHash: string | null;
   stakeAddress: string | null;
+  /** CIP-129 script DRep id when the treasury can act as a DRep. */
+  dRepId: string | null;
+  /** Plain template with a complete role-2 stake-key set. */
+  sdk: boolean;
+  canStake: boolean;
+  canDrep: boolean;
   signers: TreasuryDetailsSigner[];
 }
 export interface TreasuryDetailsResponse {
@@ -297,12 +311,76 @@ export interface BuildMintResponse extends BuildTxResponse {
   lockUntil: string | null;
   units: string[];
 }
+export interface BuildStakeResponse extends BuildTxResponse {
+  action: string;
+  rewardAddress: string;
+}
+export interface BuildDrepResponse extends BuildTxResponse {
+  action: string;
+  dRepId: string;
+  anchorUrl: string | null;
+}
+export interface BuildVoteResponse extends BuildTxResponse {
+  dRepId: string;
+  votes: number;
+}
+export interface StakeAccountResponse {
+  rewardAddress: string;
+  active: boolean;
+  poolId: string | null;
+  dRepId: string | null;
+  rewardsAvailable: string;
+}
+export interface DrepStatusResponse {
+  dRepId: string;
+  active: boolean;
+  votingPower: string | null;
+  metaUrl: string | null;
+}
+export interface ChainProposalsResponse {
+  proposals: {
+    txHash: string;
+    certIndex: number;
+    type: string | null;
+    title: string | null;
+    abstract: string | null;
+    metaUrl: string | null;
+    expiration: number | null;
+  }[];
+}
 /** POST /api/tx/build-anchor: a metadata-only transaction carrying the community's due anchors. */
 export interface BuildAnchorResponse extends BuildTxResponse {
   /** The proposals anchored, by number. */
   proposals: number[];
   /** Due steps that did not fit and stay due. */
   remaining: number;
+}
+/** POST /api/tx/build-registration: CIP-0146 on-chain registration self-spend. */
+export type BuildRegistrationResponse = BuildTxResponse;
+
+/** GET /api/chain/cip146/lookup */
+export interface Cip146LookupResponse {
+  registrations: {
+    txHash: string;
+    name: string;
+    description: string;
+    types: number[];
+    participants: Record<string, { name: string }>;
+  }[];
+}
+
+/** GET /api/chain/cip146/resolve */
+export interface Cip146ResolveResponse {
+  txHash: string;
+  address: string;
+  scriptCbor: string;
+  stakeCredentialHash: string | null;
+  name: string;
+  description: string;
+  participants: Record<string, { name: string }>;
+  template: string;
+  scriptType: string;
+  required: number;
 }
 /** GET /api/proposals/anchors-due: the steps a payout, payment or anchor transaction would carry. */
 export interface AnchorsDueResponse {
@@ -769,6 +847,11 @@ export interface IpfsSignUploadResponse {
   url: string;
   gateway: string;
 }
+export interface TreasuryLifecycleStatus {
+  archivedAt: string | null;
+  /** Why archive cannot proceed yet; empty when it can. */
+  blockers: string[];
+}
 export interface WorkgroupLifecycleStatus {
   archivedAt: string | null;
   outstandingTasks: number;
@@ -849,6 +932,8 @@ export interface V1Treasury {
   balance: V1TreasuryBalance | null;
   balanceError: string | null;
   pendingTransaction: V1PendingTransaction | null;
+  /** True while an admin has archived the treasury. History stays; new payouts, mints and anchors do not. */
+  archived: boolean;
 }
 
 /** GET /api/v1/communities/[community]/treasuries (MCP treasury_overview). */
@@ -1142,7 +1227,7 @@ export interface V1ProposalPreviewResponse {
  */
 export interface V1DraftPreview {
   community: { slug: string; name: string };
-  /** The action draft_confirm will run: proposal_withdraw, payout_create, task_save, call_create or call_finalize. */
+  /** The action draft_confirm will run (payout_create, stake_create, drep_create, vote_create, …). */
   action: string;
   /** One line saying what confirming does. */
   summary: string;
@@ -1218,6 +1303,19 @@ export interface V1PayoutCreateResponse {
   url: string;
 }
 
+/** stake_create / drep_create / vote_create via draft_confirm: pending Cardano governance tx. */
+export interface V1GovernanceTxCreateResponse {
+  community: { slug: string; name: string };
+  /** False when this draft had already made its transaction. */
+  created: boolean;
+  txId: string;
+  txHash: string | null;
+  treasury: string;
+  /** Signatures it needs before it can be submitted, in the app. */
+  requiredSignatures: number;
+  url: string;
+}
+
 /** POST /api/v1/drafts/confirm (MCP draft_confirm): the action's own answer. */
 export type V1DraftConfirmResponse = { action: string } & (
   | V1ProposalCreateResponse
@@ -1226,6 +1324,7 @@ export type V1DraftConfirmResponse = { action: string } & (
   | V1CallCreateResponse
   | V1CallFinalizeResponse
   | V1PayoutCreateResponse
+  | V1GovernanceTxCreateResponse
 );
 
 /** POST /api/v1/communities/[community]/proposals/create (MCP proposal_create). */

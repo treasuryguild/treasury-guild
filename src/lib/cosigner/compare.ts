@@ -230,9 +230,25 @@ export function compareTxToRows(input: CompareInput): string[] {
       comparePaymentRecord(parsePaymentMetadata(input.payoutMeta), input, problems);
       break;
     }
-    case TxKind.Anchor: {
-      if (leaving.length > 0) problems.push(`An anchor moves no funds; this transaction has ${leaving.length} output(s) leaving the treasury`);
-      if (input.mint.length > 0) problems.push("An anchor forges no assets");
+    case TxKind.Anchor:
+    case TxKind.Registration:
+    case TxKind.Stake:
+    case TxKind.Drep:
+    case TxKind.Vote: {
+      const label =
+        input.kind === TxKind.Stake
+          ? "A stake"
+          : input.kind === TxKind.Drep
+            ? "A DRep"
+            : input.kind === TxKind.Vote
+              ? "A vote"
+              : input.kind === TxKind.Registration
+                ? "A registration"
+                : "An anchor";
+      if (leaving.length > 0) {
+        problems.push(`${label} transaction moves no funds; this transaction has ${leaving.length} output(s) leaving the treasury`);
+      }
+      if (input.mint.length > 0) problems.push(`${label} transaction forges no assets`);
       break;
     }
     case TxKind.Mint: {

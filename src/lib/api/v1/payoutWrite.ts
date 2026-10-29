@@ -21,7 +21,7 @@ import { PayState } from "@/lib/constants";
 import { loadMemberLabels } from "@/lib/db/payments";
 import { listCommunityTasks, tasksByNumbers } from "@/lib/db/tasks";
 import { findTransactionByDraft, type DraftTransaction } from "@/lib/db/transactions";
-import { listCommunityTreasuries } from "@/lib/db/treasuries";
+import { ARCHIVED_TREASURY_BUILD, listCommunityTreasuries } from "@/lib/db/treasuries";
 import { listCommunityWorkgroups } from "@/lib/db/workgroups";
 import { BadRequestError, ConflictError } from "@/lib/errors";
 import { spendProblemText } from "@/lib/governance/spendCheck";
@@ -74,7 +74,9 @@ export const previewPayout = defineEndpoint({
       listCommunityTreasuries(community.id),
       listCommunityWorkgroups(community.id),
     ]);
+    const active = treasuries.filter((t) => !t.archived_at);
     if (treasuries.length === 0) throw new BadRequestError("This community has no treasury yet");
+    if (active.length === 0) throw new ConflictError(ARCHIVED_TREASURY_BUILD);
     const routedTo = new Map(workgroups.map((w) => [w.id, w.treasury_id]));
 
     // The tasks: the numbers asked for, or every ready one.
@@ -99,17 +101,20 @@ export const previewPayout = defineEndpoint({
 
     // The treasury: asked for, the only one, or the one the tasks' workgroups are routed to now.
     let treasury = input.treasury ? await resolveCommunityTreasury(community.id, input.treasury) : null;
+    if (treasury?.archived_at) throw new ConflictError(ARCHIVED_TREASURY_BUILD);
     if (!treasury) {
-      if (treasuries.length === 1) {
-        treasury = treasuries[0]!;
+      if (active.length === 1) {
+        treasury = active[0]!;
       } else {
         const routed = [...new Set(selected.map((t) => routedTo.get(t.workgroup_id)).filter((id): id is string => !!id))];
         if (routed.length !== 1) {
           throw new BadRequestError(
-            `Say which treasury to pay from: ${routed.length > 1 ? "these tasks are routed to different treasuries" : "the tasks' workgroups are not routed to one"}. Treasuries: ${treasuries.map((t) => t.name).join(", ")}`,
+            `Say which treasury to pay from: ${routed.length > 1 ? "these tasks are routed to different treasuries" : "the tasks' workgroups are not routed to one"}. Treasuries: ${active.map((t) => t.name).join(", ")}`,
           );
         }
-        treasury = treasuries.find((t) => t.id === routed[0])!;
+        const match = active.find((t) => t.id === routed[0]);
+        if (!match) throw new ConflictError(ARCHIVED_TREASURY_BUILD);
+        treasury = match;
       }
     }
     // Paying everything ready from one treasury: leave out what another treasury pays.

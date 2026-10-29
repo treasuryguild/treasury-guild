@@ -22,6 +22,7 @@ import {
   createMeetingLinkSchema,
   createProposalSchema,
   dashboardQuerySchema,
+  buildStakeSchema,
   createTreasurySchema,
   discordWebhookUrl,
   electorateQuerySchema,
@@ -61,6 +62,10 @@ import {
 
 const ADDR =
   "addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2";
+const STAKE =
+  "stake_test1uz42424242424242424242424242424242424242424242s7f0kdw";
+const KEY56 = "a".repeat(56);
+const TREASURY_ID = "40000000-0000-4000-8000-000000000001";
 
 describe("schemas", () => {
   it("validates a call and its reward", () => {
@@ -211,6 +216,65 @@ describe("schemas", () => {
     expect(createTreasurySchema.parse({ ...base, workgroupId }).workgroupId).toBe(workgroupId);
     expect(createTreasurySchema.parse({ ...base, workgroupId: null }).workgroupId).toBeNull();
     expect(createTreasurySchema.safeParse({ ...base, workgroupId: "dev" }).success).toBe(false);
+  });
+
+  it("accepts SDK stake keys on plain treasuries and refuses partial or non-plain sets", () => {
+    const communityId = "10000000-0000-4000-8000-000000000001";
+    const addrB =
+      "addr_test1vzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc48zzn4";
+    const stakeB = "stake_test1uzamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwamhwc40u6yl";
+    const legacy = { communityId, name: "Legacy", signers: [{ address: ADDR }] };
+    expect(createTreasurySchema.parse(legacy).signers[0]!.stakeAddress).toBeUndefined();
+
+    const sdk = createTreasurySchema.parse({
+      ...legacy,
+      template: "plain",
+      signers: [
+        { address: ADDR, stakeAddress: STAKE, drepKeyHash: KEY56 },
+        { address: addrB, stakeAddress: stakeB },
+      ],
+      required: 1,
+    });
+    expect(sdk.signers.map((s) => s.stakeAddress)).toEqual([STAKE, stakeB]);
+    expect(sdk.signers[0]!.drepKeyHash).toBe(KEY56);
+
+    expect(
+      createTreasurySchema.safeParse({
+        ...legacy,
+        signers: [{ address: ADDR, stakeAddress: STAKE }, { address: addrB }],
+        required: 1,
+      }).success,
+    ).toBe(false);
+
+    expect(
+      createTreasurySchema.safeParse({
+        communityId,
+        name: "Claw",
+        template: "clawback",
+        lockUntil: new Date(Date.now() + 3_600_000).toISOString(),
+        signers: [{ address: ADDR, stakeAddress: STAKE }],
+        recovery: { signers: [{ address: addrB }] },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates build-stake actions and pool / DRep fields", () => {
+    expect(
+      buildStakeSchema.parse({
+        treasuryId: TREASURY_ID,
+        action: "register_and_delegate",
+        poolId: "pool1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+      }).action,
+    ).toBe("register_and_delegate");
+    expect(buildStakeSchema.safeParse({ treasuryId: TREASURY_ID, action: "delegate" }).success).toBe(false);
+    expect(
+      buildStakeSchema.safeParse({
+        treasuryId: TREASURY_ID,
+        action: "vote_delegation",
+        dRepId: "always_abstain",
+      }).success,
+    ).toBe(true);
+    expect(buildStakeSchema.safeParse({ treasuryId: "nope", action: "register" }).success).toBe(false);
   });
 
   it("patches community settings one field at a time, normalising the rate setting", () => {

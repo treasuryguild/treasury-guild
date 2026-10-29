@@ -25,7 +25,7 @@ import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
-import { useTreasuries } from "@/hooks/useTreasuries";
+import { activeTreasuries, useTreasuries } from "@/hooks/useTreasuries";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useTreasuryBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
@@ -54,7 +54,11 @@ export default function PaymentsPage({ params, searchParams }: {
   const { build, busy, error } = useBuildTx(slug);
   const { reason: networkReason } = useNetworkGate(community?.network);
 
-  const { treasuryId, setTreasuryId, selectedTreasury } = useTreasuryChoice(treasuriesQuery.data);
+  const pickable = useMemo(
+    () => (treasuriesQuery.data ? activeTreasuries(treasuriesQuery.data) : undefined),
+    [treasuriesQuery.data],
+  );
+  const { treasuryId, setTreasuryId, selectedTreasury } = useTreasuryChoice(pickable);
   const [rows, setRows] = useState<RecipientDraft[]>([newRecipient(0)]);
   const [nextKey, setNextKey] = useState(1);
   const [drain, setDrain] = useState(false);
@@ -64,7 +68,8 @@ export default function PaymentsPage({ params, searchParams }: {
   // Fixed at mount: a render must not read the clock.
   const [nowMs] = useState(() => Date.now());
 
-  const treasuries = useMemo(() => treasuriesQuery.data ?? [], [treasuriesQuery.data]);
+  const allTreasuries = useMemo(() => treasuriesQuery.data ?? [], [treasuriesQuery.data]);
+  const treasuries = useMemo(() => pickable ?? [], [pickable]);
   const wallet = useWalletAssets(selectedTreasury?.address).data ?? null;
   const setups = useTreasuryBudgetSetups(treasuryId || null);
   const memberOptions = useMemo(() => toMemberOptions(members.data ?? []), [members.data]);
@@ -73,13 +78,14 @@ export default function PaymentsPage({ params, searchParams }: {
 
   // The prefilled transfer, once the treasuries are known: one row to the
   // receiving treasury with the voted amounts. Applied once; edits stay.
-  const receiving = prefill ? treasuries.find((t) => t.id === prefill.treasuryId) ?? null : null;
+  const receiving = prefill ? allTreasuries.find((t) => t.id === prefill.treasuryId) ?? null : null;
+  const receivingActive = receiving && !receiving.archived_at ? receiving : null;
   const prefilled = useRef(false);
   useEffect(() => {
-    if (!prefill || !receiving || prefilled.current) return;
+    if (!prefill || !receivingActive || prefilled.current) return;
     prefilled.current = true;
-    setRows([{ key: 0, kind: "treasury", address: receiving.address, amounts: { ...prefill.amounts } }]);
-  }, [prefill, receiving]);
+    setRows([{ key: 0, kind: "treasury", address: receivingActive.address, amounts: { ...prefill.amounts } }]);
+  }, [prefill, receivingActive]);
 
   // The treasury's budgets for the period the payment counts against.
   const period = taskBudgetPeriod(`${month}-01`, setups, currentBudgetMonth());
@@ -143,18 +149,21 @@ export default function PaymentsPage({ params, searchParams }: {
         Payments count against the paying treasury&apos;s own budget; transfers between your treasuries never do.
       </p>
 
-      {prefill && receiving && (
+      {prefill && receivingActive && (
         <NoticeText className="mb-4">
           Funding the {period.code} budget voted in{" "}
           <Link className="underline" href={routes.proposal(slug, prefill.proposalId)}>this proposal</Link>: a transfer to{" "}
-          {receiving.name} with the voted amounts, cited on-chain. Pick the treasury that pays; the amounts can be edited.
+          {receivingActive.name} with the voted amounts, cited on-chain. Pick the treasury that pays; the amounts can be edited.
         </NoticeText>
       )}
       {prefill && treasuriesQuery.data && !receiving && (
         <WarningText className="mb-4">The treasury this link would fund is not one of this community&apos;s; nothing was filled in.</WarningText>
       )}
-      {prefill && receiving && treasuryId === receiving.id && (
-        <WarningText className="mb-4">Pick a treasury other than {receiving.name}: it is the one being funded.</WarningText>
+      {prefill && receiving?.archived_at && (
+        <WarningText className="mb-4">Restore {receiving.name} before transferring to it.</WarningText>
+      )}
+      {prefill && receivingActive && treasuryId === receivingActive.id && (
+        <WarningText className="mb-4">Pick a treasury other than {receivingActive.name}: it is the one being funded.</WarningText>
       )}
 
       <TreasuryPicker

@@ -11,13 +11,19 @@ vi.mock("@/hooks/useCommunityGate", () => ({
   useCommunityGate: () => ({ community: { id: "community", network: 0 }, blocked: null }),
 }));
 vi.mock("@/hooks/useNetworkGate", () => ({ useNetworkGate: () => ({ reason: null }) }));
+vi.mock("@/hooks/useSession", () => ({ useSession: () => ({ sessionWallet: null }) }));
 vi.mock("@/hooks/useWorkgroups", () => ({ useWorkgroups: () => ({ data: [] }) }));
 import ImportTreasury from "./page";
 
 const preview = {
-  address: "addr_test1treasury", scriptCbor: "820182", template: "plain", scriptType: "all", required: 2,
+  address: "addr_test1treasury", scriptCbor: "820182",
+  stakeCredentialHash: null, suggestedName: null,
+  template: "plain", scriptType: "all", required: 2,
   recovery: null, lockSlot: null, lockUntil: null,
-  signers: [{ keyHash: "a".repeat(56), address: "addr_test1known", group: "base" }, { keyHash: "b".repeat(56), address: "", group: "base" }],
+  signers: [
+    { keyHash: "a".repeat(56), address: "addr_test1known", group: "base", name: "" },
+    { keyHash: "b".repeat(56), address: "", group: "base", name: "" },
+  ],
 };
 beforeEach(() => vi.resetAllMocks());
 afterEach(cleanup);

@@ -22,6 +22,7 @@ import { joinUnit } from "@/lib/cardano/units";
 import { networkName, type Network } from "@/lib/config";
 import { MIN_LOCK_LEAD_MS, TxKind } from "@/lib/constants";
 import { insertMints, loadLockedPolicy } from "@/lib/db/mints";
+import { assertTreasuryActive } from "@/lib/db/treasuries";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
 import { BadRequestError, errorMessage, InvariantError } from "@/lib/errors";
 import { plural } from "@/lib/format";
@@ -83,6 +84,7 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   const ctx = await loadBuildContext(treasuryId, wallet);
   const { treasury, signers, network } = ctx;
+  assertTreasuryActive(treasury);
   const path = resolveSpendingPath(ctx, body.path, TxKind.Mint);
   requirePathBuilder(ctx, path, "Only treasury signers can start a mint");
   await assertNoPendingTx(treasuryId);

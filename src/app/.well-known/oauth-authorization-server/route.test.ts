@@ -27,7 +27,7 @@ describe("GET /.well-known/oauth-authorization-server", () => {
       authorization_endpoint: `${APP}/api/oauth/authorize`,
       token_endpoint: `${APP}/api/oauth/token`,
       registration_endpoint: `${APP}/api/oauth/register`,
-      scopes_supported: ["communities:read", "proposals:write", "tasks:write", "payouts:write"],
+      scopes_supported: ["communities:read", "proposals:write", "tasks:write", "payouts:write", "governance:write"],
       response_types_supported: ["code"],
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],

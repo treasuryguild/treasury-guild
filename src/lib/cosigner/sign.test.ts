@@ -43,9 +43,10 @@ const TREASURY: TreasuryRow = {
   address: "addr_test1treasury", script_cbor: "8200", stake_credential_hash: null,
   template: TreasuryTemplate.Cosigner, lock_slot: null, lock_until: null,
   recovery_script_type: null, recovery_required: null, cosigner_kind: CosignerKind.App,
+  archived_at: null, archived_by: null,
 };
 const signer = (wallet: string, group: SignerGroup, keyHash = `h-${wallet}`): TreasurySignerRow => ({
-  treasury_id: "t-1", wallet_address: wallet, key_hash: keyHash, stake_key_hash: null, display_name: null, signer_group: group,
+  treasury_id: "t-1", wallet_address: wallet, key_hash: keyHash, stake_key_hash: null, drep_key_hash: null, display_name: null, signer_group: group,
 });
 const SIGNERS = [
   signer(ALICE, SignerGroup.Base), signer(BOB, SignerGroup.Base), signer(CAROL, SignerGroup.Base),
@@ -58,7 +59,7 @@ function tx(patch: Partial<TransactionRow> = {}): TransactionRow {
     id: "tx-1", treasury_id: "t-1", kind: TxKind.Payout, tx_cbor: CBOR, tx_hash: TX_HASH, description: null,
     signed_addresses: [ALICE, BOB], rejected_addresses: [], state: TxState.Pending, created_by: ALICE,
     submitted_at: null, created_at: "2026-10-01T00:00:00Z", discord_notified_at: null, spend_problems: [],
-    block_time: null, spending_path: SpendingPath.Cosigned, ...patch,
+    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, ...patch,
   };
 }
 
