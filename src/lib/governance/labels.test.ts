@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { METHOD_CHOICES } from "@/lib/constants";
+import { METHOD_CHOICES, VoteChoice } from "@/lib/constants";
 import {
-  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, describeRulesChanges, proposalTiming, relativeTime, voterName,
+  CHOICE_LABELS, describeElectorate, describeHours, describeMethod, describeRulesChanges,
+  proposalTiming, proposalVoteIndicator, relativeTime, voterName,
 } from "./labels";
 import { DEFAULT_SETTINGS, rulesFor } from "./rules";
 
@@ -64,5 +65,32 @@ describe("timing", () => {
   it("names voters by handle, else a short wallet", () => {
     expect(voterName("addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", "  ")).toBe("addr_test1…qqqqqq");
     expect(voterName("addr", "ana")).toBe("ana");
+  });
+});
+
+describe("proposalVoteIndicator", () => {
+  const now = Date.parse("2026-09-29T12:00:00Z");
+  const open = { state: "voting", closes_at: "2026-10-04T12:00:00Z" };
+  const discussion = { state: "discussion", closes_at: null };
+  const closed = { state: "passed", closes_at: "2026-09-28T12:00:00Z" };
+  const seat = { recused: false };
+
+  it("flags an open vote the caller still owes", () => {
+    expect(proposalVoteIndicator(open, now, seat, undefined))
+      .toEqual({ label: "Not voted", tone: "yellow" });
+  });
+
+  it("shows the caller's choice once they have voted", () => {
+    expect(proposalVoteIndicator(open, now, seat, VoteChoice.Agree))
+      .toEqual({ label: "Voted · Agree", tone: "green" });
+    expect(proposalVoteIndicator(closed, now, seat, VoteChoice.No))
+      .toEqual({ label: "Voted · No", tone: "green" });
+  });
+
+  it("omits discussion, ineligible seats and recusals without a ballot", () => {
+    expect(proposalVoteIndicator(discussion, now, seat, undefined)).toBeNull();
+    expect(proposalVoteIndicator(open, now, undefined, undefined)).toBeNull();
+    expect(proposalVoteIndicator(open, now, { recused: true }, undefined)).toBeNull();
+    expect(proposalVoteIndicator(closed, now, seat, undefined)).toBeNull();
   });
 });

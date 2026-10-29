@@ -21,7 +21,7 @@ import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useNow } from "@/hooks/useNow";
-import { useGovernanceSettings, useProposals } from "@/hooks/useProposals";
+import { useGovernanceSettings, useMyProposalVotes, useProposals } from "@/hooks/useProposals";
 import { useTreasuries } from "@/hooks/useTreasuries";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
 
@@ -34,6 +34,7 @@ export default function ProposalsPage({ params, searchParams }: {
   const router = useRouter();
   const { community, isAdmin, sessionWallet, blocked } = useCommunityGate(slug);
   const proposals = useProposals(community?.id);
+  const myVotes = useMyProposalVotes(community?.id, sessionWallet);
   const settings = useGovernanceSettings(community?.id);
   const roles = useMyTreasuryRoles(community?.id);
   const workgroups = useWorkgroups(community?.id);
@@ -64,7 +65,7 @@ export default function ProposalsPage({ params, searchParams }: {
         Decisions the community votes on. Every ballot is signed with the voter&apos;s wallet and can be checked by anyone.
         {settings.data?.budget.enabled && <> Budget changes are proposed from <Link className="underline" href={routes.budgets(slug)}>Budgets</Link> and apply when they pass.</>}
       </p>
-      <ErrorText error={proposals.error ?? settings.error} />
+      <ErrorText error={proposals.error ?? myVotes.error ?? settings.error} />
       {isAdmin && community && (
         <IntegrationsNotice communityId={community.id} slug={slug} kind="proposals-channel" />
       )}
@@ -90,12 +91,14 @@ export default function ProposalsPage({ params, searchParams }: {
         <SectionTitle>Open</SectionTitle>
         {proposals.data && open.length === 0
           ? <EmptyState>No open proposals.</EmptyState>
-          : <ProposalList slug={slug} proposals={open} now={now} />}
+          : <ProposalList slug={slug} proposals={open} now={now}
+              myVotes={myVotes.data?.myVotes} mySeats={myVotes.data?.mySeats} />}
       </section>
       {closed.length > 0 && (
         <section>
           <SectionTitle>Closed</SectionTitle>
-          <ProposalList slug={slug} proposals={closed} now={now} />
+          <ProposalList slug={slug} proposals={closed} now={now}
+            myVotes={myVotes.data?.myVotes} mySeats={myVotes.data?.mySeats} />
         </section>
       )}
 
