@@ -7,6 +7,7 @@ import "server-only";
 
 import { payoutRowAmounts, unitDisplayLoader } from "@/lib/assetRegistry";
 import { addressTail } from "@/lib/cardano/metadata";
+import { slotAt } from "@/lib/cardano/slots";
 import { asNetwork } from "@/lib/config";
 import { PayoutStatus, TaskSource } from "@/lib/constants";
 import { check, maybe, rows, serviceClient } from "@/lib/db/client";
@@ -18,6 +19,7 @@ import { purgeSignerDrafts } from "@/lib/db/signerDrafts";
 import { purgeOAuth } from "@/lib/db/oauth";
 import { purgeRateLimits } from "@/lib/db/rateLimit";
 import { releaseOrphanedQueuedTasks } from "@/lib/db/tasks";
+import { releaseExpiredCanceledTransactions } from "@/lib/db/transactions";
 import { notifyAnchorsDue, type AnchorNotifyResult } from "@/lib/discord/notifyAnchorsDue";
 import { notifyConfirmedPayouts } from "@/lib/discord/notifyPayouts";
 import { notifyProposalMilestones, type ProposalNotifyResult } from "@/lib/discord/notifyProposals";
@@ -54,7 +56,12 @@ export type ReconcileSweepResult = {
   cosigned: CosignSweepResult;
   /** Queued tasks with no live payout put back to payable. */
   releasedTasks: number;
+  /** Canceled transactions whose spend TTL (+ lag) expired off-chain. */
+  releasedCanceled: number;
 };
+
+/** Indexer lag before releasing a canceled reservation (~30 minutes of slots). */
+const CANCEL_RELEASE_LAG_SLOTS = 1800;
 
 interface PendingWriteback {
   id: string;
@@ -306,6 +313,26 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     console.error("login challenge purge failed", err);
   }
 
+  // After treasury sync has had a chance to confirm canceled hashes on-chain:
+  // release reservations whose spend TTL (+ indexer lag) has passed off-chain.
+  let releasedCanceled = 0;
+  try {
+    const networks = [...new Set(treasuries.map((t) => t.network))];
+    const now = Date.now();
+    for (const network of networks) {
+      releasedCanceled += await releaseExpiredCanceledTransactions(
+        network,
+        slotAt(asNetwork(network), now),
+        CANCEL_RELEASE_LAG_SLOTS,
+      );
+    }
+    if (releasedCanceled > 0) {
+      console.warn(`released ${releasedCanceled} canceled transaction(s) past their spend TTL`);
+    }
+  } catch (err) {
+    console.error("canceled transaction release failed", err);
+  }
+
   // Tasks left queued with no live payout (a release that failed before
   // rejecting and deleting became one database step) go back to payable.
   let releasedTasks = 0;
@@ -328,6 +355,6 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
 
   return {
     results, writtenBack, statusMoved, discordPosted, proposals, proposalAnnouncements, tallyDocuments, documentCopies,
-    anchorAlerts, outsideSpends, cosigned, releasedTasks,
+    anchorAlerts, outsideSpends, cosigned, releasedTasks, releasedCanceled,
   };
 }

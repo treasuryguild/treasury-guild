@@ -267,6 +267,10 @@ export interface TransactionRow {
   spending_path: SpendingPath;
   /** Stake / DRep / vote action details (0075); null for other kinds. */
   governance_action: GovernanceAction | null;
+  /** Spend TTL slot stamped at build (0085); null = no automatic cancel release. */
+  valid_to_slot: number | null;
+  /** App co-signer claim window (0085); cancel refuses while recent. */
+  cosign_claimed_at: string | null;
 }
 
 export type TransactionSummary = Pick<

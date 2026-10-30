@@ -32,7 +32,7 @@ import { spendKey } from "@/lib/governance/spendCheck";
 import { budgetsForLines, guardSpend, type SpendGuardLine } from "@/lib/governance/spendGuard";
 import { resolvePaymentRecipients } from "@/lib/payments/recipients";
 import { resolveTreasuryScript } from "@/lib/treasury";
-import { builtTickers, builtTxResponse, loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor } from "@/lib/tx";
+import { builtTickers, builtTxResponse, loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor, validToSlotFor } from "@/lib/tx";
 import { paymentDescription } from "@/lib/txDescription";
 
 /** Display amounts for every unit the wallet holds (provisional ADA; the drain subtracts the fee). */
@@ -152,6 +152,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const anchors = treasury.archived_at ? [] : await loadDueAnchorsBestEffort(treasury.community_id);
 
   const { scriptCbor } = resolveTreasuryScript(treasury, signers);
+  const validToSlot = validToSlotFor(network);
   const built = await buildPaymentTx({
     treasuryAddress: treasury.address,
     scriptCbor,
@@ -165,6 +166,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     unitDisplay,
     anchors,
     validFromSlot: validFromSlotFor(treasury, path),
+    validToSlot,
     drain: !!drain,
   });
   const carried = built.anchorsCarried as typeof anchors;
@@ -183,6 +185,7 @@ export const POST = sessionRoute(async (req, { session }) => {
       description: paymentDescription({ memo: trimmedMemo, recipients: paid.length, transfers, tickers }),
       created_by: wallet,
       spend_problems: spendProblems,
+      valid_to_slot: validToSlot,
     },
     async (tx) => {
       // One row per (recipient, unit); transfers carry no budget month.

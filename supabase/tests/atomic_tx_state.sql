@@ -79,6 +79,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0061_treasury_templates.sql
 \ir ../migrations/0062_atomic_tx_state.sql
 \ir ../migrations/0084_signed_delete_and_task_claim.sql
+\ir ../migrations/0085_canceled_tx_ttl.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -179,7 +180,11 @@ begin
     'public.delete_pending_transaction(uuid)',
     'public.release_orphaned_queued_tasks()',
     'public.import_chain_tx(text, jsonb)',
-    'public.claim_tasks_for_payout(uuid, uuid[])'] loop
+    'public.claim_tasks_for_payout(uuid, uuid[])',
+    'public.cancel_pending_transaction(uuid)',
+    'public.claim_cosign_intent(uuid)',
+    'public.clear_cosign_intent(uuid)',
+    'public.release_expired_canceled_transactions(integer, bigint, bigint)'] loop
     if has_function_privilege('anon', f, 'execute') or has_function_privilege('authenticated', f, 'execute') then
       raise exception 'a browser role may execute %', f;
     end if;
@@ -216,9 +221,8 @@ declare
   s uuid := '60000000-0000-0000-0000-000000000001';
   ok boolean;
 begin
-  -- Only a submitted transaction: not a pending one, a rejected one or none at all.
-  ok := confirm_transaction('60000000-0000-0000-0000-000000000002', '2026-10-01T12:00:00Z');
-  if ok is distinct from false then raise exception 'a pending transaction was confirmed'; end if;
+  -- Pending and canceled may confirm (0085); rejected and missing still refuse.
+  -- Leave the pending reject-target alone here so later reject tests keep it.
   ok := confirm_transaction('60000000-0000-0000-0000-000000000005', '2026-10-01T12:00:00Z');
   if ok is distinct from false then raise exception 'a rejected transaction was confirmed'; end if;
   ok := confirm_transaction('60000000-0000-0000-0000-0000000000ff', '2026-10-01T12:00:00Z');

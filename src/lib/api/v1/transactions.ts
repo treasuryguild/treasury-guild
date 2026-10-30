@@ -32,6 +32,7 @@ const STATES = {
   submitted: TxState.Submitted,
   confirmed: TxState.Confirmed,
   rejected: TxState.Rejected,
+  canceled: TxState.Canceled,
 } as const;
 
 function describeTransaction(slug: string, treasuryName: string, tx: TransactionListItem): V1Transaction {
@@ -61,8 +62,8 @@ export const listTransactions = defineEndpoint({
       .describe("Only this treasury: its name (case-insensitive) or id"),
     kind: z.enum([TxKind.Payout, TxKind.Payment, TxKind.Mint, TxKind.Anchor]).optional()
       .describe("payout = task rewards, payment = a manual payment or transfer, mint = tokens minted, anchor = proposal records only"),
-    state: z.enum(["pending", "submitted", "confirmed", "rejected"]).optional()
-      .describe("pending = waiting for signatures, submitted = sent to the chain, confirmed = on chain"),
+    state: z.enum(["pending", "submitted", "confirmed", "rejected", "canceled"]).optional()
+      .describe("pending = waiting for signatures, submitted = sent to the chain, confirmed = on chain, canceled = signed build freed the slot while holding reservations"),
     limit: z.coerce.number().int().min(1).max(TRANSACTION_LIST_MAX).default(25)
       .describe("Newest transactions first, at most this many"),
   }),

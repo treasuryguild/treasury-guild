@@ -48,7 +48,9 @@ interface PaymentRow {
   transactions: { state: number };
 }
 
-const COUNTED_TX_STATES: number[] = [TxState.Pending, TxState.Submitted, TxState.Confirmed];
+const COUNTED_TX_STATES: number[] = [
+  TxState.Pending, TxState.Submitted, TxState.Confirmed, TxState.Canceled,
+];
 
 /**
  * Spent per (owner, period, unit) for these targets; refunds may leave a

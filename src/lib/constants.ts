@@ -18,6 +18,8 @@ export const TxState = {
   Submitted: 1,
   Confirmed: 2,
   Rejected: 3,
+  /** Signed build canceled: slot freed, budget/task hold until TTL or on-chain confirm. */
+  Canceled: 4,
 } as const;
 export type TxState = (typeof TxState)[keyof typeof TxState];
 
@@ -28,6 +30,7 @@ export const TX_STATE_META: Record<TxState, { label: string; tone: StateTone }> 
   [TxState.Submitted]: { label: "Submitted", tone: "blue" },
   [TxState.Confirmed]: { label: "Confirmed", tone: "green" },
   [TxState.Rejected]: { label: "Rejected", tone: "red" },
+  [TxState.Canceled]: { label: "Canceled", tone: "yellow" },
 };
 
 export function txStateMeta(state: number): { label: string; tone: StateTone } {
@@ -550,10 +553,14 @@ export const MSG = {
   txNotPending: "Transaction is no longer pending",
   txAlreadyOnChain: "This transaction is already on-chain",
   txHasSignatures:
-    "This transaction has signatures and cannot be deleted. Reject it, or wait until it is confirmed on-chain.",
+    "This transaction has signatures and cannot be deleted. Cancel it to free the pending slot (budget and tasks stay reserved until expiry), or wait until it is confirmed on-chain.",
+  txNotSigned:
+    "This transaction has no signatures yet. Delete it instead of canceling.",
   txChanged: "This transaction changed while you were responding. Reload it and try again.",
+  cosignInProgress:
+    "The co-signer is signing this transaction; try again shortly.",
   pendingTxExists:
-    "A pending transaction already exists for this treasury. Submit or reject it first.",
+    "A pending transaction already exists for this treasury. Submit, cancel or reject it first.",
   lockedUntil: "This treasury is locked until",
   recoveryNotOpen: "The recovery signers can move funds from",
   recoveryPaymentsOnly: "The recovery path moves funds out: it builds payments only",

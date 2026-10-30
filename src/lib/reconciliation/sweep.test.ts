@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   notifyOutside: vi.fn(),
   cosign: vi.fn(),
   releaseOrphans: vi.fn(),
+  releaseCanceled: vi.fn(),
 }));
 // db/client re-exports this client; its real rows / maybe / check unwrap the results.
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
@@ -30,6 +31,8 @@ vi.mock("@/lib/db/rateLimit", () => ({ purgeRateLimits: mocks.purgeRateLimits })
 vi.mock("@/lib/db/invites", () => ({ purgeCommunityInvites: mocks.purgeInvites }));
 vi.mock("@/lib/db/signerDrafts", () => ({ purgeSignerDrafts: mocks.purgeSignerDrafts }));
 vi.mock("@/lib/db/tasks", () => ({ releaseOrphanedQueuedTasks: mocks.releaseOrphans }));
+vi.mock("@/lib/db/transactions", () => ({ releaseExpiredCanceledTransactions: mocks.releaseCanceled }));
+vi.mock("@/lib/cardano/slots", () => ({ slotAt: (_n: number, ms: number) => Math.floor(ms / 1000) }));
 vi.mock("@/lib/discord/notifyPayouts", () => ({ notifyConfirmedPayouts: mocks.notifyPayouts }));
 vi.mock("@/lib/discord/notifyProposals", () => ({ notifyProposalMilestones: mocks.notifyProposals }));
 vi.mock("@/lib/github/writeback", () => ({ writeBackPayment: mocks.writeBack }));
@@ -106,6 +109,7 @@ beforeEach(() => {
   mocks.notifyOutside.mockResolvedValue({ posted: 1, skipped: 2, failed: 0 });
   mocks.cosign.mockResolvedValue({ signed: 1, refused: 0 });
   mocks.releaseOrphans.mockResolvedValue(0);
+  mocks.releaseCanceled.mockResolvedValue(0);
 });
 
 const EMPTY_FREEZE = { frozen: 0, failed: 0 };
@@ -133,8 +137,10 @@ describe("runReconcileSweep", () => {
       outsideSpends: { posted: 1, skipped: 2, failed: 0 },
       cosigned: { signed: 1, refused: 0 },
       releasedTasks: 0,
+      releasedCanceled: 0,
     });
     expect(mocks.releaseOrphans).toHaveBeenCalledTimes(1);
+    expect(mocks.releaseCanceled).toHaveBeenCalled();
     expect(console.warn).not.toHaveBeenCalled();
     expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("apply_workgroup_treasury_assignments");
     expect(mocks.advance).toHaveBeenCalledExactlyOnceWith(expect.any(Date));
@@ -240,7 +246,7 @@ describe("runReconcileSweep", () => {
     for (const step of [
       mocks.advance, mocks.notifyProposals, mocks.freeze, mocks.publish, mocks.notifyAnchors, mocks.syncTreasury,
       mocks.notifyOutside, mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeInvites, mocks.purgeSignerDrafts, mocks.purgeOAuth,
-      mocks.cosign, mocks.releaseOrphans,
+      mocks.cosign, mocks.releaseOrphans, mocks.releaseCanceled,
     ]) {
       step.mockRejectedValue(new Error("boom"));
     }
@@ -249,9 +255,10 @@ describe("runReconcileSweep", () => {
       proposals: { advanced: 0, failed: 0 }, proposalAnnouncements: { posted: 0, failed: 0, dead: 0 },
       tallyDocuments: EMPTY_FREEZE, documentCopies: EMPTY_PUBLISH, anchorAlerts: EMPTY_ANCHORS,
       outsideSpends: EMPTY_OUTSIDE, cosigned: { signed: 0, refused: 0 },
-      releasedTasks: 0,
+      releasedTasks: 0, releasedCanceled: 0,
     });
     expect(console.error).toHaveBeenCalledWith("orphaned task release failed", expect.any(Error));
+    expect(console.error).toHaveBeenCalledWith("canceled transaction release failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("freezeMissingTallyDocuments failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("publishTallyDocuments failed", expect.any(Error));
     expect(console.error).toHaveBeenCalledWith("notifyAnchorsDue failed", expect.any(Error));

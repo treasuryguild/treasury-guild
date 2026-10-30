@@ -86,17 +86,16 @@ export async function pollTreasury(treasury: {
   );
   const known = new Set(knownRows.map((r) => r.tx_hash));
 
-  // Confirm our own pending or submitted txs that are now on-chain. Pending
-  // covers a fully signed CBOR broadcast outside the app's submit path: if
-  // we only watched submitted, a delete would release its tasks and allow a
-  // second payout for the same work.
+  // Confirm our own pending, submitted or canceled txs that are now on-chain.
+  // Pending covers a fully signed CBOR broadcast outside the app's submit
+  // path; canceled covers the same after cancel freed the pending slot.
   const awaiting = rows<{ id: string; tx_hash: string | null }>(
     await db
       .from("transactions")
       .select("id, tx_hash")
       .eq("treasury_id", treasury.id)
-      .in("state", [TxState.Pending, TxState.Submitted]),
-    "load pending and submitted txs",
+      .in("state", [TxState.Pending, TxState.Submitted, TxState.Canceled]),
+    "load pending, submitted and canceled txs",
   );
   let confirmed = 0;
   for (const tx of awaiting) {

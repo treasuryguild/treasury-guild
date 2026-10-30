@@ -7,6 +7,8 @@ import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
 import { extractAnchorMetadata, extractPayoutMetadata } from "@/lib/cardano/cborMetadata";
 import { citedProposalNumbers } from "@/lib/cardano/metadata";
+import { slotTime } from "@/lib/cardano/slots";
+import { asNetwork } from "@/lib/config";
 import { SpendingPath, TxKind } from "@/lib/constants";
 import { isAdminRole } from "@/lib/roles";
 import { serverClient } from "@/lib/supabase/server";
@@ -118,6 +120,9 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
       txHash: row.tx_hash,
       txCbor: row.tx_cbor,
       spendProblems: row.spend_problems ?? [],
+      validUntil: row.valid_to_slot != null
+        ? slotTime(asNetwork(treasury.network), Number(row.valid_to_slot))
+        : null,
     },
     treasury: {
       name: treasury.name,

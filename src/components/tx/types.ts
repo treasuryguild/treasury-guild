@@ -20,6 +20,11 @@ export interface TxPanelTx {
   txCbor: string;
   /** What the budget check found when it was built (warn mode). */
   spendProblems: SpendProblem[];
+  /**
+   * When the spend TTL ends (ISO), from `valid_to_slot`; null when the build
+   * has no automatic expiry (pre-TTL rows show "no expiry" when canceled).
+   */
+  validUntil: string | null;
 }
 
 export interface TxPanelTreasury extends PathTreasury {

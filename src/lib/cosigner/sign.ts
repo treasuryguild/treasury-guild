@@ -9,10 +9,10 @@ import { pathRule } from "@/lib/cardano/spendingPaths";
 import { thresholdReached } from "@/lib/cardano/thresholds";
 import { mergeSignerWitnesses } from "@/lib/cardano/txSignUtils";
 import { asNetwork } from "@/lib/config";
-import { CosignerKind, CosignTrigger, SignerGroup, SpendingPath, TxState } from "@/lib/constants";
+import { CosignerKind, CosignTrigger, MSG, SignerGroup, SpendingPath, TxState } from "@/lib/constants";
 import { maybe, serviceClient } from "@/lib/db/client";
 import { insertCosignerDecision, listPendingAppCosignedTransactions, loadCosignerDecisions, loadCosignerKey } from "@/lib/db/cosigner";
-import { addSignature } from "@/lib/db/transactions";
+import { addSignature, claimCosignIntent, clearCosignIntent } from "@/lib/db/transactions";
 import { loadTreasuryWithSigners } from "@/lib/db/treasuries";
 import type { TransactionRow } from "@/lib/db/types";
 import { BadRequestError, ConflictError, errorMessage, InvariantError, NotFoundError } from "@/lib/errors";
@@ -39,7 +39,8 @@ async function loadTx(txId: string): Promise<TransactionRow> {
  * app-held co-signer treasury whose base signers have signed. Refusals of
  * the check are recorded and returned; a transaction that is not ready
  * (wrong path or kind of co-signer, base rule not met, already co-signed,
- * not pending) throws.
+ * not pending) throws. Claims a short-lived intent before decrypt so cancel
+ * cannot race the witness.
  */
 export async function cosignWithAppKey(txId: string, trigger: CosignTrigger): Promise<CosignResult> {
   let tx = await loadTx(txId);
@@ -55,35 +56,45 @@ export async function cosignWithAppKey(txId: string, trigger: CosignTrigger): Pr
     throw new BadRequestError("The base signers have not finished signing yet");
   }
 
-  const check = await runCosignerCheck(tx, treasury);
-  let signed = false;
-  if (check.passed) {
-    try {
-      const seed = decryptSeed(key.encrypted_key);
-      const address = cosignerAddress(key.key_hash, asNetwork(treasury.network));
-      if (address !== cosigner.wallet_address) throw new InvariantError("The co-signer's address does not match its key");
-      // One retry: a wallet's signature may land between our read and our write.
-      for (let attempt = 0; attempt < 2 && !signed; attempt++) {
-        if (attempt > 0) tx = await loadTx(txId);
-        if (tx.state !== TxState.Pending || tx.signed_addresses.includes(address)) break;
-        const { txHex, invalidVkeyPubKeysHex, addedKeyHashes } = mergeSignerWitnesses(tx.tx_cbor, witnessSetHex(seed, tx.tx_hash!));
-        if (invalidVkeyPubKeysHex.length > 0 || !addedKeyHashes.includes(key.key_hash)) {
-          throw new InvariantError("The co-signer's witness does not verify against the transaction");
-        }
-        signed = await addSignature({ txId, wallet: address, txCbor: txHex, expectedCount: tx.signed_addresses.length });
-      }
-    } catch (err) {
-      // The check passed but the witness could not be added: recorded, so the
-      // transaction page shows why the treasury waits. The failure itself is
-      // what the caller gets, also when recording it fails.
-      await insertCosignerDecision({
-        transactionId: txId, trigger, passed: true, problems: [], signed: false, error: errorMessage(err),
-      }).catch((recordErr) => console.error(`recording the signing failure of tx ${txId} failed`, recordErr));
-      throw err;
-    }
+  if (!(await claimCosignIntent(txId))) {
+    throw new ConflictError(MSG.cosignInProgress);
   }
-  await insertCosignerDecision({ transactionId: txId, trigger, passed: check.passed, problems: check.problems, signed });
-  return { signed, check };
+
+  try {
+    const check = await runCosignerCheck(tx, treasury);
+    let signed = false;
+    if (check.passed) {
+      try {
+        const seed = decryptSeed(key.encrypted_key);
+        const address = cosignerAddress(key.key_hash, asNetwork(treasury.network));
+        if (address !== cosigner.wallet_address) throw new InvariantError("The co-signer's address does not match its key");
+        // One retry: a wallet's signature may land between our read and our write.
+        for (let attempt = 0; attempt < 2 && !signed; attempt++) {
+          if (attempt > 0) tx = await loadTx(txId);
+          if (tx.state !== TxState.Pending || tx.signed_addresses.includes(address)) break;
+          const { txHex, invalidVkeyPubKeysHex, addedKeyHashes } = mergeSignerWitnesses(tx.tx_cbor, witnessSetHex(seed, tx.tx_hash!));
+          if (invalidVkeyPubKeysHex.length > 0 || !addedKeyHashes.includes(key.key_hash)) {
+            throw new InvariantError("The co-signer's witness does not verify against the transaction");
+          }
+          signed = await addSignature({ txId, wallet: address, txCbor: txHex, expectedCount: tx.signed_addresses.length });
+        }
+      } catch (err) {
+        // The check passed but the witness could not be added: recorded, so the
+        // transaction page shows why the treasury waits. The failure itself is
+        // what the caller gets, also when recording it fails.
+        await insertCosignerDecision({
+          transactionId: txId, trigger, passed: true, problems: [], signed: false, error: errorMessage(err),
+        }).catch((recordErr) => console.error(`recording the signing failure of tx ${txId} failed`, recordErr));
+        throw err;
+      }
+    }
+    await insertCosignerDecision({ transactionId: txId, trigger, passed: check.passed, problems: check.problems, signed });
+    return { signed, check };
+  } finally {
+    await clearCosignIntent(txId).catch((err) =>
+      console.error(`clearing cosign intent of tx ${txId} failed`, err),
+    );
+  }
 }
 
 export interface CosignSweepResult {

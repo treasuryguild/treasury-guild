@@ -17,7 +17,7 @@ import { assertTreasuryActive } from "@/lib/db/treasuries";
 import { BadRequestError } from "@/lib/errors";
 import { loadDueAnchors } from "@/lib/governance/anchorsDue";
 import { resolveTreasuryScript } from "@/lib/treasury";
-import { loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor } from "@/lib/tx";
+import { loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor, validToSlotFor } from "@/lib/tx";
 import { anchorDescription } from "@/lib/txDescription";
 
 export const POST = sessionRoute(async (req, { session }) => {
@@ -35,6 +35,7 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   const { scriptCbor } = resolveTreasuryScript(ctx.treasury, ctx.signers);
   const dateStr = new Date().toISOString().slice(0, 10);
+  const validToSlot = validToSlotFor(ctx.network);
   const built = await buildAnchorTx({
     treasuryAddress: ctx.treasury.address,
     scriptCbor,
@@ -43,6 +44,7 @@ export const POST = sessionRoute(async (req, { session }) => {
     record: fitted.record,
     message: `Treasury Guild anchors: ${ctx.communitySlug} ${dateStr}, ${numbers.length} ${numbers.length === 1 ? "proposal" : "proposals"}`,
     validFromSlot: validFromSlotFor(ctx.treasury, path),
+    validToSlot,
   });
 
   const txRow = await withTransactionRow(
@@ -54,6 +56,7 @@ export const POST = sessionRoute(async (req, { session }) => {
       tx_hash: built.txHash,
       description: anchorDescription(numbers),
       created_by: session.wallet,
+      valid_to_slot: validToSlot,
     },
     async (tx) => {
       await recordProposalAnchors(tx.id, fitted.carried);

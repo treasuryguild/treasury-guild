@@ -60,7 +60,7 @@ function tx(patch: Partial<TransactionRow> = {}): TransactionRow {
     id: "tx-1", treasury_id: "t-1", kind: TxKind.Payout, tx_cbor: CBOR, tx_hash: TX_HASH, description: null,
     signed_addresses: [ALICE], rejected_addresses: [], state: TxState.Pending, created_by: ALICE,
     submitted_at: null, created_at: "2026-10-01T00:00:00Z", discord_notified_at: null, spend_problems: [],
-    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, ...patch,
+    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, valid_to_slot: null, cosign_claimed_at: null, ...patch,
   };
 }
 

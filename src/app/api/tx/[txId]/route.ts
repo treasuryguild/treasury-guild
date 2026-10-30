@@ -13,10 +13,10 @@ import { loadPendingTxForSigner } from "@/lib/tx";
  * transaction per wallet), so signers need a way to clear a stale or mistaken
  * unsigned build without waiting for enough rejections to kill it.
  *
- * Once any signature is recorded the row must stay: the CBOR may still be
- * broadcast outside the app, and deleting would release budget/task
- * reservations. Use reject (to dead) or wait for on-chain confirmation.
- * The RPC refuses under the same row lock as `add_signature`.
+ * Once any signature is recorded, DELETE is refused — use POST
+ * `/api/tx/[txId]/cancel` instead (state Canceled: frees the slot, keeps
+ * reservations until TTL or on-chain confirm). The RPC refuses under the
+ * same row lock as `add_signature`.
  *
  * Queued tasks are released back to `payable` in the same database step
  * as the delete; `payouts` and `mints` rows cascade away with the

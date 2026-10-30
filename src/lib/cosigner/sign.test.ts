@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TransactionRow, TreasuryRow, TreasurySignerRow } from "@/lib/db/types";
-import { CosignerKind, CosignTrigger, SignerGroup, SpendingPath, TreasuryTemplate, TxKind, TxState } from "@/lib/constants";
+import { CosignerKind, CosignTrigger, MSG, SignerGroup, SpendingPath, TreasuryTemplate, TxKind, TxState } from "@/lib/constants";
 import { BadRequestError, ConflictError, InvariantError, NotFoundError } from "@/lib/errors";
 
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   insertDecision: vi.fn(), listPending: vi.fn(), loadDecisions: vi.fn(), loadKey: vi.fn(),
-  addSignature: vi.fn(),
+  addSignature: vi.fn(), claimIntent: vi.fn(), clearIntent: vi.fn(),
   loadTreasury: vi.fn(),
   merge: vi.fn(),
   check: vi.fn(),
@@ -19,7 +19,11 @@ vi.mock("@/lib/db/cosigner", () => ({
   loadCosignerDecisions: mocks.loadDecisions,
   loadCosignerKey: mocks.loadKey,
 }));
-vi.mock("@/lib/db/transactions", () => ({ addSignature: mocks.addSignature }));
+vi.mock("@/lib/db/transactions", () => ({
+  addSignature: mocks.addSignature,
+  claimCosignIntent: mocks.claimIntent,
+  clearCosignIntent: mocks.clearIntent,
+}));
 vi.mock("@/lib/db/treasuries", () => ({ loadTreasuryWithSigners: mocks.loadTreasury }));
 vi.mock("@/lib/cardano/txSignUtils", () => ({ mergeSignerWitnesses: mocks.merge }));
 vi.mock("@/lib/cosigner/check", () => ({ runCosignerCheck: mocks.check }));
@@ -59,7 +63,7 @@ function tx(patch: Partial<TransactionRow> = {}): TransactionRow {
     id: "tx-1", treasury_id: "t-1", kind: TxKind.Payout, tx_cbor: CBOR, tx_hash: TX_HASH, description: null,
     signed_addresses: [ALICE, BOB], rejected_addresses: [], state: TxState.Pending, created_by: ALICE,
     submitted_at: null, created_at: "2026-10-01T00:00:00Z", discord_notified_at: null, spend_problems: [],
-    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, ...patch,
+    block_time: null, spending_path: SpendingPath.Cosigned, governance_action: null, valid_to_slot: null, cosign_claimed_at: null, ...patch,
   };
 }
 
@@ -93,6 +97,8 @@ beforeEach(() => {
   mocks.witness.mockReturnValue(WITNESS);
   mocks.merge.mockReturnValue({ txHex: MERGED, invalidVkeyPubKeysHex: [], addedKeyHashes: [KEY_HASH] });
   mocks.addSignature.mockResolvedValue(true);
+  mocks.claimIntent.mockResolvedValue(true);
+  mocks.clearIntent.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -104,6 +110,7 @@ const nothingSigned = () => {
   expect(mocks.merge).not.toHaveBeenCalled();
   expect(mocks.addSignature).not.toHaveBeenCalled();
   expect(mocks.insertDecision).not.toHaveBeenCalled();
+  expect(mocks.claimIntent).not.toHaveBeenCalled();
 };
 
 describe("cosignWithAppKey: what it refuses to touch", () => {
@@ -171,6 +178,22 @@ describe("cosignWithAppKey: the decision", () => {
     });
   });
 
+  it("claims cosign intent before the check and clears it after, even when decrypting", async () => {
+    expect(await cosignWithAppKey("tx-1", CosignTrigger.Sign)).toEqual({ signed: true, check: { passed: true, problems: [] } });
+    expect(mocks.claimIntent).toHaveBeenCalledExactlyOnceWith("tx-1");
+    expect(mocks.claimIntent.mock.invocationCallOrder[0]!).toBeLessThan(mocks.check.mock.invocationCallOrder[0]!);
+    expect(mocks.check.mock.invocationCallOrder[0]!).toBeLessThan(mocks.decrypt.mock.invocationCallOrder[0]!);
+    expect(mocks.clearIntent).toHaveBeenCalledExactlyOnceWith("tx-1");
+  });
+
+  it("refuses when another cosign claim is still live", async () => {
+    mocks.claimIntent.mockResolvedValue(false);
+    await expect(cosignWithAppKey("tx-1", CosignTrigger.Manual)).rejects.toThrow(new ConflictError(MSG.cosignInProgress));
+    expect(mocks.check).not.toHaveBeenCalled();
+    expect(mocks.decrypt).not.toHaveBeenCalled();
+    expect(mocks.clearIntent).not.toHaveBeenCalled();
+  });
+
   it("merges the key's witness on a pass, appends it through add_signature and records the signed decision with its trigger", async () => {
     expect(await cosignWithAppKey("tx-1", CosignTrigger.Sign)).toEqual({ signed: true, check: { passed: true, problems: [] } });
     expect(mocks.decrypt).toHaveBeenCalledExactlyOnceWith(KEY.encrypted_key);
@@ -227,6 +250,7 @@ describe("cosignWithAppKey: the decision", () => {
     await expect(cosignWithAppKey("tx-1", CosignTrigger.Sign)).rejects.toThrow(new InvariantError("The co-signer's witness does not verify against the transaction"));
     expect(mocks.addSignature).not.toHaveBeenCalled();
     expect(mocks.insertDecision).toHaveBeenCalledExactlyOnceWith(failure("The co-signer's witness does not verify against the transaction"));
+    expect(mocks.clearIntent).toHaveBeenCalledExactlyOnceWith("tx-1");
   });
 
   it("records a signing failure when the merge adds another key than the treasury's co-signer key", async () => {

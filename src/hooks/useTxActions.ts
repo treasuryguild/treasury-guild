@@ -13,7 +13,7 @@ import type { SignTxResponse } from "@/lib/api/types";
 import { MSG } from "@/lib/constants";
 import { routes } from "@/lib/routes";
 
-export type TxAction = "sign" | "reject" | "submit" | "delete";
+export type TxAction = "sign" | "reject" | "submit" | "delete" | "cancel";
 
 export function useTxActions(txId: string, slug: string) {
   const router = useRouter();
@@ -39,8 +39,13 @@ export function useTxActions(txId: string, slug: string) {
     }
   }
 
-  const post = <T,>(action: "sign" | "reject" | "submit", body?: unknown) =>
+  const post = <T,>(action: "sign" | "reject" | "submit" | "cancel", body?: unknown) =>
     apiFetch<T>(`/api/tx/${txId}/${action}`, { method: "POST", body });
+
+  const leaveTreasury = () => {
+    router.replace(routes.treasury(slug));
+    router.refresh();
+  };
 
   return {
     busy,
@@ -79,13 +84,7 @@ export function useTxActions(txId: string, slug: string) {
     reject: () => perform("reject", () => post("reject")),
     submit: () => perform("submit", () => post("submit")),
     remove: () =>
-      perform(
-        "delete",
-        () => apiFetch(`/api/tx/${txId}`, { method: "DELETE" }),
-        () => {
-          router.replace(routes.treasury(slug));
-          router.refresh();
-        },
-      ),
+      perform("delete", () => apiFetch(`/api/tx/${txId}`, { method: "DELETE" }), leaveTreasury),
+    cancel: () => perform("cancel", () => post("cancel"), leaveTreasury),
   };
 }

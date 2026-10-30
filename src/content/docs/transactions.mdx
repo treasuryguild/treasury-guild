@@ -9,7 +9,8 @@ The title shows the transaction's description with a kind badge (**Mint**, **Pay
 | **Pending** | Waiting for signatures. |
 | **Submitted** | Sent to the chain, waiting for confirmation. |
 | **Confirmed** | Seen on-chain; tasks are marked paid. |
-| **Rejected** | Enough signers rejected it that the threshold can no longer be met. Nothing was spent. |
+| **Rejected** | Enough signers rejected it that the threshold can no longer be met, or a canceled spend expired off-chain. Nothing was spent; reservations are released. |
+| **Canceled** | A signed build was canceled (or rejected to dead after signatures). The pending slot is free; budget and task holds stay until the spend TTL expires off-chain or the hash is confirmed. |
 
 Below it:
 
@@ -30,15 +31,15 @@ Only community members can open transaction pages.
 While a transaction is **Pending**, each signer of its [spending path](#spending-paths) who has not responded yet sees:
 
 - **Sign** — your wallet opens and asks you to approve. This is a *partial* signature: the transaction is not sent until the threshold is met. When your signature is the one that completes the threshold, Treasury Guild submits the transaction to the chain in the same step.
-- **Reject** — records your refusal. As long as the remaining signers could still reach the threshold, the transaction stays **Pending** for them; once they no longer can (for example the second rejection in a 2 of 3), it moves to **Rejected** and its queued tasks become payable again.
+- **Reject** — records your refusal. As long as the remaining signers could still reach the threshold, the transaction stays **Pending** for them; once they no longer can (for example the second rejection in a 2 of 3), an unsigned build becomes **Rejected** and its queued tasks become payable again, while a signed build becomes **Canceled** (slot freed, reservations held — see [Canceling](#canceling)).
 
-Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject** never needs the wallet; **Delete** (only while no signatures are recorded) likewise stays available without a connected wallet.
+Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject**, **Delete** and **Cancel** never need the wallet.
 
 If someone else signed while you were looking at the page, your signature is refused with a conflict and the page reloads with the latest version. Simply click **Sign** again.
 
 ### Spending paths
 
-A treasury created with a [template](/docs/treasury#treasury-templates) has more than one way to be spent, and every transaction is built for one of them: its **spending path**. The page names the path and its rule under the title (for example "Recovery signers · any signer · valid from 1 March 2027, 00:00", or "Co-signed · 2 of 3 + co-signer"); a plain treasury's transactions show nothing there. Only the path's signers see **Sign** and **Reject**, and only their signatures count towards the rule: a recovery signer cannot sign a base-path transaction, a base signer cannot sign a recovery one, and a co-signed transaction is not complete until the co-signer has signed too, however many base signers did. A rejection by the co-signer, or by any base signer on the bypass path, moves the transaction to **Rejected** at once. A transaction on the recovery path, or from a lock-until treasury, carries a validity start at the lock slot: the chain refuses it before the date, which is why it cannot be built earlier.
+A treasury created with a [template](/docs/treasury#treasury-templates) has more than one way to be spent, and every transaction is built for one of them: its **spending path**. The page names the path and its rule under the title (for example "Recovery signers · any signer · valid from 1 March 2027, 00:00", or "Co-signed · 2 of 3 + co-signer"); a plain treasury's transactions show nothing there. Only the path's signers see **Sign** and **Reject**, and only their signatures count towards the rule: a recovery signer cannot sign a base-path transaction, a base signer cannot sign a recovery one, and a co-signed transaction is not complete until the co-signer has signed too, however many base signers did. A rejection by the co-signer, or by any base signer on the bypass path, ends the transaction at once (unsigned → **Rejected**, signed → **Canceled**). A transaction on the recovery path, or from a lock-until treasury, carries a validity start at the lock slot: the chain refuses it before the date, which is why it cannot be built earlier. New payout, payment and anchor builds also carry a spend validity end of about 36 hours (`invalidHereafter`), shown on the page as **Spend valid until …**.
 
 ### The co-signer check
 
@@ -60,7 +61,11 @@ After submission the explorer link resolves; while the transaction is **Submitte
 
 ## Deleting
 
-Any signer of the transaction's spending path can **Delete** a **Pending** transaction that still has **no signatures**, for example to change the selection after a mistaken build. It asks for confirmation. For payouts, the queued tasks go back to payable so a new transaction can be built; you are taken back to the Treasury page. Once anyone has signed, **Delete** is unavailable: the signed bytes could still be submitted outside the app, so the reservation must stay until the path's signers **Reject** the transaction to dead, or it is confirmed on-chain. Submitted transactions cannot be deleted.
+Any signer of the transaction's spending path can **Delete** a **Pending** transaction that still has **no signatures**, for example to change the selection after a mistaken build. It asks for confirmation. For payouts, the queued tasks go back to payable so a new transaction can be built; you are taken back to the Treasury page. Submitted and canceled transactions cannot be deleted.
+
+## Canceling
+
+Once anyone has signed, **Delete** is replaced by **Cancel**. Cancel moves the transaction to **Canceled**: the treasury's one-pending slot is free so a new build can start, but payout and payment rows and queued-task holds stay until either the spend TTL passes off-chain (then the row becomes **Rejected** and holds are released) or the hash appears on-chain (then it confirms and pays once, as usual). A killing **Reject** after signatures does the same retain path. Older pending rows built before spend TTL may show **No automatic spend expiry** and need an on-chain confirm or an operator release.
 
 ## Confirmation and what follows
 

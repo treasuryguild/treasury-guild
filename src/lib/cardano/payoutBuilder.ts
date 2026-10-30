@@ -98,8 +98,10 @@ export async function completeTreasuryTx(opts: {
    * script node needs the validity interval to start there.
    */
   validFromSlot?: number | null;
+  /** Spend TTL: the slot after which the chain refuses the transaction. */
+  validToSlot?: number | null;
 }): Promise<{ unsignedTxHex: string; txHash: string }> {
-  const { treasuryAddress, scriptCbor, network, provider, outputs, totalByUnit, unitDisplay, validFromSlot } = opts;
+  const { treasuryAddress, scriptCbor, network, provider, outputs, totalByUnit, unitDisplay, validFromSlot, validToSlot } = opts;
 
   const tokenUnitCount = totalByUnit.size - (totalByUnit.has(LOVELACE) ? 1 : 0);
   const headroom =
@@ -147,6 +149,9 @@ export async function completeTreasuryTx(opts: {
   if (validFromSlot !== undefined && validFromSlot !== null) {
     txBuilder.invalidBefore(validFromSlot);
   }
+  if (validToSlot !== undefined && validToSlot !== null) {
+    txBuilder.invalidHereafter(validToSlot);
+  }
 
   const unsignedTxHex = await txBuilder.complete();
   const txHash = resolveTxHash(unsignedTxHex);
@@ -187,6 +192,7 @@ export async function completeDrainTx(opts: {
   metadataFor: (amounts: { unit: string; quantity: bigint }[]) => [label: string, value: object][];
   unitDisplay?: UnitDisplay;
   validFromSlot?: number | null;
+  validToSlot?: number | null;
 }): Promise<{
   unsignedTxHex: string;
   txHash: string;
@@ -195,7 +201,7 @@ export async function completeDrainTx(opts: {
   totalByUnit: Map<string, bigint>;
   fee: bigint;
 }> {
-  const { treasuryAddress, scriptCbor, network, provider, recipientAddress, validFromSlot } = opts;
+  const { treasuryAddress, scriptCbor, network, provider, recipientAddress, validFromSlot, validToSlot } = opts;
 
   const utxos = await provider.fetchAddressUTxOs(treasuryAddress);
   if (utxos.length === 0) {
@@ -240,6 +246,9 @@ export async function completeDrainTx(opts: {
     txBuilder.changeAddress(recipientAddress);
     if (validFromSlot !== undefined && validFromSlot !== null) {
       txBuilder.invalidBefore(validFromSlot);
+    }
+    if (validToSlot !== undefined && validToSlot !== null) {
+      txBuilder.invalidHereafter(validToSlot);
     }
     return txBuilder.complete();
   };
@@ -307,6 +316,8 @@ export async function buildPayoutTx(opts: {
   anchors?: readonly DueAnchorLike[];
   /** The lock slot when the path needs the validity interval to start there. */
   validFromSlot?: number | null;
+  /** Spend TTL stamped onto the body and the transaction row. */
+  validToSlot?: number | null;
 }): Promise<BuildPayoutResult> {
   const { communitySlug, unitDisplay } = opts;
 

@@ -60,7 +60,7 @@ const tx = (overrides: Partial<TransactionRow> = {}): TransactionRow => ({
   id: TX, treasury_id: TREASURY_ID, kind: "payout", tx_cbor: "84a0", tx_hash: "f".repeat(64), description: null,
   signed_addresses: [], rejected_addresses: [], state: TxState.Pending, created_by: ALICE, submitted_at: null,
   created_at: "2026-10-01T00:00:00.000Z", discord_notified_at: null, spend_problems: [], block_time: null,
-  spending_path: SpendingPath.Base, governance_action: null, ...overrides,
+  spending_path: SpendingPath.Base, governance_action: null, valid_to_slot: null, cosign_claimed_at: null, ...overrides,
 });
 
 /** The service client as loadTxContext uses it: transactions.select("*").eq("id").maybeSingle(). */

@@ -3,6 +3,7 @@ import "server-only";
 
 import type { BuildPayoutResponse } from "./api/types";
 import { unitTicker, type UnitDisplay } from "./assetRegistry";
+import { slotAt } from "./cardano/slots";
 import { defaultPath, pathOffered, pathParticipants, pathRule } from "./cardano/spendingPaths";
 import { asNetwork, type Network } from "./config";
 import { MSG, SignerGroup, SpendingPath, TreasuryTemplate, TxState, type TxKind } from "./constants";
@@ -179,4 +180,15 @@ export function validFromSlotFor(treasury: TreasuryRow, path: SpendingPath): num
   if (treasury.template === TreasuryTemplate.LockUntil) return lockSlot;
   if (treasury.template === TreasuryTemplate.Clawback && path === SpendingPath.Recovery) return lockSlot;
   return null;
+}
+
+/** How long a new payout / payment / anchor remains valid on-chain (~36h). */
+export const SPEND_TX_TTL_MS = 36 * 60 * 60 * 1000;
+
+/**
+ * The slot after which a spend transaction is invalid (`invalidHereafter`).
+ * Mint keeps its own policy lock; stake / DRep / vote are out of scope.
+ */
+export function validToSlotFor(network: Network, nowMs: number = Date.now()): number {
+  return slotAt(network, nowMs + SPEND_TX_TTL_MS);
 }
