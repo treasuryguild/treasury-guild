@@ -23,7 +23,7 @@ import { recordProposalAnchors } from "@/lib/db/anchors";
 import { loadAssetRegistry, upsertAssetMappings } from "@/lib/db/assets";
 import { loadBudgetSetupsForWorkgroups, loadBudgetSources } from "@/lib/db/budgetSetups";
 import { loadProposalCitations } from "@/lib/db/governance";
-import { loadTasksForBuild, markTasksQueued, setBudgetMonthIfNull, tasksWithLivePayouts, type TaskForBuild } from "@/lib/db/tasks";
+import { claimTasksForPayout, loadTasksForBuild, setBudgetMonthIfNull, tasksWithLivePayouts, type TaskForBuild } from "@/lib/db/tasks";
 import { assertNoPendingTx, insertPayouts, withTransactionRow } from "@/lib/db/transactions";
 import { assertTreasuryActive } from "@/lib/db/treasuries";
 import type { TransactionRow } from "@/lib/db/types";
@@ -89,7 +89,15 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   await assertNoPendingTx(treasuryId);
 
   const persisted = await loadAssetRegistry(treasury.community_id);
-  const tasks = await loadTasksForBuild(taskIds);
+  // Scoped to this community: foreign UUIDs never load (no title disclosure).
+  const tasks = await loadTasksForBuild(taskIds, treasury.community_id);
+  const problems: string[] = [];
+  const foundIds = new Set(tasks.map((t) => t.id));
+  for (const id of new Set(taskIds)) {
+    if (!foundIds.has(id)) {
+      problems.push(`${id}: task not found or not in this community`);
+    }
+  }
   if (tasks.some((task) => task.archived_at)) {
     throw new BadRequestError("Restore archived tasks before creating payouts");
   }
@@ -106,7 +114,6 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
     }
   }
 
-  const problems: string[] = [];
   // pay_state alone is not trusted: a task a live transaction already pays
   // is refused even if its state was reset to payable.
   const alreadyPaid = await tasksWithLivePayouts(tasks.map((t) => t.id));
@@ -167,10 +174,6 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   const amountsByTask = new Map<string, Map<string, bigint>>();
   const validTasks = tasks.filter((t) => {
     const wg = t.workgroups;
-    if (wg.community_id !== treasury.community_id) {
-      problems.push(`${t.title}: belongs to a different community`);
-      return false;
-    }
     // The wallet routed for the task's own budget period: a task from before
     // a scheduled wallet change is still paid from the wallet of its period.
     const period = periods.get(t.id)!;
@@ -337,6 +340,9 @@ export async function persistPayout(
       ...(opts.agentDraftId ? { agent_draft_id: opts.agentDraftId } : {}),
     },
     async (tx) => {
+      // Claim before payouts: two treasuries racing on the same task cannot
+      // both queue; the loser rolls back via withTransactionRow.
+      await claimTasksForPayout(tx.id, validTasks.map((t) => t.id));
       // One payout row per (task, wallet, unit)
       const payoutRows = recipients.flatMap((r) =>
         r.tasks.flatMap((t) =>
@@ -361,7 +367,6 @@ export async function persistPayout(
       for (const [month, ids] of unsetByMonth) {
         await setBudgetMonthIfNull(ids, month);
       }
-      await markTasksQueued(validTasks.map((t) => t.id));
       await recordProposalAnchors(tx.id, plan.carried);
       return tx;
     },

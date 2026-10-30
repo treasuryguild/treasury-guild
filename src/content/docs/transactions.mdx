@@ -32,7 +32,7 @@ While a transaction is **Pending**, each signer of its [spending path](#spending
 - **Sign** — your wallet opens and asks you to approve. This is a *partial* signature: the transaction is not sent until the threshold is met. When your signature is the one that completes the threshold, Treasury Guild submits the transaction to the chain in the same step.
 - **Reject** — records your refusal. As long as the remaining signers could still reach the threshold, the transaction stays **Pending** for them; once they no longer can (for example the second rejection in a 2 of 3), it moves to **Rejected** and its queued tasks become payable again.
 
-Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject** and **Delete** never need the wallet and stay available.
+Your wallet must be connected, be the account you signed in with and be on the community's network to sign; otherwise **Sign** and **Submit to chain** are disabled with an explanation. **Reject** never needs the wallet; **Delete** (only while no signatures are recorded) likewise stays available without a connected wallet.
 
 If someone else signed while you were looking at the page, your signature is refused with a conflict and the page reloads with the latest version. Simply click **Sign** again.
 
@@ -60,7 +60,7 @@ After submission the explorer link resolves; while the transaction is **Submitte
 
 ## Deleting
 
-Any signer of the transaction's spending path can **Delete** a **Pending** transaction that is no longer wanted, for example to change the selection, whether or not they have already signed or rejected it. It asks for confirmation. Signatures already collected are thrown away and, for payouts, the queued tasks go back to payable so a new transaction can be built; you are taken back to the Treasury page. Submitted transactions cannot be deleted.
+Any signer of the transaction's spending path can **Delete** a **Pending** transaction that still has **no signatures**, for example to change the selection after a mistaken build. It asks for confirmation. For payouts, the queued tasks go back to payable so a new transaction can be built; you are taken back to the Treasury page. Once anyone has signed, **Delete** is unavailable: the signed bytes could still be submitted outside the app, so the reservation must stay until the path's signers **Reject** the transaction to dead, or it is confirmed on-chain. Submitted transactions cannot be deleted.
 
 ## Confirmation and what follows
 

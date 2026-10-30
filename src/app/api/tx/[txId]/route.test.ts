@@ -167,9 +167,17 @@ describe("DELETE /api/tx/[txId]", () => {
     });
   });
 
-  it("deletes the pending row in one guarded call", async () => {
-    // A base signer who signed nothing and whom others already rejected may still clear the build.
+  it("refuses delete once any signature is recorded", async () => {
     arrange({ tx: tx({ signed_addresses: [BOB], rejected_addresses: [CAROL] }) });
+    const res = await del();
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe(MSG.txHasSignatures);
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it("deletes an unsigned pending row in one guarded call", async () => {
+    // A base signer who signed nothing may clear a mistaken build; rejections alone do not block delete.
+    arrange({ tx: tx({ signed_addresses: [], rejected_addresses: [CAROL] }) });
     const res = await del();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ deleted: true });

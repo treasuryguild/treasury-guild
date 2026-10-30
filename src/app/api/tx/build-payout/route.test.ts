@@ -29,7 +29,7 @@ vi.mock("@/lib/db/transactions", () => ({
 vi.mock("@/lib/db/assets", () => ({ loadAssetRegistry: mocks.registry, upsertAssetMappings: mocks.upsertMappings }));
 vi.mock("@/lib/db/tasks", () => ({
   loadTasksForBuild: mocks.tasks, tasksWithLivePayouts: mocks.livePayouts,
-  markTasksQueued: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
+  claimTasksForPayout: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
 }));
 vi.mock("@/lib/db/budgetSetups", () => ({
   loadBudgetSetupsForWorkgroups: mocks.setups, loadBudgetSources: mocks.sources,
@@ -276,7 +276,7 @@ describe("build-payout API", () => {
         task({ id: ids[2], title: "T3", task_assignees: [assignee(ALICE), assignee(null, 1, "bob"), assignee(null, 2)] }),
         task({ id: ids[3], title: "T4", amounts: {}, bounty_lovelace: null }),
         taskB({ id: ids[4], title: "T5" }),
-        task({ id: ids[5], title: "T6", workgroups: { community_id: "elsewhere", name: "Dev", archived_at: null } }),
+        // Foreign id ids[5] is omitted: loadTasksForBuild scopes by community.
         task({ id: ids[6], title: "T7", amounts: { ADA: "1", FOO: "3" } }),
       ]);
       mocks.livePayouts.mockResolvedValue(new Set([ids[1]]));
@@ -287,17 +287,17 @@ describe("build-payout API", () => {
       expect(await response.json()).toEqual({
         error: "Some tasks are not payable",
         problems: [
+          `${ids[5]}: task not found or not in this community`,
           "T1: not payable (state: none)",
           "T2: already in a payout transaction",
           "T3: @bob has no wallet linked",
           "T3: assignee #3 has no wallet",
           "T4: no bounty set",
           'T5: workgroup "Ops" is assigned to a different wallet for 2026-05',
-          "T6: belongs to a different community",
           "T7: No asset mapping for field(s): FOO — connect them to a wallet token on the Payday page",
         ],
       });
-      expect(mocks.livePayouts).toHaveBeenCalledWith(ids);
+      expect(mocks.livePayouts).toHaveBeenCalledWith([ids[0], ids[1], ids[2], ids[3], ids[4], ids[6]]);
       expect(mocks.guard).not.toHaveBeenCalled();
       expect(mocks.build).not.toHaveBeenCalled();
       expect(mocks.withTx).not.toHaveBeenCalled();
@@ -480,7 +480,7 @@ describe("build-payout API", () => {
       });
       expect(mocks.context).toHaveBeenCalledWith(TREASURY_ID, "admin");
       expect(mocks.noPending).toHaveBeenCalledWith(TREASURY_ID);
-      expect(mocks.tasks).toHaveBeenCalledWith([TASK_A, TASK_B]);
+      expect(mocks.tasks).toHaveBeenCalledWith([TASK_A, TASK_B], "community");
       expect(mocks.setups).toHaveBeenCalledWith([WG_A, WG_B]);
       expect(mocks.assignments).toHaveBeenCalledWith([WG_A, WG_B]);
       expect(mocks.wallet).toHaveBeenCalledWith(0, TREASURY);
@@ -513,7 +513,7 @@ describe("build-payout API", () => {
       ]);
       // Only the unset task is stamped, with the quarter's first month.
       expect(mocks.stampMonth).toHaveBeenCalledExactlyOnceWith([TASK_A], "2026-07");
-      expect(mocks.queue).toHaveBeenCalledExactlyOnceWith([TASK_A, TASK_B]);
+      expect(mocks.queue).toHaveBeenCalledExactlyOnceWith("tx-1", [TASK_A, TASK_B]);
     });
 
     it("pays every assignee the full amounts, one output per wallet, and a shared wallet once", async () => {

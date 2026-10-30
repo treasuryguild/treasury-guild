@@ -8,10 +8,15 @@ import { confirmIfOnChain } from "@/lib/reconciliation/onChain";
 import { loadPendingTxForSigner } from "@/lib/tx";
 
 /**
- * Delete a pending transaction. Any signer on its spending path may do
- * this: a pending tx blocks the treasury (one pending transaction per
- * wallet), so signers need a way to clear a stale or mistaken build without waiting
- * for enough rejections to kill it.
+ * Delete a pending transaction that has no signatures yet. Any signer on its
+ * spending path may do this: a pending tx blocks the treasury (one pending
+ * transaction per wallet), so signers need a way to clear a stale or mistaken
+ * unsigned build without waiting for enough rejections to kill it.
+ *
+ * Once any signature is recorded the row must stay: the CBOR may still be
+ * broadcast outside the app, and deleting would release budget/task
+ * reservations. Use reject (to dead) or wait for on-chain confirmation.
+ * The RPC refuses under the same row lock as `add_signature`.
  *
  * Queued tasks are released back to `payable` in the same database step
  * as the delete; `payouts` and `mints` rows cascade away with the
@@ -27,7 +32,11 @@ export const DELETE = sessionRoute<{ txId: string }>(
       throw new ConflictError(MSG.txAlreadyOnChain);
     }
 
-    // Guard on state again so a concurrent submit can't be wiped out.
+    if (tx.signed_addresses.length > 0) {
+      throw new ConflictError(MSG.txHasSignatures);
+    }
+
+    // Guard on state / a racing signature again inside the RPC.
     if (!(await deletePendingTransaction(txId))) throw new ConflictError(MSG.txNotPending);
 
     return { deleted: true } satisfies DeleteTxResponse;

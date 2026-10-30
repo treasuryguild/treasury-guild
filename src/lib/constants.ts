@@ -549,6 +549,8 @@ export const MSG = {
   requestFailed: "Request failed",
   txNotPending: "Transaction is no longer pending",
   txAlreadyOnChain: "This transaction is already on-chain",
+  txHasSignatures:
+    "This transaction has signatures and cannot be deleted. Reject it, or wait until it is confirmed on-chain.",
   txChanged: "This transaction changed while you were responding. Reload it and try again.",
   pendingTxExists:
     "A pending transaction already exists for this treasury. Submit or reject it first.",
