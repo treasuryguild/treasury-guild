@@ -93,18 +93,25 @@ export function buildDrepAnchorJson(input: DrepAnchorInput): Record<string, unkn
   };
 }
 
+/** Same content → same pin result within this process (confirm retries). */
+const drepPinCache = new Map<string, { anchorUrl: string; anchorDataHash: string }>();
+
 /** Pin CIP-119 JSON and return the gateway URL + Mesh anchor hash. */
 export async function pinDrepAnchor(
   doc: Record<string, unknown>,
 ): Promise<{ anchorUrl: string; anchorDataHash: string }> {
   // Mesh hashes the exact JSON string; pin the same bytes.
   const body = JSON.stringify(doc);
+  const cached = drepPinCache.get(body);
+  if (cached) return cached;
   const cid = await ipfsStore().put(new TextEncoder().encode(body), "drep-metadata.json", {
     kind: "drep-anchor",
   });
   const anchorUrl = `https://${pinataGateway()}/ipfs/${cid}`;
   const anchorDataHash = hashDrepAnchor(JSON.parse(body) as Record<string, unknown>);
-  return { anchorUrl, anchorDataHash };
+  const result = { anchorUrl, anchorDataHash };
+  drepPinCache.set(body, result);
+  return result;
 }
 
 export async function buildDrepTx(opts: {

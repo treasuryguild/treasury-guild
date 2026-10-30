@@ -11,7 +11,7 @@ vi.mock("@/lib/db/workgroups", async (importOriginal) => ({
 vi.mock("@/lib/db/membership", () => ({ ensureContributor: mocks.ensure }));
 vi.mock("@/lib/db/communities", () => ({ requireCommunity: mocks.community }));
 vi.mock("@/lib/db/taskAssignees", () => ({ replaceTaskAssignees: mocks.replace }));
-vi.mock("@/lib/db/tasks", () => ({ loadTasksForBuild: mocks.tasks }));
+vi.mock("@/lib/db/tasks", () => ({ loadTaskForManager: mocks.tasks }));
 import { POST } from "./route";
 
 const LEAD = "addr_test1lead";
@@ -44,7 +44,7 @@ const error = async (response: Response) => (await response.json()).error as str
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.session.mockResolvedValue({ wallet: LEAD });
-  mocks.tasks.mockResolvedValue([task()]);
+  mocks.tasks.mockResolvedValue(task());
   mocks.manager.mockResolvedValue(undefined);
   mocks.ensure.mockResolvedValue({ created: false });
   mocks.replace.mockResolvedValue(SAVED);
@@ -62,14 +62,14 @@ describe("POST /api/tasks/assignees", () => {
     const res = await post({ taskId: TASK, assignees });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ assignees: SAVED });
-    expect(mocks.tasks).toHaveBeenCalledWith([TASK]);
+    expect(mocks.tasks).toHaveBeenCalledWith(TASK);
     expect(mocks.manager).toHaveBeenCalledWith("community", WORKGROUP, LEAD, "Only admins and workgroup leads can edit assignees");
     expect(mocks.ensure.mock.calls).toEqual([[ALICE], [BOB]]);
     expect(mocks.replace).toHaveBeenCalledExactlyOnceWith(TASK, assignees);
   });
 
   it("lets a payable task be edited, and every manual row be removed", async () => {
-    mocks.tasks.mockResolvedValue([task({ pay_state: "payable" })]);
+    mocks.tasks.mockResolvedValue(task({ pay_state: "payable" }));
     const assignees = [github(GH_1), github(GH_2)];
     expect((await post({ taskId: TASK, assignees })).status).toBe(200);
     expect(mocks.replace).toHaveBeenCalledWith(TASK, assignees);
@@ -100,7 +100,7 @@ describe("POST /api/tasks/assignees", () => {
   });
 
   it("answers 404 for a task that does not exist", async () => {
-    mocks.tasks.mockResolvedValue([]);
+    mocks.tasks.mockResolvedValue(null);
     const res = await post({ taskId: TASK, assignees: [] });
     expect(res.status).toBe(404);
     expect(await error(res)).toBe("Task not found");
@@ -118,9 +118,9 @@ describe("POST /api/tasks/assignees", () => {
 
   it("refuses a task of an archived workgroup and an archived task", async () => {
     const body = { taskId: TASK, assignees: [github(GH_1), github(GH_2)] };
-    mocks.tasks.mockResolvedValue([task({ workgroups: { community_id: "community", archived_at: "2026-09-01T00:00:00Z" } })]);
+    mocks.tasks.mockResolvedValue(task({ workgroups: { community_id: "community", archived_at: "2026-09-01T00:00:00Z" } }));
     expect((await post(body)).status).toBe(409);
-    mocks.tasks.mockResolvedValue([task({ archived_at: "2026-09-01T00:00:00Z" })]);
+    mocks.tasks.mockResolvedValue(task({ archived_at: "2026-09-01T00:00:00Z" }));
     const res = await post(body);
     expect(res.status).toBe(409);
     expect(await error(res)).toBe("Restore this task before editing assignees");
@@ -128,7 +128,7 @@ describe("POST /api/tasks/assignees", () => {
   });
 
   it.each(["queued", "paid", "reconciled"])("locks the assignees of a %s task: they are its paid-to record", async (payState) => {
-    mocks.tasks.mockResolvedValue([task({ pay_state: payState })]);
+    mocks.tasks.mockResolvedValue(task({ pay_state: payState }));
     const res = await post({ taskId: TASK, assignees: [github(GH_1), github(GH_2)] });
     expect(res.status).toBe(409);
     expect(await error(res)).toBe("Assignees are locked once a payout has been queued or paid");
@@ -149,7 +149,7 @@ describe("POST /api/tasks/assignees", () => {
       expect(res.status).toBe(400);
       expect(await error(res)).toBe("GitHub assignees are managed on GitHub");
     }
-    mocks.tasks.mockResolvedValue([task({ task_assignees: [] })]);
+    mocks.tasks.mockResolvedValue(task({ task_assignees: [] }));
     expect((await post({ taskId: TASK, assignees: [github(GH_1, ALICE)] })).status).toBe(400);
     nothingWritten();
   });

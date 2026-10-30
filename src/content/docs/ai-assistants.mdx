@@ -95,7 +95,7 @@ With **governance:write**, as a base signer of a plain [SDK treasury](/docs/trea
 - **prepare a DRep transaction** (register, update or retire the treasury as a script DRep),
 - **prepare an on-chain Cardano governance vote** as that DRep (one or more proposal votes; the DRep must already be registered).
 
-These are separate from community [proposals](/docs/governance): the assistant still cannot cast a community ballot for you. Confirming creates the treasury's pending transaction, as the Staking and Cardano gov pages do; signers sign in the app (payment and stake or DRep keys as required). An archived or non-SDK treasury is refused.
+These are separate from community [proposals](/docs/governance): the assistant still cannot cast a community ballot for you. A preview only checks and hashes the content; it does **not** publish metadata. Confirming a DRep register/update (or a vote that includes a rationale) publishes that metadata to public IPFS, then creates the treasury's pending transaction, as the Staking and Cardano gov pages do; signers sign in the app (payment and stake or DRep keys as required). An archived or non-SDK treasury is refused.
 
 Nothing is paid or submitted until the treasury's signers sign the transaction in the app with their wallets.
 

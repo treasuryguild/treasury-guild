@@ -216,24 +216,40 @@ describe("draft_confirm stake_create", () => {
 });
 
 describe("drep_preview and vote_preview", () => {
-  it("previews a DRep register", async () => {
+  it("previews a DRep register without publishing", async () => {
     const res = await callEndpoint(previewDrep, caller, {
       community: "signius",
       treasury: "Main",
       action: "register",
       givenName: "Signius DRep",
     });
-    expect(res).toMatchObject({ action: "drep_create", details: { dRepId: "drep1xyz" } });
+    expect(res).toMatchObject({
+      action: "drep_create",
+      details: { dRepId: "drep1xyz" },
+      effects: expect.arrayContaining([
+        expect.stringMatching(/publishes the DRep metadata to public IPFS/),
+      ]),
+    });
+    expect(mocks.planDrep).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "register", givenName: "Signius DRep" }),
+      caller.wallet,
+      { publish: false },
+    );
     expect(mocks.persist).not.toHaveBeenCalled();
   });
 
-  it("previews an on-chain vote", async () => {
+  it("previews an on-chain vote without publishing", async () => {
     const res = await callEndpoint(previewVote, caller, {
       community: "signius",
       treasury: "Main",
       votes: [{ txHash: "a".repeat(64), certIndex: 0, voteKind: "Yes" }],
     });
     expect(res).toMatchObject({ action: "vote_create", details: { votes: [{ voteKind: "Yes" }] } });
+    expect(mocks.planVote).toHaveBeenCalledWith(
+      expect.objectContaining({ votes: [{ txHash: "a".repeat(64), certIndex: 0, voteKind: "Yes" }] }),
+      caller.wallet,
+      { publish: false },
+    );
   });
 
   it("refuses governance:write without the scope", async () => {
