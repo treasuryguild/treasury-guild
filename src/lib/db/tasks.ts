@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PayState, PgCode, TaskSource, TxState } from "@/lib/constants";
+import { ConflictError } from "@/lib/errors";
 import { check, maybe, must, rows, rpc, serviceClient } from "./client";
 import { TASK_ASSIGNEE_COLUMNS, TASK_ASSIGNEES_EMBED, type TaskAssignee, type TaskAssigneeRow } from "./types";
 
@@ -32,14 +33,23 @@ export async function tasksWithLivePayouts(taskIds: string[]): Promise<Set<strin
   return new Set(payoutRows.map((p) => p.task_id));
 }
 
-export async function markTasksQueued(taskIds: string[]): Promise<void> {
+/**
+ * Atomically claim `taskIds` for a pending payout transaction: lock in id
+ * order, refuse any task that is not payable / already claimed / already in a
+ * live payout, then set `live_payout_tx_id` and `pay_state = queued`.
+ */
+export async function claimTasksForPayout(transactionId: string, taskIds: string[]): Promise<void> {
   if (taskIds.length === 0) return;
-  check(
-    await serviceClient()
-      .from("tasks")
-      .update({ pay_state: PayState.Queued })
-      .in("id", taskIds),
-    "queue tasks",
+  rpc(
+    await serviceClient().rpc("claim_tasks_for_payout", {
+      p_transaction_id: transactionId,
+      p_task_ids: taskIds,
+    }),
+    {
+      [PgCode.UniqueViolation]: ConflictError,
+      [PgCode.CheckViolation]: ConflictError,
+      [PgCode.NoDataFound]: ConflictError,
+    },
   );
 }
 
@@ -95,15 +105,35 @@ export interface TaskForBuild {
 
 const TASK_FOR_BUILD_COLUMNS = `id, number, title, source, bounty_lovelace, amounts, pay_state, archived_at, budget_month, workgroup_id, proposal_id, workgroups!inner(community_id, name, archived_at), task_assignees(${TASK_ASSIGNEE_COLUMNS})`;
 
+/**
+ * Tasks for a payout build, scoped to `communityId` so a foreign UUID never
+ * enters the planner (no title / status disclosure). Assignees editing uses
+ * {@link loadTaskForManager} instead (authorize after load).
+ */
 export async function loadTasksForBuild(
   taskIds: string[],
+  communityId: string,
 ): Promise<TaskForBuild[]> {
+  if (taskIds.length === 0) return [];
   return rows<TaskForBuild>(
     await serviceClient()
       .from("tasks")
       .select(TASK_FOR_BUILD_COLUMNS)
-      .in("id", taskIds),
+      .in("id", taskIds)
+      .eq("workgroups.community_id", communityId),
     "load tasks for payout",
+  );
+}
+
+/** One task by id for assignee edits (authorize on the task's own community). */
+export async function loadTaskForManager(taskId: string): Promise<TaskForBuild | null> {
+  return maybe<TaskForBuild>(
+    await serviceClient()
+      .from("tasks")
+      .select(TASK_FOR_BUILD_COLUMNS)
+      .eq("id", taskId)
+      .maybeSingle(),
+    "load task for assignees",
   );
 }
 

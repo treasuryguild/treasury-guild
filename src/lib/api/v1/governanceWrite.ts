@@ -1,8 +1,9 @@
 // Stake / DRep / on-chain vote drafts through the agent API. Each *_preview
 // runs the same checks as the session build routes (planStake / planDrep /
-// planVote), writes nothing, and returns a draft token; draft_confirm stores
-// the pending transaction keyed by the draft (transactions.agent_draft_id).
-// Signers still sign in the app; no tool signs or submits.
+// planVote) without public IPFS writes, and returns a draft token;
+// draft_confirm re-plans with publication, then stores the pending transaction
+// keyed by the draft (transactions.agent_draft_id). Signers still sign in the
+// app; no tool signs or submits.
 import "server-only";
 
 import { z } from "zod";
@@ -192,7 +193,7 @@ export const previewDrep = defineEndpoint({
     treasury: treasuryRef,
     action: drepAction.describe("register, update, or retire"),
     anchorJson: z.record(z.string(), z.unknown()).optional()
-      .describe("Full CIP-119 metadata object; hashed and pinned server-side"),
+      .describe("Full CIP-119 metadata object; hashed on preview, pinned publicly on confirm"),
     givenName: z.string().trim().min(1).max(100).optional()
       .describe("Display name for a minimal CIP-119 document when anchorJson is omitted"),
     motivations: z.string().max(2000).optional(),
@@ -236,6 +237,7 @@ export const previewDrep = defineEndpoint({
         imageUrl: input.imageUrl,
       },
       caller.wallet,
+      { publish: false },
     );
     const { token, expiresAt } = await mintDraftToken(caller, {
       action: "drep_create",
@@ -245,6 +247,7 @@ export const previewDrep = defineEndpoint({
       rulesHash: "",
     });
     const rule = pathRule(plan.ctx.treasury, plan.ctx.signers, plan.path);
+    const publishesMetadata = input.action === DrepAction.Register || input.action === DrepAction.Update;
     return {
       community: { slug: community.slug, name: community.name },
       action: "drep_create",
@@ -255,12 +258,15 @@ export const previewDrep = defineEndpoint({
         requiredSignatures: requiredSignatures(rule),
         action: plan.action,
         dRepId: plan.dRepId,
-        anchorUrl: plan.anchorUrl,
+        anchorContentHash: plan.anchorContentHash,
       },
       effects: [
         `It becomes ${treasury.name}'s pending transaction until signed and submitted, or rejected.`,
         `Nothing reaches the chain until ${requiredSignatures(rule)} signer${requiredSignatures(rule) === 1 ? "" : "s"} sign it in the app.`,
         "This is Cardano DRep registration, not a community proposal vote.",
+        ...(publishesMetadata
+          ? ["Confirming publishes the DRep metadata to public IPFS; abandoning this preview does not."]
+          : []),
       ],
       next: CONFIRM_NEXT,
       draftToken: token,
@@ -281,7 +287,7 @@ export const previewVote = defineEndpoint({
     })).min(1).max(50)
       .describe("One or more Cardano governance proposal votes"),
     rationaleJson: z.record(z.string(), z.unknown()).optional()
-      .describe("Optional CIP-100 rationale JSON; pinned when present"),
+      .describe("Optional CIP-100 rationale JSON; hashed on preview, pinned publicly on confirm"),
   }),
   async run(caller, input): Promise<V1DraftPreview> {
     const { community } = await memberCommunity(caller, input.community);
@@ -300,6 +306,7 @@ export const previewVote = defineEndpoint({
         rationaleJson: input.rationaleJson,
       },
       caller.wallet,
+      { publish: false },
     );
     const { token, expiresAt } = await mintDraftToken(caller, {
       action: "vote_create",
@@ -319,11 +326,15 @@ export const previewVote = defineEndpoint({
         requiredSignatures: requiredSignatures(rule),
         dRepId: plan.dRepId,
         votes: plan.votes,
+        rationaleContentHash: plan.rationaleContentHash,
       },
       effects: [
         `It becomes ${treasury.name}'s pending transaction until signed and submitted, or rejected.`,
         `Nothing reaches the chain until ${requiredSignatures(rule)} signer${requiredSignatures(rule) === 1 ? "" : "s"} sign it in the app.`,
         "This is an on-chain Cardano governance vote, not a community proposal ballot.",
+        ...(input.rationaleJson
+          ? ["Confirming publishes the vote rationale to public IPFS; abandoning this preview does not."]
+          : []),
       ],
       next: CONFIRM_NEXT,
       draftToken: token,

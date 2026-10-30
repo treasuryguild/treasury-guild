@@ -19,7 +19,7 @@ import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useLiveBoard } from "@/hooks/useLiveBoard";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
-import { useGovernanceSettings } from "@/hooks/useProposals";
+import { useGovernanceSettings, useOpenLeadChanges } from "@/hooks/useProposals";
 import { useTreasuryWalletTokens } from "@/hooks/useTreasuryTokenTickers";
 import { useWorkgroupBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { Button, ErrorText, LinkButton, NoticeText, PageMessage, PageTitle } from "@/components/ui";
@@ -28,6 +28,10 @@ import { EmptyBoardChooser } from "@/components/board/EmptyBoardChooser";
 import { GithubBoardView } from "@/components/board/GithubBoardView";
 import { GithubItemModal } from "@/components/board/GithubItemModal";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { browserClient } from "@/lib/supabase/browser";
+import { isLeadPayload } from "@/lib/governance/payload";
+import { ChangeLeadsDialog } from "@/components/governance/ChangeLeadsDialog";
 import { NativeBoardView } from "@/components/board/NativeBoardView";
 import { TaskModal } from "@/components/board/TaskModal";
 import { TaskLifecycleDialog } from "@/components/board/TaskLifecycleDialog";
@@ -40,7 +44,7 @@ export default function BoardPage({
 }) {
   const { slug, workgroupId } = use(params);
   const router = useRouter();
-  const { community, role, isAdmin, blocked } = useCommunityGate(slug);
+  const { community, role, isAdmin, sessionWallet, blocked } = useCommunityGate(slug);
   const isMember = !!role;
 
   const board = useBoardData(workgroupId, isMember);
@@ -64,6 +68,13 @@ export default function BoardPage({
   }, [walletTokens]);
   const budgetSetups = useWorkgroupBudgetSetups(workgroupId, isMember && board.loaded);
   const governance = useGovernanceSettings(isMember ? community?.id : null);
+  const openLeadChanges = useOpenLeadChanges(isMember ? community?.id : null);
+  const workgroupLeads = useAsyncData(isMember ? workgroupId : null, async () => {
+    const { data, error } = await browserClient().from("workgroup_leads")
+      .select("wallet_address").eq("workgroup_id", workgroupId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => row.wallet_address as string);
+  });
   const mutations = useBoardMutations({
     workgroupId,
     columns: board.columns,
@@ -95,6 +106,7 @@ export default function BoardPage({
   const [showArchivedTasks, setShowArchivedTasks] = useState(false);
   const [taskNotice, setTaskNotice] = useState<string | null>(null);
   const [editingDetails, setEditingDetails] = useState(false);
+  const [changingLeads, setChangingLeads] = useState(false);
   const [detailsSaved, setDetailsSaved] = useState(false);
   const memberOptions = useMemo(
     () => toMemberOptions(members.data ?? []),
@@ -117,20 +129,33 @@ export default function BoardPage({
   const taskVote = governance.data?.task;
   const canProposeTask = !!board.workgroup && !archived && !isGithubBoard && !!taskVote?.enabled &&
     mayPropose({ isAdmin, ...roles }, taskVote.proposers, [workgroupId]);
+  const leadVotesOn = governance.data?.workgroup.enabled === true;
+  const openLead = (openLeadChanges.data ?? []).find(
+    (proposal) => isLeadPayload(proposal.payload) && proposal.payload.leadChange.workgroupId === workgroupId,
+  );
   const activeTasks = board.tasks.filter((task) => !task.archived_at);
 
   return (
     <div>
-      <PageTitle action={(isAdmin && board.workgroup) || canProposeTask ? (
+      <PageTitle action={(isAdmin && board.workgroup) || canProposeTask || (leadVotesOn && canManage) ? (
         <span className="flex flex-wrap gap-2">
           {canProposeTask && (
             <LinkButton variant="secondary" href={routes.proposals(slug, { kind: ProposalKind.Task, workgroupId })}>Propose a task</LinkButton>
+          )}
+          {leadVotesOn && canManage && (
+            <Button variant="secondary" onClick={() => setChangingLeads(true)}>Change leads</Button>
           )}
           {isAdmin && board.workgroup && (
             <Button variant="secondary" onClick={() => { setDetailsSaved(false); setEditingDetails(true); }}>Edit details</Button>
           )}
         </span>
       ) : undefined}>{board.workgroup?.name ?? ""}</PageTitle>
+      {openLead && (
+        <p className="mb-4 text-sm text-zinc-400">
+          A lead change is open:{" "}
+          <Link className="underline" href={routes.proposal(slug, openLead.id)}>#{openLead.number} {openLead.title}</Link>
+        </p>
+      )}
       {archived && <p role="status" className="mb-4 rounded border border-zinc-700 p-3 text-sm text-zinc-400">Archived — this board is read-only. Historical tasks, budgets, and payments remain available.</p>}
       {board.loaded && !board.workgroup && !board.error && <PageMessage>Workgroup not found.</PageMessage>}
       {board.workgroup?.description && <p className="mb-4 whitespace-pre-wrap break-words text-sm text-zinc-400">{board.workgroup.description}</p>}
@@ -150,6 +175,12 @@ export default function BoardPage({
         <Button variant={showArchivedTasks ? "primary" : "secondary"} aria-pressed={showArchivedTasks}
           onClick={() => setShowArchivedTasks(true)}>Archived tasks ({archivedTasks.length})</Button>
       </div>}
+      {changingLeads && community && board.workgroup && (
+        <ChangeLeadsDialog open onClose={() => setChangingLeads(false)} communityId={community.id} slug={slug}
+          workgroup={{ id: workgroupId, name: board.workgroup.name }} members={members.data ?? []}
+          currentLeads={workgroupLeads.data ?? []} sessionWallet={sessionWallet}
+          onCreated={() => { workgroupLeads.reload(); openLeadChanges.reload(); }} />
+      )}
       {isAdmin && editingDetails && board.workgroup && community && (
         <WorkgroupDetailsDialog workgroup={{ id: workgroupId, ...board.workgroup }} communityId={community.id} slug={slug}
           onClose={() => setEditingDetails(false)}

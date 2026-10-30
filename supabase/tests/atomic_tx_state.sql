@@ -78,6 +78,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0060_anchors.sql
 \ir ../migrations/0061_treasury_templates.sql
 \ir ../migrations/0062_atomic_tx_state.sql
+\ir ../migrations/0084_signed_delete_and_task_claim.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -159,6 +160,10 @@ insert into payouts(transaction_id, task_id, contributor_wallet, unit, amount, s
   ('60000000-0000-0000-0000-000000000004', '30000000-0000-0000-0000-000000000006', 'bob', 'lovelace', 1000000, 'pending'),
   ('60000000-0000-0000-0000-000000000005', '30000000-0000-0000-0000-000000000008', 'bob', 'lovelace', 1000000, 'pending'),
   ('60000000-0000-0000-0000-000000000006', '30000000-0000-0000-0000-000000000009', 'bob', 'lovelace', 1000000, 'submitted');
+-- Claim column (0084): queued tasks of live txs, as claim_tasks_for_payout would leave them.
+update tasks t set live_payout_tx_id = p.transaction_id
+from payouts p join transactions x on x.id = p.transaction_id
+where p.task_id = t.id and t.pay_state = 'queued' and x.state in (0, 1, 2);
 
 -- 1. Only the service role may call the new functions -------------------------------------
 -- This fixture grants EXECUTE to the API roles by default, as Supabase does,
@@ -173,7 +178,8 @@ begin
     'public.reject_transaction(uuid, text[], text[], text[], boolean)',
     'public.delete_pending_transaction(uuid)',
     'public.release_orphaned_queued_tasks()',
-    'public.import_chain_tx(text, jsonb)'] loop
+    'public.import_chain_tx(text, jsonb)',
+    'public.claim_tasks_for_payout(uuid, uuid[])'] loop
     if has_function_privilege('anon', f, 'execute') or has_function_privilege('authenticated', f, 'execute') then
       raise exception 'a browser role may execute %', f;
     end if;
@@ -339,6 +345,30 @@ begin
   end if;
   ok := delete_pending_transaction(d);
   if ok is distinct from false then raise exception 'a deleted transaction was deleted again'; end if;
+end $$;
+
+-- 4b. signed pending transactions cannot be deleted (0084) --------------------------------
+do $$
+declare
+  s uuid := '60000000-0000-0000-0000-0000000000a4';
+  ok boolean;
+begin
+  -- Treasury 0001's pending row was just deleted; insert a signed pending build.
+  insert into transactions(id, treasury_id, kind, tx_cbor, tx_hash, created_by, state, signed_addresses)
+    values (s, '40000000-0000-0000-0000-000000000001', 'payout', 'signed0', 'hash-signed', 'alice', 0, '{alice}');
+  insert into payouts(transaction_id, task_id, contributor_wallet, unit, amount, status) values
+    (s, '30000000-0000-0000-0000-000000000006', 'bob', 'lovelace', 1000000, 'pending');
+  update tasks set pay_state = 'queued', live_payout_tx_id = s
+    where id = '30000000-0000-0000-0000-000000000006';
+
+  ok := delete_pending_transaction(s);
+  if ok is distinct from false then raise exception 'a signed pending transaction was deleted'; end if;
+  if not exists (select 1 from transactions where id = s)
+      or not exists (select 1 from payouts where transaction_id = s)
+      or pg_temp.task('30000000-0000-0000-0000-000000000006') <> 'queued|-|1'
+      or (select live_payout_tx_id from tasks where id = '30000000-0000-0000-0000-000000000006') is distinct from s then
+    raise exception 'refusing a signed delete released the reservation';
+  end if;
 end $$;
 
 -- 5. release_orphaned_queued_tasks ---------------------------------------------------------

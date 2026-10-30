@@ -10,6 +10,7 @@ export function TxActionBar({
   busy,
   refreshing,
   isPayout,
+  hasSignatures = false,
   blockedReason = null,
   onSign,
   onReject,
@@ -23,6 +24,8 @@ export function TxActionBar({
   /** The page is re-rendering after an action; keep everything disabled. */
   refreshing: boolean;
   isPayout: boolean;
+  /** Once any signature exists, delete is refused; reject instead. */
+  hasSignatures?: boolean;
   /**
    * Why signing/submitting is unavailable right now (e.g. the wallet is on
    * the other network). Reject and delete never need the wallet's network.
@@ -60,15 +63,17 @@ export function TxActionBar({
           {busy === "submit" ? "Submitting to chain…" : "Submit to chain"}
         </Button>
       )}
-      <span className="ml-auto">
-        <Button
-          variant="secondary"
-          onClick={() => setConfirmDelete(true)}
-          disabled={disabled}
-        >
-          Delete
-        </Button>
-      </span>
+      {!hasSignatures && (
+        <span className="ml-auto">
+          <Button
+            variant="secondary"
+            onClick={() => setConfirmDelete(true)}
+            disabled={disabled}
+          >
+            Delete
+          </Button>
+        </span>
+      )}
       <ConfirmDialog
         open={confirmDelete}
         title="Delete this transaction?"

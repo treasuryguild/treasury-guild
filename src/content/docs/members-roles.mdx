@@ -13,7 +13,7 @@ Every member has exactly one role:
 Two further responsibilities sit on top of the role:
 
 - **Treasury signer** — a wallet listed in a [treasury's](/docs/treasury) signer set. **Base signers** of a treasury sign, reject, submit and delete that treasury's transactions, build payouts, payments and anchor transactions from it, reconcile its incoming refunds and mint under its policy. Base signers of the **primary** treasury are **admins automatically** and cannot be demoted while they remain one ("Primary treasury signers must remain admins"). Base signers of other treasuries keep their existing role (usually member) and only act for that wallet. A clawback treasury's **recovery signers** and a co-signer treasury's member **co-signer** (see [Treasury templates](/docs/treasury#treasury-templates)) must already be members and are **not** made admins: recovery signers build and sign recovery payments from the lock date, the co-signer signs co-signed transactions, and both keep their role otherwise.
-- **Workgroup lead** — assigned per workgroup by an admin. Leads manage that workgroup's board and tasks, edit its budget row, and can build a payout when every selected task belongs to a workgroup they lead. Leads are otherwise ordinary members.
+- **Workgroup lead** — assigned per workgroup. While new workgroups are not decided by vote, an admin assigns leads directly. While they are, adding or removing a lead is a [proposal](/docs/governance#changing-workgroup-leads) the other leads can object to, and an admin can still remove a lead immediately with a reason. Leads manage that workgroup's board and tasks, edit its budget row, and can build a payout when every selected task belongs to a workgroup they lead. Leads are otherwise ordinary members.
 
 ## Who can do what
 
@@ -52,7 +52,9 @@ You cannot change your own role.
 
 ## Workgroup leads
 
-For each member who is not an admin, admins see a **Lead of** row with a checkbox per workgroup. Tick a workgroup to make that member its lead; untick to remove them. Everyone else sees a lead's workgroups listed as badges on their card.
+While new workgroups are not decided by vote, each member who is not an admin has a **Lead of** row that admins edit with a checkbox per workgroup. Tick a workgroup to make that member its lead; untick to remove them. Everyone else sees a lead's workgroups listed as badges.
+
+While [new workgroups are decided by vote](/docs/governance#changing-workgroup-leads), those checkboxes are badges for everyone. **Workgroup leads** at the top of the page lists each workgroup: an admin or a lead of that workgroup uses **Change leads** to propose who is added and removed. An admin's **Remove** on a badge takes that person off immediately and asks for a reason, which every member can read under **Recent lead removals**. An open proposal is linked from the same list.
 
 ## Visibility
 

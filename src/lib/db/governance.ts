@@ -395,6 +395,19 @@ export async function endProposal(
   }));
 }
 
+/** The open lead change for this workgroup, if one is in discussion or voting. */
+export async function openLeadChange(workgroupId: string): Promise<{ id: string; number: number } | null> {
+  const found = rows<{ id: string; number: number }>(
+    await serviceClient().from("proposals").select("id, number")
+      .eq("kind", ProposalKind.Lead)
+      .in("state", [ProposalState.Discussion, ProposalState.Voting])
+      .filter("payload->leadChange->>workgroupId", "eq", workgroupId)
+      .limit(1),
+    "load open lead change",
+  );
+  return found[0] ?? null;
+}
+
 /** The leads of the given workgroups: who gains from their budgets. */
 export async function workgroupLeadWallets(workgroupIds: string[]): Promise<string[]> {
   if (workgroupIds.length === 0) return [];

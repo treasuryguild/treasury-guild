@@ -1,9 +1,14 @@
 // SSRF guard for the one server-side fetch of a caller-chosen URL: a Client ID
-// Metadata Document (the client_id is attacker-controlled).
+// Metadata Document (the client_id is attacker-controlled). DNS is resolved
+// once, private answers are refused, and the actual socket dial uses only those
+// validated addresses (no second lookup that could rebind to a private IP).
 import "server-only";
 
 import { promises as dns } from "node:dns";
 import net from "node:net";
+import { Agent, fetch as undiciFetch } from "undici";
+
+export type SafeAddress = { address: string; family: 4 | 6 };
 
 export function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split(".").map(Number);
@@ -82,19 +87,77 @@ export function isPrivateAddress(ip: string): boolean {
 export class SsrfBlockedError extends Error {}
 
 /**
- * Refuse a host that is, or resolves to, a private or loopback address.
- * Resolve-then-check: it blocks naming an internal host or the metadata
- * endpoint, not a DNS rebind between this check and the connect.
+ * Resolve `hostname` once and return only public A/AAAA answers. A literal
+ * private IP, a name with any private record, or an empty answer is refused.
  */
-export async function assertSafeHost(hostname: string): Promise<void> {
+export async function resolveSafeHostAddresses(hostname: string): Promise<SafeAddress[]> {
   const bare = hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(bare)) {
     if (isPrivateAddress(bare)) throw new SsrfBlockedError("Blocked: private or loopback address");
-    return;
+    return [{ address: bare, family: net.isIPv6(bare) ? 6 : 4 }];
   }
   const records = await dns.lookup(bare, { all: true });
   if (records.length === 0) throw new Error("Blocked: DNS resolution failed");
   if (records.some((r) => isPrivateAddress(r.address))) {
     throw new SsrfBlockedError("Blocked: resolves to a private or loopback address");
+  }
+  return records.map((r) => ({ address: r.address, family: r.family as 4 | 6 }));
+}
+
+/**
+ * Refuse a host that is, or resolves to, a private or loopback address.
+ * Prefer {@link fetchWithPinnedDns} for the actual CIMD fetch so the dial
+ * cannot re-resolve after this check.
+ */
+export async function assertSafeHost(hostname: string): Promise<void> {
+  await resolveSafeHostAddresses(hostname);
+}
+
+/**
+ * Fetch `url` while pinning the TCP connect to addresses already validated for
+ * its hostname. Host / SNI / certificate checks still use the original name.
+ * Retries and alternate address selection cannot perform an unchecked lookup.
+ */
+export async function fetchWithPinnedDns(
+  url: string,
+  init: {
+    signal?: AbortSignal;
+    headers?: HeadersInit;
+    redirect?: RequestRedirect;
+  } = {},
+): Promise<Response> {
+  const addresses = await resolveSafeHostAddresses(new URL(url).hostname);
+  const dispatcher = new Agent({
+    connect: {
+      lookup(_hostname, options, callback) {
+        const opts = typeof options === "object" && options ? options : {};
+        const family = "family" in opts ? Number(opts.family) : 0;
+        const all = "all" in opts && Boolean(opts.all);
+        const matches =
+          family === 4 || family === 6
+            ? addresses.filter((a) => a.family === family)
+            : addresses;
+        if (matches.length === 0) {
+          callback(new SsrfBlockedError("Blocked: no validated address for family"), [], 4 as never);
+          return;
+        }
+        if (all) {
+          callback(null, matches.map((a) => ({ address: a.address, family: a.family })), 4 as never);
+          return;
+        }
+        callback(null, matches[0]!.address, matches[0]!.family);
+      },
+    },
+  });
+  try {
+    // undici's Response is fetch-compatible for our readCapped use.
+    return await undiciFetch(url, {
+      dispatcher,
+      redirect: init.redirect ?? "error",
+      signal: init.signal,
+      headers: init.headers,
+    }) as unknown as Response;
+  } finally {
+    await dispatcher.close();
   }
 }

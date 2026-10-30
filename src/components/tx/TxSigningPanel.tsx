@@ -197,6 +197,7 @@ export function TxSigningPanel({
           busy={actions.busy}
           refreshing={actions.refreshing}
           isPayout={tx.kind === TxKind.Payout}
+          hasSignatures={tx.signedAddresses.length > 0}
           blockedReason={blockedReason}
           // The final signature submits in the same step (server re-checks).
           onSign={() => void actions.sign(wallet, tx.txCbor, meetsThreshold)}

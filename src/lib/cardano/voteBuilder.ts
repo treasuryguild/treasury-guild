@@ -16,16 +16,23 @@ export interface VoteTarget {
   voteKind: VoteKind;
 }
 
+/** Same content → same pin result within this process (confirm retries). */
+const votePinCache = new Map<string, { anchorUrl: string; anchorDataHash: string }>();
+
 export async function pinVoteRationale(
   doc: Record<string, unknown>,
 ): Promise<{ anchorUrl: string; anchorDataHash: string }> {
   const body = JSON.stringify(doc);
+  const cached = votePinCache.get(body);
+  if (cached) return cached;
   const cid = await ipfsStore().put(new TextEncoder().encode(body), "vote-rationale.json", {
     kind: "vote-rationale",
   });
   const anchorUrl = `https://${pinataGateway()}/ipfs/${cid}`;
   const anchorDataHash = hashDrepAnchor(JSON.parse(body) as Record<string, unknown>);
-  return { anchorUrl, anchorDataHash };
+  const result = { anchorUrl, anchorDataHash };
+  votePinCache.set(body, result);
+  return result;
 }
 
 export async function buildVoteTx(opts: {

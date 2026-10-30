@@ -8,7 +8,7 @@ import { assertWorkgroupActive } from "@/lib/db/workgroups";
 import { SETTLED_PAY_STATES } from "@/lib/constants";
 import { ensureContributor } from "@/lib/db/membership";
 import { replaceTaskAssignees } from "@/lib/db/taskAssignees";
-import { loadTasksForBuild } from "@/lib/db/tasks";
+import { loadTaskForManager } from "@/lib/db/tasks";
 import {
   BadRequestError,
   ConflictError,
@@ -28,7 +28,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const { wallet } = session;
   const { taskId, assignees } = await parseJson(req, setTaskAssigneesSchema);
 
-  const [task] = await loadTasksForBuild([taskId]);
+  const task = await loadTaskForManager(taskId);
   if (!task) throw new NotFoundError("Task not found");
 
   await requireWorkgroupManager(

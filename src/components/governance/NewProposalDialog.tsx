@@ -204,7 +204,7 @@ export function NewProposalDialog({
               <Textarea aria-label="Workgroup description" value={description} maxLength={1000} rows={3}
                 onChange={(e) => setDescription(e.target.value)} />
             </Field>
-            <Field label="Leads" hint="They manage its board and budget once it exists. Admins can change them later.">
+            <Field label="Leads" hint="They manage its board and budget once it exists. Changing leads later is its own proposal.">
               <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl bg-zinc-800/60 p-2">
                 {members.map((m) => (
                   <label key={m.wallet_address} className="flex items-center gap-2 text-sm">

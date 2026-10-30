@@ -81,7 +81,43 @@ export const DEFAULT_SETTINGS: Record<ProposalKind, GovernanceSettings> = {
     discussionHours: 0, votingHours: 72,
   },
   [ProposalKind.Decision]: BASE,
+  // Unused as a settings row: lead changes freeze LEAD_CHANGE_RULES instead.
+  [ProposalKind.Lead]: {
+    ...BASE, proposers: Proposers.Managers, electorate: Electorate.Leads, method: DecisionMethod.Lazy,
+    quorumPct: 0, discussionHours: 24, votingHours: 72, recuseBeneficiaries: true,
+  },
 };
+
+/**
+ * A lead change, frozen in code. `electorate` is the current leads, or the
+ * admins when none of those leads can object. Subjects are always recused.
+ */
+export const LEAD_CHANGE_RULES: ProposalRules = {
+  method: DecisionMethod.Lazy,
+  electorate: Electorate.Leads,
+  activityMonths: 12,
+  minMemberDays: 0,
+  quorumPct: 0,
+  thresholdPct: 50,
+  lazyObjections: 1,
+  discussionHours: 24,
+  votingHours: 72,
+  hideResults: true,
+  recuseBeneficiaries: true,
+};
+
+/** An admin's escalation of a rejected lead change: a majority vote of the chosen electorate. */
+export function leadEscalationRules(electorate: typeof Electorate.Members | typeof Electorate.Workgroup): ProposalRules {
+  return {
+    ...LEAD_CHANGE_RULES,
+    method: DecisionMethod.Majority,
+    electorate,
+    quorumPct: 20,
+    thresholdPct: 50,
+    discussionHours: 48,
+    votingHours: 120,
+  };
+}
 
 export function settingsFromRow(row: GovernanceSettingsRow | null | undefined, kind: ProposalKind): GovernanceSettings {
   if (!row) return DEFAULT_SETTINGS[kind];

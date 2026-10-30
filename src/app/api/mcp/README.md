@@ -194,8 +194,10 @@ same pattern with one shared confirm tool.
 - **Cardano stake / DRep / vote** (`governance:write`). Shared with the session build
   routes in `src/lib/cardano/governanceBuild.ts` (`planStake` / `planDrep` /
   `planVote` + `persistGovernanceTx`). Plain SDK treasuries only; base path; base
-  signers; fingerprint covers the action and chain-relevant inputs (not the pin URL).
-  Confirm stores a pending `transactions` row (`kind` stake/drep/vote); never a community
+  signers; fingerprint covers the action and chain-relevant inputs (content hash, not
+  the pin URL). Previews call `planDrep` / `planVote` with `{ publish: false }` so they
+  never write to public IPFS; confirm (and session build) publish then build. Confirm
+  stores a pending `transactions` row (`kind` stake/drep/vote); never a community
   proposal ballot.
 - **Tasks.** Service-role writes re-check in code what the browser's RLS and column grants
   check: a manager, an active app board, and never a task past `pay_state 'none'`.

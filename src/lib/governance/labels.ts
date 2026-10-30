@@ -16,6 +16,7 @@ export const KIND_LABELS: Record<ProposalKind, string> = {
   [ProposalKind.Workgroup]: "New workgroup",
   [ProposalKind.Task]: "Task",
   [ProposalKind.Decision]: "Decision",
+  [ProposalKind.Lead]: "Lead change",
 };
 
 export const ELECTORATE_LABELS: Record<Electorate, string> = {
@@ -24,6 +25,7 @@ export const ELECTORATE_LABELS: Record<Electorate, string> = {
   [Electorate.Managers]: "Admins and workgroup leads",
   [Electorate.Workgroup]: "People of the workgroups concerned",
   [Electorate.Contributors]: "Recently paid contributors",
+  [Electorate.Leads]: "Current leads of the workgroup",
 };
 
 export const PROPOSER_LABELS: Record<Proposers, string> = {

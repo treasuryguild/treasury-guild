@@ -1,7 +1,7 @@
 import "server-only";
 
 import { DEFAULT_BOARD_COLUMNS } from "@/lib/boardTypes";
-import { ProposalKind, TaskSource } from "@/lib/constants";
+import { PgCode, ProposalKind, TaskSource } from "@/lib/constants";
 import type { WorkgroupLifecycleStatus } from "@/lib/api/types";
 import { check, maybe, must, rows, rpc, serviceClient } from "./client";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
@@ -151,6 +151,18 @@ export async function addWorkgroupLead(workgroupId: string, wallet: string): Pro
         { onConflict: "workgroup_id,wallet_address", ignoreDuplicates: true },
       ),
     "add workgroup lead",
+  );
+}
+
+/** An admin's immediate removal, with the reason members can read (0083). */
+export async function removeWorkgroupLeadOverride(
+  workgroupId: string, wallet: string, actor: string, reason: string,
+): Promise<void> {
+  rpc(
+    await serviceClient().rpc("remove_workgroup_lead_override", {
+      p_workgroup_id: workgroupId, p_wallet: wallet, p_actor: actor, p_reason: reason,
+    }),
+    { [PgCode.CheckViolation]: ConflictError, [PgCode.NoDataFound]: NotFoundError },
   );
 }
 

@@ -10,7 +10,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const txRow = await persistGovernanceTx(plan, session.wallet);
   return {
     txId: txRow.id,
-    txHash: plan.built.txHash,
+    txHash: plan.built!.txHash,
     dRepId: plan.dRepId,
     votes: plan.votes.length,
   } satisfies BuildVoteResponse;

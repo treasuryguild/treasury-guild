@@ -1,7 +1,9 @@
 // Plan and persist stake / DRep / on-chain vote transactions for plain SDK
 // treasuries. Session build routes and the agent API share these: plan runs
-// every check and builds the unsigned CBOR (writes nothing); persist stores
-// the pending transaction (optional agent_draft_id for idempotent confirms).
+// every check (and, when publishing, pins metadata and builds the unsigned
+// CBOR); persist stores the pending transaction (optional agent_draft_id for
+// idempotent confirms). Agent previews call plan with `{ publish: false }` so
+// they never write to public IPFS.
 import "server-only";
 
 import { sha256Hex } from "@/lib/auth/crypto";
@@ -86,7 +88,8 @@ export interface DrepPlan {
   anchorContentHash: string | null;
   description: string;
   governanceAction: GovernanceAction;
-  built: BuiltTx;
+  /** Null on a non-publishing preview (no CBOR until confirm). */
+  built: BuiltTx | null;
   fingerprint: string;
 }
 
@@ -100,11 +103,15 @@ export interface VotePlan {
   rationaleContentHash: string | null;
   description: string;
   governanceAction: GovernanceAction;
-  built: BuiltTx;
+  /** Null on a non-publishing preview (no CBOR until confirm). */
+  built: BuiltTx | null;
   fingerprint: string;
 }
 
 export type GovernancePlan = StakePlan | DrepPlan | VotePlan;
+
+/** When false, prepare + hash only — no public IPFS write and no unsigned CBOR. */
+export type PlanPublishOpts = { publish?: boolean };
 
 function requireBasePath(
   ctx: BuildContext,
@@ -201,7 +208,12 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
   };
 }
 
-export async function planDrep(input: DrepInput, wallet: string): Promise<DrepPlan> {
+export async function planDrep(
+  input: DrepInput,
+  wallet: string,
+  opts: PlanPublishOpts = {},
+): Promise<DrepPlan> {
+  const publish = opts.publish !== false;
   const { treasuryId, action } = input;
   const ctx = await loadBuildContext(treasuryId, wallet);
   assertTreasuryActive(ctx.treasury);
@@ -225,26 +237,28 @@ export async function planDrep(input: DrepInput, wallet: string): Promise<DrepPl
     try {
       const doc = buildDrepAnchorJson(input);
       anchorContentHash = sha256Hex(canonicalJson(doc));
-      anchor = await pinDrepAnchor(doc);
+      if (publish) anchor = await pinDrepAnchor(doc);
     } catch (err) {
       throw new BadRequestError(errorMessage(err));
     }
   }
 
-  let built: BuiltTx;
-  try {
-    built = await buildDrepTx({
-      treasuryAddress: sdk.address,
-      paymentScriptCbor: sdk.paymentScriptCbor,
-      drepScriptCbor: sdk.drepScriptCbor,
-      dRepId: sdk.dRepId,
-      network: ctx.network,
-      provider: getProvider(ctx.network),
-      action,
-      anchor,
-    });
-  } catch (err) {
-    throw new BadRequestError(errorMessage(err));
+  let built: BuiltTx | null = null;
+  if (publish) {
+    try {
+      built = await buildDrepTx({
+        treasuryAddress: sdk.address,
+        paymentScriptCbor: sdk.paymentScriptCbor,
+        drepScriptCbor: sdk.drepScriptCbor,
+        dRepId: sdk.dRepId,
+        network: ctx.network,
+        provider: getProvider(ctx.network),
+        action,
+        anchor,
+      });
+    } catch (err) {
+      throw new BadRequestError(errorMessage(err));
+    }
   }
 
   const governanceAction: GovernanceAction = {
@@ -274,7 +288,12 @@ export async function planDrep(input: DrepInput, wallet: string): Promise<DrepPl
   };
 }
 
-export async function planVote(input: VoteInput, wallet: string): Promise<VotePlan> {
+export async function planVote(
+  input: VoteInput,
+  wallet: string,
+  opts: PlanPublishOpts = {},
+): Promise<VotePlan> {
+  const publish = opts.publish !== false;
   const { treasuryId, votes } = input;
   const ctx = await loadBuildContext(treasuryId, wallet);
   assertTreasuryActive(ctx.treasury);
@@ -293,26 +312,28 @@ export async function planVote(input: VoteInput, wallet: string): Promise<VotePl
   if (input.rationaleJson) {
     try {
       rationaleContentHash = sha256Hex(canonicalJson(input.rationaleJson));
-      rationale = await pinVoteRationale(input.rationaleJson);
+      if (publish) rationale = await pinVoteRationale(input.rationaleJson);
     } catch (err) {
       throw new BadRequestError(errorMessage(err));
     }
   }
 
-  let built: BuiltTx;
-  try {
-    built = await buildVoteTx({
-      treasuryAddress: sdk.address,
-      paymentScriptCbor: sdk.paymentScriptCbor,
-      drepScriptCbor: sdk.drepScriptCbor,
-      dRepId: sdk.dRepId,
-      network: ctx.network,
-      provider: getProvider(ctx.network),
-      votes,
-      rationale,
-    });
-  } catch (err) {
-    throw new BadRequestError(errorMessage(err));
+  let built: BuiltTx | null = null;
+  if (publish) {
+    try {
+      built = await buildVoteTx({
+        treasuryAddress: sdk.address,
+        paymentScriptCbor: sdk.paymentScriptCbor,
+        drepScriptCbor: sdk.drepScriptCbor,
+        dRepId: sdk.dRepId,
+        network: ctx.network,
+        provider: getProvider(ctx.network),
+        votes,
+        rationale,
+      });
+    } catch (err) {
+      throw new BadRequestError(errorMessage(err));
+    }
   }
 
   const sortedVotes = [...votes]
@@ -348,6 +369,9 @@ export async function persistGovernanceTx(
   wallet: string,
   opts: { agentDraftId?: string } = {},
 ): Promise<TransactionRow> {
+  if (!plan.built) {
+    throw new BadRequestError("Confirm the draft again: the transaction was not built for publication");
+  }
   const kind =
     plan.kind === "stake" ? TxKind.Stake : plan.kind === "drep" ? TxKind.Drep : TxKind.Vote;
   return withTransactionRow(

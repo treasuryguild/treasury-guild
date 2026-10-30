@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_BOARD_COLUMNS } from "@/lib/boardTypes";
-import { DecisionMethod, ProposalKind } from "@/lib/constants";
+import { DecisionMethod, Electorate, ProposalKind, ProposalState } from "@/lib/constants";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { DEFAULT_SETTINGS, rulesFor, type GovernanceSettings } from "./rules";
+import { DEFAULT_SETTINGS, LEAD_CHANGE_RULES, leadEscalationRules, rulesFor, type GovernanceSettings } from "./rules";
 
 const mocks = vi.hoisted(() => ({
   settings: vi.fn(),
@@ -21,10 +21,13 @@ const mocks = vi.hoisted(() => ({
   requireActive: vi.fn(),
   electorate: vi.fn(),
   loadProposal: vi.fn(),
+  openLead: vi.fn(),
+  memberRole: vi.fn(),
 }));
 vi.mock("@/lib/authz", () => ({
   requireProposer: mocks.requireProposer,
   requireWorkgroupManager: mocks.requireWorkgroupManager,
+  memberRole: mocks.memberRole,
 }));
 vi.mock("@/lib/db/governance", () => ({
   loadGovernanceSettings: mocks.settings,
@@ -37,6 +40,7 @@ vi.mock("@/lib/db/governance", () => ({
   checkBudgetProposal: mocks.checkBudget,
   electorateWallets: mocks.electorate,
   loadProposal: mocks.loadProposal,
+  openLeadChange: mocks.openLead,
 }));
 vi.mock("@/lib/db/budgetSave", () => ({
   loadWorkgroupBudgetOwner: mocks.workgroupOwner,
@@ -79,6 +83,8 @@ beforeEach(() => {
   mocks.workgroup.mockResolvedValue(BOARD);
   mocks.leads.mockResolvedValue([]);
   mocks.electorate.mockResolvedValue(["addr_voter"]);
+  mocks.openLead.mockResolvedValue(null);
+  mocks.memberRole.mockResolvedValue("member");
 });
 
 describe("makeProposal: every kind", () => {
@@ -372,7 +378,7 @@ describe("makeProposal: budget", () => {
 
   it("freezes rules the proposer set", async () => {
     const rules = { ...rulesFor(on(ProposalKind.Budget)), votingHours: 48, hideResults: false };
-    await makeProposal({ ...budgetInput([save()]), rules }, PROPOSER);
+    await makeProposal({ ...budgetInput([save()]), rules } as Input, PROPOSER);
     expect(created().rules).toEqual(rules);
     expect(created().rulesHash).toBe(proposalRulesHash(rules));
   });
@@ -381,7 +387,7 @@ describe("makeProposal: budget", () => {
     const rules = { ...rulesFor(on(ProposalKind.Budget)), discussionHours: 336, votingHours: 720 };
     const votingEndsAt = new Date(Date.now() + (rules.discussionHours + rules.votingHours) * 60 * 60 * 1000);
     const err = await makeProposal(
-      { ...budgetInput([save({ startsOn: "2020-01", confirmTransition: true })]), rules }, PROPOSER,
+      { ...budgetInput([save({ startsOn: "2020-01", confirmTransition: true })]), rules } as Input, PROPOSER,
     ).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(BadRequestError);
     expect((err as Error).message).toContain(votingEndsAt.toISOString().slice(0, 7));
@@ -479,5 +485,76 @@ describe("makeProposal: nobody can vote", () => {
       COMMUNITY, expect.objectContaining({ recuseBeneficiaries: true, discussionHours: 24 }), ["wg-1"],
     );
     expect(mocks.create).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("lead changes", () => {
+  const leadInput = (patch: Record<string, unknown> = {}) =>
+    ({ ...text, kind: ProposalKind.Lead, workgroupId: "wg-1", add: ["addr_new"], remove: [] as string[], ...patch }) as unknown as Input;
+
+  it("refuses one while new workgroups are not decided by vote", async () => {
+    mocks.settings.mockResolvedValue(DEFAULT_SETTINGS[ProposalKind.Workgroup]);
+    const err = await makeProposal(leadInput(), PROPOSER).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ConflictError);
+    expect((err as Error).message).toMatch(/decided by vote/);
+    expect(mocks.settings).toHaveBeenCalledWith(COMMUNITY, ProposalKind.Workgroup);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses a rules override, a no-op, and a second open change", async () => {
+    await expect(makeProposal(leadInput({ rules: LEAD_CHANGE_RULES }), PROPOSER)).rejects.toThrow(/fixed voting rules/);
+
+    mocks.leads.mockResolvedValue(["addr_new"]);
+    await expect(makeProposal(leadInput(), PROPOSER)).rejects.toThrow(/already leads/);
+
+    mocks.leads.mockResolvedValue(["addr_lead"]);
+    mocks.openLead.mockResolvedValue({ id: "open", number: 3 });
+    await expect(makeProposal(leadInput(), PROPOSER)).rejects.toThrow(/already has an open lead change/);
+    expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  it("lets the other leads object, and recuses whoever is added or removed", async () => {
+    mocks.leads.mockResolvedValue([PROPOSER, "addr_lead"]);
+    mocks.electorate.mockResolvedValue([PROPOSER, "addr_lead", "addr_new"]);
+    await makeProposal(leadInput(), PROPOSER);
+    expect(created().rules).toEqual(LEAD_CHANGE_RULES);
+    expect(created().rules.electorate).toBe(Electorate.Leads);
+    expect(created().beneficiaries).toEqual(["addr_new"]);
+    expect(created().payload).toEqual({
+      leadChange: { workgroupId: "wg-1", add: ["addr_new"], remove: [], escalation: null, escalates: null },
+    });
+    expect(mocks.requireWorkgroupManager).toHaveBeenCalledWith(
+      COMMUNITY, "wg-1", PROPOSER, "Only admins and leads of this workgroup can propose a lead change",
+    );
+  });
+
+  it("refuses a sole lead appointing a co-lead, and lets an admin file it for the admins", async () => {
+    mocks.leads.mockResolvedValue([PROPOSER]);
+    const refused = await makeProposal(leadInput(), PROPOSER).catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(ForbiddenError);
+    expect((refused as Error).message).toMatch(/admins decide/);
+    expect(mocks.create).not.toHaveBeenCalled();
+
+    mocks.memberRole.mockResolvedValue("admin");
+    mocks.electorate.mockResolvedValue(["addr_admin"]);
+    await makeProposal(leadInput(), PROPOSER);
+    expect(created().rules.electorate).toBe(Electorate.Admins);
+    expect(created().rules.method).toBe(DecisionMethod.Lazy);
+  });
+
+  it("escalates a rejected change to the electorate an admin picks", async () => {
+    mocks.leads.mockResolvedValue(["addr_lead"]);
+    mocks.loadProposal.mockResolvedValue({
+      community_id: COMMUNITY, kind: ProposalKind.Lead, state: ProposalState.Rejected, number: 4,
+      payload: { leadChange: { workgroupId: "wg-1", add: ["addr_new"], remove: [], escalation: null, escalates: null } },
+    });
+    const input = leadInput({ escalation: "members", escalatesProposalId: "p-old" });
+    await expect(makeProposal(input, PROPOSER)).rejects.toThrow(/Only an admin can escalate/);
+
+    mocks.memberRole.mockResolvedValue("admin");
+    mocks.electorate.mockResolvedValue(["addr_voter"]);
+    await makeProposal(input, PROPOSER);
+    expect(created().rules).toEqual(leadEscalationRules(Electorate.Members));
+    expect(created().payload).toMatchObject({ leadChange: { escalation: "members", escalates: 4 } });
   });
 });

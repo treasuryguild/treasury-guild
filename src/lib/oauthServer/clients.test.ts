@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OAuthClientRow } from "@/lib/db/types";
 
-const mocks = vi.hoisted(() => ({ find: vi.fn(), save: vi.fn(), safeHost: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({ find: vi.fn(), save: vi.fn(), pinnedFetch: vi.fn() }));
 vi.mock("@/lib/db/oauth", () => ({ findOAuthClient: mocks.find, saveOAuthClient: mocks.save }));
-vi.mock("./ssrf", async (original) => ({ ...(await original<object>()), assertSafeHost: mocks.safeHost }));
+vi.mock("./ssrf", async (original) => ({
+  ...(await original<object>()),
+  fetchWithPinnedDns: mocks.pinnedFetch,
+}));
 
 import { MAX_CLIENT_NAME, resolveClient } from "./clients";
 import { MAX_REDIRECT_URIS } from "./redirects";
@@ -24,22 +27,19 @@ const doc = (patch: Record<string, unknown> = {}) => ({
   redirect_uris: ["https://client.example/cb", "http://127.0.0.1/callback"], ...patch,
 });
 const serves = (body: unknown, init: ResponseInit = {}) =>
-  mocks.fetch.mockResolvedValue(new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 200, ...init }));
+  mocks.pinnedFetch.mockResolvedValue(new Response(typeof body === "string" ? body : JSON.stringify(body), { status: 200, ...init }));
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  vi.stubGlobal("fetch", mocks.fetch);
   mocks.find.mockResolvedValue(null);
-  mocks.safeHost.mockResolvedValue(undefined);
   mocks.save.mockImplementation(async (client: Record<string, unknown>) => ({ ...client, created_at: NOW.toISOString(), last_seen_at: NOW.toISOString() }));
   serves(doc());
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  vi.unstubAllGlobals();
 });
 
 describe("resolveClient: registered (DCR) client ids", () => {
@@ -48,14 +48,13 @@ describe("resolveClient: registered (DCR) client ids", () => {
     mocks.find.mockResolvedValue(registered);
     expect(await resolveClient(DCR_ID)).toBe(registered);
     expect(mocks.find).toHaveBeenCalledExactlyOnceWith(DCR_ID);
-    expect(mocks.safeHost).not.toHaveBeenCalled();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).not.toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
   it("answers null for an unknown client id", async () => {
     expect(await resolveClient("nobody")).toBeNull();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -66,19 +65,16 @@ describe("resolveClient: registered (DCR) client ids", () => {
   ])("never fetches a URL with %s: it is only looked up", async (_what, clientId) => {
     expect(await resolveClient(clientId)).toBeNull();
     expect(mocks.find).toHaveBeenCalledExactlyOnceWith(clientId);
-    expect(mocks.safeHost).not.toHaveBeenCalled();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).not.toHaveBeenCalled();
   });
 });
 
 describe("resolveClient: Client ID Metadata Documents", () => {
-  it("fetches the document behind the SSRF guard and saves the client as public", async () => {
+  it("fetches the document through the pinned SSRF transport and saves the client as public", async () => {
     const client = await resolveClient(CIMD_ID);
-    expect(mocks.safeHost).toHaveBeenCalledExactlyOnceWith("client.example");
-    expect(mocks.fetch).toHaveBeenCalledExactlyOnceWith(CIMD_ID, expect.objectContaining({
+    expect(mocks.pinnedFetch).toHaveBeenCalledExactlyOnceWith(CIMD_ID, expect.objectContaining({
       redirect: "error", headers: { accept: "application/json" }, signal: expect.any(AbortSignal),
     }));
-    expect(mocks.safeHost.mock.invocationCallOrder[0]!).toBeLessThan(mocks.fetch.mock.invocationCallOrder[0]!);
     expect(mocks.save).toHaveBeenCalledExactlyOnceWith({
       client_id: CIMD_ID, is_metadata_url: true, client_name: "Example Client", client_uri: "https://client.example",
       redirect_uris: ["https://client.example/cb", "http://127.0.0.1/callback"],
@@ -87,53 +83,55 @@ describe("resolveClient: Client ID Metadata Documents", () => {
     expect(client).toMatchObject({ client_id: CIMD_ID, client_name: "Example Client", token_endpoint_auth_method: "none" });
   });
 
-  it("refuses a host the SSRF guard blocks, without fetching it", async () => {
-    mocks.safeHost.mockRejectedValue(new SsrfBlockedError("Blocked: resolves to a private or loopback address"));
+  it("refuses a host the SSRF guard blocks, without saving", async () => {
+    mocks.pinnedFetch.mockRejectedValue(new SsrfBlockedError("Blocked: resolves to a private or loopback address"));
     expect(await resolveClient("https://internal.example/metadata.json")).toBeNull();
-    expect(mocks.safeHost).toHaveBeenCalledWith("internal.example");
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).toHaveBeenCalled();
     expect(mocks.save).not.toHaveBeenCalled();
   });
 
   it("drops a known client whose host now points at a private address, but keeps it through a resolver failure", async () => {
     const stale = row({ last_seen_at: new Date(NOW.getTime() - 2 * HOUR_MS).toISOString() });
     mocks.find.mockResolvedValue(stale);
-    mocks.safeHost.mockRejectedValue(new SsrfBlockedError("Blocked: resolves to a private or loopback address"));
+    mocks.pinnedFetch.mockRejectedValue(new SsrfBlockedError("Blocked: resolves to a private or loopback address"));
     expect(await resolveClient(CIMD_ID)).toBeNull();
-    mocks.safeHost.mockRejectedValue(new Error("getaddrinfo EAI_AGAIN client.example"));
+    mocks.pinnedFetch.mockRejectedValue(new Error("getaddrinfo EAI_AGAIN client.example"));
     expect(await resolveClient(CIMD_ID)).toBe(stale);
-    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
-  it("hands the guard the bare host of an IP-literal client id", async () => {
-    mocks.safeHost.mockRejectedValue(new SsrfBlockedError("Blocked: private or loopback address"));
+  it("hands the pinned fetch a private IP-literal client id (blocked inside the transport)", async () => {
+    mocks.pinnedFetch.mockRejectedValue(new SsrfBlockedError("Blocked: private or loopback address"));
     expect(await resolveClient("https://169.254.169.254/latest/meta-data")).toBeNull();
-    expect(mocks.safeHost).toHaveBeenCalledWith("169.254.169.254");
+    expect(mocks.pinnedFetch).toHaveBeenCalledWith(
+      "https://169.254.169.254/latest/meta-data",
+      expect.objectContaining({ redirect: "error" }),
+    );
     expect(await resolveClient("https://[::1]/metadata.json")).toBeNull();
-    expect(mocks.safeHost).toHaveBeenLastCalledWith("[::1]");
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).toHaveBeenLastCalledWith(
+      "https://[::1]/metadata.json",
+      expect.objectContaining({ redirect: "error" }),
+    );
   });
 
   it("serves a recently seen client from the cache without fetching", async () => {
     const cached = row({ last_seen_at: new Date(NOW.getTime() - HOUR_MS + 1000).toISOString() });
     mocks.find.mockResolvedValue(cached);
     expect(await resolveClient(CIMD_ID)).toBe(cached);
-    expect(mocks.safeHost).not.toHaveBeenCalled();
-    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.pinnedFetch).not.toHaveBeenCalled();
   });
 
   it("re-fetches the document after an hour and saves what it says now", async () => {
     mocks.find.mockResolvedValue(row({ client_name: "Old Name", last_seen_at: new Date(NOW.getTime() - HOUR_MS).toISOString() }));
     serves(doc({ client_name: "New Name" }));
     expect(await resolveClient(CIMD_ID)).toMatchObject({ client_name: "New Name" });
-    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.pinnedFetch).toHaveBeenCalledTimes(1);
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({ client_name: "New Name" }));
   });
 
   it("keeps a known client through a transient failure, and knows no new client by one", async () => {
     const stale = row({ last_seen_at: new Date(NOW.getTime() - 2 * HOUR_MS).toISOString() });
     for (const failure of [
-      () => mocks.fetch.mockRejectedValue(new TypeError("fetch failed")),
+      () => mocks.pinnedFetch.mockRejectedValue(new TypeError("fetch failed")),
       () => serves("unavailable", { status: 503 }),
       () => serves("<html>not json</html>"),
     ]) {
@@ -209,15 +207,15 @@ describe("resolveClient: Client ID Metadata Documents", () => {
   });
 
   it("gives up on a document that does not arrive within five seconds", async () => {
-    mocks.fetch.mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+    mocks.pinnedFetch.mockImplementation((_url: string, init: { signal?: AbortSignal }) => new Promise((_resolve, reject) => {
       init.signal!.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
     }));
     const pending = resolveClient(CIMD_ID);
     await vi.advanceTimersByTimeAsync(4999);
-    expect(mocks.fetch.mock.calls[0]![1].signal.aborted).toBe(false);
+    expect(mocks.pinnedFetch.mock.calls[0]![1].signal.aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(await pending).toBeNull();
-    expect(mocks.fetch.mock.calls[0]![1].signal.aborted).toBe(true);
+    expect(mocks.pinnedFetch.mock.calls[0]![1].signal.aborted).toBe(true);
   });
 
   it("passes on a database failure instead of treating the client as unknown", async () => {

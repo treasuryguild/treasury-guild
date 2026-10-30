@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/db/transactions", () => ({ assertNoPendingTx: vi.fn(), withTransactionRow: mocks.withTx, insertPayouts: mocks.insertPayouts }));
 vi.mock("@/lib/db/assets", () => ({ loadAssetRegistry: vi.fn(), upsertAssetMappings: mocks.upsertMappings }));
 vi.mock("@/lib/db/tasks", () => ({
-  loadTasksForBuild: vi.fn(), tasksWithLivePayouts: vi.fn(), markTasksQueued: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
+  loadTasksForBuild: vi.fn(), tasksWithLivePayouts: vi.fn(), claimTasksForPayout: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
 }));
 vi.mock("@/lib/db/anchors", () => ({ recordProposalAnchors: mocks.recordAnchors }));
 vi.mock("@/lib/db/budgetSetups", () => ({}));
@@ -86,8 +86,9 @@ describe("persistPayout", () => {
     expect(mocks.upsertMappings.mock.invocationCallOrder[0]).toBeLessThan(mocks.withTx.mock.invocationCallOrder[0]!);
   });
 
-  it("writes one payouts row per (task, wallet, unit), stamps unset months grouped by period, queues the tasks and links the anchors", async () => {
+  it("writes one payouts row per (task, wallet, unit), stamps unset months grouped by period, claims the tasks and links the anchors", async () => {
     await persistPayout(plan(), "admin");
+    expect(mocks.queue).toHaveBeenCalledExactlyOnceWith("tx-1", ["task-a", "task-b", "task-c"]);
     expect(mocks.insertPayouts).toHaveBeenCalledExactlyOnceWith([
       { transaction_id: "tx-1", task_id: "task-a", contributor_wallet: "alice", unit: "lovelace", amount: "2500000" },
       { transaction_id: "tx-1", task_id: "task-a", contributor_wallet: "alice", unit: GVTT, amount: "10000000" },
@@ -98,13 +99,13 @@ describe("persistPayout", () => {
     ]);
     // task-b already has a month: never restamped.
     expect(mocks.stampMonth.mock.calls).toEqual([[["task-a"], "2026-07"], [["task-c"], "2026-04"]]);
-    expect(mocks.queue).toHaveBeenCalledExactlyOnceWith(["task-a", "task-b", "task-c"]);
     expect(mocks.recordAnchors).toHaveBeenCalledExactlyOnceWith("tx-1", [{ proposalId: "p-1", step: "proposed" }]);
   });
 
-  it("lets a failed dependent write propagate, so withTransactionRow deletes the row again", async () => {
-    mocks.queue.mockRejectedValue(new Error("queue failed"));
-    await expect(persistPayout(plan(), "admin", { agentDraftId: DRAFT })).rejects.toThrow("queue failed");
+  it("lets a failed claim propagate before payouts, so withTransactionRow deletes the row again", async () => {
+    mocks.queue.mockRejectedValue(new Error("claim failed"));
+    await expect(persistPayout(plan(), "admin", { agentDraftId: DRAFT })).rejects.toThrow("claim failed");
+    expect(mocks.insertPayouts).not.toHaveBeenCalled();
     expect(mocks.recordAnchors).not.toHaveBeenCalled();
   });
 });

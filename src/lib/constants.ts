@@ -346,6 +346,11 @@ export const ProposalKind = {
   Task: "task",
   /** A free-text decision: nothing is applied. */
   Decision: "decision",
+  /**
+   * Add or remove leads of an existing workgroup. Available while the
+   * workgroup kind is on; it has no settings row of its own.
+   */
+  Lead: "lead",
 } as const;
 export type ProposalKind = (typeof ProposalKind)[keyof typeof ProposalKind];
 
@@ -425,6 +430,8 @@ export const Electorate = {
   Workgroup: "workgroup",
   /** Members paid in the look-back window. */
   Contributors: "contributors",
+  /** Current leads of the workgroups concerned. Lead changes only; not a settings choice. */
+  Leads: "leads",
 } as const;
 export type Electorate = (typeof Electorate)[keyof typeof Electorate];
 
@@ -542,6 +549,8 @@ export const MSG = {
   requestFailed: "Request failed",
   txNotPending: "Transaction is no longer pending",
   txAlreadyOnChain: "This transaction is already on-chain",
+  txHasSignatures:
+    "This transaction has signatures and cannot be deleted. Reject it, or wait until it is confirmed on-chain.",
   txChanged: "This transaction changed while you were responding. Reload it and try again.",
   pendingTxExists:
     "A pending transaction already exists for this treasury. Submit or reject it first.",
