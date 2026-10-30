@@ -11,7 +11,7 @@ import "server-only";
 import { findOAuthClient, saveOAuthClient } from "@/lib/db/oauth";
 import type { OAuthClientRow } from "@/lib/db/types";
 import { isAcceptableRedirectUri, isMetadataUrlClientId, MAX_REDIRECT_URIS } from "./redirects";
-import { assertSafeHost, SsrfBlockedError } from "./ssrf";
+import { fetchWithPinnedDns, SsrfBlockedError } from "./ssrf";
 
 const CIMD_FETCH_TIMEOUT_MS = 5000;
 const CIMD_MAX_BYTES = 64 * 1024;
@@ -51,11 +51,11 @@ async function readCapped(response: Response, maxBytes: number): Promise<string>
 
 async function fetchMetadataDocument(clientId: string): Promise<CimdDocument | null> {
   // The client_id is attacker-controlled: this fetch is an SSRF sink.
-  await assertSafeHost(new URL(clientId).hostname);
+  // DNS is validated once and the socket dials only those addresses (no rebind).
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), CIMD_FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(clientId, {
+    const response = await fetchWithPinnedDns(clientId, {
       redirect: "error",
       signal: controller.signal,
       headers: { accept: "application/json" },

@@ -1,12 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ lookup: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  lookup: vi.fn(),
+  undiciFetch: vi.fn(),
+  agentClose: vi.fn(),
+  lastLookup: null as null | ((
+    hostname: string,
+    options: object,
+    callback: (...args: unknown[]) => void,
+  ) => void),
+}));
 vi.mock("node:dns", () => ({
   promises: { lookup: mocks.lookup },
   default: { promises: { lookup: mocks.lookup } },
 }));
+vi.mock("undici", () => ({
+  Agent: class {
+    constructor(opts: { connect: { lookup: typeof mocks.lastLookup } }) {
+      mocks.lastLookup = opts.connect.lookup;
+    }
+    close() {
+      return mocks.agentClose();
+    }
+  },
+  fetch: (...args: unknown[]) => mocks.undiciFetch(...args),
+}));
 
-import { assertSafeHost, isPrivateAddress, isPrivateIPv4, isPrivateIPv6, SsrfBlockedError } from "./ssrf";
+import {
+  assertSafeHost,
+  fetchWithPinnedDns,
+  isPrivateAddress,
+  isPrivateIPv4,
+  isPrivateIPv6,
+  resolveSafeHostAddresses,
+  SsrfBlockedError,
+} from "./ssrf";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -250,5 +278,58 @@ describe("assertSafeHost", () => {
     mocks.lookup.mockResolvedValue([{ address: "127.0.0.1", family: 4 }, { address: "::1", family: 6 }]);
     await expect(assertSafeHost("localhost")).rejects.toThrow(/Blocked/);
     expect(mocks.lookup).toHaveBeenCalledWith("localhost", { all: true });
+  });
+});
+
+describe("resolveSafeHostAddresses", () => {
+  it("returns public records and refuses a mixed public/private answer", async () => {
+    mocks.lookup.mockResolvedValue([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+    expect(await resolveSafeHostAddresses("example.com")).toEqual([
+      { address: "93.184.216.34", family: 4 },
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+    ]);
+    mocks.lookup.mockResolvedValue([
+      { address: "93.184.216.34", family: 4 },
+      { address: "10.0.0.1", family: 4 },
+    ]);
+    await expect(resolveSafeHostAddresses("mixed.example")).rejects.toBeInstanceOf(SsrfBlockedError);
+  });
+});
+
+describe("fetchWithPinnedDns", () => {
+  it("dials only the addresses validated for that request, never a later private answer", async () => {
+    mocks.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    mocks.undiciFetch.mockResolvedValue(new Response("{}", { status: 200 }));
+    mocks.agentClose.mockResolvedValue(undefined);
+
+    await fetchWithPinnedDns("https://client.example/oauth/metadata.json", {
+      redirect: "error",
+      headers: { accept: "application/json" },
+    });
+
+    expect(mocks.lookup).toHaveBeenCalledExactlyOnceWith("client.example", { all: true });
+    expect(mocks.undiciFetch).toHaveBeenCalledExactlyOnceWith(
+      "https://client.example/oauth/metadata.json",
+      expect.objectContaining({ redirect: "error", dispatcher: expect.anything() }),
+    );
+    expect(mocks.lastLookup).toBeTypeOf("function");
+
+    // A rebind after validation must not reach the socket: the Agent lookup
+    // returns the pinned public address, and dns.lookup is not called again.
+    mocks.lookup.mockResolvedValue([{ address: "127.0.0.1", family: 4 }]);
+    const cb = vi.fn();
+    mocks.lastLookup!("client.example", { all: true }, cb);
+    expect(mocks.lookup).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledExactlyOnceWith(null, [{ address: "93.184.216.34", family: 4 }], 4);
+    expect(mocks.agentClose).toHaveBeenCalled();
+  });
+
+  it("refuses before fetch when DNS answers with a private address", async () => {
+    mocks.lookup.mockResolvedValue([{ address: "10.0.0.1", family: 4 }]);
+    await expect(fetchWithPinnedDns("https://evil.example/meta.json")).rejects.toBeInstanceOf(SsrfBlockedError);
+    expect(mocks.undiciFetch).not.toHaveBeenCalled();
   });
 });
