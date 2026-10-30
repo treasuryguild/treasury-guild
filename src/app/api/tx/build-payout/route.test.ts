@@ -5,6 +5,7 @@ import type * as SpendGuardModule from "@/lib/governance/spendGuard";
 import { MSG } from "@/lib/constants";
 import { BadRequestError, ConflictError, UnauthorizedError } from "@/lib/errors";
 import { SPEND_CHECK_FAILED } from "@/lib/governance/spendGuard";
+import { validToSlotFor } from "@/lib/tx";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), context: vi.fn(), leads: vi.fn(), noPending: vi.fn(), withTx: vi.fn(), insertPayouts: vi.fn(),
@@ -498,13 +499,14 @@ describe("build-payout API", () => {
           }] },
         ],
         unitDisplay: new Map([["lovelace", { ticker: "ADA", decimals: 6 }], [GVTT, { ticker: "GVTT", decimals: 6 }]]),
-        anchors: [], validFromSlot: null,
+        anchors: [], validFromSlot: null, validToSlot: validToSlotFor(0),
       });
       // The auto-matched token mapping is persisted for later displays.
       expect(mocks.upsertMappings).toHaveBeenCalledWith("community", [{ fieldName: "GVTT", unit: GVTT, decimals: 6 }]);
       expect(mocks.withTx).toHaveBeenCalledWith({
         treasury_id: TREASURY_ID, kind: "payout", spending_path: "base", tx_cbor: "84a0", tx_hash: "f".repeat(64),
         description: "Payout: 2 tasks, 2 payments, 2 contributors (ADA, GVTT)", created_by: "admin", spend_problems: [],
+        valid_to_slot: validToSlotFor(0),
       }, expect.any(Function));
       expect(mocks.insertPayouts).toHaveBeenCalledExactlyOnceWith([
         { transaction_id: "tx-1", task_id: TASK_A, contributor_wallet: ALICE, unit: "lovelace", amount: "2500000" },
