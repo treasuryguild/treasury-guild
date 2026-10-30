@@ -107,7 +107,7 @@ describe("loadSpentForTargets", () => {
       select: expect.stringContaining("tasks!inner(workgroup_id, budget_month), transactions!inner(state, submitted_at)"),
       filters: [
         ["in", "tasks.workgroup_id", [WG]],
-        ["in", "transactions.state", [TxState.Pending, TxState.Submitted, TxState.Confirmed]],
+        ["in", "transactions.state", [TxState.Pending, TxState.Submitted, TxState.Confirmed, TxState.Canceled]],
         ["or", "budget_month.is.null,and(budget_month.gte.2026-10-01,budget_month.lt.2026-11-01)", { referencedTable: "tasks" }],
       ],
       ranges: [[0, 499]],
@@ -158,7 +158,7 @@ describe("loadSpentForTargets", () => {
     expect(queryOf("payments")).toMatchObject({
       filters: [
         ["in", "treasury_id", ["t-1"]],
-        ["in", "transactions.state", [TxState.Pending, TxState.Submitted, TxState.Confirmed]],
+        ["in", "transactions.state", [TxState.Pending, TxState.Submitted, TxState.Confirmed, TxState.Canceled]],
         ["gte", "budget_month", "2026-10-01"],
         ["lt", "budget_month", "2026-11-01"],
       ],

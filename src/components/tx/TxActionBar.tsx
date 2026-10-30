@@ -16,6 +16,7 @@ export function TxActionBar({
   onReject,
   onSubmit,
   onDelete,
+  onCancel,
 }: {
   /** The signer has neither signed nor rejected yet. */
   canRespond: boolean;
@@ -24,19 +25,21 @@ export function TxActionBar({
   /** The page is re-rendering after an action; keep everything disabled. */
   refreshing: boolean;
   isPayout: boolean;
-  /** Once any signature exists, delete is refused; reject instead. */
+  /** Once any signature exists, delete is refused; cancel instead. */
   hasSignatures?: boolean;
   /**
    * Why signing/submitting is unavailable right now (e.g. the wallet is on
-   * the other network). Reject and delete never need the wallet's network.
+   * the other network). Reject, delete and cancel never need the wallet's network.
    */
   blockedReason?: string | null;
   onSign: () => void;
   onReject: () => void;
   onSubmit: () => void;
   onDelete: () => Promise<void>;
+  onCancel: () => Promise<void>;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const disabled = busy !== null || refreshing;
   const chainDisabled = disabled || !!blockedReason;
 
@@ -63,7 +66,7 @@ export function TxActionBar({
           {busy === "submit" ? "Submitting to chain…" : "Submit to chain"}
         </Button>
       )}
-      {!hasSignatures && (
+      {!hasSignatures ? (
         <span className="ml-auto">
           <Button
             variant="secondary"
@@ -71,6 +74,17 @@ export function TxActionBar({
             disabled={disabled}
           >
             Delete
+          </Button>
+        </span>
+      ) : (
+        <span className="ml-auto">
+          <Button
+            variant="secondary"
+            onClick={() => setConfirmCancel(true)}
+            disabled={disabled}
+            loading={busy === "cancel"}
+          >
+            Cancel
           </Button>
         </span>
       )}
@@ -87,6 +101,23 @@ export function TxActionBar({
         The unsigned transaction is discarded
         {isPayout ? " and its queued tasks become payable again" : ""}. Signers
         can build a new one afterwards.
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={confirmCancel}
+        title="Cancel this transaction?"
+        confirmLabel="Cancel transaction"
+        busy={busy === "cancel" || (confirmCancel && refreshing)}
+        onCancel={() => setConfirmCancel(false)}
+        onConfirm={() => {
+          void onCancel().finally(() => setConfirmCancel(false));
+        }}
+      >
+        The pending slot is freed so a new transaction can be built. Signatures
+        stay on record
+        {isPayout
+          ? ", and queued tasks stay reserved until the spend expires or this hash is confirmed on-chain"
+          : " until the spend expires or this hash is confirmed on-chain"}
+        .
       </ConfirmDialog>
     </div>
   );

@@ -57,6 +57,8 @@ export async function buildPaymentTx(opts: {
   anchors?: readonly DueAnchorLike[];
   /** The lock slot when the path needs the validity interval to start there. */
   validFromSlot?: number | null;
+  /** Spend TTL stamped onto the body and the transaction row. */
+  validToSlot?: number | null;
   /**
    * Empty the paying treasury into the single recipient: every UTxO is spent,
    * ADA after the fee goes with the tokens, and nothing is left as change.
@@ -121,6 +123,7 @@ async function buildDrainPayment(opts: {
   unitDisplay?: UnitDisplay;
   anchors?: readonly DueAnchorLike[];
   validFromSlot?: number | null;
+  validToSlot?: number | null;
 }): Promise<BuildPaymentResult> {
   const { communitySlug, budgetPeriod, memo, unitDisplay } = opts;
   const recipient = opts.recipients[0]!;

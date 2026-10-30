@@ -6,18 +6,23 @@ import { check, maybe, must, rows, rpc, serviceClient } from "./client";
 import { TASK_ASSIGNEE_COLUMNS, TASK_ASSIGNEES_EMBED, type TaskAssignee, type TaskAssigneeRow } from "./types";
 
 /**
- * Queued tasks with no payouts row in a pending, submitted or confirmed
- * transaction go back to payable (release_orphaned_queued_tasks). A rejected
- * or deleted transaction releases its own tasks; this repairs what an older
- * failed release left behind. Returns how many were released.
+ * Queued tasks with no payouts row in a pending, submitted, confirmed or
+ * canceled transaction go back to payable (release_orphaned_queued_tasks). A
+ * rejected, TTL-released or deleted transaction releases its own tasks; this
+ * repairs what an older failed release left behind. Returns how many were released.
  */
 export async function releaseOrphanedQueuedTasks(): Promise<number> {
   return rpc<number | null>(await serviceClient().rpc("release_orphaned_queued_tasks")) ?? 0;
 }
 
+/** States that still hold a task/budget reservation (not Rejected). */
+const LIVE_TX_STATES: number[] = [
+  TxState.Pending, TxState.Submitted, TxState.Confirmed, TxState.Canceled,
+];
+
 /**
- * Of `taskIds`, the tasks that already have payouts rows in a transaction
- * that was not rejected (pending, submitted or confirmed): paying them again
+ * Of `taskIds`, the tasks that already have payouts rows in a live
+ * transaction (pending, submitted, confirmed or canceled): paying them again
  * would pay twice, whatever their pay_state says.
  */
 export async function tasksWithLivePayouts(taskIds: string[]): Promise<Set<string>> {
@@ -27,7 +32,7 @@ export async function tasksWithLivePayouts(taskIds: string[]): Promise<Set<strin
       .from("payouts")
       .select("task_id, transactions!inner(state)")
       .in("task_id", taskIds)
-      .neq("transactions.state", TxState.Rejected),
+      .in("transactions.state", LIVE_TX_STATES),
     "load live payouts",
   );
   return new Set(payoutRows.map((p) => p.task_id));

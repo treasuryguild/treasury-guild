@@ -1,12 +1,17 @@
-// Confirm a pending or submitted transaction whose hash is already on-chain
-// (broadcast outside the app's submit path). Shared by the poller and the
-// delete / reject routes so neither releases queued tasks for a spent tx.
+// Confirm a pending, submitted or canceled transaction whose hash is already
+// on-chain (broadcast outside the app's submit path). Shared by the poller
+// and the delete / reject / cancel routes so none releases queued tasks for a
+// spent tx.
 import "server-only";
 
 import { txInfoBulk } from "@/lib/cardano/koios";
 import type { Network } from "@/lib/config";
 import { TxState } from "@/lib/constants";
 import { confirmTransaction } from "@/lib/db/transactions";
+
+const CONFIRMABLE: ReadonlySet<number> = new Set([
+  TxState.Pending, TxState.Submitted, TxState.Canceled,
+]);
 
 /**
  * Look the hash up on Koios and, when found, confirm the row (and pay its
@@ -18,7 +23,7 @@ export async function confirmIfOnChain(
   network: Network,
 ): Promise<boolean> {
   if (!tx.tx_hash) return false;
-  if (tx.state !== TxState.Pending && tx.state !== TxState.Submitted) return false;
+  if (!CONFIRMABLE.has(tx.state)) return false;
   const infos = await txInfoBulk(network, [tx.tx_hash]);
   const info = infos[0];
   if (!info || info.tx_hash !== tx.tx_hash) return false;

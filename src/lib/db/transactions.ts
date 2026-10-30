@@ -40,6 +40,8 @@ export interface NewTransaction {
   agent_draft_id?: string;
   /** Stake / DRep / vote details (0075). */
   governance_action?: GovernanceAction;
+  /** Spend TTL slot (payout / payment / anchor); omitted for mint and governance txs. */
+  valid_to_slot?: number | null;
 }
 
 export async function insertTransaction(
@@ -147,11 +149,12 @@ export async function addSignature(input: {
 }
 
 /**
- * Record a rejection (reject_transaction), killing the transaction when the
- * threshold can no longer be reached: a dead transaction's queued tasks go
- * back to payable in the same step. Guarded on the state and on the lists
- * the caller read: false means a concurrent submit, signature or rejection
- * changed the row.
+ * Record a rejection (reject_transaction). When the threshold can no longer
+ * be reached: unsigned → Rejected and release tasks; signed → Canceled and
+ * keep the reservation until TTL or on-chain confirm. Guarded on the state
+ * and on the lists the caller read: false means a concurrent submit,
+ * signature or rejection changed the row. A cosign-intent conflict surfaces
+ * as ConflictError.
  */
 export async function recordRejection(input: {
   tx: Pick<TransactionRow, "id" | "signed_addresses" | "rejected_addresses">;
@@ -171,15 +174,57 @@ export async function recordRejection(input: {
 }
 
 /**
- * Delete a transaction only while it is still pending
+ * Delete a transaction only while it is still pending and unsigned
  * (delete_pending_transaction), releasing its queued tasks back to payable in
- * the same step; false when a submit got there first.
+ * the same step; false when a submit or signature got there first.
  */
 export async function deletePendingTransaction(txId: string): Promise<boolean> {
   const deleted = rpc<boolean | null>(
     await serviceClient().rpc("delete_pending_transaction", { p_transaction_id: txId }),
   );
   return deleted === true;
+}
+
+/**
+ * Cancel a signed pending transaction (cancel_pending_transaction): frees the
+ * one-pending slot, keeps payout/payment/task reservations until TTL release
+ * or on-chain confirm. False when unsigned / not pending; cosign-intent
+ * conflict surfaces as ConflictError.
+ */
+export async function cancelPendingTransaction(txId: string): Promise<boolean> {
+  const canceled = rpc<boolean | null>(
+    await serviceClient().rpc("cancel_pending_transaction", { p_transaction_id: txId }),
+  );
+  return canceled === true;
+}
+
+/** Short-lived app co-signer claim; false when another claim is still live. */
+export async function claimCosignIntent(txId: string): Promise<boolean> {
+  return rpc<boolean | null>(
+    await serviceClient().rpc("claim_cosign_intent", { p_transaction_id: txId }),
+  ) === true;
+}
+
+export async function clearCosignIntent(txId: string): Promise<void> {
+  rpc(await serviceClient().rpc("clear_cosign_intent", { p_transaction_id: txId }));
+}
+
+/**
+ * After CBOR TTL (+ indexer lag), flip expired canceled rows to Rejected and
+ * release their task holds. `network` is 0/1 matching `treasuries.network`.
+ */
+export async function releaseExpiredCanceledTransactions(
+  network: number,
+  nowSlot: number,
+  lagSlots: number,
+): Promise<number> {
+  return rpc<number | null>(
+    await serviceClient().rpc("release_expired_canceled_transactions", {
+      p_network: network,
+      p_now_slot: nowSlot,
+      p_lag_slots: lagSlots,
+    }),
+  ) ?? 0;
 }
 
 /**

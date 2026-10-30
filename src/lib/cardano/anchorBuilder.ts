@@ -18,6 +18,8 @@ export async function buildAnchorTx(opts: {
   message: string;
   /** The lock slot when the path needs the validity interval to start there. */
   validFromSlot?: number | null;
+  /** Spend TTL stamped onto the body and the transaction row. */
+  validToSlot?: number | null;
 }): Promise<{ unsignedTxHex: string; txHash: string }> {
   assertMetadataFits(opts.record, "Anchor record too large");
   return completeTreasuryTx({
@@ -26,6 +28,7 @@ export async function buildAnchorTx(opts: {
     network: opts.network,
     provider: opts.provider,
     validFromSlot: opts.validFromSlot,
+    validToSlot: opts.validToSlot,
     outputs: [],
     totalByUnit: new Map(),
     metadata: [

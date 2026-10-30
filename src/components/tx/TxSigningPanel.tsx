@@ -99,6 +99,11 @@ export function TxSigningPanel({
           ? ` · valid from ${formatDate(treasury.lock_until, "datetime")}`
           : ""
       }`;
+  const ttlNote = tx.validUntil
+    ? `Spend valid until ${formatDate(tx.validUntil, "datetime")}`
+    : tx.state === TxState.Canceled
+      ? "No automatic spend expiry"
+      : null;
 
   const overlay =
     actions.busy === "sign"
@@ -122,7 +127,11 @@ export function TxSigningPanel({
       >
         {tx.description ?? "Transaction"}
       </PageTitle>
-      {pathNote && <p className="-mt-3 mb-4 text-sm text-zinc-400">{pathNote}</p>}
+      {(pathNote || ttlNote) && (
+        <p className="-mt-3 mb-4 text-sm text-zinc-400">
+          {[pathNote, ttlNote].filter(Boolean).join(" · ")}
+        </p>
+      )}
 
       <MintPreview
         mint={decoded.mint}
@@ -204,6 +213,7 @@ export function TxSigningPanel({
           onReject={() => void actions.reject()}
           onSubmit={() => void actions.submit()}
           onDelete={actions.remove}
+          onCancel={actions.cancel}
         />
       )}
 

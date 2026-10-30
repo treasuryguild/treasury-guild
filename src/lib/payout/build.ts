@@ -36,7 +36,7 @@ import { spendKey, type SpendProblem } from "@/lib/governance/spendCheck";
 import { budgetsForLines, guardSpend, type SpendGuardLine } from "@/lib/governance/spendGuard";
 import { matchTokensToFields } from "@/lib/tokenMatch";
 import { resolveTreasuryScript } from "@/lib/treasury";
-import { builtTickers, loadBuildContext, resolveSpendingPath, validFromSlotFor, type BuildContext } from "@/lib/tx";
+import { builtTickers, loadBuildContext, resolveSpendingPath, validFromSlotFor, validToSlotFor, type BuildContext } from "@/lib/tx";
 import { payoutDescription } from "@/lib/txDescription";
 import { routedTreasuryAt } from "@/lib/workgroupRouting";
 
@@ -70,6 +70,8 @@ export interface PayoutPlan {
   carried: Awaited<ReturnType<typeof loadDueAnchorsBestEffort>>;
   /** Token mappings to remember: auto-matched (unless overridden) and manual. */
   mappings: AssetDef[];
+  /** Spend TTL slot stamped on the CBOR and the transaction row. */
+  validToSlot: number;
 }
 
 /** Every check of a payout build, and the unsigned transaction; writes nothing. */
@@ -264,6 +266,7 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   const anchors = await loadDueAnchorsBestEffort(treasury.community_id);
 
   const { scriptCbor } = resolveTreasuryScript(treasury, signers);
+  const validToSlot = validToSlotFor(network);
   let built: Built;
   try {
     built = await buildPayoutTx({
@@ -276,6 +279,7 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
       unitDisplay,
       anchors,
       validFromSlot: validFromSlotFor(treasury, path),
+      validToSlot,
     });
   } catch (err) {
     // The builder's refusals of the request itself are a 400 with their text,
@@ -304,6 +308,7 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
     built,
     carried: built.anchorsCarried as typeof anchors,
     mappings: [...auto.filter((a) => !overridden.has(a.fieldName)), ...manual],
+    validToSlot,
   };
 }
 
@@ -337,6 +342,7 @@ export async function persistPayout(
       }),
       created_by: wallet,
       spend_problems: plan.spendProblems,
+      valid_to_slot: plan.validToSlot,
       ...(opts.agentDraftId ? { agent_draft_id: opts.agentDraftId } : {}),
     },
     async (tx) => {

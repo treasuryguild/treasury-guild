@@ -456,6 +456,9 @@ export interface RejectTxResponse {
 export interface DeleteTxResponse {
   deleted: true;
 }
+export interface CancelTxResponse {
+  canceled: true;
+}
 
 // --- Reconciliation -----------------------------------------------------------
 

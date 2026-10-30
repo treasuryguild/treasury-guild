@@ -4,6 +4,7 @@ vi.mock("./db/client", () => ({ maybe: vi.fn(), serviceClient: vi.fn() }));
 vi.mock("./db/communities", () => ({ communitySlug: vi.fn() }));
 vi.mock("./db/treasuries", () => ({ loadTreasury: vi.fn(), loadTreasurySigners: vi.fn() }));
 vi.mock("./authz", async (original) => ({ ...(await original<typeof Authz>()), requireMember: vi.fn() }));
+vi.mock("./cardano/slots", () => ({ slotAt: (network: number, ms: number) => network * 1_000_000 + Math.floor(ms / 1000) }));
 
 import type { UnitDisplay } from "./assetRegistry";
 import type * as Authz from "./authz";
@@ -11,7 +12,7 @@ import { MSG, SignerGroup, type Role } from "./constants";
 import type { TreasuryRow, TreasurySignerRow } from "./db/types";
 import { BadRequestError, ForbiddenError } from "./errors";
 import {
-  builtTickers, builtTxResponse, requirePathBuilder, requireSigner, resolveSpendingPath, validFromSlotFor,
+  builtTickers, builtTxResponse, requirePathBuilder, requireSigner, resolveSpendingPath, SPEND_TX_TTL_MS, validFromSlotFor, validToSlotFor,
   type BuildContext, type BuiltTreasuryTx, type TxContext,
 } from "./tx";
 
@@ -181,6 +182,14 @@ describe("spending paths of a build", () => {
       expect(validFromSlotFor(treasury({}), "base")).toBeNull();
       expect(validFromSlotFor(treasury({ template: "cosigner" }), "cosigned")).toBeNull();
       expect(validFromSlotFor(treasury({ template: "cosigner" }), "bypass")).toBeNull();
+    });
+  });
+
+  describe("validToSlotFor", () => {
+    it("is ~36h ahead on the community network's slot timeline", () => {
+      const now = 1_700_000_000_000;
+      expect(validToSlotFor(0, now)).toBe(Math.floor((now + SPEND_TX_TTL_MS) / 1000));
+      expect(validToSlotFor(1, now)).toBe(1_000_000 + Math.floor((now + SPEND_TX_TTL_MS) / 1000));
     });
   });
 });

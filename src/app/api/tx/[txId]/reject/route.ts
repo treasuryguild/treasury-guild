@@ -37,8 +37,8 @@ export const POST = sessionRoute<{ txId: string }>(
 
     // Guarded on the state and on the lists read above: a concurrent submit,
     // signature or rejection makes this a conflict (refetch and retry)
-    // rather than overwriting it. A dead tx's queued tasks go back to
-    // payable in the same database step.
+    // rather than overwriting it. A dead unsigned tx releases tasks; a dead
+    // signed tx becomes Canceled (reservation held until TTL / confirm).
     if (!(await recordRejection({ tx, rejected, dead: !reachable }))) {
       throw new ConflictError(MSG.txChanged);
     }

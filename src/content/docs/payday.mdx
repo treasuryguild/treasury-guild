@@ -82,7 +82,7 @@ The server re-checks everything and refuses the build with a list of problems wh
 While the community decides budgets by vote, the payout is also [checked against the voted budgets](/docs/governance#spend-citations-and-the-budget-check): each task's workgroup needs a budget for its period, set by a proposal, with room left. Depending on the community's setting, a payout that does not fit is either built with a **Budget check** card on the transaction page for the signers to weigh, or refused with "This spend does not fit the voted budgets" and the list of problems.
 
 <Callout title="One pending transaction per treasury">
-A treasury can have only one transaction waiting for signatures at a time, whether it is a payout, payment, mint or anchor transaction, because a second one would try to spend the same funds. If you see "A pending transaction already exists for this treasury. Submit or reject it first.", open the pending transaction from the Treasury page and submit, reject or delete it, then build again.
+A treasury can have only one transaction waiting for signatures at a time, whether it is a payout, payment, mint or anchor transaction, because a second one would try to spend the same funds. If you see "A pending transaction already exists for this treasury…", open the pending transaction from the Treasury page and submit, reject, delete (unsigned) or [cancel](/docs/transactions#canceling) (signed) it, then build again.
 </Callout>
 
 Deleting a pending payout transaction (any signer on its [spending path](/docs/transactions#spending-paths) can, from the transaction page) returns its tasks to **payable**, as does rejecting it until its path's rule can no longer be met.

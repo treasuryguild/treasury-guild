@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
 
 import {
-  addSignature, confirmTransaction, deletePendingTransaction, findTransactionByDraft, insertTransaction, recordRejection, withTransactionRow,
+  addSignature, cancelPendingTransaction, claimCosignIntent, clearCosignIntent, confirmTransaction, deletePendingTransaction, findTransactionByDraft, insertTransaction, recordRejection, releaseExpiredCanceledTransactions, withTransactionRow,
 } from "./transactions";
 
 const ROW = {
@@ -84,6 +84,29 @@ describe("the guarded state changes", () => {
     expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("delete_pending_transaction", { p_transaction_id: "tx-1" });
     answers(false);
     expect(await deletePendingTransaction("tx-1")).toBe(false);
+  });
+
+  it("cancels a signed pending transaction through cancel_pending_transaction", async () => {
+    answers(true);
+    expect(await cancelPendingTransaction("tx-1")).toBe(true);
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("cancel_pending_transaction", { p_transaction_id: "tx-1" });
+  });
+
+  it("claims and clears cosign intent", async () => {
+    answers(true);
+    expect(await claimCosignIntent("tx-1")).toBe(true);
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("claim_cosign_intent", { p_transaction_id: "tx-1" });
+    answers(null);
+    await clearCosignIntent("tx-1");
+    expect(mocks.rpc).toHaveBeenLastCalledWith("clear_cosign_intent", { p_transaction_id: "tx-1" });
+  });
+
+  it("releases expired canceled transactions per network slot", async () => {
+    answers(2);
+    expect(await releaseExpiredCanceledTransactions(0, 9_000, 1_800)).toBe(2);
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("release_expired_canceled_transactions", {
+      p_network: 0, p_now_slot: 9_000, p_lag_slots: 1_800,
+    });
   });
 
   it("confirms a submitted transaction through confirm_transaction", async () => {
