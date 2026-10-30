@@ -195,6 +195,8 @@ export const workgroupLeadAddSchema = z.object({
 export const workgroupLeadDeleteSchema = z.object({
   workgroupId: id,
   wallet: storedWallet,
+  /** Required while new workgroups are decided by vote: the reason members see. */
+  reason: z.string().trim().min(1).max(500).optional(),
 });
 
 // --- Tasks --------------------------------------------------------------------
@@ -961,7 +963,9 @@ export const saveBudgetSetupSchema = upsertBudgetsSchema.and(z.object({
 export const governanceSettingsInput = z.object({
   enabled: z.boolean(),
   proposers: z.enum(Proposers),
-  electorate: z.enum(Electorate),
+  electorate: z.enum([
+    Electorate.Members, Electorate.Admins, Electorate.Managers, Electorate.Workgroup, Electorate.Contributors,
+  ]),
   activityMonths: z.number().int().min(1).max(36),
   minMemberDays: z.number().int().min(0).max(365),
   method: z.enum(DecisionMethod),
@@ -1051,6 +1055,24 @@ export const createProposalSchema = z.discriminatedUnion("kind", [
       amounts: rewardAmounts,
       assignSelf: z.boolean().default(false),
     }),
+  }),
+  /**
+   * Add and remove leads of an existing workgroup. Rules are fixed: a client
+   * `rules` value is refused. Available while the workgroup kind is on.
+   */
+  z.object({
+    kind: z.literal(ProposalKind.Lead),
+    communityId: id,
+    title: nonEmpty.max(MAX_PROPOSAL_TITLE),
+    body: z.string().trim().max(MAX_PROPOSAL_BODY).default(""),
+    discussionUrl: optionalUrl,
+    replacesProposalId: id.optional(),
+    rules: z.any().optional().refine((value) => value === undefined, "A lead change uses fixed voting rules"),
+    workgroupId: id,
+    add: z.array(storedWallet).max(10).default([]),
+    remove: z.array(storedWallet).max(10).default([]),
+    escalation: z.enum(["workgroup", "members"]).nullable().optional(),
+    escalatesProposalId: id.optional(),
   }),
 ]);
 const queryFlag = z.enum(["true", "false"]).optional()

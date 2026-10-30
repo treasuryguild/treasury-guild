@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  budgetOwnerKey, budgetOwnersOf, isBudgetPayload, isTaskPayload, isWorkgroupPayload, switchStartsTooEarly, taskExceedsLazyCap,
+  budgetOwnerKey, budgetOwnersOf,   isBudgetPayload, isLeadPayload, isTaskPayload, isWorkgroupPayload, leadChangeNeedsAdmins, switchStartsTooEarly, taskExceedsLazyCap,
 } from "./payload";
 
 describe("budgetOwnersOf", () => {
@@ -38,6 +38,18 @@ describe("isBudgetPayload", () => {
     expect(isWorkgroupPayload({ workgroup: { name: "x", description: "", leads: [] }, columns: [] })).toBe(true);
     expect(isTaskPayload({ task: { workgroupId: "w", amounts: {}, bountyLovelace: null, assignSelf: false } })).toBe(true);
     expect(isTaskPayload({ steps: [] })).toBe(false);
+    expect(isLeadPayload({
+      leadChange: { workgroupId: "w", add: [], remove: ["a"], escalation: null, escalates: null },
+    })).toBe(true);
+    expect(isLeadPayload({})).toBe(false);
+  });
+});
+
+describe("leadChangeNeedsAdmins", () => {
+  it("is true when nobody else can object, including a sole lead proposing a co-lead", () => {
+    expect(leadChangeNeedsAdmins(["lead"], ["newbie"], "lead")).toBe(true);
+    expect(leadChangeNeedsAdmins(["lead"], ["lead"], "admin")).toBe(true);
+    expect(leadChangeNeedsAdmins(["lead", "other"], ["newbie"], "lead")).toBe(false);
   });
 });
 

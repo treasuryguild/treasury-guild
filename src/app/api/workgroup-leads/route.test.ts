@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
+import { ProposalKind } from "@/lib/constants";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), admin: vi.fn(), addMember: vi.fn(), addLead: vi.fn(), removeLead: vi.fn(),
+  settings: vi.fn(), override: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireWorkgroupAdmin: mocks.admin }));
 vi.mock("@/lib/db/membership", () => ({ addMember: mocks.addMember }));
-vi.mock("@/lib/db/workgroups", () => ({ addWorkgroupLead: mocks.addLead, removeWorkgroupLead: mocks.removeLead }));
+vi.mock("@/lib/db/governance", () => ({ loadGovernanceSettings: mocks.settings }));
+vi.mock("@/lib/db/workgroups", () => ({
+  addWorkgroupLead: mocks.addLead,
+  removeWorkgroupLead: mocks.removeLead,
+  removeWorkgroupLeadOverride: mocks.override,
+}));
 import { DELETE, POST } from "./route";
 
 const ADMIN = "addr_test1admin";
@@ -27,12 +34,15 @@ beforeEach(() => {
   mocks.addMember.mockResolvedValue(undefined);
   mocks.addLead.mockResolvedValue(undefined);
   mocks.removeLead.mockResolvedValue(undefined);
+  mocks.override.mockResolvedValue(undefined);
+  mocks.settings.mockResolvedValue({ enabled: false });
 });
 
 function nothingWritten() {
   expect(mocks.addMember).not.toHaveBeenCalled();
   expect(mocks.addLead).not.toHaveBeenCalled();
   expect(mocks.removeLead).not.toHaveBeenCalled();
+  expect(mocks.override).not.toHaveBeenCalled();
 }
 
 describe("POST /api/workgroup-leads", () => {
@@ -44,6 +54,18 @@ describe("POST /api/workgroup-leads", () => {
     expect(mocks.addMember).toHaveBeenCalledExactlyOnceWith(COMMUNITY, ALICE);
     expect(mocks.addLead).toHaveBeenCalledExactlyOnceWith(WORKGROUP, ALICE);
     expect(mocks.addMember.mock.invocationCallOrder[0]).toBeLessThan(mocks.addLead.mock.invocationCallOrder[0]!);
+    expect(mocks.settings).toHaveBeenCalledWith(COMMUNITY, ProposalKind.Workgroup);
+  });
+
+  it("refuses a direct add while workgroup proposals are on", async () => {
+    mocks.settings.mockResolvedValue({ enabled: true });
+    const res = await send(POST, "POST", { workgroupId: WORKGROUP, wallet: ALICE });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({
+      error: "Lead changes are proposed while new workgroups are decided by vote",
+      conflict: true,
+    });
+    nothingWritten();
   });
 
   it("requires a session and the same origin", async () => {
@@ -80,6 +102,17 @@ describe("DELETE /api/workgroup-leads", () => {
     expect(mocks.removeLead).toHaveBeenCalledExactlyOnceWith(WORKGROUP, "legacy-wallet-value");
     expect(mocks.addMember).not.toHaveBeenCalled();
     expect(mocks.addLead).not.toHaveBeenCalled();
+    expect(mocks.override).not.toHaveBeenCalled();
+  });
+
+  it("removes immediately with a reason while workgroup proposals are on, and refuses one without", async () => {
+    mocks.settings.mockResolvedValue({ enabled: true });
+    expect((await send(DELETE, "DELETE", { workgroupId: WORKGROUP, wallet: ALICE })).status).toBe(400);
+    expect(mocks.override).not.toHaveBeenCalled();
+    const res = await send(DELETE, "DELETE", { workgroupId: WORKGROUP, wallet: ALICE, reason: "Left the team" });
+    expect(res.status).toBe(200);
+    expect(mocks.override).toHaveBeenCalledExactlyOnceWith(WORKGROUP, ALICE, ADMIN, "Left the team");
+    expect(mocks.removeLead).not.toHaveBeenCalled();
   });
 
   it("requires a session, the same origin, a valid body and the admin role", async () => {

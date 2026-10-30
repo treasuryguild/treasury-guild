@@ -47,8 +47,21 @@ export interface TaskPayload {
   };
 }
 
+/** Who is added and removed as leads of one workgroup. `escalation` widens a failed change. */
+export interface LeadPayload {
+  leadChange: {
+    workgroupId: string;
+    add: string[];
+    remove: string[];
+    /** null: the leads (or the admins) object. Otherwise the electorate of an escalation. */
+    escalation: "workgroup" | "members" | null;
+    /** The number of the lead change this escalates; null otherwise. */
+    escalates: number | null;
+  };
+}
+
 /** A decision carries nothing. */
-export type ProposalPayload = BudgetPayload | WorkgroupPayload | TaskPayload | Record<string, never>;
+export type ProposalPayload = BudgetPayload | WorkgroupPayload | TaskPayload | LeadPayload | Record<string, never>;
 
 export function isBudgetPayload(payload: ProposalPayload): payload is BudgetPayload {
   return Array.isArray((payload as BudgetPayload).steps);
@@ -60,6 +73,25 @@ export function isWorkgroupPayload(payload: ProposalPayload): payload is Workgro
 
 export function isTaskPayload(payload: ProposalPayload): payload is TaskPayload {
   return typeof (payload as TaskPayload).task === "object" && (payload as TaskPayload).task !== null;
+}
+
+export function isLeadPayload(payload: ProposalPayload): payload is LeadPayload {
+  return typeof (payload as LeadPayload).leadChange === "object" && (payload as LeadPayload).leadChange !== null;
+}
+
+/**
+ * Current leads who are not themselves being added or removed. When this is
+ * empty, or the only one is the proposer, an admin files the change and
+ * admins decide it.
+ */
+export function leadChangeNeedsAdmins(
+  current: readonly string[],
+  subjects: readonly string[],
+  proposer: string,
+): boolean {
+  const subject = new Set(subjects);
+  const objectors = current.filter((wallet) => !subject.has(wallet));
+  return objectors.length === 0 || (objectors.length === 1 && objectors[0] === proposer);
 }
 
 /**

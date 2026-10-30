@@ -35,7 +35,7 @@ import { truncate } from "@/lib/format";
 import { proposalChangeLines } from "@/lib/governance/describe";
 import { describeElectorate, describeMethod, voterName } from "@/lib/governance/labels";
 import {
-  budgetOwnerKey, isBudgetPayload, isTaskPayload, isWorkgroupPayload, MAX_BUDGET_STEPS, type ProposalPayload,
+  budgetOwnerKey, isBudgetPayload, isLeadPayload, isTaskPayload, isWorkgroupPayload, MAX_BUDGET_STEPS, type ProposalPayload,
 } from "@/lib/governance/payload";
 import { tryEnsureProposalDiscordThread } from "@/lib/discord/proposalThreads";
 import { prepareProposal } from "@/lib/governance/propose";
@@ -86,8 +86,8 @@ const budgetChange = z.object({
 
 const previewInput = z.object({
   community: communityInput,
-  kind: z.enum([ProposalKind.Decision, ProposalKind.Task, ProposalKind.Workgroup, ProposalKind.Budget])
-    .describe("decision: a question put to a vote, nothing applied; task: a new task with a bounty on an app board; workgroup: a new workgroup with an app board; budget: budget changes that apply when it passes (needs budget consent on)"),
+  kind: z.enum([ProposalKind.Decision, ProposalKind.Task, ProposalKind.Workgroup, ProposalKind.Budget, ProposalKind.Lead])
+    .describe("decision: a question put to a vote, nothing applied; task: a new task with a bounty on an app board; workgroup: a new workgroup with an app board; budget: budget changes that apply when it passes (needs budget consent on); lead: add or remove leads of an existing workgroup, while new workgroups are decided by vote. A lead change uses fixed rules: omit rules."),
   title: z.string().trim().min(1).max(MAX_PROPOSAL_TITLE)
     .describe("For a task, the task's title"),
   body: z.string().trim().max(MAX_PROPOSAL_BODY).default("")
@@ -115,6 +115,18 @@ const previewInput = z.object({
   budget: z.object({
     changes: z.array(budgetChange).min(1).max(MAX_BUDGET_STEPS),
   }).optional().describe("Required for kind budget: one entry per budget that changes"),
+  leadChange: z.object({
+    workgroup: z.string().trim().min(1).max(200)
+      .describe("The workgroup whose leads change: name or id, as workgroup_list returns it"),
+    add: z.array(z.string().trim().min(1).max(200)).max(10).default([])
+      .describe("Members to add as leads: name, @GitHub login or wallet, as member_list shows them"),
+    remove: z.array(z.string().trim().min(1).max(200)).max(10).default([])
+      .describe("Current leads to remove, named the same way"),
+    escalation: z.enum(["workgroup", "members"]).optional()
+      .describe("Omit for the usual objection window. workgroup or members: an admin escalates a failed lead change to the people of the workgroup, or to all members"),
+    escalatesProposalId: z.string().uuid().optional()
+      .describe("Id of the rejected, expired or cancelled lead proposal this escalates. Required when escalation is set. The same people are added and removed."),
+  }).optional().describe("Required for kind lead"),
 });
 
 type PreviewInput = z.infer<typeof previewInput>;
@@ -140,6 +152,21 @@ async function createRequest(communityId: string, input: PreviewInput, wallet: s
   } else if (input.kind === ProposalKind.Budget) {
     if (!input.budget) throw new BadRequestError("A budget proposal needs budget: { changes: [...] }");
     body = { ...text, kind: input.kind, saves: await budgetSaves(communityId, input.budget.changes, wallet) };
+  } else if (input.kind === ProposalKind.Lead) {
+    if (input.rules) throw new BadRequestError("A lead change uses fixed voting rules");
+    if (!input.leadChange) throw new BadRequestError("A lead change needs leadChange: { workgroup, add, remove }");
+    const workgroup = await resolveCommunityWorkgroup(communityId, input.leadChange.workgroup);
+    const named = [...input.leadChange.add, ...input.leadChange.remove];
+    const members = named.length > 0 ? await communityMemberRefs(communityId) : [];
+    body = {
+      ...text,
+      kind: input.kind,
+      workgroupId: workgroup.id,
+      add: input.leadChange.add.map((lead) => requireMember(lead, members).wallet),
+      remove: input.leadChange.remove.map((lead) => requireMember(lead, members).wallet),
+      ...(input.leadChange.escalation ? { escalation: input.leadChange.escalation } : {}),
+      ...(input.leadChange.escalatesProposalId ? { escalatesProposalId: input.leadChange.escalatesProposalId } : {}),
+    };
   } else {
     body = { ...text, kind: input.kind };
   }
@@ -273,11 +300,16 @@ export function draftFingerprint(p: NewProposal): string {
 /** "What passing it changes", with the names a member would see. */
 async function changeLines(communityId: string, proposal: NewProposal): Promise<string[]> {
   const { payload } = proposal;
-  const wallets = [proposal.proposer, ...(isWorkgroupPayload(payload) ? payload.workgroup.leads : [])];
+  const lead = isLeadPayload(payload) ? payload.leadChange : null;
+  const wallets = [
+    proposal.proposer,
+    ...(isWorkgroupPayload(payload) ? payload.workgroup.leads : []),
+    ...(lead ? [...lead.add, ...lead.remove] : []),
+  ];
   const budget = isBudgetPayload(payload);
   const [labels, workgroups, treasuries] = await Promise.all([
     loadMemberLabels(communityId, wallets),
-    isTaskPayload(payload) || budget ? listCommunityWorkgroups(communityId) : Promise.resolve([]),
+    isTaskPayload(payload) || budget || lead ? listCommunityWorkgroups(communityId) : Promise.resolve([]),
     budget ? listCommunityTreasuries(communityId) : Promise.resolve([]),
   ]);
   const names = new Map([...workgroups, ...treasuries].map((o) => [o.id, o.name]));

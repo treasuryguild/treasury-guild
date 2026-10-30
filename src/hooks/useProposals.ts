@@ -32,6 +32,17 @@ export function useProposals(communityId: string | null | undefined): AsyncData<
   ));
 }
 
+/** Lead changes still in discussion or voting, so a board can point at the open one. */
+export function useOpenLeadChanges(communityId: string | null | undefined): AsyncData<ProposalRow[]> {
+  return useAsyncData(communityId ? `open-leads:${communityId}` : null, async () => unwrap<ProposalRow[]>(
+    await browserClient().from("proposals").select(PROPOSAL_COLUMNS)
+      .eq("community_id", communityId)
+      .eq("kind", ProposalKind.Lead)
+      .in("state", [ProposalState.Discussion, ProposalState.Voting])
+      .order("created_at", { ascending: false }),
+  ));
+}
+
 /** Open workgroup proposals (discussion or voting) — not yet created as boards. */
 export function useProposedWorkgroups(
   communityId: string | null | undefined,

@@ -9,6 +9,8 @@ import { use, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, ErrorText, PageTitle } from "@/components/ui";
 import { BudgetProposalView } from "@/components/governance/BudgetProposalView";
 import { NewProposalDialog, type DialogKind, type ProposerRoles } from "@/components/governance/NewProposalDialog";
+import { EscalateLeadChange } from "@/components/governance/EscalateLeadChange";
+import { LeadProposalView } from "@/components/governance/LeadProposalView";
 import { ProposalActions } from "@/components/governance/ProposalActions";
 import { ProposalAnchors } from "@/components/governance/ProposalAnchors";
 import { ProposalOverview } from "@/components/governance/ProposalOverview";
@@ -21,8 +23,9 @@ import { WorkgroupProposalView } from "@/components/governance/WorkgroupProposal
 import { VotePanel } from "@/components/governance/VotePanel";
 import { apiFetch } from "@/lib/api/client";
 import { asNetwork } from "@/lib/config";
-import { ProposalKind } from "@/lib/constants";
+import { ProposalKind, ProposalState } from "@/lib/constants";
 import { dueAction, isVotingOpen } from "@/lib/governance/lifecycle";
+import { voterName } from "@/lib/governance/labels";
 import { isTaskPayload } from "@/lib/governance/payload";
 import { routes } from "@/lib/routes";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
@@ -99,6 +102,12 @@ export default function ProposalPage({ params }: { params: Promise<{ slug: strin
           treasuryCount={activeTreasuries(treasuries.data).length} assignments={assignments} />
       )}
       {proposal.kind === ProposalKind.Workgroup && <WorkgroupProposalView slug={slug} proposal={proposal} names={names} />}
+      {proposal.kind === ProposalKind.Lead && (
+        <LeadProposalView proposal={proposal} names={{
+          owner: (id) => ownerNames.get(id),
+          member: (wallet) => voterName(wallet, names.get(wallet)),
+        }} />
+      )}
       {proposal.kind === ProposalKind.Task && (
         <TaskProposalView slug={slug} proposal={proposal} names={names}
           boardName={isTaskPayload(proposal.payload) ? ownerNames.get(proposal.payload.task.workgroupId) : undefined} />
@@ -113,6 +122,12 @@ export default function ProposalPage({ params }: { params: Promise<{ slug: strin
       )}
       <ProposalActions proposal={proposal} wallet={sessionWallet} isAdmin={isAdmin} onChanged={reload}
         onRevise={() => setRevising(true)} />
+      {community && isAdmin && proposal.kind === ProposalKind.Lead && (
+        proposal.state === ProposalState.Rejected || proposal.state === ProposalState.Expired
+        || proposal.state === ProposalState.Cancelled
+      ) && (
+        <EscalateLeadChange proposal={proposal} communityId={community.id} slug={slug} />
+      )}
       <ProposalTimeline events={events} names={names} />
       <p className="text-sm"><Link className="underline" href={routes.proposals(slug)}>All proposals</Link></p>
 

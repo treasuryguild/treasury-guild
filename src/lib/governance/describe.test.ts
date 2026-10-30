@@ -28,6 +28,12 @@ describe("proposalChangeLines", () => {
       task: { workgroupId: "w1", amounts: { ADA: "120", GVTT: "5" }, bountyLovelace: "120000000", assignSelf: true },
     } }, names)).toEqual(["Adds the task to Design, paying 120 ADA + 5 GVTT per assignee, assigned to ben"]);
     expect(proposalChangeLines({ proposer: "a", payload: {} }, names)).toEqual([]);
+    expect(proposalChangeLines({ proposer: "a", payload: {
+      leadChange: { workgroupId: "w1", add: ["a"], remove: ["b"], escalation: null, escalates: null },
+    } }, names)).toEqual([
+      "Adds ana as a lead of Design",
+      "Removes ben as a lead of Design",
+    ]);
   });
 });
 

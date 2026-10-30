@@ -7,26 +7,27 @@ import type { z } from "zod";
 import type { createProposalSchema } from "@/lib/api/schemas";
 import type { CreateProposalResponse } from "@/lib/api/types";
 import { adaLovelaceFromAmounts } from "@/lib/assets";
-import { requireProposer, requireWorkgroupManager } from "@/lib/authz";
+import { memberRole, requireProposer, requireWorkgroupManager } from "@/lib/authz";
 import { DEFAULT_BOARD_COLUMNS } from "@/lib/boardTypes";
-import { ProposalKind, TaskSource } from "@/lib/constants";
+import { Electorate, ProposalKind, ProposalState, TaskSource } from "@/lib/constants";
 import {
   loadTreasuryBudgetOwner, loadWorkgroupBudgetOwner, resolveBudgetAmounts, type BudgetOwnerContext,
 } from "@/lib/db/budgetSave";
 import {
   checkBudgetProposal, createProposal, electorateWallets, loadBudgetRevisions, loadGovernanceSettings, loadProposal,
-  loadProposalWorkgroup, nonMembers, workgroupLeadWallets, workgroupNameTaken, type NewProposal,
+  loadProposalWorkgroup, nonMembers, openLeadChange, workgroupLeadWallets, workgroupNameTaken, type NewProposal,
 } from "@/lib/db/governance";
 import { requireActiveWorkgroup } from "@/lib/db/workgroups";
 import { tryEnsureProposalDiscordThread } from "@/lib/discord/proposalThreads";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { isAdminRole } from "@/lib/roles";
 import { eligibleVoterCount, noEligibleVotersReason } from "./electorate";
 import { proposalContentHash, proposalRulesHash } from "./hash";
 import {
-  budgetOwnerKey, budgetOwnersOf, switchStartsTooEarly, taskExceedsLazyCap, type BudgetOwnerBase, type BudgetStep,
-  type ProposalPayload, type TaskPayload, type WorkgroupPayload,
+  budgetOwnerKey, budgetOwnersOf, isLeadPayload, leadChangeNeedsAdmins, switchStartsTooEarly, taskExceedsLazyCap,
+  type BudgetOwnerBase, type BudgetStep, type ProposalPayload, type TaskPayload, type WorkgroupPayload,
 } from "./payload";
-import { rulesFor, type ProposalRules } from "./rules";
+import { LEAD_CHANGE_RULES, leadEscalationRules, rulesFor, type ProposalRules } from "./rules";
 
 type CreateProposalInput = z.infer<typeof createProposalSchema>;
 type BudgetSave = Extract<CreateProposalInput, { kind: "budget" }>["saves"][number];
@@ -45,6 +46,7 @@ export async function makeProposal(input: CreateProposalInput, proposer: string)
  * it: the agent API's preview shows this, and its confirmation re-runs it.
  */
 export async function prepareProposal(input: CreateProposalInput, proposer: string): Promise<NewProposal> {
+  if (input.kind === ProposalKind.Lead) return prepareLeadChange(input, proposer);
   const settings = await loadGovernanceSettings(input.communityId, input.kind);
   if (!settings.enabled) {
     throw new ConflictError(input.kind === ProposalKind.Budget
@@ -53,6 +55,9 @@ export async function prepareProposal(input: CreateProposalInput, proposer: stri
   }
   // A proposer may freeze a different set for this proposal. Omitted: the kind's settings.
   let rules = input.rules ?? rulesFor(settings);
+  if (rules.electorate === Electorate.Leads) {
+    throw new BadRequestError("That electorate is only used for lead changes");
+  }
 
   let payload: ProposalPayload = {};
   let workgroupIds: string[] = [];
@@ -135,6 +140,129 @@ async function replacesTarget(
   if (old.state !== "discussion") throw new ConflictError("A proposal can be revised only before voting opens");
   if (old.kind !== kind) throw new BadRequestError("A revision must keep the same proposal kind");
   return { id: old.id, number: old.number };
+}
+
+const ESCALATION_STATES = new Set<string>([ProposalState.Rejected, ProposalState.Expired, ProposalState.Cancelled]);
+
+function sortedWallets(wallets: readonly string[]): string[] {
+  return [...new Set(wallets)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+/**
+ * A lead change. The workgroup kind must be on. Rules are fixed: the other
+ * leads object, unless none of them can, in which case an admin files it and
+ * admins decide. An escalation is that admin's wider vote of a change that
+ * already failed.
+ */
+async function prepareLeadChange(
+  input: Extract<CreateProposalInput, { kind: typeof ProposalKind.Lead }>,
+  proposer: string,
+): Promise<NewProposal> {
+  if (input.rules !== undefined) throw new BadRequestError("A lead change uses fixed voting rules");
+  const workgroupKind = await loadGovernanceSettings(input.communityId, ProposalKind.Workgroup);
+  if (!workgroupKind.enabled) {
+    throw new ConflictError(
+      "Lead changes are proposed while new workgroups are decided by vote. An admin can turn that on under Governance.",
+    );
+  }
+  const workgroup = await loadProposalWorkgroup(input.workgroupId);
+  if (!workgroup || workgroup.community_id !== input.communityId) throw new NotFoundError("Workgroup not found");
+  if (workgroup.archived_at) throw new ConflictError(`Restore ${workgroup.name} before changing its leads`);
+
+  await requireWorkgroupManager(
+    input.communityId, input.workgroupId, proposer,
+    "Only admins and leads of this workgroup can propose a lead change",
+  );
+
+  const add = sortedWallets(input.add);
+  const remove = sortedWallets(input.remove);
+  if (add.some((wallet) => remove.includes(wallet))) {
+    throw new BadRequestError("A wallet cannot be both added and removed");
+  }
+  if (add.length + remove.length === 0) throw new BadRequestError("Add or remove at least one lead");
+  if ((await nonMembers(input.communityId, add)).length > 0) throw new BadRequestError("Every new lead must be a member");
+
+  const current = await workgroupLeadWallets([input.workgroupId]);
+  const currentSet = new Set(current);
+  if (add.some((wallet) => currentSet.has(wallet))) throw new BadRequestError("That member already leads this workgroup");
+  if (remove.some((wallet) => !currentSet.has(wallet))) throw new BadRequestError("That wallet is not a lead of this workgroup");
+
+  const open = await openLeadChange(input.workgroupId);
+  if (open && open.id !== input.replacesProposalId) {
+    throw new ConflictError("This workgroup already has an open lead change");
+  }
+
+  const escalation = input.escalation ?? null;
+  const beneficiaries = sortedWallets([...add, ...remove]);
+  const needsAdmins = escalation !== null || leadChangeNeedsAdmins(current, beneficiaries, proposer);
+  if (needsAdmins && !isAdminRole(await memberRole(input.communityId, proposer))) {
+    throw new ForbiddenError(escalation
+      ? "Only an admin can escalate a lead change"
+      : "An admin proposes this lead change, and admins decide it");
+  }
+
+  let escalates: number | null = null;
+  if ((escalation === null) !== (input.escalatesProposalId === undefined)) {
+    throw new BadRequestError(escalation
+      ? "Name the lead change this escalates"
+      : "Choose who votes on the escalation");
+  }
+  if (escalation) {
+    const source = await loadProposal(input.escalatesProposalId!);
+    if (source.community_id !== input.communityId) throw new BadRequestError("That proposal belongs to another community");
+    if (source.kind !== ProposalKind.Lead || !isLeadPayload(source.payload)) {
+      throw new BadRequestError("Only a lead change can be escalated");
+    }
+    if (!ESCALATION_STATES.has(source.state)) {
+      throw new ConflictError("A lead change can be escalated after it is rejected, misses quorum, or is cancelled");
+    }
+    const prior = source.payload.leadChange;
+    if (prior.workgroupId !== input.workgroupId) throw new BadRequestError("That lead change is for another workgroup");
+    if (sortedWallets(prior.add).join() !== add.join() || sortedWallets(prior.remove).join() !== remove.join()) {
+      throw new BadRequestError("An escalation keeps the same leads added and removed");
+    }
+    escalates = source.number;
+  }
+
+  const rules = escalation
+    ? leadEscalationRules(escalation === "members" ? Electorate.Members : Electorate.Workgroup)
+    : needsAdmins
+      ? { ...LEAD_CHANGE_RULES, electorate: Electorate.Admins }
+      : LEAD_CHANGE_RULES;
+
+  const workgroupIds = [input.workgroupId];
+  const wallets = await electorateWallets(input.communityId, rules, workgroupIds);
+  const reason = noEligibleVotersReason(
+    wallets.length, eligibleVoterCount(wallets, beneficiaries, rules.recuseBeneficiaries),
+  );
+  if (reason) throw new BadRequestError(reason);
+
+  const replaces = input.replacesProposalId
+    ? await replacesTarget(input.replacesProposalId, input.communityId, input.kind, proposer)
+    : null;
+  const payload: ProposalPayload = {
+    leadChange: { workgroupId: input.workgroupId, add, remove, escalation, escalates },
+  };
+  const content = {
+    kind: input.kind,
+    title: input.title.trim(),
+    body: input.body,
+    discussionUrl: input.discussionUrl ?? null,
+    payload,
+    replaces: replaces?.number ?? null,
+  };
+  return {
+    communityId: input.communityId,
+    ...content,
+    contentHash: proposalContentHash(content),
+    rules,
+    rulesHash: proposalRulesHash(rules),
+    workgroupIds,
+    beneficiaries,
+    proposer,
+    budgetOwners: [],
+    replacesProposalId: replaces?.id ?? null,
+  };
 }
 
 /** A new native workgroup with the default board; its name must be free now (and again when applied). */

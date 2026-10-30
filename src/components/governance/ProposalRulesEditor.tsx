@@ -84,7 +84,7 @@ export function ProposalRulesEditor({
           : undefined}>
           <Select aria-label="Who votes" value={rules.electorate} disabled={disabled}
             onChange={(e) => set("electorate", e.target.value as Electorate)}>
-            {Object.values(Electorate).map((electorate) => (
+            {Object.values(Electorate).filter((electorate) => electorate !== Electorate.Leads).map((electorate) => (
               <option key={electorate} value={electorate}>{ELECTORATE_LABELS[electorate]}</option>
             ))}
           </Select>
