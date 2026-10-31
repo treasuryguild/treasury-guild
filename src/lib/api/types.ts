@@ -217,6 +217,12 @@ export interface TreasuryDetailsSigner {
   stakeKeyHash: string | null;
   drepKeyHash: string | null;
 }
+/** Native script JSON + CBOR + hash for the Details dialog (payment, stake or DRep). */
+export interface TreasuryNativeScriptView {
+  nativeScript: NativeScript;
+  scriptCbor: string;
+  scriptHash: string;
+}
 /** Everything the treasury details dialog shows, re-derived from the DB rows. */
 export interface TreasuryDetails {
   id: string;
@@ -239,6 +245,15 @@ export interface TreasuryDetails {
   scriptCbor: string;
   /** Hash of the payment script: also the policy id of unlocked mints. */
   scriptHash: string;
+  /** Role-2 stake native script when the treasury can stake; otherwise null. */
+  stakeScript: TreasuryNativeScriptView | null;
+  /**
+   * DRep native script when the treasury can act as a DRep. `paymentFallback`
+   * is true when there is no complete role-3 key set (payment script is used).
+   */
+  drepScript: (TreasuryNativeScriptView & { paymentFallback: boolean }) | null;
+  /** CIP-1854-shaped wallet metadata for an SDK treasury; otherwise null. */
+  cip1854Metadata: object | null;
   stakeCredentialHash: string | null;
   stakeAddress: string | null;
   /** CIP-129 script DRep id when the treasury can act as a DRep. */
@@ -371,6 +386,29 @@ export interface StakeAccountResponse {
   poolId: string | null;
   dRepId: string | null;
   rewardsAvailable: string;
+}
+/** GET /api/chain/stake-pools */
+export interface StakePoolSummary {
+  poolId: string;
+  ticker: string | null;
+  margin: number | null;
+  fixedCost: string | null;
+  activeStake: string | null;
+  status: string;
+}
+export interface StakePoolsResponse {
+  pools: StakePoolSummary[];
+}
+/** GET /api/chain/dreps */
+export interface DrepSummary {
+  dRepId: string;
+  givenName: string | null;
+  votingPower: string | null;
+  registered: boolean;
+  hasScript: boolean;
+}
+export interface DrepsResponse {
+  dreps: DrepSummary[];
 }
 export interface DrepStatusResponse {
   dRepId: string;

@@ -172,7 +172,15 @@ export const previewStake = defineEndpoint({
         action: plan.action,
         rewardAddress: plan.rewardAddress,
         poolId: plan.poolId,
+        poolTicker:
+          plan.governanceAction.kind === "stake"
+            ? plan.governanceAction.poolTicker ?? null
+            : null,
         dRepId: plan.dRepId,
+        dRepName:
+          plan.governanceAction.kind === "stake"
+            ? plan.governanceAction.dRepName ?? null
+            : null,
         rewards: plan.rewards,
       },
       effects: [

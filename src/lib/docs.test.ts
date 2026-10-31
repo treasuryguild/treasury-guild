@@ -19,7 +19,12 @@ import {
   isDocSlug,
   slugifyHeading,
 } from "./docs";
-import { CIP25_METADATA_LEGEND, PAYMENT_METADATA_LEGEND, PAYOUT_METADATA_LEGEND } from "./cardano/metadataLegend";
+import {
+  CIP25_METADATA_LEGEND,
+  PAYMENT_METADATA_LEGEND,
+  PAYOUT_METADATA_LEGEND,
+  REGISTRATION_METADATA_LEGEND,
+} from "./cardano/metadataLegend";
 import { routes } from "./routes";
 
 const CONTENT_DIR = fileURLToPath(new URL("../content/docs/", import.meta.url));
@@ -155,13 +160,19 @@ describe("docBySlug", () => {
 });
 
 describe("doc links of the metadata legends", () => {
-  const legends = [PAYOUT_METADATA_LEGEND, PAYMENT_METADATA_LEGEND, CIP25_METADATA_LEGEND];
+  const legends = [
+    PAYOUT_METADATA_LEGEND,
+    PAYMENT_METADATA_LEGEND,
+    CIP25_METADATA_LEGEND,
+    REGISTRATION_METADATA_LEGEND,
+  ];
 
   it("point at the sections that explain each record", () => {
     expect(legends.map((legend) => legend.docs.href)).toEqual([
       "/docs/transactions#on-chain-metadata",
       "/docs/payments#on-chain-record",
       "/docs/mint#signing-and-confirmation",
+      "/docs/transactions#on-chain-registration",
     ]);
   });
 

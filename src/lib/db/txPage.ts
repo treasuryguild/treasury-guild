@@ -6,21 +6,63 @@ import { registryFromRows, COMMUNITY_ASSET_COLUMNS, type CommunityAssetColumns }
 import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
 import { extractAnchorMetadata, extractPayoutMetadata } from "@/lib/cardano/cborMetadata";
+import { lookupDrep, lookupStakePool } from "@/lib/cardano/koios";
 import { citedProposalNumbers } from "@/lib/cardano/metadata";
 import { slotTime } from "@/lib/cardano/slots";
+import type { Network } from "@/lib/config";
 import { asNetwork } from "@/lib/config";
-import { SpendingPath, TxKind } from "@/lib/constants";
+import { SpendingPath, StakeAction, TxKind } from "@/lib/constants";
 import { isAdminRole } from "@/lib/roles";
 import { serverClient } from "@/lib/supabase/server";
+import { displayTxDescription } from "@/lib/txDescription";
 import type { TxPanelSigner, TxPanelTreasury, TxPanelTx } from "@/components/tx/types";
 import {
   COSIGNER_DECISION_COLUMNS,
   PAYMENT_COLUMNS,
   type CosignerDecisionRow,
+  type GovernanceAction,
   type PaymentRow,
   type TransactionRow,
   type TreasuryRow,
 } from "./types";
+
+/**
+ * Title for the signing page: prefer the pool ticker / DRep givenName over a
+ * baked-in id (older rows stored the id in `description` before lookups).
+ */
+async function stakePageDescription(
+  network: Network,
+  action: GovernanceAction | null,
+  fallback: string | null,
+): Promise<string> {
+  const tickers = new Map<string, string>();
+  const dRepNames = new Map<string, string>();
+  if (action?.kind === "stake" && action.poolId && !action.poolTicker?.trim()) {
+    try {
+      const ticker = (await lookupStakePool(network, action.poolId))?.ticker;
+      if (ticker) tickers.set(action.poolId, ticker);
+    } catch {
+      /* keep the stored description / pool id */
+    }
+  }
+  if (
+    action?.kind === "stake" &&
+    action.action === StakeAction.VoteDelegation &&
+    action.dRepId?.trim() &&
+    !action.dRepName?.trim()
+  ) {
+    try {
+      const name = (await lookupDrep(network, action.dRepId))?.givenName;
+      if (name) dRepNames.set(action.dRepId.trim(), name);
+    } catch {
+      /* keep the stored description / dRep id */
+    }
+  }
+  return displayTxDescription(
+    { description: fallback, governance_action: action },
+    { poolTickerById: tickers, dRepNameById: dRepNames },
+  );
+}
 
 export interface TxPageData {
   tx: TxPanelTx;
@@ -108,11 +150,14 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
     if (task.chain_number !== task.number) localTaskNumbers[task.chain_number] = task.number;
   }
 
+  const network = asNetwork(treasury.network);
+  const description = await stakePageDescription(network, row.governance_action, row.description);
+
   return {
     tx: {
       id: row.id,
       kind: row.kind,
-      description: row.description,
+      description,
       spendingPath: row.spending_path,
       signedAddresses: row.signed_addresses,
       rejectedAddresses: row.rejected_addresses,
@@ -121,8 +166,9 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
       txCbor: row.tx_cbor,
       spendProblems: row.spend_problems ?? [],
       validUntil: row.valid_to_slot != null
-        ? slotTime(asNetwork(treasury.network), Number(row.valid_to_slot))
+        ? slotTime(network, Number(row.valid_to_slot))
         : null,
+      governanceAction: row.governance_action,
     },
     treasury: {
       name: treasury.name,

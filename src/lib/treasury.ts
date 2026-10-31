@@ -4,7 +4,7 @@
 import "server-only";
 
 import { resolveNativeScriptHash, type NativeScript } from "@meshsdk/core";
-import type { TreasuryDetails } from "./api/types";
+import type { TreasuryDetails, TreasuryNativeScriptView } from "./api/types";
 import { MultisigWallet, type MultisigKey } from "./cardano/multisigSDK";
 import { canDrep, canStake, isSdkTreasury } from "./cardano/sdkCapabilities";
 import type { KeyGroup, TreasuryShape } from "./cardano/templates";
@@ -13,6 +13,14 @@ import { asNetwork } from "./config";
 import { SignerGroup } from "./constants";
 import type { TreasuryRow, TreasurySignerRow } from "./db/types";
 import { InvariantError } from "./errors";
+
+function nativeScriptView(nativeScript: NativeScript, scriptCbor: string): TreasuryNativeScriptView {
+  return {
+    nativeScript,
+    scriptCbor,
+    scriptHash: resolveNativeScriptHash(nativeScript),
+  };
+}
 
 /** Whether the rows carry exactly these keys, each once. */
 function sameKeys(keyHashes: readonly string[], rows: readonly TreasurySignerRow[]): boolean {
@@ -132,6 +140,29 @@ export function describeTreasury(
   const keyOrder = decodeTreasuryCbor(scriptCbor).keyHashes;
   const ordered = [...signers].sort((a, b) => keyOrder.indexOf(a.key_hash) - keyOrder.indexOf(b.key_hash));
   const cosignerRow = signers.find((s) => s.signer_group === SignerGroup.Cosigner) ?? null;
+  const sdk = isSdkTreasury(treasury, wallet);
+  const stakeCapable = canStake(treasury, wallet);
+  const drepCapable = canDrep(treasury, wallet);
+
+  let stakeScript: TreasuryDetails["stakeScript"] = null;
+  if (stakeCapable) {
+    const stakeNative = wallet.buildScript(2);
+    const stakeCbor = wallet.getStakingScript();
+    if (stakeNative && stakeCbor) {
+      stakeScript = nativeScriptView(stakeNative, stakeCbor);
+    }
+  }
+
+  let drepScript: TreasuryDetails["drepScript"] = null;
+  if (drepCapable) {
+    const paymentFallback = !wallet.drepEnabled();
+    const drepNative = paymentFallback ? paymentScript : wallet.buildScript(3);
+    const drepCbor = wallet.getDRepScript();
+    if (drepNative && drepCbor) {
+      drepScript = { ...nativeScriptView(drepNative, drepCbor), paymentFallback };
+    }
+  }
+
   return {
     id: treasury.id,
     name: treasury.name,
@@ -149,12 +180,15 @@ export function describeTreasury(
     nativeScript: paymentScript,
     scriptCbor,
     scriptHash: resolveNativeScriptHash(paymentScript),
+    stakeScript,
+    drepScript,
+    cip1854Metadata: sdk ? wallet.getJsonMetadata() : null,
     stakeCredentialHash: treasury.stake_credential_hash,
     stakeAddress: wallet.getStakeAddress() ?? null,
-    dRepId: canDrep(treasury, wallet) ? wallet.getDRepId() ?? null : null,
-    sdk: isSdkTreasury(treasury, wallet),
-    canStake: canStake(treasury, wallet),
-    canDrep: canDrep(treasury, wallet),
+    dRepId: drepCapable ? wallet.getDRepId() ?? null : null,
+    sdk,
+    canStake: stakeCapable,
+    canDrep: drepCapable,
     signers: ordered.map((s) => ({
       walletAddress: s.wallet_address,
       keyHash: s.key_hash,

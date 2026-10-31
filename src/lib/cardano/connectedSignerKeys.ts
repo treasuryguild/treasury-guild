@@ -1,6 +1,8 @@
 // Stake address and optional DRep key hash from the connected CIP-30 wallet.
 // Reward addresses are base CIP-30; getDRep needs CIP-95 on the 1.9 IWallet
-// (useMeshWallet requests it; react 2.0's wallet lacks getDRep).
+// (MeshBridge + useMeshWallet request it; react 2.0's wallet lacks getDRep).
+// Empty drepKeyHash usually means the wallet never granted CIP-95 for this
+// site (disconnect the dApp in the wallet and reconnect).
 import type { IWallet } from "@meshsdk/core";
 
 export interface ConnectedSignerKeys {

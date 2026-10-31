@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   withTx: vi.fn(),
   sdk: vi.fn(),
   status: vi.fn(),
+  lookup: vi.fn(),
+  lookupDrep: vi.fn(),
   build: vi.fn(),
   provider: vi.fn(),
 }));
@@ -22,7 +24,11 @@ vi.mock("@/lib/db/transactions", () => ({
   withTransactionRow: mocks.withTx,
 }));
 vi.mock("@/lib/cardano/sdkTreasury", () => ({ requireSdkStake: mocks.sdk }));
-vi.mock("@/lib/cardano/koios", () => ({ fetchStakeAccountStatus: mocks.status }));
+vi.mock("@/lib/cardano/koios", () => ({
+  fetchStakeAccountStatus: mocks.status,
+  lookupStakePool: mocks.lookup,
+  lookupDrep: mocks.lookupDrep,
+}));
 vi.mock("@/lib/cardano/stakeBuilder", () => ({ buildStakeTx: mocks.build }));
 vi.mock("@/lib/cardano/provider", () => ({ getProvider: mocks.provider }));
 
@@ -78,6 +84,8 @@ beforeEach(() => {
     rewardAddress: "stake_test1reward",
   });
   mocks.status.mockResolvedValue({ active: false, rewardsAvailable: "0", poolId: null });
+  mocks.lookup.mockResolvedValue(null);
+  mocks.lookupDrep.mockResolvedValue(null);
   mocks.provider.mockReturnValue({});
   mocks.build.mockResolvedValue({ unsignedTxHex: "84a0", txHash: HASH });
   mocks.withTx.mockImplementation(
@@ -140,6 +148,14 @@ describe("POST /api/tx/build-stake", () => {
   });
 
   it("builds a register_and_delegate transaction and stores governance_action", async () => {
+    mocks.lookup.mockResolvedValue({
+      poolId: "pool1abc",
+      ticker: "NUTS",
+      margin: null,
+      fixedCost: null,
+      activeStake: null,
+      status: "registered",
+    });
     mocks.withTx.mockImplementation(
       async (row: Record<string, unknown>, fn: (tx: { id: string }) => Promise<unknown>) => {
         expect(row).toMatchObject({
@@ -149,10 +165,12 @@ describe("POST /api/tx/build-stake", () => {
           tx_cbor: "84a0",
           tx_hash: HASH,
           created_by: "addr_test1signer",
+          description: "Stake: register and delegate to NUTS",
           governance_action: {
             kind: "stake",
             action: "register_and_delegate",
             poolId: "pool1abc",
+            poolTicker: "NUTS",
           },
         });
         return fn({ id: "tx-1" });
@@ -175,6 +193,53 @@ describe("POST /api/tx/build-stake", () => {
         action: "register_and_delegate",
         poolId: "pool1abc",
         stakingScriptCbor: "stake",
+      }),
+    );
+    expect(mocks.lookup).toHaveBeenCalledWith(0, "pool1abc");
+  });
+
+  it("builds a vote_delegation transaction and stores dRepName when known", async () => {
+    mocks.status.mockResolvedValue({
+      active: true,
+      rewardsAvailable: "0",
+      poolId: null,
+      dRepId: null,
+    });
+    mocks.lookupDrep.mockResolvedValue({
+      dRepId: "drep1abc",
+      givenName: "Team Drep",
+      votingPower: "1000",
+      registered: true,
+      hasScript: false,
+    });
+    mocks.withTx.mockImplementation(
+      async (row: Record<string, unknown>, fn: (tx: { id: string }) => Promise<unknown>) => {
+        expect(row).toMatchObject({
+          treasury_id: TREASURY_ID,
+          kind: "stake",
+          spending_path: "base",
+          description: "Stake: vote delegation to Team Drep",
+          governance_action: {
+            kind: "stake",
+            action: "vote_delegation",
+            dRepId: "drep1abc",
+            dRepName: "Team Drep",
+          },
+        });
+        return fn({ id: "tx-1" });
+      },
+    );
+    const res = await post({
+      treasuryId: TREASURY_ID,
+      action: "vote_delegation",
+      dRepId: "drep1abc",
+    });
+    expect(res.status).toBe(200);
+    expect(mocks.lookupDrep).toHaveBeenCalledWith(0, "drep1abc");
+    expect(mocks.build).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "vote_delegation",
+        dRepId: "drep1abc",
       }),
     );
   });

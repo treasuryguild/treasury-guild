@@ -1,6 +1,7 @@
 // Human legends for the on-chain metadata the app shows raw: what each key
 // of a label-190001 payout record (metadata.ts), a label-190001 payment
-// record (paymentMetadata.ts) and a label-721 CIP-25 record (mintMetadata.ts)
+// record (paymentMetadata.ts), a label-721 CIP-25 record (mintMetadata.ts),
+// a label-190002 anchor record and a label-1854 CIP-0146 registration
 // means. Pure data, client-safe; the JSON viewer renders it next to the
 // record so a signer can read the chain without the docs open. The wording
 // mirrors the "On-chain metadata" sections of the user docs, which stay the
@@ -9,6 +10,7 @@
 import { docHref } from "@/lib/docs";
 import { isRecord } from "@/lib/guards";
 import { ANCHOR_METADATA_VERSION, parseAnchorMetadata } from "./anchorMetadata";
+import { parseLabel1854Metadata } from "./cip146Registration";
 import { PAYOUT_METADATA_VERSION } from "./metadata";
 import { PAYMENT_METADATA_TYPE, PAYMENT_METADATA_VERSION } from "./paymentMetadata";
 
@@ -115,9 +117,40 @@ export const ANCHOR_METADATA_LEGEND: MetadataLegend = {
   docs: { href: docHref({ slug: "governance", hash: "on-chain-anchors" }), label: "On-chain anchors" },
 };
 
+export const REGISTRATION_METADATA_LEGEND: MetadataLegend = {
+  title: "CIP-0146 wallet registration",
+  entries: [
+    {
+      key: "types",
+      meaning:
+        "Roles this registration covers: 0 = payment (always), 2 = stake, 3 = DRep. Stake and DRep appear when the treasury is an SDK wallet with those keys.",
+    },
+    {
+      key: "name",
+      meaning:
+        "The treasury's display name. Strings longer than 64 UTF-8 bytes are split into an array of chunks (joined when shown).",
+    },
+    {
+      key: "description",
+      meaning: "Optional free-text description, chunked like name. Absent when none was set.",
+    },
+    {
+      key: "participants",
+      meaning:
+        "Map of key hash → { name }: every payment, stake and DRep key of the treasury's signers, each with that signer's display name truncated to 64 UTF-8 bytes. Co-signers use this to discover and import the wallet.",
+    },
+  ],
+  docs: { href: docHref({ slug: "transactions", hash: "on-chain-registration" }), label: "On-chain registration" },
+};
+
 /** The legend for a decoded label-190002 value: the anchor record, or null for the test record and anything else. */
 export function anchorLegend(meta: unknown): MetadataLegend | null {
   return parseAnchorMetadata(meta) ? ANCHOR_METADATA_LEGEND : null;
+}
+
+/** The legend for a decoded label-1854 registration, or null when the value is not one. */
+export function registrationLegend(meta: unknown): MetadataLegend | null {
+  return parseLabel1854Metadata(meta) ? REGISTRATION_METADATA_LEGEND : null;
 }
 
 /** The legend for a decoded label-190001 record, chosen by its shape; null for anything else. */

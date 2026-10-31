@@ -3,7 +3,9 @@
 import { use, useCallback, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
+import type { ListSignerDraftsResponse } from "@/lib/api/types";
 import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
+import { labelStakeTxDescriptions } from "@/lib/cardano/stakePoolLabels";
 import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
 import { ChainImportStatus, TxState } from "@/lib/constants";
@@ -71,7 +73,15 @@ export default function TreasuryPage({
   const treasuryIds = visible.map((t) => t.id);
   const allTreasuryIds = list.map((t) => t.id);
   const setPrimary = useAsyncAction("Failed to set primary treasury");
+  const discardDraft = useAsyncAction("Could not discard the signer invite");
+  // Open SDK signer invites: resume Create on New treasury once stakes are in.
+  const openDrafts = useAsyncData(isAdmin && community?.id ? community.id : null, async () =>
+    apiFetch<ListSignerDraftsResponse>("/api/treasury/signer-draft", {
+      query: { communityId: community!.id },
+    }),
+  );
 
+  const labelTreasuryId = treasuryIds[0];
   const txs = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
     async () => {
@@ -81,7 +91,7 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .order("created_at", { ascending: false })
         .limit(RECENT_TX_LIMIT);
-      return (data ?? []) as TransactionSummary[];
+      return labelStakeTxDescriptions((data ?? []) as TransactionSummary[], labelTreasuryId);
     },
   );
   // Pending txs are loaded separately so they never fall out of the recent
@@ -95,7 +105,7 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .eq("state", TxState.Pending)
         .order("created_at", { ascending: false });
-      return (data ?? []) as TransactionSummary[];
+      return labelStakeTxDescriptions((data ?? []) as TransactionSummary[], labelTreasuryId);
     },
   );
   // Outgoing txs found on-chain that the app has no record of (external_txs).
@@ -154,6 +164,7 @@ export default function TreasuryPage({
   );
   const treasuryName = (id: string) => list.find((t) => t.id === id)?.name ?? "Unknown wallet";
   const activityLoading = txs.loading || externals.loading;
+  const sdkDrafts = openDrafts.data?.drafts ?? [];
   const appTxCard = (tx: TransactionSummary) => (
     <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
       <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
@@ -208,8 +219,37 @@ export default function TreasuryPage({
           })()}
         </>
       )}
-      <ErrorText error={setPrimary.error} className="mb-3" />
+      <ErrorText error={setPrimary.error ?? discardDraft.error} className="mb-3" />
       <NoticeText className="mb-3">{lifecycleMessage}</NoticeText>
+      {isAdmin && sdkDrafts.length > 0 && (
+        <Card className="mb-4 space-y-2 text-sm">
+          <p>An SDK signer invite is already open. Continue it to finish creating the treasury once every stake address is in.</p>
+          {sdkDrafts.map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{item.name}</span>
+              <span className="text-zinc-500">
+                {item.signers.filter((s) => s.stakeReceived).length} of {item.signers.length} connected
+              </span>
+              <LinkButton href={routes.newTreasury(slug, { draftId: item.id })} variant="secondary">
+                Continue
+              </LinkButton>
+              <Button
+                variant="ghost"
+                disabled={discardDraft.busy}
+                onClick={() => void discardDraft.run(async () => {
+                  await apiFetch("/api/treasury/signer-draft", {
+                    method: "DELETE",
+                    body: { draftId: item.id },
+                  });
+                  openDrafts.reload();
+                })}
+              >
+                Discard
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
       {hasArchived && (
         <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
           <input
@@ -227,59 +267,59 @@ export default function TreasuryPage({
           const archived = !!t.archived_at;
           return (
             <Card key={t.id}>
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
-                    <span className="min-w-0 truncate">{t.name}</span>
-                    {isPrimary && <Badge tone="blue">Primary</Badge>}
-                    {archived && <Badge>Archived</Badge>}
-                  </h3>
-                  <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
-                    {shortAddress(t.address)}
-                    <CopyButton value={t.address} />
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <div className="min-w-0">
+                <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
+                  <span className="min-w-0 truncate">{t.name}</span>
+                  {isPrimary && <Badge tone="blue">Primary</Badge>}
+                  {archived && <Badge>Archived</Badge>}
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
                   {t.template === "plain" && t.stake_credential_hash && !archived && (
-                    <>
-                      <Badge tone="green">SDK</Badge>
-                      <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
-                        Staking
-                      </LinkButton>
-                      <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
-                        Cardano gov
-                      </LinkButton>
-                    </>
+                    <Badge tone="green">SDK</Badge>
                   )}
+                </h3>
+                <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
+                  {shortAddress(t.address)}
+                  <CopyButton value={t.address} />
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {t.template === "plain" && t.stake_credential_hash && !archived && (
+                  <>
+                    <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
+                      Staking
+                    </LinkButton>
+                    <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
+                      Cardano gov
+                    </LinkButton>
+                  </>
+                )}
+                <Button
+                  variant="secondary"
+                  onClick={() => setDetailsId(t.id)}
+                  title="Native script, CBOR, script hash and signers"
+                >
+                  Details
+                </Button>
+                {isAdmin && !isPrimary && !archived && (
                   <Button
                     variant="secondary"
-                    onClick={() => setDetailsId(t.id)}
-                    title="Native script, CBOR, script hash and signers"
+                    disabled={setPrimary.busy}
+                    title="Base signers of the primary treasury are community admins"
+                    onClick={() => void setPrimary.run(async () => {
+                      await apiFetch("/api/treasury/primary", {
+                        body: { communityId: community!.id, treasuryId: t.id },
+                      });
+                      reloadCommunity();
+                    })}
                   >
-                    Details
+                    Set as primary
                   </Button>
-                  {isAdmin && !isPrimary && !archived && (
-                    <Button
-                      variant="secondary"
-                      disabled={setPrimary.busy}
-                      title="Base signers of the primary treasury are community admins"
-                      onClick={() => void setPrimary.run(async () => {
-                        await apiFetch("/api/treasury/primary", {
-                          body: { communityId: community!.id, treasuryId: t.id },
-                        });
-                        reloadCommunity();
-                      })}
-                    >
-                      Set as primary
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button variant="secondary" onClick={() => setManaging(t)}>
-                      {archived ? "Restore" : "Archive"}
-                    </Button>
-                  )}
-                </div>
+                )}
+                {isAdmin && (
+                  <Button variant="secondary" onClick={() => setManaging(t)}>
+                    {archived ? "Restore" : "Archive"}
+                  </Button>
+                )}
               </div>
               <p className="mt-4 text-2xl font-semibold">
                 {balance ? formatLovelace(balance.lovelace) : "…"}

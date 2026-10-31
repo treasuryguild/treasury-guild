@@ -452,6 +452,26 @@ export const buildVoteSchema = z.object({
 /** GET /api/chain/stake-account and /api/chain/drep */
 export const treasuryIdOnlyQuerySchema = z.object({ treasuryId: id });
 
+/** GET /api/chain/stake-pools — browse / search / exact-id lookup (network from treasury). */
+export const stakePoolsQuerySchema = z.object({
+  treasuryId: id,
+  /** Free-text search (ticker or pool id fragment). Max fits a full `pool1…` / hex id. */
+  q: z.string().max(120).optional(),
+  /** Exact bech32 or hex pool id — preferred for title lookups. */
+  poolId: z.string().trim().min(1).max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
+/** GET /api/chain/dreps — browse / search / exact-id lookup (network from treasury). */
+export const drepsQuerySchema = z.object({
+  treasuryId: id,
+  /** Free-text search (givenName or drep id / hex fragment). */
+  q: z.string().max(120).optional(),
+  /** Exact bech32 or hex DRep id — preferred for title lookups. */
+  dRepId: z.string().trim().min(1).max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 /** Discord incoming-webhook URL (discord.com, discordapp.com, ptb/canary). */
 export const DISCORD_WEBHOOK_URL_RE =
   /^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;

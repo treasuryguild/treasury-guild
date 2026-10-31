@@ -48,6 +48,7 @@ function app(created_at: string): TransactionSummary {
     state: 2,
     tx_hash: null,
     created_at,
+    governance_action: null,
   };
 }
 

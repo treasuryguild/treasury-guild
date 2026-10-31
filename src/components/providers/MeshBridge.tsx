@@ -4,7 +4,12 @@
 // WalletBridgeProvider; renders nothing and pushes Mesh's connection state up
 // into WalletBridgeContext.
 import { useCallback, useEffect, useRef } from "react";
-import { MeshProvider, useWallet, useWalletList } from "@meshsdk/react";
+import {
+  MeshCardanoBrowserWallet,
+  MeshProvider,
+  useWallet,
+  useWalletList,
+} from "@meshsdk/react";
 import { useMeshWallet } from "@/hooks/useMeshWallet";
 import type { WalletBridgeState } from "./WalletBridge";
 
@@ -20,9 +25,17 @@ function sameList(a: WalletBridgeState["walletList"], b: WalletBridgeState["wall
   );
 }
 
+/** Always include CIP-95 so the first CIP-30 grant can expose getPubDRepKey. */
+function extensionsWithCip95(walletId: string): { cip: number }[] {
+  const cardano = (globalThis as { cardano?: Record<string, { supportedExtensions?: { cip: number }[] }> })
+    .cardano;
+  const supported = cardano?.[walletId]?.supportedExtensions ?? [];
+  return [...supported.filter((e) => e.cip !== 95), { cip: 95 }];
+}
+
 function Inner({ onState }: { onState: OnState }) {
   const list = useWalletList();
-  const { connect, disconnect, connecting, setPersist } = useWallet();
+  const { connect, disconnect, connecting, setPersist, setWallet } = useWallet();
   const { wallet, connected, name } = useMeshWallet();
 
   // The session lives in a cookie and survives a reload; the CIP-30
@@ -39,12 +52,47 @@ function Inner({ onState }: { onState: OnState }) {
   // handing out new function identities on re-render.
   const connectRef = useRef(connect);
   const disconnectRef = useRef(disconnect);
+  const setWalletRef = useRef(setWallet);
   useEffect(() => {
     connectRef.current = connect;
     disconnectRef.current = disconnect;
-  }, [connect, disconnect]);
-  const connectStable = useCallback((id: string) => connectRef.current(id, true), []);
+    setWalletRef.current = setWallet;
+  }, [connect, disconnect, setWallet]);
+
+  // Mesh's stock connectWallet only passes window.cardano[id].supportedExtensions,
+  // which is sometimes empty at click time — then CIP-95 is never requested and
+  // later enables keep returning an API without cip95. Enable ourselves with
+  // CIP-95 forced, then inject into Mesh via setWallet.
+  const connectStable = useCallback(async (id: string) => {
+    try {
+      const instance = await MeshCardanoBrowserWallet.enable(id, extensionsWithCip95(id));
+      setWalletRef.current(instance, id, {});
+    } catch {
+      await connectRef.current(id, true);
+    }
+  }, []);
   const disconnectStable = useCallback(() => disconnectRef.current(), []);
+
+  // MeshProvider's persist restore calls its own connectWallet (supportedExtensions
+  // only). Re-enable with CIP-95 forced so a reload still grants getPubDRepKey
+  // when the wallet will negotiate it.
+  const cip95Upgrade = useRef<string | null>(null);
+  useEffect(() => {
+    if (!connected || !name) {
+      if (!connected) cip95Upgrade.current = null;
+      return;
+    }
+    if (cip95Upgrade.current === name) return;
+    cip95Upgrade.current = name;
+    void (async () => {
+      try {
+        const instance = await MeshCardanoBrowserWallet.enable(name, extensionsWithCip95(name));
+        setWalletRef.current(instance, name, {});
+      } catch {
+        // Keep the existing Mesh connection (signing still works).
+      }
+    })();
+  }, [connected, name]);
 
   const last = useRef<WalletBridgeState | null>(null);
   useEffect(() => {

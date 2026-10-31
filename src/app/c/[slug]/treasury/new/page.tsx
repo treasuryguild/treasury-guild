@@ -45,10 +45,14 @@ import { Button, Card, ConfirmDialog, CopyButton, ErrorText, Field, Input, PageT
 
 export default function NewTreasury({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ draftId?: string | string[] }>;
 }) {
   const { slug } = use(params);
+  const query = use(searchParams);
+  const draftIdParam = typeof query.draftId === "string" ? query.draftId : null;
   const router = useRouter();
   const { community, blocked } = useCommunityGate(slug, { require: "admin" });
   const { wallet: meshWallet, walletAddress: sessionWallet } = useSession();
@@ -68,6 +72,8 @@ export default function NewTreasury({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [ownKeyError, setOwnKeyError] = useState<string | null>(null);
   const keyAttempt = useRef("");
+  // Continue from the Treasury list (?draftId=) adopts once; then strip the query.
+  const adoptedQuery = useRef<string | null>(null);
   const workgroups = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
   const leads = useAsyncData(community?.id, async () => {
@@ -148,6 +154,32 @@ export default function NewTreasury({
       }
     })();
   }, [sdk, active, meshWallet, sessionWallet]);
+
+  // Treasury list Continue links here with ?draftId=; restore that invite once.
+  useEffect(() => {
+    if (!draftIdParam || !openDrafts.data) return;
+    if (adoptedQuery.current === draftIdParam) return;
+    adoptedQuery.current = draftIdParam;
+    const match = openDrafts.data.drafts.find((d) => d.id === draftIdParam);
+    if (match) {
+      setActive(match);
+      setEnableSdk(true);
+      setName(match.name);
+      setRequired(match.required);
+      setWorkgroupId(match.workgroupId ?? COMMUNITY_TREASURY);
+      setSigners(match.signers.map((s) => ({
+        address: s.address,
+        name: s.name ?? "",
+        stakeAddress: "",
+        drepKeyHash: "",
+      })));
+      setDraft((current) => ({ ...current, template: TreasuryTemplate.Plain }));
+      setInviteUrl(null);
+      keyAttempt.current = "";
+      setOwnKeyError(null);
+    }
+    router.replace(routes.newTreasury(slug));
+  }, [draftIdParam, openDrafts.data, router, slug]);
 
   if (blocked) return blocked;
 

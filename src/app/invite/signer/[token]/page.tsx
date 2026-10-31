@@ -28,11 +28,13 @@ export default function SignerInvitePage({
   );
   const send = useAsyncAction("Could not save your stake address");
   const [saved, setSaved] = useState(false);
+  const [drepSaved, setDrepSaved] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const attempted = useRef(false);
 
   useEffect(() => {
     setSaved(false);
+    setDrepSaved(false);
     setLocalError(null);
     attempted.current = false;
   }, [token, sessionWallet]);
@@ -57,6 +59,7 @@ export default function SignerInvitePage({
       }),
     );
     if (!result) return;
+    setDrepSaved(Boolean(keys.drepKeyHash));
     setSaved(true);
     preview.reload();
   }
@@ -118,11 +121,23 @@ export default function SignerInvitePage({
         </p>
 
         {saved && (
-          <p className="mt-4 text-sm">
-            Your stake address is saved. The admin can create the treasury once every
-            signer has connected. A missing DRep key is allowed: the payment script
-            is then used as the DRep.
-          </p>
+          <div className="mt-4 space-y-2 text-sm">
+            <p>
+              Your stake address is saved. The admin can create the treasury once every
+              signer has connected.
+              {drepSaved
+                ? " Your DRep key hash was saved too."
+                : " A missing DRep key is allowed: the payment script is then used as the DRep."}
+            </p>
+            {saved && !drepSaved && (
+              <p className="text-zinc-400">
+                No DRep key from this wallet yet. If you use Eternl (or another CIP-95
+                wallet), open the wallet&apos;s connected dApps list, disconnect this
+                site, reconnect from the top bar, then send keys again — an older
+                connection may have omitted governance access.
+              </p>
+            )}
+          </div>
         )}
 
         {!sessionWallet ? (
@@ -137,14 +152,18 @@ export default function SignerInvitePage({
         ) : (
           <div className="mt-4 space-y-3">
             {localError && <p className="text-sm text-red-400">{localError}</p>}
-            <ErrorText error={saved ? null : send.error} />
+            <ErrorText error={saved && drepSaved ? null : send.error} />
             {send.error === "This wallet is not a listed signer" && (
               <p className="text-sm text-zinc-400">
                 The wallet you signed in with is not one of the signers on this invite.
               </p>
             )}
             <Button loading={send.busy} onClick={() => void contribute()}>
-              {send.busy ? "Reading wallet…" : "Send stake and DRep keys"}
+              {send.busy
+                ? "Reading wallet…"
+                : saved && !drepSaved
+                  ? "Retry sending DRep key"
+                  : "Send stake and DRep keys"}
             </Button>
           </div>
         )}

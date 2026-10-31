@@ -5,6 +5,7 @@ import {
   chunkMetadataString,
   isRegistrationUpToDate,
   joinMetadataString,
+  parseLabel1854Metadata,
   participantsInclude,
   participantsMatchExactly,
   truncateMetadataString,
@@ -35,6 +36,29 @@ function baseSigners() {
     },
   ];
 }
+
+describe("parseLabel1854Metadata", () => {
+  it("accepts a valid CIP-0146 payload", () => {
+    expect(
+      parseLabel1854Metadata({
+        types: [0, 2],
+        name: "Team",
+        participants: { [hashA]: { name: "Alice" }, [hashB]: { name: "Bob" } },
+      }),
+    ).toEqual({
+      types: [0, 2],
+      name: "Team",
+      participants: {
+        [hashA]: { name: "Alice" },
+        [hashB]: { name: "Bob" },
+      },
+    });
+  });
+
+  it("rejects payloads without types", () => {
+    expect(parseLabel1854Metadata({ participants: { [hashA]: { name: "A" } } })).toBeNull();
+  });
+});
 
 describe("chunkMetadataString", () => {
   it("returns the string unchanged when it fits in 64 bytes", () => {

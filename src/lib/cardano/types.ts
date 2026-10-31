@@ -36,6 +36,8 @@ export interface DecodedTxView {
   payoutMeta: unknown;
   /** The label-190002 anchor record, if present. */
   anchorMeta: unknown;
+  /** The label-1854 CIP-0146 registration record, if present. */
+  registrationMeta: unknown;
   mint: DecodedTxMint[];
   cip25Meta: unknown;
   ttl: string | null;
@@ -47,6 +49,7 @@ export const EMPTY_TX_VIEW: DecodedTxView = {
   message: null,
   payoutMeta: null,
   anchorMeta: null,
+  registrationMeta: null,
   mint: [],
   cip25Meta: null,
   ttl: null,

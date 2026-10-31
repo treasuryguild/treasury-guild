@@ -23,9 +23,11 @@ import {
 } from "@/components/ui";
 import { AnchorRecordCard } from "./AnchorRecordCard";
 import { CosignerCard } from "./CosignerCard";
+import { GovernanceActionCard } from "./GovernanceActionCard";
 import { MintPreview } from "./MintPreview";
 import { OutputsCard } from "./OutputsCard";
 import { PaymentPreview } from "./PaymentPreview";
+import { RegistrationRecordCard } from "./RegistrationRecordCard";
 import { SignaturesCard } from "./SignaturesCard";
 import { SpendProblemsCard } from "./SpendProblemsCard";
 import { TxActionBar } from "./TxActionBar";
@@ -77,6 +79,7 @@ export function TxSigningPanel({
   const isMintTx = tx.kind === TxKind.Mint;
   const isPaymentTx = tx.kind === TxKind.Payment;
   const isAnchorTx = tx.kind === TxKind.Anchor;
+  const isRegistrationTx = tx.kind === TxKind.Registration;
   const isCosigned = tx.spendingPath === SpendingPath.Cosigned;
   const transferAddresses = useMemo(
     () => new Set(payments.filter((p) => p.recipient_treasury_id).map((p) => p.recipient_wallet)),
@@ -158,7 +161,16 @@ export function TxSigningPanel({
         </p>
       )}
 
+      {isRegistrationTx && (
+        <p className="mb-4 text-sm text-zinc-400">
+          This transaction moves no funds: it carries only the CIP-0146 registration record below and returns
+          the change to the treasury, minus the fee.
+        </p>
+      )}
+
       <AnchorRecordCard slug={slug} anchorMeta={decoded.anchorMeta} citedProposals={citedProposals} />
+
+      <RegistrationRecordCard registrationMeta={decoded.registrationMeta} />
 
       <OutputsCard
         slug={slug}
@@ -176,6 +188,8 @@ export function TxSigningPanel({
         transferAddresses={transferAddresses}
         metadataLabel={isPaymentTx ? "On-chain payment metadata (label 190001)" : undefined}
       />
+
+      <GovernanceActionCard action={tx.governanceAction} />
 
       <SpendProblemsCard problems={tx.spendProblems} />
 

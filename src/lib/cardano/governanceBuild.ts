@@ -22,11 +22,40 @@ import { canonicalJson } from "@/lib/governance/rules";
 import { drepDescription, stakeDescription, voteDescription } from "@/lib/txDescription";
 import { loadBuildContext, requirePathBuilder, resolveSpendingPath, type BuildContext } from "@/lib/tx";
 import { buildDrepAnchorJson, buildDrepTx, pinDrepAnchor, type DrepAnchorInput } from "./drepBuilder";
-import { fetchDrepStatus, fetchStakeAccountStatus } from "./koios";
+import { isSpecialDrepId } from "./dreps";
+import { fetchDrepStatus, fetchStakeAccountStatus, lookupDrep, lookupStakePool } from "./koios";
 import { getProvider } from "./provider";
 import { requireSdkDrep, requireSdkStake, requireSdkVote } from "./sdkTreasury";
 import { buildStakeTx } from "./stakeBuilder";
 import { buildVoteTx, pinVoteRationale } from "./voteBuilder";
+
+/** Best-effort ticker for titles; never fails a build when Koios is down. */
+async function resolvePoolTicker(
+  network: BuildContext["network"],
+  poolId: string | null,
+): Promise<string | null> {
+  if (!poolId) return null;
+  try {
+    const pool = await lookupStakePool(network, poolId);
+    return pool?.ticker ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort CIP-119 givenName for titles; never fails a build when Koios is down. */
+async function resolveDRepName(
+  network: BuildContext["network"],
+  dRepId: string | null,
+): Promise<string | null> {
+  if (!dRepId || isSpecialDrepId(dRepId)) return null;
+  try {
+    const drep = await lookupDrep(network, dRepId);
+    return drep?.givenName ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export interface StakeInput {
   treasuryId: string;
@@ -158,30 +187,39 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
 
   const poolId = input.poolId ?? null;
   const dRepId = input.dRepId ?? null;
-  let built: BuiltTx;
-  try {
-    built = await buildStakeTx({
-      treasuryAddress: sdk.address,
-      paymentScriptCbor: sdk.paymentScriptCbor,
-      stakingScriptCbor: sdk.stakingScriptCbor,
-      rewardAddress: sdk.rewardAddress,
-      network: ctx.network,
-      provider: getProvider(ctx.network),
-      action,
-      poolId,
-      dRepId,
-      rewards: status.rewardsAvailable,
-    });
-  } catch (err) {
-    throw new BadRequestError(errorMessage(err));
-  }
+  const [poolTicker, dRepName, built] = await Promise.all([
+    resolvePoolTicker(ctx.network, poolId),
+    action === StakeAction.VoteDelegation
+      ? resolveDRepName(ctx.network, dRepId)
+      : Promise.resolve(null),
+    (async (): Promise<BuiltTx> => {
+      try {
+        return await buildStakeTx({
+          treasuryAddress: sdk.address,
+          paymentScriptCbor: sdk.paymentScriptCbor,
+          stakingScriptCbor: sdk.stakingScriptCbor,
+          rewardAddress: sdk.rewardAddress,
+          network: ctx.network,
+          provider: getProvider(ctx.network),
+          action,
+          poolId,
+          dRepId,
+          rewards: status.rewardsAvailable,
+        });
+      } catch (err) {
+        throw new BadRequestError(errorMessage(err));
+      }
+    })(),
+  ]);
 
   const rewards = action === StakeAction.Withdraw ? status.rewardsAvailable : null;
   const governanceAction: GovernanceAction = {
     kind: "stake",
     action,
     poolId,
+    poolTicker,
     dRepId,
+    dRepName,
     rewards,
   };
   return {
@@ -194,7 +232,7 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
     poolId,
     dRepId,
     rewards,
-    description: stakeDescription(action, { poolId, dRepId }),
+    description: stakeDescription(action, { poolId, poolTicker, dRepId, dRepName }),
     governanceAction,
     built,
     fingerprint: sha256Hex(canonicalJson({

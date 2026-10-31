@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { serializeNativeScript, type NativeScript } from "@meshsdk/core";
+import { resolveNativeScriptHash, serializeNativeScript, type NativeScript } from "@meshsdk/core";
 import { MultisigWallet, paymentKeyHash } from "./cardano/multisigSDK";
 import { templateScript } from "./cardano/templates";
 import type { TreasuryRow, TreasurySignerRow } from "./db/types";
@@ -11,6 +11,12 @@ const ADDR_A =
 const hashA = paymentKeyHash(ADDR_A);
 const hashB = "a".repeat(56);
 const hashC = "0".repeat(56);
+const stakeA = "c".repeat(56);
+const stakeB = "d".repeat(56);
+const stakeC = "1".repeat(56);
+const drepA = "e".repeat(56);
+const drepB = "f".repeat(56);
+const drepC = "2".repeat(56);
 
 const expected = new MultisigWallet(
   "Test",
@@ -20,13 +26,21 @@ const expected = new MultisigWallet(
   0,
 ).getScript();
 
-const signerRow = (key_hash: string, i: number, signer_group: TreasurySignerRow["signer_group"] = "base"): TreasurySignerRow => ({
+const signerRow = (
+  key_hash: string,
+  i: number,
+  signer_group: TreasurySignerRow["signer_group"] = "base",
+  extras: Pick<TreasurySignerRow, "stake_key_hash" | "drep_key_hash"> = {
+    stake_key_hash: null,
+    drep_key_hash: null,
+  },
+): TreasurySignerRow => ({
   treasury_id: "t1",
   wallet_address: `addr_test1signer${i}`,
   key_hash,
-  stake_key_hash: null, drep_key_hash: null,
   display_name: null,
   signer_group,
+  ...extras,
 });
 const signers: TreasurySignerRow[] = [hashC, hashA, hashB].map((key_hash, i) => signerRow(key_hash, i));
 
@@ -153,6 +167,9 @@ describe("describeTreasury", () => {
       cosigner: null,
       scriptCbor: expected.scriptCbor,
       nativeScript: resolved.paymentScript,
+      stakeScript: null,
+      drepScript: null,
+      cip1854Metadata: null,
       stakeCredentialHash: null,
       stakeAddress: null,
       dRepId: null,
@@ -181,5 +198,92 @@ describe("describeTreasury", () => {
     expect(() => describeTreasury(treasury("addr_test1somethingelse"), signers)).toThrow(
       InvariantError,
     );
+  });
+
+  it("exposes stake/DRep scripts and CIP-1854 metadata for an SDK treasury", () => {
+    const paymentHashes = [hashA, hashB, hashC];
+    const stakeHashes = [stakeA, stakeB, stakeC];
+    const sdkWallet = new MultisigWallet(
+      "SDK",
+      [
+        ...paymentHashes.map((keyHash) => ({ keyHash, role: 0, name: "" })),
+        ...stakeHashes.map((keyHash) => ({ keyHash, role: 2, name: "" })),
+      ],
+      "",
+      2,
+      0,
+    );
+    const built = sdkWallet.getScript();
+    const row = { ...treasury(built.address), name: "SDK", script_cbor: built.scriptCbor ?? "" };
+    const sdkSigners = paymentHashes.map((key_hash, i) =>
+      signerRow(key_hash, i, "base", { stake_key_hash: stakeHashes[i]!, drep_key_hash: null }),
+    );
+
+    const details = describeTreasury(row, sdkSigners);
+    const { wallet } = resolveTreasury(row, sdkSigners);
+    const stakeNative = wallet.buildScript(2)!;
+    const stakeCbor = wallet.getStakingScript()!;
+    const drepCbor = wallet.getDRepScript()!;
+
+    expect(details.sdk).toBe(true);
+    expect(details.canStake).toBe(true);
+    expect(details.canDrep).toBe(true);
+    expect(details.stakeScript).toEqual({
+      nativeScript: stakeNative,
+      scriptCbor: stakeCbor,
+      scriptHash: resolveNativeScriptHash(stakeNative),
+    });
+    expect(details.drepScript).toEqual({
+      nativeScript: details.nativeScript,
+      scriptCbor: drepCbor,
+      scriptHash: details.scriptHash,
+      paymentFallback: true,
+    });
+    expect(details.drepScript?.scriptCbor).toBe(details.scriptCbor);
+    expect(details.cip1854Metadata).toEqual(wallet.getJsonMetadata());
+    expect(details.signers.map((s) => s.stakeKeyHash)).toEqual(
+      expect.arrayContaining(stakeHashes),
+    );
+  });
+
+  it("marks dedicated DRep keys without paymentFallback", () => {
+    const paymentHashes = [hashA, hashB, hashC];
+    const stakeHashes = [stakeA, stakeB, stakeC];
+    const drepHashes = [drepA, drepB, drepC];
+    const sdkWallet = new MultisigWallet(
+      "SDK DRep",
+      [
+        ...paymentHashes.map((keyHash) => ({ keyHash, role: 0, name: "" })),
+        ...stakeHashes.map((keyHash) => ({ keyHash, role: 2, name: "" })),
+        ...drepHashes.map((keyHash) => ({ keyHash, role: 3, name: "" })),
+      ],
+      "",
+      2,
+      0,
+    );
+    const built = sdkWallet.getScript();
+    const row = {
+      ...treasury(built.address),
+      name: "SDK DRep",
+      script_cbor: built.scriptCbor ?? "",
+    };
+    const sdkSigners = paymentHashes.map((key_hash, i) =>
+      signerRow(key_hash, i, "base", {
+        stake_key_hash: stakeHashes[i]!,
+        drep_key_hash: drepHashes[i]!,
+      }),
+    );
+
+    const details = describeTreasury(row, sdkSigners);
+    const { wallet } = resolveTreasury(row, sdkSigners);
+    const drepNative = wallet.buildScript(3)!;
+    expect(details.drepScript).toEqual({
+      nativeScript: drepNative,
+      scriptCbor: wallet.getDRepScript(),
+      scriptHash: resolveNativeScriptHash(drepNative),
+      paymentFallback: false,
+    });
+    expect(details.drepScript?.scriptCbor).not.toBe(details.scriptCbor);
+    expect(details.signers.every((s) => s.drepKeyHash)).toBe(true);
   });
 });

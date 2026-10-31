@@ -2,35 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   filterRegistrationsByHashes,
   lookupItemsFromMetadata,
-  parseLabel1854Metadata,
 } from "./cip146Discovery";
 
 const hashA = "a".repeat(56);
 const hashB = "b".repeat(56);
 const hashC = "c".repeat(56);
-
-describe("parseLabel1854Metadata", () => {
-  it("accepts a valid CIP-0146 payload", () => {
-    expect(
-      parseLabel1854Metadata({
-        types: [0, 2],
-        name: "Team",
-        participants: { [hashA]: { name: "Alice" }, [hashB]: { name: "Bob" } },
-      }),
-    ).toEqual({
-      types: [0, 2],
-      name: "Team",
-      participants: {
-        [hashA]: { name: "Alice" },
-        [hashB]: { name: "Bob" },
-      },
-    });
-  });
-
-  it("rejects payloads without types", () => {
-    expect(parseLabel1854Metadata({ participants: { [hashA]: { name: "A" } } })).toBeNull();
-  });
-});
 
 describe("lookupItemsFromMetadata", () => {
   it("reads label 1854 rows and skips empty participants", () => {

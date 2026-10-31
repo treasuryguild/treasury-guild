@@ -28,7 +28,11 @@ export const routes = {
   dev: () => "/dev",
   community: (slug: string) => `/c/${slug}`,
   treasury: (slug: string) => `/c/${slug}/treasury`,
-  newTreasury: (slug: string) => `/c/${slug}/treasury/new`,
+  /** `draftId` opens New treasury with that open SDK signer invite already continued. */
+  newTreasury: (slug: string, opts?: { draftId?: string }) =>
+    opts?.draftId
+      ? `/c/${slug}/treasury/new?draftId=${encodeURIComponent(opts.draftId)}`
+      : `/c/${slug}/treasury/new`,
   importTreasury: (slug: string) => `/c/${slug}/treasury/import`,
   /** Payment history imported from a previous wallet's CSV (admins). */
   paymentHistory: (slug: string) => `/c/${slug}/treasury/history`,
