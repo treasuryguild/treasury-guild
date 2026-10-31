@@ -1,6 +1,8 @@
 // Data for the read-only on-chain (external_txs) details page: the row the
 // poll recorded, the treasury it spent from, and the transaction's CBOR from
-// Koios when the hash checks out. RLS: a non-member sees "not found".
+// Koios when the hash checks out. Loaded in steps like the signing page
+// (flat selects under RLS)—a nested treasuries→communities embed was failing
+// in production and looking like "not found".
 import "server-only";
 
 import { resolveTxHash } from "@meshsdk/core-cst";
@@ -48,24 +50,10 @@ export interface OnChainTxPageData {
   citedProposals: Record<number, string>;
 }
 
-type ExternalWithTreasury = ExternalTxRow & {
-  treasuries: {
-    id: string;
-    name: string;
-    address: string;
-    network: number;
-    community_id: string;
-    communities: { slug: string } | { slug: string }[] | null;
-  };
-};
-
-function communitySlugOf(
-  communities: ExternalWithTreasury["treasuries"]["communities"],
-): string | null {
-  if (!communities) return null;
-  const row = Array.isArray(communities) ? communities[0] : communities;
-  return row?.slug ?? null;
-}
+type TreasuryColumns = Pick<
+  TreasuryRow,
+  "id" | "name" | "address" | "network" | "community_id"
+>;
 
 async function enrichGovernanceAction(
   network: Network,
@@ -92,12 +80,11 @@ async function enrichGovernanceAction(
       /* keep dRep id */
     }
   }
-  const enriched: GovernanceAction = {
-    ...action,
-    poolTicker,
-    dRepName,
-  };
-  return enriched;
+  return { ...action, poolTicker, dRepName };
+}
+
+function logSelectError(what: string, error: { message: string } | null): void {
+  if (error) console.error(`on-chain tx page: ${what}`, error.message);
 }
 
 export async function loadOnChainTxPageData(
@@ -109,30 +96,38 @@ export async function loadOnChainTxPageData(
   const hash = txHash.toLowerCase();
   const db = await serverClient();
 
-  // RLS on external_txs / treasuries: non-members get no row.
-  const { data } = await db
+  // Same flat select as the Treasury list (RLS: non-members get no row).
+  const { data: externalRow, error: externalError } = await db
     .from("external_txs")
-    .select(
-      `${EXTERNAL_TX_COLUMNS}, treasuries!external_txs_treasury_id_fkey!inner(id, name, address, network, community_id, communities!inner(slug))`,
-    )
+    .select(EXTERNAL_TX_COLUMNS)
     .eq("tx_hash", hash)
     .maybeSingle();
-  if (!data) return null;
+  logSelectError("load external_txs", externalError);
+  if (externalError || !externalRow) return null;
+  const row = externalRow as ExternalTxRow;
 
-  const joined = data as unknown as ExternalWithTreasury;
-  const communitySlug = communitySlugOf(joined.treasuries.communities);
-  if (!communitySlug || communitySlug !== slug) return null;
+  const { data: treasuryRow, error: treasuryError } = await db
+    .from("treasuries")
+    .select("id, name, address, network, community_id")
+    .eq("id", row.treasury_id)
+    .maybeSingle();
+  logSelectError("load treasury", treasuryError);
+  if (treasuryError || !treasuryRow) return null;
+  const treasuryFull = treasuryRow as TreasuryColumns;
 
-  const {
-    treasuries: treasuryEmbed,
-    ...rowFields
-  } = joined;
-  const row = rowFields as ExternalTxRow;
+  const { data: communityRow, error: communityError } = await db
+    .from("communities")
+    .select("slug")
+    .eq("id", treasuryFull.community_id)
+    .maybeSingle();
+  logSelectError("load community", communityError);
+  if (communityError || !communityRow || communityRow.slug !== slug) return null;
+
   const treasury = {
-    id: treasuryEmbed.id,
-    name: treasuryEmbed.name,
-    address: treasuryEmbed.address,
-    network: treasuryEmbed.network,
+    id: treasuryFull.id,
+    name: treasuryFull.name,
+    address: treasuryFull.address,
+    network: treasuryFull.network,
   };
   const network = asNetwork(treasury.network);
 
@@ -140,7 +135,6 @@ export async function loadOnChainTxPageData(
   let governanceAction = governanceActionFromActivity(activity);
   governanceAction = await enrichGovernanceAction(network, governanceAction);
 
-  // Prefer enriched stake title when we resolved a ticker / DRep name.
   let title = describeExternalTx(row).title;
   if (governanceAction?.kind === "stake") {
     title = displayTxDescription({
@@ -168,22 +162,24 @@ export async function loadOnChainTxPageData(
       ? (activity.proposalNumbers ?? [])
       : [];
 
-  const [{ data: assetRows }, { data: cited }] = await Promise.all([
+  const [{ data: assetRows, error: assetsError }, citedResult] = await Promise.all([
     db
       .from("community_assets")
       .select(COMMUNITY_ASSET_COLUMNS)
-      .eq("community_id", treasuryEmbed.community_id),
+      .eq("community_id", treasuryFull.community_id),
     citedNumbers.length > 0
       ? db
           .from("proposals")
           .select("id, number")
-          .eq("community_id", treasuryEmbed.community_id)
+          .eq("community_id", treasuryFull.community_id)
           .in("number", citedNumbers)
-      : Promise.resolve({ data: [] as { id: string; number: number }[] }),
+      : Promise.resolve({ data: [] as { id: string; number: number }[], error: null }),
   ]);
+  logSelectError("load community_assets", assetsError);
+  logSelectError("load cited proposals", citedResult.error);
 
   const citedProposals: Record<number, string> = {};
-  for (const p of cited ?? []) {
+  for (const p of citedResult.data ?? []) {
     citedProposals[p.number] = p.id;
   }
 
