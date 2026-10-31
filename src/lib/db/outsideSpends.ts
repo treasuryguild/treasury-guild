@@ -8,7 +8,8 @@ import { check, relation, rows, serviceClient } from "./client";
 import type { ExternalTxRow } from "./types";
 
 export type UnalertedSpend = Pick<
-  ExternalTxRow, "tx_hash" | "treasury_id" | "block_time" | "amount_lovelace" | "assets" | "to_addresses" | "to_treasury_id"
+  ExternalTxRow,
+  "tx_hash" | "treasury_id" | "block_time" | "amount_lovelace" | "assets" | "to_addresses" | "to_treasury_id" | "activity"
 > & { treasuries: { name: string; network: number; community_id: string } };
 
 export async function listUnalertedSpends(limit = 50): Promise<UnalertedSpend[]> {
@@ -16,7 +17,7 @@ export async function listUnalertedSpends(limit = 50): Promise<UnalertedSpend[]>
     await serviceClient()
       .from("external_txs")
       // external_txs has two FKs to treasuries (to_treasury_id too): the embed names the paying one.
-      .select("tx_hash, treasury_id, block_time, amount_lovelace, assets, to_addresses, to_treasury_id, treasuries!external_txs_treasury_id_fkey!inner(name, network, community_id)")
+      .select("tx_hash, treasury_id, block_time, amount_lovelace, assets, to_addresses, to_treasury_id, activity, treasuries!external_txs_treasury_id_fkey!inner(name, network, community_id)")
       .is("governance_alerted_at", null)
       .or("payout_meta.is.null,import_status.not.is.null")
       .order("block_time")

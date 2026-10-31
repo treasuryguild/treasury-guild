@@ -153,6 +153,20 @@ export interface KoiosTxInfo {
   }[];
   /** Transaction metadata keyed by label (e.g. "190001"), when requested. */
   metadata?: Record<string, unknown> | null;
+  /** Certificates (`_certs: true`): stake / DRep / MIR / pool. */
+  certificates?: {
+    index?: number | null;
+    type?: string | null;
+    info?: Record<string, unknown> | null;
+  }[] | null;
+  /** Reward withdrawals (`_withdrawals: true`). */
+  withdrawals?: { amount?: string | null; stake_addr?: string | null }[] | null;
+  /** On-chain governance votes (`_governance: true`). */
+  voting_procedures?: {
+    voter?: string | null;
+    vote?: string | null;
+    proposal_tx_hash?: string | null;
+  }[] | null;
 }
 
 export async function txInfoBulk(
@@ -168,6 +182,9 @@ export async function txInfoBulk(
       _inputs: true,
       _assets: true,
       _metadata: true,
+      _certs: true,
+      _withdrawals: true,
+      _governance: true,
     })) as KoiosTxInfo[];
     out.push(...rows);
   }

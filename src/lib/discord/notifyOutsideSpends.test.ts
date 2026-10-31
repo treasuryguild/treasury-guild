@@ -52,6 +52,7 @@ function spend(patch: Partial<UnalertedSpend> = {}): UnalertedSpend {
     assets: null,
     to_addresses: ["addr_test1bob"],
     to_treasury_id: null,
+    activity: null,
     treasuries: { name: "Main", network: 0, community_id: "c-1" },
     ...patch,
   };
@@ -77,6 +78,16 @@ describe("notifyOutsideSpends", () => {
     expect(await notifyOutsideSpends()).toEqual({ posted: 0, skipped: 0, failed: 0 });
     expect(mocks.channels).not.toHaveBeenCalled();
     expect(mocks.mark).not.toHaveBeenCalled();
+  });
+
+  it("stamps without posting a recognized stake / registration spend", async () => {
+    mocks.list.mockResolvedValue([
+      spend({ activity: { kind: "stake", action: "vote_delegation", dRepId: "drep1x" } }),
+    ]);
+    expect(await notifyOutsideSpends()).toEqual({ posted: 0, skipped: 1, failed: 0 });
+    expect(mocks.mark).toHaveBeenCalledExactlyOnceWith([TX]);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.settings).not.toHaveBeenCalled();
   });
 
   it("stamps without posting when the budget kind is off", async () => {

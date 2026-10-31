@@ -398,6 +398,12 @@ export interface ExternalTxRow {
   to_addresses: string[];
   /** Label-190001 payout metadata as returned by Koios, when present. */
   payout_meta: unknown | null;
+  /**
+   * Classifier result for stake / registration / anchor / drep / vote
+   * (migration 0086). Shape: ExternalActivity when recognized; `{}` when
+   * looked up with nothing to classify; null when not yet classified.
+   */
+  activity: unknown | null;
   /** Another treasury of the community among the recipients (display only). */
   to_treasury_id: string | null;
   /** Chain import state (migration 0045); null = not evaluated yet. */
@@ -409,7 +415,7 @@ export interface ExternalTxRow {
   created_at: string;
 }
 export const EXTERNAL_TX_COLUMNS =
-  "tx_hash, treasury_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, payout_meta, to_treasury_id, import_status, import_issues, governance_alerted_at, created_at";
+  "tx_hash, treasury_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, payout_meta, activity, to_treasury_id, import_status, import_issues, governance_alerted_at, created_at";
 
 /** One step of a workgroup's dated wallet routing (migration 0035). */
 export interface WorkgroupTreasuryAssignmentRow {

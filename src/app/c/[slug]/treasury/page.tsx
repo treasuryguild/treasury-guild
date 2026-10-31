@@ -5,7 +5,10 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import type { ListSignerDraftsResponse } from "@/lib/api/types";
 import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
-import { labelStakeTxDescriptions } from "@/lib/cardano/stakePoolLabels";
+import {
+  labelExternalStakeActivities,
+  labelStakeTxDescriptions,
+} from "@/lib/cardano/stakePoolLabels";
 import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
 import { ChainImportStatus, TxState } from "@/lib/constants";
@@ -16,6 +19,10 @@ import {
   type TransactionSummary,
   type TreasurySummary,
 } from "@/lib/db/types";
+import {
+  isRecognizedExternalActivity,
+  parseExternalActivity,
+} from "@/lib/externalActivity";
 import { describeExternalTx, recentTreasuryActivity } from "@/lib/externalTx";
 import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, shortUnit } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -118,7 +125,10 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .order("block_time", { ascending: false })
         .limit(RECENT_TX_LIMIT);
-      return (data ?? []) as ExternalTxRow[];
+      return labelExternalStakeActivities(
+        (data ?? []) as ExternalTxRow[],
+        labelTreasuryId,
+      );
     },
   );
   // On-chain payouts and payments the import holds for an admin (not capped
@@ -412,6 +422,8 @@ export default function TreasuryPage({
           // page to open, so it links to the explorer.
           const tx = item.tx;
           const { title, detail } = describeExternalTx(tx);
+          const activity = parseExternalActivity(tx.activity);
+          const recognized = isRecognizedExternalActivity(activity);
           const tokens = Object.entries(tx.assets ?? {});
           return (
             <ExplorerLink
@@ -443,7 +455,13 @@ export default function TreasuryPage({
                   {tx.import_status === ChainImportStatus.Blocked && (
                     <Badge tone="yellow">Needs import review</Badge>
                   )}
-                  {budgetConsent ? <Badge tone="yellow">Built outside Treasury Guild</Badge> : <Badge>On-chain</Badge>}
+                  {recognized ? (
+                    <TxKindBadge kind={activity.kind} />
+                  ) : budgetConsent ? (
+                    <Badge tone="yellow">Built outside Treasury Guild</Badge>
+                  ) : (
+                    <Badge>On-chain</Badge>
+                  )}
                   <TxStateBadge state={TxState.Confirmed} />
                 </span>
               </Card>

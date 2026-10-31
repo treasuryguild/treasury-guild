@@ -3,11 +3,16 @@
 import "server-only";
 
 import { check, maybe, rows, serviceClient } from "@/lib/db/client";
-import { addressTxs, txInfoBulk, type KoiosAddressTx } from "@/lib/cardano/koios";
+import { addressTxs, txInfoBulk, type KoiosAddressTx, type KoiosTxInfo } from "@/lib/cardano/koios";
 import { asNetwork } from "@/lib/config";
 import { PgCode, TxState } from "@/lib/constants";
 import { confirmTransaction } from "@/lib/db/transactions";
 import { tagInternalTransfers } from "@/lib/db/treasuries";
+import {
+  classifyExternalActivity,
+  isRecognizedExternalActivity,
+  type ExternalActivity,
+} from "@/lib/externalActivity";
 import {
   isIncomingTx,
   otherOutputAddresses,
@@ -17,6 +22,16 @@ import {
   treasuryOutputAssets,
   treasuryOutputSum,
 } from "./pollRules";
+
+/** Classifier input from a Koios tx_info row (certs / metadata / withdrawals / votes). */
+export function activityOf(info: KoiosTxInfo): ExternalActivity | null {
+  return classifyExternalActivity({
+    metadata: info.metadata ?? null,
+    certificates: info.certificates ?? null,
+    withdrawals: info.withdrawals ?? null,
+    voting_procedures: info.voting_procedures ?? null,
+  });
+}
 
 export interface PollResult {
   newIncoming: number;
@@ -126,6 +141,10 @@ export async function pollTreasury(treasury: {
     if (t.block_height > maxBlock) maxBlock = t.block_height;
     if (!isIncomingTx(info, treasury.address)) {
       if (known.has(t.tx_hash)) continue;
+      const activity = activityOf(info);
+      // `{}` = looked up, nothing to classify (so sync backfill does not re-fetch).
+      // Recognized cert / registration / anchor spends are not budget
+      // outside-spends: stamp the alert column so Discord never fires.
       const { error } = await db.from("external_txs").insert({
         tx_hash: t.tx_hash,
         treasury_id: treasury.id,
@@ -136,6 +155,10 @@ export async function pollTreasury(treasury: {
         assets: otherOutputAssets(info, treasury.address),
         to_addresses: otherOutputAddresses(info, treasury.address),
         payout_meta: payoutMetaOf(info),
+        activity: activity ?? {},
+        ...(isRecognizedExternalActivity(activity)
+          ? { governance_alerted_at: new Date().toISOString() }
+          : {}),
       });
       if (!error) newExternal += 1;
       else if (error.code !== PgCode.UniqueViolation) {

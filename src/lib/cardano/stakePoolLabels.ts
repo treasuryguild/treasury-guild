@@ -3,12 +3,62 @@
 // title rewriting lives in txDescription.
 import { apiFetch } from "@/lib/api/client";
 import type { DrepsResponse, StakePoolsResponse } from "@/lib/api/types";
-import type { TransactionSummary } from "@/lib/db/types";
+import type { ExternalTxRow, TransactionSummary } from "@/lib/db/types";
+import { StakeAction, TxKind } from "@/lib/constants";
+import {
+  parseExternalActivity,
+  type ExternalActivity,
+} from "@/lib/externalActivity";
 import {
   dRepIdsNeedingName,
   displayTxDescription,
   poolIdsNeedingTicker,
 } from "@/lib/txDescription";
+
+async function lookupPoolTickers(
+  needed: readonly string[],
+  treasuryById: ReadonlyMap<string, string>,
+  fallbackTreasuryId: string | undefined,
+  into: Map<string, string>,
+): Promise<void> {
+  await Promise.all(
+    needed.map(async (poolId) => {
+      const treasuryId = treasuryById.get(poolId) || fallbackTreasuryId;
+      if (!treasuryId) return;
+      try {
+        const params = new URLSearchParams({ treasuryId, poolId, limit: "1" });
+        const res = await apiFetch<StakePoolsResponse>(`/api/chain/stake-pools?${params}`);
+        const match = res.pools.find((p) => p.poolId === poolId && p.ticker) ?? res.pools[0];
+        if (match?.ticker) into.set(poolId, match.ticker);
+      } catch {
+        /* leave unresolved — title falls back to pool id */
+      }
+    }),
+  );
+}
+
+async function lookupDrepNames(
+  needed: readonly string[],
+  treasuryById: ReadonlyMap<string, string>,
+  fallbackTreasuryId: string | undefined,
+  into: Map<string, string>,
+): Promise<void> {
+  await Promise.all(
+    needed.map(async (dRepId) => {
+      const treasuryId = treasuryById.get(dRepId) || fallbackTreasuryId;
+      if (!treasuryId) return;
+      try {
+        const params = new URLSearchParams({ treasuryId, dRepId, limit: "1" });
+        const res = await apiFetch<DrepsResponse>(`/api/chain/dreps?${params}`);
+        const match =
+          res.dreps.find((d) => d.dRepId === dRepId && d.givenName) ?? res.dreps[0];
+        if (match?.givenName) into.set(dRepId, match.givenName);
+      } catch {
+        /* leave unresolved — title falls back to dRep id */
+      }
+    }),
+  );
+}
 
 /** Seed from stored labels, then look up any remaining ids via Koios proxies. */
 export async function labelStakeTxDescriptions(
@@ -60,31 +110,8 @@ export async function labelStakeTxDescriptions(
   }
 
   await Promise.all([
-    ...neededPools.map(async (poolId) => {
-      const treasuryId = treasuryByPool.get(poolId) || fallbackTreasuryId;
-      if (!treasuryId) return;
-      try {
-        const params = new URLSearchParams({ treasuryId, poolId, limit: "1" });
-        const res = await apiFetch<StakePoolsResponse>(`/api/chain/stake-pools?${params}`);
-        const match = res.pools.find((p) => p.poolId === poolId && p.ticker) ?? res.pools[0];
-        if (match?.ticker) tickers.set(poolId, match.ticker);
-      } catch {
-        /* leave unresolved — title falls back to pool id */
-      }
-    }),
-    ...neededDreps.map(async (dRepId) => {
-      const treasuryId = treasuryByDrep.get(dRepId) || fallbackTreasuryId;
-      if (!treasuryId) return;
-      try {
-        const params = new URLSearchParams({ treasuryId, dRepId, limit: "1" });
-        const res = await apiFetch<DrepsResponse>(`/api/chain/dreps?${params}`);
-        const match =
-          res.dreps.find((d) => d.dRepId === dRepId && d.givenName) ?? res.dreps[0];
-        if (match?.givenName) dRepNames.set(dRepId, match.givenName);
-      } catch {
-        /* leave unresolved — title falls back to dRep id */
-      }
-    }),
+    lookupPoolTickers(neededPools, treasuryByPool, fallbackTreasuryId, tickers),
+    lookupDrepNames(neededDreps, treasuryByDrep, fallbackTreasuryId, dRepNames),
   ]);
 
   return txs.map((tx) => ({
@@ -94,4 +121,74 @@ export async function labelStakeTxDescriptions(
       dRepNameById: dRepNames,
     }),
   }));
+}
+
+/** Fill pool tickers / DRep names on classified external stake activity. */
+export async function labelExternalStakeActivities(
+  rows: ExternalTxRow[],
+  fallbackTreasuryId: string | undefined,
+): Promise<ExternalTxRow[]> {
+  if (rows.length === 0) return rows;
+
+  type StakeRow = { row: ExternalTxRow; activity: Extract<ExternalActivity, { kind: typeof TxKind.Stake }> };
+  const stakeRows: StakeRow[] = [];
+  for (const row of rows) {
+    const activity = parseExternalActivity(row.activity);
+    if (activity?.kind === TxKind.Stake) stakeRows.push({ row, activity });
+  }
+  if (stakeRows.length === 0) return rows;
+
+  const tickers = new Map<string, string>();
+  const dRepNames = new Map<string, string>();
+  const neededPools: string[] = [];
+  const neededDreps: string[] = [];
+  const treasuryByPool = new Map<string, string>();
+  const treasuryByDrep = new Map<string, string>();
+
+  for (const { row, activity } of stakeRows) {
+    if (activity.poolId?.trim()) {
+      if (activity.poolTicker?.trim()) tickers.set(activity.poolId, activity.poolTicker.trim());
+      else if (!neededPools.includes(activity.poolId)) {
+        neededPools.push(activity.poolId);
+        treasuryByPool.set(activity.poolId, row.treasury_id || fallbackTreasuryId || "");
+      }
+    }
+    if (
+      activity.action === StakeAction.VoteDelegation &&
+      activity.dRepId?.trim() &&
+      activity.dRepId !== "always_abstain" &&
+      activity.dRepId !== "always_no_confidence"
+    ) {
+      if (activity.dRepName?.trim()) dRepNames.set(activity.dRepId, activity.dRepName.trim());
+      else if (!neededDreps.includes(activity.dRepId)) {
+        neededDreps.push(activity.dRepId);
+        treasuryByDrep.set(activity.dRepId, row.treasury_id || fallbackTreasuryId || "");
+      }
+    }
+  }
+
+  await Promise.all([
+    lookupPoolTickers(neededPools, treasuryByPool, fallbackTreasuryId, tickers),
+    lookupDrepNames(neededDreps, treasuryByDrep, fallbackTreasuryId, dRepNames),
+  ]);
+
+  if (tickers.size === 0 && dRepNames.size === 0) return rows;
+
+  return rows.map((row) => {
+    const activity = parseExternalActivity(row.activity);
+    if (activity?.kind !== TxKind.Stake) return row;
+    const poolTicker =
+      activity.poolTicker?.trim() ||
+      (activity.poolId ? tickers.get(activity.poolId) : null) ||
+      null;
+    const dRepName =
+      activity.dRepName?.trim() ||
+      (activity.dRepId ? dRepNames.get(activity.dRepId) : null) ||
+      null;
+    if (!poolTicker && !dRepName) return row;
+    return {
+      ...row,
+      activity: { ...activity, poolTicker, dRepName },
+    };
+  });
 }

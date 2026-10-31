@@ -28,6 +28,7 @@ function external(overrides: Partial<ExternalTxRow> = {}): ExternalTxRow {
     assets: null,
     to_addresses: ["addr1a", "addr1b", "addr1c"],
     payout_meta: null,
+    activity: null,
     to_treasury_id: null,
     import_status: null,
     import_issues: [],
@@ -90,6 +91,26 @@ describe("describeExternalTx", () => {
       detail: "to 3 addresses",
     });
     expect(describeExternalTx(external({ to_addresses: ["addr1a"] })).detail).toBe("to 1 address");
+    expect(describeExternalTx(external({ activity: {} })).title).toBe("Outgoing transfer");
+  });
+
+  it("titles stake and registration activity from the classifier", () => {
+    expect(
+      describeExternalTx(external({
+        activity: { kind: "stake", action: "vote_delegation", dRepName: "Medusa DRep" },
+        to_addresses: [],
+        amount_lovelace: "0",
+      })),
+    ).toEqual({
+      title: "Stake: vote delegation to Medusa DRep",
+      detail: "Stake certificate",
+    });
+    expect(
+      describeExternalTx(external({ activity: { kind: "registration" } })),
+    ).toEqual({
+      title: "CIP-0146 wallet registration",
+      detail: "CIP-0146 registration",
+    });
   });
 });
 
