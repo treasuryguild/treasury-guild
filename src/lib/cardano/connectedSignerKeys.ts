@@ -1,11 +1,11 @@
 // Stake address and optional DRep key hash from the connected CIP-30 wallet.
-// The same two calls Mesh Multisig makes when a wallet connects: reward
-// addresses, then getDRep on the 1.9 IWallet (react 2.0's wallet lacks it).
+// Reward addresses are base CIP-30; getDRep needs CIP-95 on the 1.9 IWallet
+// (useMeshWallet requests it; react 2.0's wallet lacks getDRep).
 import type { IWallet } from "@meshsdk/core";
 
 export interface ConnectedSignerKeys {
   stakeAddress: string;
-  /** Empty when the wallet has no getDRep or the call fails. */
+  /** Empty when CIP-95 was not granted or getDRep failed — not that we skipped the call. */
   drepKeyHash: string;
 }
 
