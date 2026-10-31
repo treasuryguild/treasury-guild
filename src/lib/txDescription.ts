@@ -110,14 +110,21 @@ export type StakeLabelMaps = {
  * (`governance_action.poolTicker` or `poolTickerById`) over a baked-in pool id,
  * and a known DRep givenName over a baked-in dRep id.
  */
+function stakeLabelMapsOf(
+  value?: ReadonlyMap<string, string> | StakeLabelMaps,
+): StakeLabelMaps {
+  if (value == null) return {};
+  // `ReadonlyMap` is structural, so `instanceof Map` does not narrow it out of
+  // the union; anything that is not a Map is the maps object.
+  if (value instanceof Map) return { poolTickerById: value };
+  return value as StakeLabelMaps;
+}
+
 export function displayTxDescription(
   tx: { description: string | null; governance_action?: GovernanceAction | null },
   poolTickerByIdOrMaps?: ReadonlyMap<string, string> | StakeLabelMaps,
 ): string {
-  const maps: StakeLabelMaps =
-    poolTickerByIdOrMaps instanceof Map
-      ? { poolTickerById: poolTickerByIdOrMaps }
-      : (poolTickerByIdOrMaps ?? {});
+  const maps = stakeLabelMapsOf(poolTickerByIdOrMaps);
   const action = tx.governance_action;
   if (action?.kind === "stake") {
     const fromPoolMap = action.poolId ? maps.poolTickerById?.get(action.poolId) : null;
