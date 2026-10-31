@@ -1,8 +1,8 @@
-Every payout, payment, mint, anchor, stake, DRep or on-chain vote is a **transaction** that needs the treasury's signature threshold before it reaches the chain. The transaction page (`/c/your-slug/tx/…`) is where signers approve it and everyone follows its progress. Open it from the Treasury page's transaction list, or you land on it right after building one.
+Every payout, payment, mint, anchor, registration, stake, DRep or on-chain vote is a **transaction** that needs the treasury's signature threshold before it reaches the chain. The transaction page (`/c/your-slug/tx/…`) is where signers approve it and everyone follows its progress. Open it from the Treasury page's transaction list, or you land on it right after building one.
 
 ## The transaction page
 
-The title shows the transaction's description with a kind badge (**Mint**, **Payment**, **Anchor**, **Stake**, **DRep** or **Vote**; payouts have none) and a state badge:
+The title shows the transaction's description with a kind badge (**Mint**, **Payment**, **Anchor**, **Registration**, **Stake**, **DRep** or **Vote**; payouts have none) and a state badge:
 
 | State | Meaning |
 |---|---|
@@ -18,7 +18,8 @@ Below it:
 - **Mint preview** (mints only): the tokens being created, their metadata and images, and the policy lock if any.
 - **Payment** (payments only): each recipient by member handle, treasury name or address, marked **Transfer** when it is another of the community's treasuries, with the budget period, memo, the decisions it cites (linked to their proposals) and amounts exactly as written on-chain.
 - **Proposal anchors** (when the transaction carries label-190002 anchors): one row per proposal step, linked to the proposal, with the raw **On-chain anchor record** underneath.
-- **Outputs**: every address the transaction pays, with ADA and token amounts, the fee, and the message. The treasury's own output is marked *(change)* (or *(treasury)* when a mint lands there) and an output to another of the community's treasuries *(transfer)*. For payouts, the **payout metadata table** underneath lists each output's task numbers, workgroup, budget period, amounts and, when the record cites any, the **decisions** behind each task, exactly as they are written on-chain, each decision linked to its proposal. An **Anchor** transaction has no outputs but the change: it carries only its record (see [Proposals](/docs/governance)).
+- **Wallet registration** (registration transactions): the CIP-0146 name, roles and participant key hashes with display names, and the raw **On-chain registration** record underneath (see [On-chain registration](#on-chain-registration)).
+- **Outputs**: every address the transaction pays, with ADA and token amounts, the fee, and the message. The treasury's own output is marked *(change)* (or *(treasury)* when a mint lands there) and an output to another of the community's treasuries *(transfer)*. For payouts, the **payout metadata table** underneath lists each output's task numbers, workgroup, budget period, amounts and, when the record cites any, the **decisions** behind each task, exactly as they are written on-chain, each decision linked to its proposal. An **Anchor** or **Registration** transaction has no outputs but the change: it carries only its record (see [Proposals](/docs/governance) and [On-chain registration](#on-chain-registration)).
 - **Budget check** (while the community decides budgets by vote and chose to warn rather than refuse): the problems the [budget check](/docs/governance#spend-citations-and-the-budget-check) found when the transaction was built, for every signer to weigh before signing.
 - **Co-signer check** (co-signed transactions only): whether the transaction passes the [co-signer check](#the-co-signer-check), every problem found, and what an app-held co-signer decided.
 - **Signatures**: each signer of the transaction's [spending path](#spending-paths) by name with a green tick once they have signed or a red cross if they rejected, with the count collected and the rule (for example "1 collected · 2 of 3 required", or "2 of 3 + co-signer" with the co-signer listed apart).
@@ -130,4 +131,15 @@ A manual [payment](/docs/payments) uses the same label with a different record, 
 
 Mints use the standard CIP-25 token metadata (label 721) instead; see [Minting tokens](/docs/mint).
 
-On the transaction page, expanding **On-chain payout metadata**, **On-chain payment metadata**, **On-chain anchor record** or **On-chain CIP-25 metadata** shows the raw record exactly as decoded from the transaction, with a **what the keys mean** legend above it that explains each key and links to the matching section of these docs.
+### On-chain registration
+
+A [CIP-0146](https://cips.cardano.org/cip/CIP-0146) wallet registration (built from **Register wallet** on the treasury Details dialog) travels under label **1854** on a **Registration** transaction of its own, which pays nobody: change returns to the treasury minus the fee. The record holds:
+
+- `types` — roles covered: `0` payment (always), `2` stake, `3` DRep (stake and DRep when the treasury is an SDK wallet with those keys),
+- `name` — the treasury's display name (chunked into a string array when longer than 64 UTF-8 bytes),
+- `description` — optional free text, chunked like `name`; absent when none was set,
+- `participants` — a map of key hash → `{ name }` for every payment, stake and DRep key of the treasury's signers, each with that signer's display name truncated to 64 UTF-8 bytes.
+
+Co-signers use this record to [discover and import](/docs/treasury#importing-a-treasury) the wallet from the chain. A short human-readable message (CIP-20, label 674) rides along. The transaction page lists the name, types and participants above the outputs, with the raw record underneath.
+
+On the transaction page, expanding **On-chain payout metadata**, **On-chain payment metadata**, **On-chain anchor record**, **On-chain registration** or **On-chain CIP-25 metadata** shows the raw record exactly as decoded from the transaction, with a **what the keys mean** legend above it that explains each key and links to the matching section of these docs.

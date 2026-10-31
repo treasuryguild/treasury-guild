@@ -17,6 +17,7 @@
 
 import { SignerGroup } from "@/lib/constants";
 import type { TreasuryRow, TreasurySignerRow } from "@/lib/db/types";
+import { isRecord } from "@/lib/guards";
 
 export const METADATA_LABEL_1854 = "1854";
 export const METADATA_STRING_MAX_BYTES = 64;
@@ -87,6 +88,29 @@ export function joinMetadataString(value: unknown): string {
     return value.filter((v): v is string => typeof v === "string").join("");
   }
   return "";
+}
+
+/** Parse a label-1854 map value into our registration shape (null if invalid). */
+export function parseLabel1854Metadata(value: unknown): Label1854Metadata | null {
+  if (!isRecord(value) || !Array.isArray(value.types)) return null;
+  const types = value.types.filter((t): t is number => typeof t === "number");
+  if (types.length === 0) return null;
+  const participants: Label1854Metadata["participants"] = {};
+  if (isRecord(value.participants)) {
+    for (const [hash, info] of Object.entries(value.participants)) {
+      if (!/^[0-9a-f]{56}$/i.test(hash)) continue;
+      participants[hash.toLowerCase()] = {
+        name: joinMetadataString(isRecord(info) ? info.name : ""),
+      };
+    }
+  }
+  const out: Label1854Metadata = { types };
+  const name = joinMetadataString(value.name);
+  const description = joinMetadataString(value.description);
+  if (name) out.name = value.name as string | string[];
+  if (description) out.description = value.description as string | string[];
+  if (Object.keys(participants).length > 0) out.participants = participants;
+  return out;
 }
 
 /** Every key hash that belongs in a CIP-0146 participants map for this treasury. */

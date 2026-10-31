@@ -8,6 +8,7 @@ import "server-only";
 
 import { ANCHOR_METADATA_LABEL } from "./anchorMetadata";
 import { joinChunks } from "./cip25";
+import { METADATA_LABEL_1854 } from "./cip146Registration";
 import { csl } from "./csl";
 import { CIP20_LABEL, PAYOUT_METADATA_LABEL } from "./metadata";
 import { CIP25_LABEL } from "./mintMetadata";
@@ -28,6 +29,7 @@ export function decodeTxForDisplay(txCbor: string): DecodedTxView {
       message: extractTxMessage(txCbor) ?? null,
       payoutMeta: extractPayoutMetadata(txCbor) ?? null,
       anchorMeta: extractAnchorMetadata(txCbor) ?? null,
+      registrationMeta: extractRegistrationMetadata(txCbor) ?? null,
       mint: decodeTxMint(txCbor),
       cip25Meta: extractCip25Metadata(txCbor) ?? null,
       ttl: decodeTxTtl(txCbor) ?? null,
@@ -69,6 +71,11 @@ export function extractPayoutMetadata(txCbor: string): unknown {
 /** The label-190002 anchor record, if present. */
 export function extractAnchorMetadata(txCbor: string): unknown {
   return decodeLabel(txCbor, ANCHOR_METADATA_LABEL);
+}
+
+/** The label-1854 CIP-0146 registration record, if present. */
+export function extractRegistrationMetadata(txCbor: string): unknown {
+  return decodeLabel(txCbor, METADATA_LABEL_1854);
 }
 
 /** Decode the tx body's outputs (incl. native tokens) for the signing page.

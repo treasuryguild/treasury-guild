@@ -3,6 +3,8 @@ import { buildAnchorMetadata, buildAnchorTestMetadata } from "./anchorMetadata";
 import { buildCip25Entry, buildCip25Metadata } from "./mintMetadata";
 import { buildPayoutMetadata } from "./metadata";
 import { buildPaymentMetadata } from "./paymentMetadata";
+import { SignerGroup } from "@/lib/constants";
+import { buildTreasuryLabel1854Metadata } from "./cip146Registration";
 import {
   ANCHOR_METADATA_LEGEND,
   anchorLegend,
@@ -10,6 +12,8 @@ import {
   PAYMENT_METADATA_LEGEND,
   PAYOUT_METADATA_LEGEND,
   payoutOrPaymentLegend,
+  REGISTRATION_METADATA_LEGEND,
+  registrationLegend,
 } from "./metadataLegend";
 
 const ADA = { ticker: "ADA", decimals: 6 };
@@ -146,8 +150,50 @@ describe("metadata legends, both directions", () => {
     expect(payoutOrPaymentLegend(record)).toBeNull();
   });
 
+  it("explain every key of a CIP-0146 registration, both ways, and pick the legend for a real record only", () => {
+    const hashA = "a".repeat(56);
+    const hashB = "b".repeat(56);
+    const stakeA = "1".repeat(56);
+    const record = buildTreasuryLabel1854Metadata(
+      { name: "Main treasury" },
+      [
+        {
+          key_hash: hashA,
+          stake_key_hash: stakeA,
+          drep_key_hash: null,
+          display_name: "Alice",
+          signer_group: SignerGroup.Base,
+        },
+        {
+          key_hash: hashB,
+          stake_key_hash: null,
+          drep_key_hash: null,
+          display_name: "Bob",
+          signer_group: SignerGroup.Base,
+        },
+      ],
+      "Wallet for co-signer discovery",
+    );
+    for (const k of Object.keys(record)) {
+      expect(keysOf(REGISTRATION_METADATA_LEGEND), `registration key ${k}`).toContain(k);
+    }
+    expect([...keysOf(REGISTRATION_METADATA_LEGEND)].sort()).toEqual(
+      ["description", "name", "participants", "types"].sort(),
+    );
+    expect(registrationLegend(JSON.parse(JSON.stringify(record)))).toBe(REGISTRATION_METADATA_LEGEND);
+    expect(registrationLegend(null)).toBeNull();
+    expect(registrationLegend({ name: "x" })).toBeNull();
+    expect(payoutOrPaymentLegend(record)).toBeNull();
+  });
+
   it("name each key once and say something about every one", () => {
-    for (const legend of [PAYOUT_METADATA_LEGEND, PAYMENT_METADATA_LEGEND, CIP25_METADATA_LEGEND, ANCHOR_METADATA_LEGEND]) {
+    for (const legend of [
+      PAYOUT_METADATA_LEGEND,
+      PAYMENT_METADATA_LEGEND,
+      CIP25_METADATA_LEGEND,
+      ANCHOR_METADATA_LEGEND,
+      REGISTRATION_METADATA_LEGEND,
+    ]) {
       const keys = keysOf(legend);
       expect(new Set(keys).size, legend.title).toBe(keys.length);
       for (const entry of legend.entries) expect(entry.meaning.trim().length, `${legend.title} ${entry.key}`).toBeGreaterThan(10);

@@ -14,13 +14,12 @@ import { deserializeAddress, serializeNativeScript } from "@meshsdk/core";
 
 import type { Network } from "@/lib/config";
 import { BadRequestError } from "@/lib/errors";
-import { isRecord } from "@/lib/guards";
 import {
   joinMetadataString,
   METADATA_LABEL_1854,
+  parseLabel1854Metadata,
   participantsInclude,
   type Label1854LookupItem,
-  type Label1854Metadata,
 } from "./cip146Registration";
 import { csl } from "./csl";
 import { decodeTreasuryCbor, type DecodedTreasuryScript } from "./treasuryImport";
@@ -43,28 +42,8 @@ export type DiscoveredTreasury = {
   decoded: DecodedTreasuryScript;
 };
 
-/** Parse a label-1854 map value from Koios /tx_metadata into our lookup shape. */
-export function parseLabel1854Metadata(value: unknown): Label1854Metadata | null {
-  if (!isRecord(value) || !Array.isArray(value.types)) return null;
-  const types = value.types.filter((t): t is number => typeof t === "number");
-  if (types.length === 0) return null;
-  const participants: Label1854Metadata["participants"] = {};
-  if (isRecord(value.participants)) {
-    for (const [hash, info] of Object.entries(value.participants)) {
-      if (!/^[0-9a-f]{56}$/i.test(hash)) continue;
-      participants[hash.toLowerCase()] = {
-        name: joinMetadataString(isRecord(info) ? info.name : ""),
-      };
-    }
-  }
-  const out: Label1854Metadata = { types };
-  const name = joinMetadataString(value.name);
-  const description = joinMetadataString(value.description);
-  if (name) out.name = value.name as string | string[];
-  if (description) out.description = value.description as string | string[];
-  if (Object.keys(participants).length > 0) out.participants = participants;
-  return out;
-}
+/** Re-export for callers that historically imported the parser from discovery. */
+export { parseLabel1854Metadata };
 
 export function lookupItemsFromMetadata(
   byHash: Map<string, Record<string, unknown>>,
