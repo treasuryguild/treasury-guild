@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import type { ListSignerDraftsResponse } from "@/lib/api/types";
 import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
+import { labelStakeTxDescriptions } from "@/lib/cardano/stakePoolLabels";
 import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
 import { ChainImportStatus, TxState } from "@/lib/constants";
@@ -80,6 +81,7 @@ export default function TreasuryPage({
     }),
   );
 
+  const labelTreasuryId = treasuryIds[0];
   const txs = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
     async () => {
@@ -89,7 +91,7 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .order("created_at", { ascending: false })
         .limit(RECENT_TX_LIMIT);
-      return (data ?? []) as TransactionSummary[];
+      return labelStakeTxDescriptions((data ?? []) as TransactionSummary[], labelTreasuryId);
     },
   );
   // Pending txs are loaded separately so they never fall out of the recent
@@ -103,7 +105,7 @@ export default function TreasuryPage({
         .in("treasury_id", treasuryIds)
         .eq("state", TxState.Pending)
         .order("created_at", { ascending: false });
-      return (data ?? []) as TransactionSummary[];
+      return labelStakeTxDescriptions((data ?? []) as TransactionSummary[], labelTreasuryId);
     },
   );
   // Outgoing txs found on-chain that the app has no record of (external_txs).

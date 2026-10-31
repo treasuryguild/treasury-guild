@@ -4,7 +4,12 @@ import type { AssetDef } from "@/lib/assets";
 import type { PathTreasury } from "@/lib/cardano/spendingPaths";
 import type { DecodedTxView } from "@/lib/cardano/types";
 import type { SpendingPath } from "@/lib/constants";
-import type { CosignerDecisionRow, PaymentRow, TreasurySignerRow } from "@/lib/db/types";
+import type {
+  CosignerDecisionRow,
+  GovernanceAction,
+  PaymentRow,
+  TreasurySignerRow,
+} from "@/lib/db/types";
 import type { SpendProblem } from "@/lib/governance/spendCheck";
 
 export interface TxPanelTx {
@@ -25,6 +30,8 @@ export interface TxPanelTx {
    * has no automatic expiry (pre-TTL rows show "no expiry" when canceled).
    */
   validUntil: string | null;
+  /** Stake / DRep / vote payload (0075); null for other kinds. */
+  governanceAction: GovernanceAction | null;
 }
 
 export interface TxPanelTreasury extends PathTreasury {

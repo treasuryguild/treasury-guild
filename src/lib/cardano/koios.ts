@@ -5,7 +5,16 @@ import "server-only";
 import type { Network } from "@/lib/config";
 import { koiosApiKey, koiosBaseUrl } from "@/lib/env.server";
 import { UpstreamError } from "@/lib/errors";
+import {
+  buildPoolListPath,
+  buildPoolLookupPath,
+  mapKoiosPoolRow,
+  mapKoiosPoolRows,
+  type StakePoolSummary,
+} from "./stakePools";
 import { joinUnit, splitUnit } from "./units";
+
+export type { StakePoolSummary } from "./stakePools";
 
 const PAGE_SIZE = 500;
 const MAX_PAGES = 8;
@@ -294,6 +303,32 @@ export async function fetchActiveProposals(network: Network): Promise<KoiosPropo
   return (rows ?? []).filter(
     (p) => p.ratified_epoch == null && p.enacted_epoch == null && p.dropped_epoch == null,
   );
+}
+
+/**
+ * Search registered stake pools (Koios `GET /pool_list` + PostgREST filters).
+ * Empty `q` returns a ticker-sorted browse page; see `buildPoolListPath`.
+ */
+export async function searchStakePools(
+  network: Network,
+  opts: { q?: string; limit?: number } = {},
+): Promise<StakePoolSummary[]> {
+  const rows = await koiosGet(network, buildPoolListPath(opts));
+  return mapKoiosPoolRows(rows);
+}
+
+/** One pool by bech32 or hex id, or null when Koios has no row. */
+export async function lookupStakePool(
+  network: Network,
+  poolId: string,
+): Promise<StakePoolSummary | null> {
+  const trimmed = poolId.trim();
+  if (!trimmed) return null;
+  const rows = await koiosGet(network, buildPoolLookupPath(trimmed));
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const row = rows[0];
+  if (!row || typeof row !== "object") return null;
+  return mapKoiosPoolRow(row);
 }
 
 // --- CIP-0146 label-1854 registration discovery ------------------------------

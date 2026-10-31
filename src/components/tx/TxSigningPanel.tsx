@@ -23,6 +23,7 @@ import {
 } from "@/components/ui";
 import { AnchorRecordCard } from "./AnchorRecordCard";
 import { CosignerCard } from "./CosignerCard";
+import { GovernanceActionCard } from "./GovernanceActionCard";
 import { MintPreview } from "./MintPreview";
 import { OutputsCard } from "./OutputsCard";
 import { PaymentPreview } from "./PaymentPreview";
@@ -187,6 +188,8 @@ export function TxSigningPanel({
         transferAddresses={transferAddresses}
         metadataLabel={isPaymentTx ? "On-chain payment metadata (label 190001)" : undefined}
       />
+
+      <GovernanceActionCard action={tx.governanceAction} />
 
       <SpendProblemsCard problems={tx.spendProblems} />
 

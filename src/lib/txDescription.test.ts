@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { paymentDescription, paymentRecipientSummary, payoutDescription } from "./txDescription";
+import { StakeAction } from "@/lib/constants";
+import {
+  displayTxDescription,
+  paymentDescription,
+  paymentRecipientSummary,
+  payoutDescription,
+  poolIdsNeedingTicker,
+  stakeDescription,
+  stakePoolLabel,
+} from "./txDescription";
 
 describe("transaction descriptions", () => {
   it("summarises a payout", () => {
@@ -14,6 +23,82 @@ describe("transaction descriptions", () => {
       .toBe("Payment: 3 recipients (ADA)");
     expect(paymentDescription({ memo: null, recipients: 1, transfers: 1, tickers: ["GVTT"] }))
       .toBe("Payment: 1 treasury transfer (GVTT)");
+  });
+});
+
+describe("stakeDescription", () => {
+  it("prefers the pool ticker over the pool id in the title", () => {
+    expect(
+      stakeDescription(StakeAction.RegisterAndDelegate, {
+        poolId: "pool1abc",
+        poolTicker: "NUTS",
+      }),
+    ).toBe("Stake: register and delegate to NUTS");
+    expect(
+      stakeDescription(StakeAction.Delegate, { poolId: "pool1abc", poolTicker: "NUTS" }),
+    ).toBe("Stake: delegate to NUTS");
+  });
+
+  it("falls back to the pool id when no ticker is known", () => {
+    expect(stakeDescription(StakeAction.Delegate, { poolId: "pool1abc" }))
+      .toBe("Stake: delegate to pool1abc");
+    expect(stakePoolLabel({ poolId: "pool1abc", poolTicker: "  " })).toBe("pool1abc");
+  });
+});
+
+describe("displayTxDescription", () => {
+  it("rewrites a stake title from governance_action / ticker map", () => {
+    expect(
+      displayTxDescription({
+        description: "Stake: register and delegate to pool1abc",
+        governance_action: {
+          kind: "stake",
+          action: StakeAction.RegisterAndDelegate,
+          poolId: "pool1abc",
+          poolTicker: "NUTS",
+        },
+      }),
+    ).toBe("Stake: register and delegate to NUTS");
+    expect(
+      displayTxDescription(
+        {
+          description: "Stake: delegate to pool1abc",
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.Delegate,
+            poolId: "pool1abc",
+          },
+        },
+        new Map([["pool1abc", "NUTS"]]),
+      ),
+    ).toBe("Stake: delegate to NUTS");
+  });
+
+  it("leaves non-stake descriptions alone", () => {
+    expect(displayTxDescription({ description: "Payout: 1 task", governance_action: null }))
+      .toBe("Payout: 1 task");
+  });
+
+  it("lists pool ids that still need a ticker", () => {
+    expect(
+      poolIdsNeedingTicker([
+        {
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.Delegate,
+            poolId: "pool1abc",
+          },
+        },
+        {
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.Delegate,
+            poolId: "pool1xyz",
+            poolTicker: "XYZ",
+          },
+        },
+      ]),
+    ).toEqual(["pool1abc"]);
   });
 });
 

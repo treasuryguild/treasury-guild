@@ -387,6 +387,18 @@ export interface StakeAccountResponse {
   dRepId: string | null;
   rewardsAvailable: string;
 }
+/** GET /api/chain/stake-pools */
+export interface StakePoolSummary {
+  poolId: string;
+  ticker: string | null;
+  margin: number | null;
+  fixedCost: string | null;
+  activeStake: string | null;
+  status: string;
+}
+export interface StakePoolsResponse {
+  pools: StakePoolSummary[];
+}
 export interface DrepStatusResponse {
   dRepId: string;
   active: boolean;

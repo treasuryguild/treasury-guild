@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import type {
@@ -14,6 +14,7 @@ import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { StakePoolPicker } from "@/components/treasury/StakePoolPicker";
 import {
   Button,
   Card,
@@ -46,6 +47,13 @@ export default function TreasuryStakingPage({
     details.data?.treasury.canStake ? `stake:${treasuryId}` : null,
     async () => apiFetch<StakeAccountResponse>(`/api/chain/stake-account?treasuryId=${treasuryId}`),
   );
+
+  // Prefill the picker once with the on-chain delegation (do not clobber a user choice).
+  useEffect(() => {
+    const current = account.data?.poolId;
+    if (!current) return;
+    setPoolId((prev) => (prev.trim() ? prev : current));
+  }, [account.data?.poolId]);
 
   if (blocked) return blocked;
 
@@ -127,15 +135,12 @@ export default function TreasuryStakingPage({
         </Field>
 
         {needsPool && (
-          <Field label="Pool id" hint="pool1… or 56-character hex">
-            <Input
-              className="font-mono text-xs"
-              value={poolId}
-              onChange={(e) => setPoolId(e.target.value)}
-              placeholder="pool1…"
-              disabled={busy}
-            />
-          </Field>
+          <StakePoolPicker
+            treasuryId={treasuryId}
+            value={poolId}
+            onChange={setPoolId}
+            disabled={busy}
+          />
         )}
 
         {action === StakeAction.VoteDelegation && (

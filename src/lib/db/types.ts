@@ -229,6 +229,8 @@ export type GovernanceAction =
       kind: "stake";
       action: StakeAction;
       poolId?: string | null;
+      /** Pool ticker when known at build (title uses this; poolId stays in details). */
+      poolTicker?: string | null;
       dRepId?: string | null;
       rewards?: string | null;
     }
@@ -284,9 +286,10 @@ export type TransactionSummary = Pick<
   | "tx_hash"
   | "created_at"
   | "spending_path"
+  | "governance_action"
 >;
 export const TRANSACTION_SUMMARY_COLUMNS =
-  "id, treasury_id, kind, description, signed_addresses, state, tx_hash, created_at, spending_path";
+  "id, treasury_id, kind, description, signed_addresses, state, tx_hash, created_at, spending_path, governance_action";
 
 export interface PayoutRow {
   id: string;
