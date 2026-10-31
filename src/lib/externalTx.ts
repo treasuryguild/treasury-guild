@@ -5,6 +5,11 @@
 import { parsePayoutMeta } from "@/lib/cardano/metadata";
 import { parsePaymentMeta } from "@/lib/cardano/paymentMetadata";
 import type { ExternalTxRow, TransactionSummary } from "@/lib/db/types";
+import {
+  externalActivityDetail,
+  externalActivityTitle,
+  parseExternalActivity,
+} from "@/lib/externalActivity";
 import { plural } from "@/lib/format";
 
 /** Title and detail line for an external tx card. */
@@ -22,6 +27,13 @@ export function describeExternalTx(row: ExternalTxRow): { title: string; detail:
     return {
       title: `Payout on-chain: ${plural(meta.taskNumbers.length, "task")}, ${plural(meta.outputs, "output")}`,
       detail: meta.workgroups.length > 0 ? meta.workgroups.join(", ") : "Treasury Guild payout",
+    };
+  }
+  const activity = parseExternalActivity(row.activity);
+  if (activity) {
+    return {
+      title: externalActivityTitle(activity),
+      detail: externalActivityDetail(activity),
     };
   }
   return {

@@ -139,7 +139,7 @@ While budget consent is on, every payout and payment is **checked against the vo
 
 Under [Governance settings](#governance-settings) an admin chooses what a spend that fails the check does. **Warn** (the default) lets the build go ahead and shows the problems on the transaction page, above the signatures, so every signer sees them before signing. **Refuse** stops the build and lists the problems instead. Transfers between the community's own treasuries are not spending and are never checked.
 
-A transaction that spends from a treasury but was not built in Treasury Guild cites no decision and is checked against nothing. While budget consent is on, the Treasury page marks such a transaction **Built outside Treasury Guild**, and it is posted once to the [Discord announcements](#discord-announcements) channel (the treasury, the amounts and the transaction link; never who received it).
+A transaction that spends from a treasury but was not built in Treasury Guild cites no decision and is checked against nothing. Stake certificates, CIP-0146 registrations, anchors, DRep certificates and governance votes found on-chain are titled from the chain instead and are not treated as opaque budget spends. While budget consent is on, the Treasury page marks only the remaining unrecognized transfers **Built outside Treasury Guild**, and each of those is posted once to the [Discord announcements](#discord-announcements) channel (the treasury, the amounts and the transaction link; never who received it).
 
 ## The co-signer
 

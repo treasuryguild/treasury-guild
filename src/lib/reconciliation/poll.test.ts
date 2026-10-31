@@ -327,6 +327,7 @@ describe("pollTreasury", () => {
         assets: { [UNIT]: "5" },
         to_addresses: [ALICE, BOB],
         payout_meta: META,
+        activity: {},
       }]);
       expect(of("incoming_txs", "insert")).toEqual([]);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
@@ -335,7 +336,41 @@ describe("pollTreasury", () => {
     it("stores no payout_meta for a spend without the label, and a zero fee when Koios gives none", async () => {
       chain([listed("h-out", 850)], [outgoing("h-out", { fee: undefined, metadata: { "674": { msg: ["hi"] } } })]);
       await pollTreasury(TREASURY);
-      expect(of("external_txs", "insert")[0]?.values).toMatchObject({ payout_meta: null, fee_lovelace: "0" });
+      expect(of("external_txs", "insert")[0]?.values).toMatchObject({
+        payout_meta: null,
+        fee_lovelace: "0",
+        activity: {},
+      });
+    });
+
+    it("stores stake activity and stamps the alert column for a vote-delegation spend", async () => {
+      chain([listed("h-stake", 850)], [outgoing("h-stake", {
+        outputs: [{ payment_addr: { bech32: TREASURY.address }, value: "99820000", tx_index: 0 }],
+        certificates: [{
+          index: 0,
+          type: "vote_delegation",
+          info: { drep_id: "drep1medusa", stake_address: "stake_test1…" },
+        }],
+      })]);
+      await pollTreasury(TREASURY);
+      const inserted = of("external_txs", "insert")[0]?.values;
+      expect(inserted).toMatchObject({
+        tx_hash: "h-stake",
+        activity: { kind: "stake", action: "vote_delegation", dRepId: "drep1medusa" },
+        governance_alerted_at: expect.any(String),
+      });
+    });
+
+    it("stores CIP-0146 registration activity from label 1854", async () => {
+      chain([listed("h-reg", 850)], [outgoing("h-reg", {
+        outputs: [{ payment_addr: { bech32: TREASURY.address }, value: "99820000", tx_index: 0 }],
+        metadata: { "1854": { types: [1], name: "Gov" } },
+      })]);
+      await pollTreasury(TREASURY);
+      expect(of("external_txs", "insert")[0]?.values).toMatchObject({
+        activity: { kind: "registration" },
+        governance_alerted_at: expect.any(String),
+      });
     });
 
     it("skips a spend whose hash the app holds in any state, and the app's own rows are never external", async () => {

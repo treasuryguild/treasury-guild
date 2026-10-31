@@ -13,6 +13,10 @@ import { rows, serviceClient } from "@/lib/db/client";
 import { loadGovernanceSettings } from "@/lib/db/governance";
 import { listUnalertedSpends, markSpendAlerted } from "@/lib/db/outsideSpends";
 import { errorMessage } from "@/lib/errors";
+import {
+  isRecognizedExternalActivity,
+  parseExternalActivity,
+} from "@/lib/externalActivity";
 import { DiscordBotError, postChannelMessage, type BotFetchLike } from "./bot";
 import {
   listGovernanceChannelsFor, recordGovernanceChannelError, recordGovernanceChannelPost,
@@ -44,6 +48,12 @@ export async function notifyOutsideSpends(options: { fetchImpl?: BotFetchLike } 
   const displays = new Map<string, ReturnType<typeof unitDisplayFromRegistry>>();
 
   for (const spend of spends) {
+    // Stake / registration / anchor / DRep / vote are not opaque budget spends.
+    if (isRecognizedExternalActivity(parseExternalActivity(spend.activity))) {
+      await markSpendAlerted([spend.tx_hash]);
+      result.skipped += 1;
+      continue;
+    }
     const communityId = spend.treasuries.community_id;
     if (!budgetKindOn.has(communityId)) {
       budgetKindOn.set(communityId, (await loadGovernanceSettings(communityId, ProposalKind.Budget)).enabled);
