@@ -67,7 +67,7 @@ describe("listUnalertedSpends", () => {
     }];
     const rows = await listUnalertedSpends();
     expect(rows).toHaveLength(1);
-    expect(rows[0].activity).toBeNull();
+    expect(rows[0]?.activity).toBeNull();
     expect(ops[0]).toMatchObject({
       table: "external_txs",
       columns: expect.stringContaining("activity"),
