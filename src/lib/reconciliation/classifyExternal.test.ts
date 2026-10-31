@@ -80,6 +80,9 @@ describe("classifyUnlabeledExternalTxs", () => {
       }],
     }]);
     expect(await classifyUnlabeledExternalTxs({ id: "t-1", network: 0 })).toEqual({ classified: 1 });
+    expect(calls.find((c) => c.op === "select")?.filters).toEqual(
+      expect.arrayContaining([["activity", null]]),
+    );
     const update = calls.find((c) => c.op === "update");
     expect(update?.values).toMatchObject({
       activity: { kind: TxKind.Stake, action: StakeAction.VoteDelegation, dRepId: "drep1medusa" },
@@ -97,6 +100,9 @@ describe("classifyUnlabeledExternalTxs", () => {
       outputs: [],
     }]);
     expect(await classifyUnlabeledExternalTxs({ id: "t-1", network: 0 })).toEqual({ classified: 1 });
+    expect(calls.find((c) => c.op === "select")?.filters).toEqual(
+      expect.arrayContaining([["activity", null]]),
+    );
     expect(calls.find((c) => c.op === "update")?.values).toEqual({ activity: {} });
   });
 
@@ -104,6 +110,9 @@ describe("classifyUnlabeledExternalTxs", () => {
     selectData = [{ tx_hash: "h-missing" }];
     mocks.txInfoBulk.mockResolvedValue([]);
     expect(await classifyUnlabeledExternalTxs({ id: "t-1", network: 0 })).toEqual({ classified: 0 });
+    expect(calls.find((c) => c.op === "select")?.filters).toEqual(
+      expect.arrayContaining([["activity", null]]),
+    );
     expect(calls.filter((c) => c.op === "update")).toEqual([]);
   });
 });

@@ -90,6 +90,21 @@ describe("notifyOutsideSpends", () => {
     expect(mocks.settings).not.toHaveBeenCalled();
   });
 
+  it("stamps without posting a recognized registration", async () => {
+    mocks.list.mockResolvedValue([spend({ activity: { kind: "registration" } })]);
+    expect(await notifyOutsideSpends()).toEqual({ posted: 0, skipped: 1, failed: 0 });
+    expect(mocks.mark).toHaveBeenCalledExactlyOnceWith([TX]);
+    expect(mocks.post).not.toHaveBeenCalled();
+    expect(mocks.settings).not.toHaveBeenCalled();
+  });
+
+  it("posts an opaque {} activity the same as an unclassified null", async () => {
+    mocks.list.mockResolvedValue([spend({ activity: {} })]);
+    expect(await notifyOutsideSpends()).toEqual({ posted: 1, skipped: 0, failed: 0 });
+    expect(mocks.post).toHaveBeenCalledOnce();
+    expect(mocks.mark).toHaveBeenCalledExactlyOnceWith([TX]);
+  });
+
   it("stamps without posting when the budget kind is off", async () => {
     mocks.settings.mockResolvedValue({ enabled: false });
     expect(await notifyOutsideSpends()).toEqual({ posted: 0, skipped: 1, failed: 0 });

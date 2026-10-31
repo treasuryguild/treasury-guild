@@ -6,8 +6,8 @@ import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 
 // The prologue (`loadPendingTxForSigner`), the path rules and the
 // reachability predicate run for real; the session, the row reads and the
-// writer are mocked. Putting a dead transaction's tasks back to payable is
-// the writer's own step (reject_transaction): the route only passes `dead`.
+// writer are mocked. The route only passes `dead` into reject_transaction:
+// unsigned dead → state 3 + release; signed dead → state 4 (canceled), tasks stay queued.
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), db: vi.fn(), treasury: vi.fn(), signers: vi.fn(), member: vi.fn(),
   record: vi.fn(),

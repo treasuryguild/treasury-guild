@@ -9,6 +9,7 @@ interface Op {
   table: string;
   filters: [string, unknown][];
   values?: Record<string, unknown>;
+  columns?: string;
   op: "select" | "update";
 }
 
@@ -22,7 +23,10 @@ function builder(table: string) {
     return chain;
   };
   const chain = {
-    select: () => chain,
+    select: (columns: string) => {
+      op.columns = columns;
+      return chain;
+    },
     update: (values: Record<string, unknown>) => {
       op.op = "update";
       op.values = values;
@@ -58,12 +62,15 @@ describe("listUnalertedSpends", () => {
       assets: null,
       to_addresses: [],
       to_treasury_id: null,
+      activity: null,
       treasuries: { name: "Main", network: 0, community_id: "c-1" },
     }];
     const rows = await listUnalertedSpends();
     expect(rows).toHaveLength(1);
+    expect(rows[0]?.activity).toBeNull();
     expect(ops[0]).toMatchObject({
       table: "external_txs",
+      columns: expect.stringContaining("activity"),
       filters: expect.arrayContaining([
         ["governance_alerted_at", null],
         ["or", "payout_meta.is.null,import_status.not.is.null"],
