@@ -3,6 +3,7 @@
 import { use, useCallback, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
+import type { ListSignerDraftsResponse } from "@/lib/api/types";
 import { formatUnitAmount, unitDisplayFromRegistry } from "@/lib/assetRegistry";
 import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
@@ -71,6 +72,13 @@ export default function TreasuryPage({
   const treasuryIds = visible.map((t) => t.id);
   const allTreasuryIds = list.map((t) => t.id);
   const setPrimary = useAsyncAction("Failed to set primary treasury");
+  const discardDraft = useAsyncAction("Could not discard the signer invite");
+  // Open SDK signer invites: resume Create on New treasury once stakes are in.
+  const openDrafts = useAsyncData(isAdmin && community?.id ? community.id : null, async () =>
+    apiFetch<ListSignerDraftsResponse>("/api/treasury/signer-draft", {
+      query: { communityId: community!.id },
+    }),
+  );
 
   const txs = useAsyncData(
     treasuryIds.length > 0 ? treasuryIds.join(",") : null,
@@ -154,6 +162,7 @@ export default function TreasuryPage({
   );
   const treasuryName = (id: string) => list.find((t) => t.id === id)?.name ?? "Unknown wallet";
   const activityLoading = txs.loading || externals.loading;
+  const sdkDrafts = openDrafts.data?.drafts ?? [];
   const appTxCard = (tx: TransactionSummary) => (
     <Link key={tx.id} href={routes.tx(slug, tx.id)} className="block">
       <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
@@ -208,8 +217,37 @@ export default function TreasuryPage({
           })()}
         </>
       )}
-      <ErrorText error={setPrimary.error} className="mb-3" />
+      <ErrorText error={setPrimary.error ?? discardDraft.error} className="mb-3" />
       <NoticeText className="mb-3">{lifecycleMessage}</NoticeText>
+      {isAdmin && sdkDrafts.length > 0 && (
+        <Card className="mb-4 space-y-2 text-sm">
+          <p>An SDK signer invite is already open. Continue it to finish creating the treasury once every stake address is in.</p>
+          {sdkDrafts.map((item) => (
+            <div key={item.id} className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{item.name}</span>
+              <span className="text-zinc-500">
+                {item.signers.filter((s) => s.stakeReceived).length} of {item.signers.length} connected
+              </span>
+              <LinkButton href={routes.newTreasury(slug, { draftId: item.id })} variant="secondary">
+                Continue
+              </LinkButton>
+              <Button
+                variant="ghost"
+                disabled={discardDraft.busy}
+                onClick={() => void discardDraft.run(async () => {
+                  await apiFetch("/api/treasury/signer-draft", {
+                    method: "DELETE",
+                    body: { draftId: item.id },
+                  });
+                  openDrafts.reload();
+                })}
+              >
+                Discard
+              </Button>
+            </div>
+          ))}
+        </Card>
+      )}
       {hasArchived && (
         <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
           <input
