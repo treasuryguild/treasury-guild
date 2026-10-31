@@ -1,11 +1,11 @@
 "use client";
 
 // Everything about a treasury wallet that the card does not show: the full
-// address, the payment native script as JSON and CBOR, its hash (the policy
-// id of unlocked mints), the stake credential and the signers in script order.
+// address, payment / stake / DRep native scripts as JSON and CBOR, CIP-1854
+// metadata for SDK wallets, script hashes, and the signers in script order.
 import { useId, type ReactNode } from "react";
 import { apiFetch } from "@/lib/api/client";
-import type { TreasuryDetailsResponse } from "@/lib/api/types";
+import type { TreasuryDetailsResponse, TreasuryNativeScriptView } from "@/lib/api/types";
 import { templateLabel } from "@/lib/cardano/spendingPaths";
 import { describeThreshold } from "@/lib/cardano/thresholds";
 import { networkName } from "@/lib/config";
@@ -35,7 +35,8 @@ export function TreasuryDetailsModal({
     apiFetch<TreasuryDetailsResponse>("/api/treasury", { query: { treasuryId } }),
   );
   const t = details.data?.treasury ?? null;
-  const scriptJson = t ? JSON.stringify(t.nativeScript, null, 2) : "";
+  const paymentJson = t ? JSON.stringify(t.nativeScript, null, 2) : "";
+  const metadataJson = t?.cip1854Metadata ? JSON.stringify(t.cip1854Metadata, null, 2) : "";
 
   return (
     <Modal
@@ -158,31 +159,147 @@ export function TreasuryDetailsModal({
                     <span className="break-all">key hash {s.keyHash}</span>
                     <CopyButton value={s.keyHash} label="Copy key hash" />
                   </p>
+                  {s.stakeKeyHash && (
+                    <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
+                      <span className="break-all">stake key hash {s.stakeKeyHash}</span>
+                      <CopyButton value={s.stakeKeyHash} label="Copy stake key hash" />
+                    </p>
+                  )}
+                  {s.drepKeyHash && (
+                    <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
+                      <span className="break-all">DRep key hash {s.drepKeyHash}</span>
+                      <CopyButton value={s.drepKeyHash} label="Copy DRep key hash" />
+                    </p>
+                  )}
                 </li>
               ))}
             </ol>
           </section>
 
-          <section>
-            <SectionLabel action={<CopyButton value={scriptJson} label="Copy native script JSON" />}>
-              Native script (JSON)
-            </SectionLabel>
-            <pre className="whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-300">
-              {scriptJson}
-            </pre>
-          </section>
+          {metadataJson && (
+            <ScriptJsonSection
+              title="CIP-1854 metadata"
+              json={metadataJson}
+              copyLabel="Copy CIP-1854 metadata"
+            />
+          )}
 
-          <section>
-            <SectionLabel action={<CopyButton value={t.scriptCbor} label="Copy script CBOR" />}>
-              Native script (CBOR hex)
-            </SectionLabel>
-            <pre className="whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-300">
-              {t.scriptCbor}
-            </pre>
-          </section>
+          <ScriptJsonSection
+            title="Payment native script (JSON)"
+            json={paymentJson}
+            copyLabel="Copy payment native script JSON"
+          />
+          <ScriptCborSection
+            title="Payment native script (CBOR hex)"
+            cbor={t.scriptCbor}
+            copyLabel="Copy payment script CBOR"
+          />
+
+          {t.stakeScript && (
+            <NativeScriptBlocks
+              label="Stake"
+              view={t.stakeScript}
+              hashLabel="Stake script hash"
+            />
+          )}
+
+          {t.drepScript && (
+            <>
+              {t.drepScript.paymentFallback && (
+                <p className="text-xs text-zinc-500">
+                  No dedicated DRep keys: the payment script is used as the DRep.
+                </p>
+              )}
+              <NativeScriptBlocks
+                label="DRep"
+                view={t.drepScript}
+                hashLabel="DRep script hash"
+              />
+            </>
+          )}
         </div>
       )}
     </Modal>
+  );
+}
+
+function NativeScriptBlocks({
+  label,
+  view,
+  hashLabel,
+}: {
+  label: string;
+  view: TreasuryNativeScriptView;
+  hashLabel: string;
+}) {
+  const json = JSON.stringify(view.nativeScript, null, 2);
+  return (
+    <>
+      <RowBlock label={hashLabel}>
+        <Hex value={view.scriptHash} />
+      </RowBlock>
+      <ScriptJsonSection
+        title={`${label} native script (JSON)`}
+        json={json}
+        copyLabel={`Copy ${label.toLowerCase()} native script JSON`}
+      />
+      <ScriptCborSection
+        title={`${label} native script (CBOR hex)`}
+        cbor={view.scriptCbor}
+        copyLabel={`Copy ${label.toLowerCase()} script CBOR`}
+      />
+    </>
+  );
+}
+
+function ScriptJsonSection({
+  title,
+  json,
+  copyLabel,
+}: {
+  title: string;
+  json: string;
+  copyLabel: string;
+}) {
+  return (
+    <section>
+      <SectionLabel action={<CopyButton value={json} label={copyLabel} />}>
+        {title}
+      </SectionLabel>
+      <pre className="whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-300">
+        {json}
+      </pre>
+    </section>
+  );
+}
+
+function ScriptCborSection({
+  title,
+  cbor,
+  copyLabel,
+}: {
+  title: string;
+  cbor: string;
+  copyLabel: string;
+}) {
+  return (
+    <section>
+      <SectionLabel action={<CopyButton value={cbor} label={copyLabel} />}>
+        {title}
+      </SectionLabel>
+      <pre className="whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 font-mono text-xs text-zinc-300">
+        {cbor}
+      </pre>
+    </section>
+  );
+}
+
+function RowBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="min-w-0">{children}</div>
+    </section>
   );
 }
 

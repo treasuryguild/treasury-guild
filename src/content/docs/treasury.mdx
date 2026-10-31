@@ -44,11 +44,12 @@ Click **Details** on a treasury card to open the wallet details dialog:
 - the **template** and the base **signing rule** with its native-script type (`atLeast`, `all` or `any`); a clawback treasury's recovery rule, a lock date with its slot, and the co-signer, when the template has them,
 - the **script hash**, which is also the policy id of tokens [minted](/docs/mint) without a time lock,
 - the stake address and stake credential, when the wallet has one,
-- the **signers** in native-script order (new wallets sort by key hash within each group; imports keep their original order), each with their name, wallet address, payment key hash and, outside the base group, whether they are a recovery signer or the co-signer,
+- the **signers** in native-script order (new wallets sort by key hash within each group; imports keep their original order), each with their name, wallet address, payment key hash and, outside the base group, whether they are a recovery signer or the co-signer; for an SDK wallet, each base signer's stake key hash and DRep key hash when present,
 - the payment **native script as JSON** and as **CBOR hex**, each with a copy button,
+- for an **SDK** wallet: **CIP-1854 metadata**, the **stake** native script (JSON, CBOR and script hash), and the **DRep** native script (JSON, CBOR and script hash). When the wallet has no complete set of DRep keys, the payment script is used as the DRep and the dialog says so,
 - **Register wallet**: a CIP-0146 (label 1854) registration transaction so co-signers can [discover and import](/docs/treasury#importing-a-treasury) this treasury from the chain. Base signers build it like any other transaction; the card shows whether the on-chain record matches the current name and signers, and offers **Update registration** when it does not.
 
-The script is checked against the stored signers and treasury address when the dialog opens, so what you see is exactly what transactions are witnessed with. Use it to verify the wallet in another tool or to register the treasury's script elsewhere.
+The scripts are checked against the stored signers and treasury address when the dialog opens, so what you see is exactly what transactions are witnessed with. Use them to verify the wallet in another tool or to register the treasury's script elsewhere.
 
 ## Creating a treasury
 
