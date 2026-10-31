@@ -213,6 +213,7 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.includes("/treasury/history"), { slug: "treasury", hash: "payment-history-from-a-previous-wallet" }],
   [(p) => p.includes("/staking"), { slug: "treasury", hash: "staking-and-cardano-governance" }],
   [(p) => p.includes("/cardano-gov"), { slug: "treasury", hash: "staking-and-cardano-governance" }],
+  [(p) => p.includes("/on-chain/"), { slug: "treasury", hash: "the-treasury-page" }],
   [(p) => p.includes("/treasury"), { slug: "treasury" }],
   [(p) => p.includes("/dashboard"), { slug: "budgets", hash: "dashboard" }],
   [(p) => p.includes("/budgets"), { slug: "budgets" }],

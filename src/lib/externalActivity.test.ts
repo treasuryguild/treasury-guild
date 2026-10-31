@@ -4,6 +4,7 @@ import {
   classifyExternalActivity,
   externalActivityDetail,
   externalActivityTitle,
+  governanceActionFromActivity,
   isRecognizedExternalActivity,
   parseExternalActivity,
 } from "./externalActivity";
@@ -179,5 +180,45 @@ describe("parseExternalActivity / isRecognizedExternalActivity", () => {
     expect(parseExternalActivity(null)).toBeNull();
     expect(isRecognizedExternalActivity(parseExternalActivity(stake))).toBe(true);
     expect(isRecognizedExternalActivity(null)).toBe(false);
+  });
+});
+
+describe("governanceActionFromActivity", () => {
+  it("maps stake and drep activity for the details card", () => {
+    expect(
+      governanceActionFromActivity({
+        kind: TxKind.Stake,
+        action: StakeAction.VoteDelegation,
+        dRepId: "drep1medusa",
+        dRepName: "Medusa DRep",
+      }),
+    ).toEqual({
+      kind: "stake",
+      action: StakeAction.VoteDelegation,
+      poolId: null,
+      poolTicker: null,
+      dRepId: "drep1medusa",
+      dRepName: "Medusa DRep",
+      rewards: null,
+    });
+    expect(
+      governanceActionFromActivity({
+        kind: TxKind.Drep,
+        action: DrepAction.Register,
+        dRepId: "drep1abc",
+      }),
+    ).toEqual({ kind: "drep", action: DrepAction.Register, dRepId: "drep1abc" });
+  });
+
+  it("maps vote count into placeholder ballot rows and skips registration", () => {
+    const vote = governanceActionFromActivity({
+      kind: TxKind.Vote,
+      dRepId: "drep1abc",
+      voteCount: 2,
+    });
+    expect(vote).toMatchObject({ kind: "vote", dRepId: "drep1abc" });
+    expect(vote?.kind === "vote" && vote.votes).toHaveLength(2);
+    expect(governanceActionFromActivity({ kind: TxKind.Registration })).toBeNull();
+    expect(governanceActionFromActivity(null)).toBeNull();
   });
 });
