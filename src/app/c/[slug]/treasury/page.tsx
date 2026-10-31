@@ -265,59 +265,59 @@ export default function TreasuryPage({
           const archived = !!t.archived_at;
           return (
             <Card key={t.id}>
-              <div className="flex min-w-0 items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
-                    <span className="min-w-0 truncate">{t.name}</span>
-                    {isPrimary && <Badge tone="blue">Primary</Badge>}
-                    {archived && <Badge>Archived</Badge>}
-                  </h3>
-                  <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
-                    {shortAddress(t.address)}
-                    <CopyButton value={t.address} />
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              <div className="min-w-0">
+                <h3 className="flex min-w-0 flex-wrap items-center gap-2 font-medium">
+                  <span className="min-w-0 truncate">{t.name}</span>
+                  {isPrimary && <Badge tone="blue">Primary</Badge>}
+                  {archived && <Badge>Archived</Badge>}
                   <Badge>{describeTemplate(t, signerCounts(t.treasury_signers))}</Badge>
                   {t.template === "plain" && t.stake_credential_hash && !archived && (
-                    <>
-                      <Badge tone="green">SDK</Badge>
-                      <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
-                        Staking
-                      </LinkButton>
-                      <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
-                        Cardano gov
-                      </LinkButton>
-                    </>
+                    <Badge tone="green">SDK</Badge>
                   )}
+                </h3>
+                <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-zinc-500">
+                  {shortAddress(t.address)}
+                  <CopyButton value={t.address} />
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {t.template === "plain" && t.stake_credential_hash && !archived && (
+                  <>
+                    <LinkButton href={routes.treasuryStaking(slug, t.id)} variant="secondary">
+                      Staking
+                    </LinkButton>
+                    <LinkButton href={routes.treasuryCardanoGov(slug, t.id)} variant="secondary">
+                      Cardano gov
+                    </LinkButton>
+                  </>
+                )}
+                <Button
+                  variant="secondary"
+                  onClick={() => setDetailsId(t.id)}
+                  title="Native script, CBOR, script hash and signers"
+                >
+                  Details
+                </Button>
+                {isAdmin && !isPrimary && !archived && (
                   <Button
                     variant="secondary"
-                    onClick={() => setDetailsId(t.id)}
-                    title="Native script, CBOR, script hash and signers"
+                    disabled={setPrimary.busy}
+                    title="Base signers of the primary treasury are community admins"
+                    onClick={() => void setPrimary.run(async () => {
+                      await apiFetch("/api/treasury/primary", {
+                        body: { communityId: community!.id, treasuryId: t.id },
+                      });
+                      reloadCommunity();
+                    })}
                   >
-                    Details
+                    Set as primary
                   </Button>
-                  {isAdmin && !isPrimary && !archived && (
-                    <Button
-                      variant="secondary"
-                      disabled={setPrimary.busy}
-                      title="Base signers of the primary treasury are community admins"
-                      onClick={() => void setPrimary.run(async () => {
-                        await apiFetch("/api/treasury/primary", {
-                          body: { communityId: community!.id, treasuryId: t.id },
-                        });
-                        reloadCommunity();
-                      })}
-                    >
-                      Set as primary
-                    </Button>
-                  )}
-                  {isAdmin && (
-                    <Button variant="secondary" onClick={() => setManaging(t)}>
-                      {archived ? "Restore" : "Archive"}
-                    </Button>
-                  )}
-                </div>
+                )}
+                {isAdmin && (
+                  <Button variant="secondary" onClick={() => setManaging(t)}>
+                    {archived ? "Restore" : "Archive"}
+                  </Button>
+                )}
               </div>
               <p className="mt-4 text-2xl font-semibold">
                 {balance ? formatLovelace(balance.lovelace) : "…"}
