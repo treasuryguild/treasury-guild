@@ -57,11 +57,31 @@ export function stakePoolLabel(detail?: {
   return poolId || null;
 }
 
+/** Prefer CIP-119 givenName in titles; special targets get friendly labels. */
+export function dRepLabel(detail?: {
+  dRepId?: string | null;
+  dRepName?: string | null;
+}): string | null {
+  const name = detail?.dRepName?.trim();
+  if (name) return name;
+  const id = detail?.dRepId?.trim();
+  if (!id) return null;
+  if (id === "always_abstain") return "Always abstain";
+  if (id === "always_no_confidence") return "Always no confidence";
+  return id;
+}
+
 export function stakeDescription(
   action: StakeAction,
-  detail?: { poolId?: string | null; poolTicker?: string | null; dRepId?: string | null },
+  detail?: {
+    poolId?: string | null;
+    poolTicker?: string | null;
+    dRepId?: string | null;
+    dRepName?: string | null;
+  },
 ): string {
   const pool = stakePoolLabel(detail);
+  const drep = dRepLabel(detail);
   switch (action) {
     case StakeAction.Register:
       return "Stake: register";
@@ -74,27 +94,39 @@ export function stakeDescription(
     case StakeAction.Withdraw:
       return "Stake: withdraw rewards";
     case StakeAction.VoteDelegation:
-      return `Stake: vote delegation${detail?.dRepId ? ` to ${detail.dRepId}` : ""}`;
+      return `Stake: vote delegation${drep ? ` to ${drep}` : ""}`;
     default:
       return "Stake";
   }
 }
 
+export type StakeLabelMaps = {
+  poolTickerById?: ReadonlyMap<string, string>;
+  dRepNameById?: ReadonlyMap<string, string>;
+};
+
 /**
  * List / page title for a transaction. Stake rows prefer a known ticker
- * (`governance_action.poolTicker` or `poolTickerById`) over a baked-in pool id.
+ * (`governance_action.poolTicker` or `poolTickerById`) over a baked-in pool id,
+ * and a known DRep givenName over a baked-in dRep id.
  */
 export function displayTxDescription(
   tx: { description: string | null; governance_action?: GovernanceAction | null },
-  poolTickerById?: ReadonlyMap<string, string>,
+  poolTickerByIdOrMaps?: ReadonlyMap<string, string> | StakeLabelMaps,
 ): string {
+  const maps: StakeLabelMaps =
+    poolTickerByIdOrMaps instanceof Map
+      ? { poolTickerById: poolTickerByIdOrMaps }
+      : (poolTickerByIdOrMaps ?? {});
   const action = tx.governance_action;
   if (action?.kind === "stake") {
-    const fromMap = action.poolId ? poolTickerById?.get(action.poolId) : null;
+    const fromPoolMap = action.poolId ? maps.poolTickerById?.get(action.poolId) : null;
+    const fromDrepMap = action.dRepId ? maps.dRepNameById?.get(action.dRepId) : null;
     return stakeDescription(action.action, {
       poolId: action.poolId,
-      poolTicker: action.poolTicker?.trim() || fromMap || null,
+      poolTicker: action.poolTicker?.trim() || fromPoolMap || null,
       dRepId: action.dRepId,
+      dRepName: action.dRepName?.trim() || fromDrepMap || null,
     });
   }
   return tx.description ?? "Transaction";
@@ -110,6 +142,23 @@ export function poolIdsNeedingTicker(
     if (action?.kind !== "stake") continue;
     if (!action.poolId?.trim() || action.poolTicker?.trim()) continue;
     needed.add(action.poolId.trim());
+  }
+  return [...needed];
+}
+
+/** DRep ids on vote-delegation stake txs that still need a givenName lookup. */
+export function dRepIdsNeedingName(
+  txs: readonly { governance_action?: GovernanceAction | null }[],
+): string[] {
+  const needed = new Set<string>();
+  for (const tx of txs) {
+    const action = tx.governance_action;
+    if (action?.kind !== "stake") continue;
+    if (action.action !== StakeAction.VoteDelegation) continue;
+    const id = action.dRepId?.trim();
+    if (!id || action.dRepName?.trim()) continue;
+    if (id === "always_abstain" || id === "always_no_confidence") continue;
+    needed.add(id);
   }
   return [...needed];
 }

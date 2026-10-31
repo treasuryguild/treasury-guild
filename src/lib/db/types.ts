@@ -232,6 +232,8 @@ export type GovernanceAction =
       /** Pool ticker when known at build (title uses this; poolId stays in details). */
       poolTicker?: string | null;
       dRepId?: string | null;
+      /** CIP-119 givenName when known at build (title uses this; dRepId stays in details). */
+      dRepName?: string | null;
       rewards?: string | null;
     }
   | {

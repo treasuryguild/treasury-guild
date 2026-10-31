@@ -14,13 +14,13 @@ import { routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { DrepPicker } from "@/components/treasury/DrepPicker";
 import { StakePoolPicker } from "@/components/treasury/StakePoolPicker";
 import {
   Button,
   Card,
   ErrorText,
   Field,
-  Input,
   LinkButton,
   PageTitle,
   Select,
@@ -36,7 +36,7 @@ export default function TreasuryStakingPage({
   const { community, blocked } = useCommunityGate(slug);
   const [action, setAction] = useState<StakeAction>(StakeAction.RegisterAndDelegate);
   const [poolId, setPoolId] = useState("");
-  const [dRepId, setDRepId] = useState("always_abstain");
+  const [dRepId, setDRepId] = useState("");
   const { run, busy, error } = useAsyncAction("Failed to build stake transaction");
 
   const details = useAsyncData(
@@ -54,6 +54,12 @@ export default function TreasuryStakingPage({
     if (!current) return;
     setPoolId((prev) => (prev.trim() ? prev : current));
   }, [account.data?.poolId]);
+
+  useEffect(() => {
+    const current = account.data?.dRepId;
+    if (!current) return;
+    setDRepId((prev) => (prev.trim() ? prev : current));
+  }, [account.data?.dRepId]);
 
   if (blocked) return blocked;
 
@@ -145,15 +151,10 @@ export default function TreasuryStakingPage({
 
         {action === StakeAction.VoteDelegation && (
           <Field label="DRep">
-            <Select value={dRepId} disabled={busy} onChange={(e) => setDRepId(e.target.value)}>
-              <option value="always_abstain">Always abstain</option>
-              <option value="always_no_confidence">Always no confidence</option>
-            </Select>
-            <Input
-              className="mt-2 font-mono text-xs"
-              value={dRepId.startsWith("always_") ? "" : dRepId}
-              onChange={(e) => setDRepId(e.target.value.trim() || "always_abstain")}
-              placeholder="Or paste a drep1… id"
+            <DrepPicker
+              treasuryId={treasuryId}
+              value={dRepId}
+              onChange={setDRepId}
               disabled={busy}
             />
           </Field>
@@ -163,7 +164,10 @@ export default function TreasuryStakingPage({
         <Button
           onClick={() => void build()}
           loading={busy}
-          disabled={needsPool && !poolId.trim()}
+          disabled={
+            (needsPool && !poolId.trim()) ||
+            (action === StakeAction.VoteDelegation && !dRepId.trim())
+          }
         >
           Build transaction
         </Button>

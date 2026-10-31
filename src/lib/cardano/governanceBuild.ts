@@ -22,7 +22,8 @@ import { canonicalJson } from "@/lib/governance/rules";
 import { drepDescription, stakeDescription, voteDescription } from "@/lib/txDescription";
 import { loadBuildContext, requirePathBuilder, resolveSpendingPath, type BuildContext } from "@/lib/tx";
 import { buildDrepAnchorJson, buildDrepTx, pinDrepAnchor, type DrepAnchorInput } from "./drepBuilder";
-import { fetchDrepStatus, fetchStakeAccountStatus, lookupStakePool } from "./koios";
+import { isSpecialDrepId } from "./dreps";
+import { fetchDrepStatus, fetchStakeAccountStatus, lookupDrep, lookupStakePool } from "./koios";
 import { getProvider } from "./provider";
 import { requireSdkDrep, requireSdkStake, requireSdkVote } from "./sdkTreasury";
 import { buildStakeTx } from "./stakeBuilder";
@@ -37,6 +38,20 @@ async function resolvePoolTicker(
   try {
     const pool = await lookupStakePool(network, poolId);
     return pool?.ticker ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort CIP-119 givenName for titles; never fails a build when Koios is down. */
+async function resolveDRepName(
+  network: BuildContext["network"],
+  dRepId: string | null,
+): Promise<string | null> {
+  if (!dRepId || isSpecialDrepId(dRepId)) return null;
+  try {
+    const drep = await lookupDrep(network, dRepId);
+    return drep?.givenName ?? null;
   } catch {
     return null;
   }
@@ -172,8 +187,11 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
 
   const poolId = input.poolId ?? null;
   const dRepId = input.dRepId ?? null;
-  const [poolTicker, built] = await Promise.all([
+  const [poolTicker, dRepName, built] = await Promise.all([
     resolvePoolTicker(ctx.network, poolId),
+    action === StakeAction.VoteDelegation
+      ? resolveDRepName(ctx.network, dRepId)
+      : Promise.resolve(null),
     (async (): Promise<BuiltTx> => {
       try {
         return await buildStakeTx({
@@ -201,6 +219,7 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
     poolId,
     poolTicker,
     dRepId,
+    dRepName,
     rewards,
   };
   return {
@@ -213,7 +232,7 @@ export async function planStake(input: StakeInput, wallet: string): Promise<Stak
     poolId,
     dRepId,
     rewards,
-    description: stakeDescription(action, { poolId, poolTicker, dRepId }),
+    description: stakeDescription(action, { poolId, poolTicker, dRepId, dRepName }),
     governanceAction,
     built,
     fingerprint: sha256Hex(canonicalJson({

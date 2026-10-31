@@ -6,12 +6,12 @@ import { registryFromRows, COMMUNITY_ASSET_COLUMNS, type CommunityAssetColumns }
 import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
 import { extractAnchorMetadata, extractPayoutMetadata } from "@/lib/cardano/cborMetadata";
-import { lookupStakePool } from "@/lib/cardano/koios";
+import { lookupDrep, lookupStakePool } from "@/lib/cardano/koios";
 import { citedProposalNumbers } from "@/lib/cardano/metadata";
 import { slotTime } from "@/lib/cardano/slots";
 import type { Network } from "@/lib/config";
 import { asNetwork } from "@/lib/config";
-import { SpendingPath, TxKind } from "@/lib/constants";
+import { SpendingPath, StakeAction, TxKind } from "@/lib/constants";
 import { isAdminRole } from "@/lib/roles";
 import { serverClient } from "@/lib/supabase/server";
 import { displayTxDescription } from "@/lib/txDescription";
@@ -27,8 +27,8 @@ import {
 } from "./types";
 
 /**
- * Title for the signing page: prefer the pool ticker over a baked-in pool id
- * (older rows stored the id in `description` before we looked tickers up).
+ * Title for the signing page: prefer the pool ticker / DRep givenName over a
+ * baked-in id (older rows stored the id in `description` before lookups).
  */
 async function stakePageDescription(
   network: Network,
@@ -36,6 +36,7 @@ async function stakePageDescription(
   fallback: string | null,
 ): Promise<string> {
   const tickers = new Map<string, string>();
+  const dRepNames = new Map<string, string>();
   if (action?.kind === "stake" && action.poolId && !action.poolTicker?.trim()) {
     try {
       const ticker = (await lookupStakePool(network, action.poolId))?.ticker;
@@ -44,7 +45,23 @@ async function stakePageDescription(
       /* keep the stored description / pool id */
     }
   }
-  return displayTxDescription({ description: fallback, governance_action: action }, tickers);
+  if (
+    action?.kind === "stake" &&
+    action.action === StakeAction.VoteDelegation &&
+    action.dRepId?.trim() &&
+    !action.dRepName?.trim()
+  ) {
+    try {
+      const name = (await lookupDrep(network, action.dRepId))?.givenName;
+      if (name) dRepNames.set(action.dRepId.trim(), name);
+    } catch {
+      /* keep the stored description / dRep id */
+    }
+  }
+  return displayTxDescription(
+    { description: fallback, governance_action: action },
+    { poolTickerById: tickers, dRepNameById: dRepNames },
+  );
 }
 
 export interface TxPageData {

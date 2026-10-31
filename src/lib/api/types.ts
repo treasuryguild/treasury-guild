@@ -399,6 +399,17 @@ export interface StakePoolSummary {
 export interface StakePoolsResponse {
   pools: StakePoolSummary[];
 }
+/** GET /api/chain/dreps */
+export interface DrepSummary {
+  dRepId: string;
+  givenName: string | null;
+  votingPower: string | null;
+  registered: boolean;
+  hasScript: boolean;
+}
+export interface DrepsResponse {
+  dreps: DrepSummary[];
+}
 export interface DrepStatusResponse {
   dRepId: string;
   active: boolean;

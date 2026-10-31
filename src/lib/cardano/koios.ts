@@ -6,6 +6,24 @@ import type { Network } from "@/lib/config";
 import { koiosApiKey, koiosBaseUrl } from "@/lib/env.server";
 import { UpstreamError } from "@/lib/errors";
 import {
+  DREP_KOIOS_ID_BATCH,
+  DREP_NAME_SEARCH_FETCH,
+  buildDrepListPath,
+  buildDrepLookupPath,
+  clampDrepSearchLimit,
+  enrichDrepSummaries,
+  extractDrepGivenName,
+  filterDrepsByGivenName,
+  isDrepIdShapedQuery,
+  isSpecialDrepId,
+  mapKoiosDrepListRows,
+  sanitizeDrepSearchQuery,
+  sortDrepsByVotingPower,
+  type DrepSummary,
+  type KoiosDrepInfoRow,
+  type KoiosDrepMetadataRow,
+} from "./dreps";
+import {
   buildPoolListPath,
   buildPoolLookupPath,
   mapKoiosPoolRow,
@@ -15,6 +33,7 @@ import {
 import { joinUnit, splitUnit } from "./units";
 
 export type { StakePoolSummary } from "./stakePools";
+export type { DrepSummary } from "./dreps";
 
 const PAGE_SIZE = 500;
 const MAX_PAGES = 8;
@@ -329,6 +348,143 @@ export async function lookupStakePool(
   const row = rows[0];
   if (!row || typeof row !== "object") return null;
   return mapKoiosPoolRow(row);
+}
+
+function chunkIds(ids: readonly string[], size: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    out.push([...ids.slice(i, i + size)]);
+  }
+  return out;
+}
+
+async function fetchDrepInfoByIds(
+  network: Network,
+  dRepIds: readonly string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (dRepIds.length === 0) return map;
+  for (const batch of chunkIds(dRepIds, DREP_KOIOS_ID_BATCH)) {
+    const rows = (await koiosPost(network, "/drep_info", {
+      _drep_ids: batch,
+    })) as KoiosDrepInfoRow[];
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      const id = typeof row.drep_id === "string" ? row.drep_id.trim() : "";
+      if (!id) continue;
+      map.set(id, typeof row.amount === "string" ? row.amount : null);
+    }
+  }
+  return map;
+}
+
+async function fetchDrepNamesByIds(
+  network: Network,
+  dRepIds: readonly string[],
+): Promise<Map<string, string | null>> {
+  const map = new Map<string, string | null>();
+  if (dRepIds.length === 0) return map;
+  for (const batch of chunkIds(dRepIds, DREP_KOIOS_ID_BATCH)) {
+    const rows = (await koiosPost(network, "/drep_metadata", {
+      _drep_ids: batch,
+    })) as KoiosDrepMetadataRow[];
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      const id = typeof row.drep_id === "string" ? row.drep_id.trim() : "";
+      if (!id) continue;
+      map.set(id, extractDrepGivenName(row.meta_json));
+    }
+  }
+  return map;
+}
+
+async function enrichDrepList(
+  network: Network,
+  list: DrepSummary[],
+  opts: { names?: boolean; votingPower?: boolean } = { names: true, votingPower: true },
+): Promise<DrepSummary[]> {
+  const ids = list.map((d) => d.dRepId);
+  const [infoById, nameById] = await Promise.all([
+    opts.votingPower !== false
+      ? fetchDrepInfoByIds(network, ids)
+      : Promise.resolve(new Map<string, string | null>()),
+    opts.names !== false
+      ? fetchDrepNamesByIds(network, ids)
+      : Promise.resolve(new Map<string, string | null>()),
+  ]);
+  return enrichDrepSummaries(list, infoById, nameById);
+}
+
+/**
+ * Search registered DReps (Koios `/drep_list` + `/drep_info` + `/drep_metadata`).
+ * Empty `q` browses by voting power; id-shaped `q` filters on-chain; free-text
+ * filters givenName over a larger registered window (see `DREP_NAME_SEARCH_FETCH`).
+ * Bulk Koios posts are chunked (`DREP_KOIOS_ID_BATCH`) to avoid HTTP 413.
+ */
+export async function searchDreps(
+  network: Network,
+  opts: { q?: string; limit?: number } = {},
+): Promise<DrepSummary[]> {
+  const limit = clampDrepSearchLimit(opts.limit);
+  const q = sanitizeDrepSearchQuery(opts.q ?? "");
+  const nameSearch = Boolean(q) && !isDrepIdShapedQuery(q);
+  const listLimit = nameSearch ? DREP_NAME_SEARCH_FETCH : limit;
+  const rows = await koiosGet(
+    network,
+    buildDrepListPath({
+      q: nameSearch ? undefined : q || undefined,
+      limit,
+      listLimit,
+    }),
+  );
+  const listed = mapKoiosDrepListRows(rows);
+  if (nameSearch) {
+    // Names first (needed to filter); voting power only for matches — keeps
+    // bulk bodies small and avoids enriching 100 rows that will be dropped.
+    const withNames = await enrichDrepList(network, listed, {
+      names: true,
+      votingPower: false,
+    });
+    const matched = filterDrepsByGivenName(withNames, q, limit);
+    return enrichDrepList(network, matched, { names: false, votingPower: true });
+  }
+  let list = await enrichDrepList(network, listed);
+  if (!q) {
+    list = sortDrepsByVotingPower(list).slice(0, limit);
+  } else {
+    list = list.slice(0, limit);
+  }
+  return list;
+}
+
+/**
+ * One DRep by bech32 or hex id, or null when Koios has no row.
+ * Special vote-delegation targets (`always_abstain` / `always_no_confidence`)
+ * never hit Koios.
+ */
+export async function lookupDrep(
+  network: Network,
+  dRepId: string,
+): Promise<DrepSummary | null> {
+  const trimmed = dRepId.trim();
+  if (!trimmed || isSpecialDrepId(trimmed)) return null;
+  const rows = await koiosGet(network, buildDrepLookupPath(trimmed));
+  const list = mapKoiosDrepListRows(rows);
+  if (list.length === 0) {
+    // Metadata may still resolve a name when the list row is missing.
+    const nameById = await fetchDrepNamesByIds(network, [trimmed]);
+    const givenName = nameById.get(trimmed) ?? null;
+    if (!givenName) return null;
+    return {
+      dRepId: trimmed,
+      givenName,
+      votingPower: null,
+      registered: false,
+      hasScript: false,
+    };
+  }
+  const [enriched] = await enrichDrepList(network, list.slice(0, 1));
+  return enriched ?? null;
 }
 
 // --- CIP-0146 label-1854 registration discovery ------------------------------

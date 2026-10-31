@@ -93,7 +93,7 @@ A **plain SDK** treasury stores a stake key hash (and optionally a DRep key hash
 
 On the Treasury page an SDK wallet shows **Staking** and **Cardano gov** links:
 
-- **Staking** — register the stake key, delegate to a pool (search by ticker or pool id, or paste a `pool1…` / hex id), withdraw rewards, deregister, or set vote-delegation (always abstain, always no confidence, or a DRep id). Pending and recent stake transactions title the pool by its ticker when known; the full pool id is under **View more transaction details** on the transaction page. Signers must witness with both their payment and stake keys.
+- **Staking** — register the stake key, delegate to a pool (search by ticker or pool id, or paste a `pool1…` / hex id), withdraw rewards, deregister, or set vote-delegation (always abstain, always no confidence, or search by DRep name / id, or paste a `drep1…` / hex id). Pending and recent stake transactions title the pool by its ticker and a vote-delegation target by its CIP-119 given name when known; the full pool id and DRep id are under **View more transaction details** on the transaction page. Signers must witness with both their payment and stake keys.
 - **Cardano governance** — register, update or retire the treasury as a script DRep, and cast on-chain votes on active Cardano governance proposals. This is separate from community [Proposals](/docs/governance). When DRep key hashes are incomplete, the payment script acts as the DRep.
 
 Imported CBOR wallets stay unstaked (the script bytes do not carry a stake credential). There is no in-place upgrade: the address would change.

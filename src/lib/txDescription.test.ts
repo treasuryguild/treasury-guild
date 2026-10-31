@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { StakeAction } from "@/lib/constants";
 import {
+  dRepIdsNeedingName,
+  dRepLabel,
   displayTxDescription,
   paymentDescription,
   paymentRecipientSummary,
@@ -43,6 +45,19 @@ describe("stakeDescription", () => {
     expect(stakeDescription(StakeAction.Delegate, { poolId: "pool1abc" }))
       .toBe("Stake: delegate to pool1abc");
     expect(stakePoolLabel({ poolId: "pool1abc", poolTicker: "  " })).toBe("pool1abc");
+  });
+
+  it("prefers the DRep givenName and friendly always-* labels", () => {
+    expect(
+      stakeDescription(StakeAction.VoteDelegation, {
+        dRepId: "drep1abc",
+        dRepName: "Team Drep",
+      }),
+    ).toBe("Stake: vote delegation to Team Drep");
+    expect(stakeDescription(StakeAction.VoteDelegation, { dRepId: "always_abstain" })).toBe(
+      "Stake: vote delegation to Always abstain",
+    );
+    expect(dRepLabel({ dRepId: "drep1abc", dRepName: "  " })).toBe("drep1abc");
   });
 });
 
@@ -99,6 +114,51 @@ describe("displayTxDescription", () => {
         },
       ]),
     ).toEqual(["pool1abc"]);
+  });
+
+  it("lists DRep ids that still need a givenName", () => {
+    expect(
+      dRepIdsNeedingName([
+        {
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.VoteDelegation,
+            dRepId: "drep1abc",
+          },
+        },
+        {
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.VoteDelegation,
+            dRepId: "drep1named",
+            dRepName: "Named",
+          },
+        },
+        {
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.VoteDelegation,
+            dRepId: "always_abstain",
+          },
+        },
+      ]),
+    ).toEqual(["drep1abc"]);
+  });
+
+  it("rewrites a vote-delegation title from a DRep name map", () => {
+    expect(
+      displayTxDescription(
+        {
+          description: "Stake: vote delegation to drep1abc",
+          governance_action: {
+            kind: "stake",
+            action: StakeAction.VoteDelegation,
+            dRepId: "drep1abc",
+          },
+        },
+        { dRepNameById: new Map([["drep1abc", "Team Drep"]]) },
+      ),
+    ).toBe("Stake: vote delegation to Team Drep");
   });
 });
 

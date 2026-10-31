@@ -35,6 +35,12 @@ export function GovernanceActionCard({ action }: { action: GovernanceAction | nu
             </dd>
           </div>
         )}
+        {action.kind === "stake" && action.dRepName && (
+          <div className="flex justify-between gap-3">
+            <dt className="text-zinc-500">DRep name</dt>
+            <dd className="font-medium text-zinc-200">{action.dRepName}</dd>
+          </div>
+        )}
         {"dRepId" in action && action.dRepId && (
           <div className="flex items-start justify-between gap-3">
             <dt className="shrink-0 text-zinc-500">DRep</dt>
