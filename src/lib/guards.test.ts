@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isRecord, isStringArray, isUuid } from "./guards";
+import { isRecord, isStringArray, isTxHash, isUuid } from "./guards";
 
 describe("isRecord", () => {
   it("accepts plain objects", () => {
@@ -41,6 +41,20 @@ describe("isUuid", () => {
     expect(isUuid(" 3f2b8c1e-9d4a-4f6b-8a7c-0123456789ab")).toBe(false);
     expect(isUuid("3f2b8c1e-9d4a-4f6b-8a7c-0123456789ab\n")).toBe(false);
     expect(isUuid("3f2b8c1e-9d4a-4f6b-8a7c-0123456789ab; drop table tasks")).toBe(false);
+  });
+});
+
+describe("isTxHash", () => {
+  it("accepts a 64-char hex hash", () => {
+    expect(isTxHash("ab".repeat(32))).toBe(true);
+    expect(isTxHash("AB".repeat(32))).toBe(true);
+  });
+
+  it("refuses wrong lengths and non-hex", () => {
+    expect(isTxHash("")).toBe(false);
+    expect(isTxHash("ab".repeat(31))).toBe(false);
+    expect(isTxHash("ab".repeat(33))).toBe(false);
+    expect(isTxHash("g".repeat(64))).toBe(false);
   });
 });
 

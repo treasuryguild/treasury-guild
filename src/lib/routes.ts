@@ -78,6 +78,11 @@ export const routes = {
   board: (slug: string, workgroupId: string) =>
     `/c/${slug}/boards/${workgroupId}`,
   tx: (slug: string, txId: string) => `/c/${slug}/tx/${txId}`,
+  /**
+   * Read-only details for an on-chain spend recorded in `external_txs`
+   * (no app `transactions` row): keyed by the 64-char hex hash.
+   */
+  onChainTx: (slug: string, txHash: string) => `/c/${slug}/on-chain/${txHash}`,
 } as const;
 
 export type CommunityRouteKey =

@@ -9,6 +9,7 @@ import {
   parseLabel1854Metadata,
 } from "@/lib/cardano/cip146Registration";
 import { DrepAction, StakeAction, TxKind } from "@/lib/constants";
+import type { GovernanceAction } from "@/lib/db/types";
 import { isRecord } from "@/lib/guards";
 import {
   anchorDescription,
@@ -283,5 +284,44 @@ export function externalActivityDetail(activity: ExternalActivity): string {
       return "DRep certificate";
     case TxKind.Vote:
       return "Governance vote";
+  }
+}
+
+/**
+ * Shape the classifier result for `GovernanceActionCard`. Registration and
+ * anchor kinds have their own cards from CBOR; those return null here.
+ * Vote entries are count-only (no per-proposal detail on `external_txs`).
+ */
+export function governanceActionFromActivity(
+  activity: ExternalActivity | null | undefined,
+): GovernanceAction | null {
+  if (!activity) return null;
+  switch (activity.kind) {
+    case TxKind.Stake:
+      return {
+        kind: "stake",
+        action: activity.action,
+        poolId: activity.poolId ?? null,
+        poolTicker: activity.poolTicker ?? null,
+        dRepId: activity.dRepId ?? null,
+        dRepName: activity.dRepName ?? null,
+        rewards: null,
+      };
+    case TxKind.Drep:
+      return { kind: "drep", action: activity.action, dRepId: activity.dRepId };
+    case TxKind.Vote: {
+      const n = Math.max(1, activity.voteCount);
+      return {
+        kind: "vote",
+        dRepId: activity.dRepId,
+        votes: Array.from({ length: n }, (_, certIndex) => ({
+          txHash: "",
+          certIndex,
+          voteKind: "Abstain" as const,
+        })),
+      };
+    }
+    default:
+      return null;
   }
 }

@@ -45,7 +45,6 @@ import {
   CopyButton,
   EmptyState,
   ErrorText,
-  ExplorerLink,
   NoticeText,
   LinkButton,
   PageTitle,
@@ -418,20 +417,18 @@ export default function TreasuryPage({
           if (item.kind === "app") {
             return appTxCard(item.tx);
           }
-          // An outgoing tx seen on-chain without an app record: no signing
-          // page to open, so it links to the explorer.
+          // An outgoing tx seen on-chain without an app record: read-only
+          // details page (CBOR from the chain), not the signing page.
           const tx = item.tx;
           const { title, detail } = describeExternalTx(tx);
           const activity = parseExternalActivity(tx.activity);
           const recognized = isRecognizedExternalActivity(activity);
           const tokens = Object.entries(tx.assets ?? {});
           return (
-            <ExplorerLink
+            <Link
               key={tx.tx_hash}
-              network={network}
-              target={{ txHash: tx.tx_hash }}
+              href={routes.onChainTx(slug, tx.tx_hash)}
               className="block"
-              title="Open in the explorer"
             >
               <Card className="flex flex-col items-start justify-between gap-3 py-4 transition-colors hover:border-indigo-600 sm:flex-row sm:items-center">
                 <div className="min-w-0">
@@ -465,7 +462,7 @@ export default function TreasuryPage({
                   <TxStateBadge state={TxState.Confirmed} />
                 </span>
               </Card>
-            </ExplorerLink>
+            </Link>
           );
         })}
         {!activityLoading && activity.length === 0 && (
