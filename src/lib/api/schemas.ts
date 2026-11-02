@@ -874,6 +874,8 @@ export const createFloatWalletSchema = z.object({
   name: floatWalletName,
   address: walletAddress.refine((a) => /^addr(_test)?1/.test(a), "Use a Shelley address (addr1… or addr_test1…)"),
   note: floatWalletNote,
+  /** Ignore history at and before this Cardano tx (seeds the sync cursor). */
+  afterTxHash: txHash.optional(),
 });
 export const patchFloatWalletSchema = z.object({
   name: floatWalletName.optional(),

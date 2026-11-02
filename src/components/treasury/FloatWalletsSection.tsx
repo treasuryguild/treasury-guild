@@ -26,6 +26,7 @@ import {
   CopyButton,
   EmptyState,
   ErrorText,
+  Field,
   Input,
   SectionTitle,
 } from "@/components/ui";
@@ -44,6 +45,7 @@ export function FloatWalletsSection({
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
+  const [afterTxHash, setAfterTxHash] = useState("");
   const create = useAsyncAction("Could not add float wallet");
   const lifecycle = useAsyncAction("Could not update float wallet");
 
@@ -56,6 +58,7 @@ export function FloatWalletsSection({
 
   async function submitCreate() {
     await create.run(async () => {
+      const after = afterTxHash.trim().toLowerCase();
       await apiFetch<FloatWalletCreatedResponse>("/api/float-wallets", {
         method: "POST",
         body: {
@@ -63,12 +66,14 @@ export function FloatWalletsSection({
           name: name.trim(),
           address: address.trim(),
           note: note.trim() || null,
+          ...(after && { afterTxHash: after }),
         },
       });
       setAdding(false);
       setName("");
       setAddress("");
       setNote("");
+      setAfterTxHash("");
       floats.reload();
     });
   }
@@ -142,6 +147,20 @@ export function FloatWalletsSection({
             onChange={(e) => setNote(e.target.value)}
             disabled={create.busy}
           />
+          <Field
+            label="Start monitoring after (optional)"
+            hint="Ignore history at and before this Cardano transaction. Leave blank to sync the full address history."
+          >
+            <Input
+              aria-label="Start monitoring after transaction"
+              className="font-mono text-xs"
+              placeholder="64-char tx hash"
+              spellCheck={false}
+              value={afterTxHash}
+              onChange={(e) => setAfterTxHash(e.target.value)}
+              disabled={create.busy}
+            />
+          </Field>
           <div className="flex flex-wrap gap-2">
             <Button
               disabled={create.busy || !name.trim() || !address.trim()}
@@ -180,6 +199,12 @@ export function FloatWalletsSection({
                     </p>
                     {wallet.note && (
                       <p className="mt-1 text-sm text-zinc-400">{wallet.note}</p>
+                    )}
+                    {wallet.sync_from_tx_hash && (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Monitoring after {shortHash(wallet.sync_from_tx_hash)}
+                        {wallet.sync_from_block != null ? ` (block ${wallet.sync_from_block})` : ""}
+                      </p>
                     )}
                     <p className="mt-2 text-lg font-semibold tabular-nums">
                       {balance ? formatLovelace(balance.lovelace) : balances.loading ? "…" : "—"}

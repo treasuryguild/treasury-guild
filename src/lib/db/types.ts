@@ -439,6 +439,10 @@ export interface FloatWalletRow {
   name: string;
   address: string;
   note: string | null;
+  /** Cardano tx at/before which monitoring skips history (migration 0090). */
+  sync_from_tx_hash: string | null;
+  /** Block height seeded into float_sync_cursors at create. */
+  sync_from_block: number | null;
   archived_at: string | null;
   archived_by: string | null;
   created_by: string;
@@ -446,7 +450,7 @@ export interface FloatWalletRow {
 }
 
 export const FLOAT_WALLET_COLUMNS =
-  "id, community_id, name, address, note, archived_at, archived_by, created_by, created_at";
+  "id, community_id, name, address, note, sync_from_tx_hash, sync_from_block, archived_at, archived_by, created_by, created_at";
 
 /** Inflow seen at a float wallet address (pollFloatWallet). */
 export interface FloatIncomingTxRow {

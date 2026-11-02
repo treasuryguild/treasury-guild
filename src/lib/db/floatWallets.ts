@@ -70,6 +70,9 @@ export async function createFloatWallet(row: {
   address: string;
   note: string | null;
   created_by: string;
+  /** With sync_from_block: start polling after this Cardano tx's block. */
+  sync_from_tx_hash?: string | null;
+  sync_from_block?: number | null;
 }): Promise<FloatWalletRow> {
   const active = await countActiveFloatWallets(row.community_id);
   if (active >= MAX_FLOAT_WALLETS) throw new ConflictError(AT_CAP);
@@ -85,9 +88,34 @@ export async function createFloatWallet(row: {
   );
   if (treasuryHit) throw new ConflictError(ADDRESS_IS_TREASURY);
 
-  const res = await serviceClient().from("float_wallets").insert(row).select(FLOAT_WALLET_COLUMNS).single();
+  const syncFromTx = row.sync_from_tx_hash ?? null;
+  const syncFromBlock = row.sync_from_block ?? null;
+  const res = await serviceClient()
+    .from("float_wallets")
+    .insert({
+      community_id: row.community_id,
+      name: row.name,
+      address: row.address,
+      note: row.note,
+      created_by: row.created_by,
+      sync_from_tx_hash: syncFromTx,
+      sync_from_block: syncFromBlock,
+    })
+    .select(FLOAT_WALLET_COLUMNS)
+    .single();
   if (res.error?.code === PgCode.UniqueViolation) throw new ConflictError(ADDRESS_TAKEN);
-  return must<FloatWalletRow>(res, "create float wallet");
+  const wallet = must<FloatWalletRow>(res, "create float wallet");
+
+  // Seed the cursor before staleSync's ignoreDuplicates insert of height 0.
+  check(
+    await serviceClient().from("float_sync_cursors").upsert({
+      float_wallet_id: wallet.id,
+      last_block_height: syncFromBlock ?? 0,
+      synced_at: null,
+    }),
+    "seed float sync cursor",
+  );
+  return wallet;
 }
 
 export async function updateFloatWallet(
