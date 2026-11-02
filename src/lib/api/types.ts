@@ -14,7 +14,15 @@ import type { ChainImportRunResult } from "@/lib/chainImport/run";
 import type { AnchorStep, CosignerKind, SignerGroup, SpendingPath, TreasuryTemplate } from "@/lib/constants";
 import type { ChainSyncResult } from "@/lib/reconciliation/staleSync";
 import type { ReconcileSweepResult } from "@/lib/reconciliation/sweep";
-import type { CallMeetingLinkRow, CallRow, CommunityRow, CosignerDecisionRow, TaskAssigneeRow, TreasuryRow } from "@/lib/db/types";
+import type {
+  CallMeetingLinkRow,
+  CallRow,
+  CommunityRow,
+  CosignerDecisionRow,
+  PaydayAllocationRuleRow,
+  TaskAssigneeRow,
+  TreasuryRow,
+} from "@/lib/db/types";
 import type { FlowMonth } from "@/lib/fundingFlow";
 import type { GovernanceCommunitySettings } from "@/lib/governance/rules";
 import type { MatchSuggestion } from "@/lib/reconciliation/types";
@@ -665,6 +673,17 @@ export interface DashboardResponse extends BudgetsResponse {
 
 /** POST /api/funding/sources, POST /api/funding/commitments */
 export interface FundingCreatedResponse {
+  id: string;
+}
+
+/** Payday allocation rule with its selected units (empty when scope is all). */
+export type AllocationRuleResponse = PaydayAllocationRuleRow & { units: string[] };
+
+export interface AllocationRulesListResponse {
+  rules: AllocationRuleResponse[];
+}
+
+export interface AllocationRuleCreatedResponse {
   id: string;
 }
 /** POST /api/funding/commitments/[id]/schedule */

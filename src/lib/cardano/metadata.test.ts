@@ -208,6 +208,46 @@ describe("addressTail", () => {
 
 const HASH = "ab".repeat(32);
 
+describe("buildPayoutMetadata allocations (a)", () => {
+  it("writes optional a aligned to k and round-trips", () => {
+    const meta = buildPayoutMetadata("signius", [
+      payout({
+        outputIndex: 0,
+        amounts: [{ ...ADA, quantity: 5_000_000n }, { ticker: "GVTT", quantity: 100n, decimals: 0 }],
+      }),
+    ], [
+      {
+        outputIndex: 1,
+        transfer: false,
+        amounts: [{ ...ADA, quantity: 50_000n }, { ticker: "GVTT", quantity: 1n, decimals: 0 }],
+      },
+      {
+        outputIndex: 2,
+        transfer: true,
+        amounts: [{ ...ADA, quantity: 100_000n }],
+      },
+    ]);
+    expect(meta.a).toEqual([
+      [1, ["0.05", "1"], 0],
+      [2, ["0.1"], 1],
+    ]);
+    expect(parsePayoutMetadata(JSON.parse(JSON.stringify(meta)))).toEqual(meta);
+  });
+
+  it("omits a when no allocations", () => {
+    const meta = buildPayoutMetadata("signius", [payout({ amounts: [{ ...ADA, quantity: 1n }] })]);
+    expect("a" in meta).toBe(false);
+  });
+
+  it("is null when an allocation entry is malformed", () => {
+    const record = buildPayoutMetadata("signius", [payout({ amounts: [{ ...ADA, quantity: 1n }] })], [
+      { outputIndex: 1, transfer: false, amounts: [{ ...ADA, quantity: 1n }] },
+    ]);
+    expect(parsePayoutMetadata({ ...record, a: [[1, ["0.000001"], 2]] })).toBeNull();
+    expect(parsePayoutMetadata({ ...record, a: {} })).toBeNull();
+  });
+});
+
 describe("buildPayoutMetadata citations (g)", () => {
   const budget = { number: 3, contentHash: "cd".repeat(32) };
   const taskProposal = { number: 8, contentHash: HASH };

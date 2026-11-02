@@ -330,6 +330,36 @@ export interface PaymentRow {
 export const PAYMENT_COLUMNS =
   "id, transaction_id, community_id, treasury_id, recipient_wallet, recipient_treasury_id, recipient_float_wallet_id, label, unit, amount, budget_month, created_at";
 
+/** Payday % allocation rule (ops fee or savings) for a paying treasury (migration 0091). */
+export type PaydayAllocationUnitScope = "all" | "selected";
+
+export interface PaydayAllocationRuleRow {
+  id: string;
+  community_id: string;
+  treasury_id: string;
+  label: string;
+  /** 1 = 0.01%, 100 = 1%, 10000 = 100%. */
+  basis_points: number;
+  enabled: boolean;
+  unit_scope: PaydayAllocationUnitScope;
+  recipient_wallet: string | null;
+  recipient_treasury_id: string | null;
+  sort_order: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const PAYDAY_ALLOCATION_RULE_COLUMNS =
+  "id, community_id, treasury_id, label, basis_points, enabled, unit_scope, recipient_wallet, recipient_treasury_id, sort_order, created_by, created_at, updated_at";
+
+export interface PaydayAllocationRuleUnitRow {
+  rule_id: string;
+  unit: string;
+}
+
+export const PAYDAY_ALLOCATION_RULE_UNIT_COLUMNS = "rule_id, unit";
+
 export interface CommunityAssetRow {
   community_id: string;
   field_name: string;

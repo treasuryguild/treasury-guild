@@ -534,6 +534,8 @@ export const MAX_TASK_NUMBER = 2_000_000_000;
 export const MAX_TREASURY_SIGNERS = 50;
 /** Non-archived float wallets one community may watch (migration 0088). */
 export const MAX_FLOAT_WALLETS = 5;
+/** Payday allocation rules (ops fee / savings) one paying treasury may hold. */
+export const MAX_PAYDAY_ALLOCATION_RULES = 5;
 /** A payment memo lands in on-chain metadata: one metadatum string at most. */
 export const MAX_PAYMENT_MEMO_BYTES = 64;
 /** Multi-asset outputs are larger; warn earlier when tokens are involved. */

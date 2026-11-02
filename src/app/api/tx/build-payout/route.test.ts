@@ -9,9 +9,11 @@ import { validToSlotFor } from "@/lib/tx";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), context: vi.fn(), leads: vi.fn(), noPending: vi.fn(), withTx: vi.fn(), insertPayouts: vi.fn(),
+  insertPayments: vi.fn(),
   registry: vi.fn(), upsertMappings: vi.fn(),
   tasks: vi.fn(), livePayouts: vi.fn(), queue: vi.fn(), stampMonth: vi.fn(),
-  setups: vi.fn(), sources: vi.fn(), assignments: vi.fn(), citations: vi.fn(),
+  setups: vi.fn(), treasurySetups: vi.fn(), sources: vi.fn(), assignments: vi.fn(), citations: vi.fn(),
+  allocationRules: vi.fn(), siblings: vi.fn(),
   wallet: vi.fn(), build: vi.fn(), script: vi.fn(), provider: vi.fn(),
   guard: vi.fn(), dueAnchors: vi.fn(), recordAnchors: vi.fn(),
 }));
@@ -27,13 +29,17 @@ vi.mock("@/lib/authz", async (importOriginal) => ({
 vi.mock("@/lib/db/transactions", () => ({
   assertNoPendingTx: mocks.noPending, withTransactionRow: mocks.withTx, insertPayouts: mocks.insertPayouts,
 }));
+vi.mock("@/lib/db/payments", () => ({ insertPayments: mocks.insertPayments, loadSiblingTreasuries: mocks.siblings }));
+vi.mock("@/lib/db/allocationRules", () => ({ loadEnabledAllocationRules: mocks.allocationRules }));
 vi.mock("@/lib/db/assets", () => ({ loadAssetRegistry: mocks.registry, upsertAssetMappings: mocks.upsertMappings }));
 vi.mock("@/lib/db/tasks", () => ({
   loadTasksForBuild: mocks.tasks, tasksWithLivePayouts: mocks.livePayouts,
   claimTasksForPayout: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
 }));
 vi.mock("@/lib/db/budgetSetups", () => ({
-  loadBudgetSetupsForWorkgroups: mocks.setups, loadBudgetSources: mocks.sources,
+  loadBudgetSetupsForWorkgroups: mocks.setups,
+  loadBudgetSetupsForTreasury: mocks.treasurySetups,
+  loadBudgetSources: mocks.sources,
 }));
 vi.mock("@/lib/db/workgroupRouting", () => ({ loadTreasuryAssignmentsForWorkgroups: mocks.assignments }));
 vi.mock("@/lib/db/governance", () => ({ loadProposalCitations: mocks.citations }));
@@ -120,9 +126,12 @@ beforeEach(() => {
   mocks.queue.mockResolvedValue(undefined);
   mocks.stampMonth.mockResolvedValue(undefined);
   mocks.setups.mockResolvedValue(new Map([[WG_A, [{ starts_on: "2026-01-01", cadence: "quarterly" }]]]));
+  mocks.treasurySetups.mockResolvedValue([]);
   mocks.sources.mockResolvedValue({ setups: new Map(), plans: [] });
   mocks.assignments.mockResolvedValue(new Map());
   mocks.citations.mockResolvedValue(new Map());
+  mocks.allocationRules.mockResolvedValue([]);
+  mocks.siblings.mockResolvedValue([]);
   mocks.wallet.mockResolvedValue({ lovelace: 100_000_000n, utxoCount: 2, tokens: [
     { unit: GVTT, quantity: 1_000_000_000n, ticker: "GVTT", name: "Test Token", decimals: 6, source: "registry" },
     { unit: OTHER_TOKEN, quantity: 1_000n, ticker: null, name: null, decimals: 0, source: "none" },
@@ -138,6 +147,7 @@ beforeEach(() => {
   });
   mocks.withTx.mockImplementation(async (_row: unknown, fn: (tx: { id: string }) => Promise<unknown>) => fn({ id: "tx-1" }));
   mocks.insertPayouts.mockResolvedValue(undefined);
+  mocks.insertPayments.mockResolvedValue(undefined);
   mocks.dueAnchors.mockResolvedValue([]);
   mocks.recordAnchors.mockResolvedValue(0);
 });
@@ -499,6 +509,7 @@ describe("build-payout API", () => {
           }] },
         ],
         unitDisplay: new Map([["lovelace", { ticker: "ADA", decimals: 6 }], [GVTT, { ticker: "GVTT", decimals: 6 }]]),
+        allocations: [],
         anchors: [], validFromSlot: null, validToSlot: validToSlotFor(0),
       });
       // The auto-matched token mapping is persisted for later displays.

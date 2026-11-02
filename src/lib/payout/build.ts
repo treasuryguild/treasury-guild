@@ -12,17 +12,19 @@ import { AssetResolutionError, resolveTaskAmounts, type AssetDef } from "@/lib/a
 import { assigneeProblems, assigneeWallets } from "@/lib/assignees";
 import { isTreasuryActor, leadsAllWorkgroups } from "@/lib/authz";
 import { currentBudgetMonth, isFutureBudgetMonth } from "@/lib/budgets";
-import { taskBudgetPeriod, type TaskBudgetPeriod } from "@/lib/budgetSetups";
+import { budgetOwnerLabel, taskBudgetPeriod, type TaskBudgetPeriod } from "@/lib/budgetSetups";
 import { buildPayoutTx } from "@/lib/cardano/payoutBuilder";
 import { countPayments, groupByRecipient, recipientsOffNetwork } from "@/lib/cardano/payoutRecipients";
 import { getProvider } from "@/lib/cardano/provider";
 import { fetchWalletAssets } from "@/lib/cardano/walletAssets";
 import { networkName } from "@/lib/config";
 import { PayState, TxKind, type SpendingPath } from "@/lib/constants";
+import { loadEnabledAllocationRules } from "@/lib/db/allocationRules";
 import { recordProposalAnchors } from "@/lib/db/anchors";
 import { loadAssetRegistry, upsertAssetMappings } from "@/lib/db/assets";
-import { loadBudgetSetupsForWorkgroups, loadBudgetSources } from "@/lib/db/budgetSetups";
+import { loadBudgetSetupsForTreasury, loadBudgetSetupsForWorkgroups, loadBudgetSources } from "@/lib/db/budgetSetups";
 import { loadProposalCitations } from "@/lib/db/governance";
+import { insertPayments, loadSiblingTreasuries } from "@/lib/db/payments";
 import { claimTasksForPayout, loadTasksForBuild, setBudgetMonthIfNull, tasksWithLivePayouts, type TaskForBuild } from "@/lib/db/tasks";
 import { assertNoPendingTx, insertPayouts, withTransactionRow } from "@/lib/db/transactions";
 import { assertTreasuryActive } from "@/lib/db/treasuries";
@@ -34,6 +36,7 @@ import { citationsOf } from "@/lib/governance/citations";
 import { budgetOwnerKey } from "@/lib/governance/payload";
 import { spendKey, type SpendProblem } from "@/lib/governance/spendCheck";
 import { budgetsForLines, guardSpend, type SpendGuardLine } from "@/lib/governance/spendGuard";
+import { applyAllocationRules, sumPayoutTotals, type AllocationRecipient } from "@/lib/payout/allocations";
 import { matchTokensToFields } from "@/lib/tokenMatch";
 import { resolveTreasuryScript } from "@/lib/treasury";
 import { builtTickers, loadBuildContext, resolveSpendingPath, validFromSlotFor, validToSlotFor, type BuildContext } from "@/lib/tx";
@@ -63,6 +66,10 @@ export interface PayoutPlan {
   tasks: TaskForBuild[];
   periods: Map<string, TaskBudgetPeriod>;
   recipients: Recipient[];
+  /** Payday allocation outputs (ops fee / savings) on the same transaction. */
+  allocations: AllocationRecipient[];
+  /** Budget period month ("YYYY-MM") for treasury-budget allocation spends. */
+  allocationBudgetMonth: string | null;
   payments: number;
   unitDisplay: ReturnType<typeof unitDisplayFromRegistry>;
   spendProblems: SpendProblem[];
@@ -229,7 +236,13 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
   // for its workgroup and period (and the proposal that set it), plus the
   // proposal that created the task. Every assignee is paid in full, so a
   // task's spend is its amounts times its assignees.
-  const budgetSources = await loadBudgetSources(workgroupIds.map((id) => budgetOwnerKey({ workgroupId: id, treasuryId: null })));
+  const treasuryOwnerKey = budgetOwnerKey({ workgroupId: null, treasuryId });
+  const [wgBudgetSources, treasurySetups, enabledRules, siblings] = await Promise.all([
+    loadBudgetSources(workgroupIds.map((id) => budgetOwnerKey({ workgroupId: id, treasuryId: null }))),
+    loadBudgetSetupsForTreasury(treasuryId),
+    loadEnabledAllocationRules(treasuryId),
+    loadSiblingTreasuries(treasury.community_id, treasuryId),
+  ]);
   const lines: SpendGuardLine[] = validTasks.flatMap((t) => {
     const wallets = assigneeWallets(t.task_assignees).length;
     const ownerKey = budgetOwnerKey({ workgroupId: t.workgroup_id, treasuryId: null });
@@ -239,18 +252,84 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
       ticker: unitTicker(unit, unitDisplay), decimals: unitDisplay.get(unit)?.decimals ?? 0,
     }));
   });
-  const budgets = budgetsForLines(lines, budgetSources);
+  // Citations for tasks need workgroup budgets only; allocation spend uses
+  // the treasury budget sources loaded below when there are fee lines.
+  const wgBudgets = budgetsForLines(lines, wgBudgetSources);
   const citedIdsOf = (t: TaskForBuild) => [
     t.proposal_id,
-    budgets.get(spendKey(budgetOwnerKey({ workgroupId: t.workgroup_id, treasuryId: null }), periods.get(t.id)!.month))?.proposalId,
+    wgBudgets.get(spendKey(budgetOwnerKey({ workgroupId: t.workgroup_id, treasuryId: null }), periods.get(t.id)!.month))?.proposalId,
   ];
   const cited = await loadProposalCitations(validTasks.flatMap(citedIdsOf).filter((id): id is string => !!id));
   const citations = new Map(validTasks.map((t) => [t.id, citationsOf(citedIdsOf(t), cited)]));
-  const spendProblems = await guardSpend(treasury.community_id, lines, budgetSources);
 
   // One recipient per distinct wallet; a task with several assignees is paid
   // in full to each of them.
   const recipients = groupByRecipient(validTasks, amountsByTask, periods, citations);
+
+  const siblingById = new Map(siblings.map((s) => [s.id, s]));
+  const allocationResult = applyAllocationRules({
+    rules: enabledRules.map((r) => {
+      const sib = r.recipient_treasury_id ? siblingById.get(r.recipient_treasury_id) : undefined;
+      return {
+        id: r.id,
+        label: r.label,
+        basis_points: r.basis_points,
+        unit_scope: r.unit_scope,
+        units: r.units,
+        recipient_wallet: r.recipient_wallet,
+        recipient_treasury_id: r.recipient_treasury_id,
+        recipientTreasuryAddress: sib && !sib.archived_at ? sib.address : null,
+        recipientTreasuryName: sib?.name ?? null,
+      };
+    }),
+    payoutTotals: sumPayoutTotals(recipients),
+    unitDisplay,
+    network,
+    payingTreasuryAddress: treasury.address,
+  });
+  if (allocationResult.problems.length > 0) {
+    throw new BadRequestError("Some allocation rules cannot be applied", {
+      problems: allocationResult.problems,
+    });
+  }
+  for (const r of enabledRules) {
+    if (!r.recipient_treasury_id) continue;
+    const sib = siblingById.get(r.recipient_treasury_id);
+    if (!sib || sib.archived_at) {
+      throw new BadRequestError("Some allocation rules cannot be applied", {
+        problems: [`Allocation "${r.label}": restore that treasury before transferring to it`],
+      });
+    }
+  }
+
+  const allocationPeriod = taskBudgetPeriod(null, treasurySetups, currentBudgetMonth());
+  if (allocationResult.spendLines.length > 0 && isFutureBudgetMonth(allocationPeriod.month)) {
+    throw new BadRequestError(`Budget period ${allocationPeriod.code} is in the future`);
+  }
+  const treasuryBudgetSources = allocationResult.spendLines.length > 0
+    ? await loadBudgetSources([treasuryOwnerKey])
+    : { setups: new Map(), plans: [] };
+  const budgetSources = {
+    setups: new Map([...wgBudgetSources.setups, ...treasuryBudgetSources.setups]),
+    plans: [...wgBudgetSources.plans, ...treasuryBudgetSources.plans],
+  };
+  const allocationLines: SpendGuardLine[] = allocationResult.spendLines.map((s) => ({
+    ownerKey: treasuryOwnerKey,
+    ownerType: "treasury" as const,
+    ownerId: treasuryId,
+    ownerName: budgetOwnerLabel("treasury", treasury.name),
+    periodMonth: allocationPeriod.month,
+    unit: s.unit,
+    amount: s.amount,
+    ticker: s.ticker,
+    decimals: s.decimals,
+  }));
+  const spendProblems = await guardSpend(
+    treasury.community_id,
+    [...lines, ...allocationLines],
+    budgetSources,
+  );
+
   const offNetwork = recipientsOffNetwork(recipients, network);
   if (offNetwork.length > 0) {
     throw new BadRequestError("Some assignee wallets are on a different network", {
@@ -259,7 +338,9 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
       ),
     });
   }
+
   const payments = countPayments(recipients);
+  const allocations = allocationResult.recipients;
 
   // The community's due proposal anchors ride along (label 190002) in the
   // room the payout record leaves; a failure to load them never blocks the payout.
@@ -276,6 +357,11 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
       network,
       provider: getProvider(network),
       recipients,
+      allocations: allocations.map((a) => ({
+        address: a.address,
+        transfer: !!a.recipientTreasuryId,
+        amounts: a.amounts.map((x) => ({ unit: x.unit, quantity: x.quantity })),
+      })),
       unitDisplay,
       anchors,
       validFromSlot: validFromSlotFor(treasury, path),
@@ -302,6 +388,8 @@ export async function planPayout(input: PayoutInput, wallet: string): Promise<Pa
     tasks: validTasks,
     periods,
     recipients,
+    allocations,
+    allocationBudgetMonth: allocationResult.spendLines.length > 0 ? allocationPeriod.month : null,
     payments,
     unitDisplay,
     spendProblems,
@@ -323,7 +411,7 @@ export async function persistPayout(
   wallet: string,
   opts: { agentDraftId?: string } = {},
 ): Promise<TransactionRow> {
-  const { ctx, path, built, recipients, tasks: validTasks, periods } = plan;
+  const { ctx, path, built, recipients, tasks: validTasks, periods, allocations = [] } = plan;
   await upsertAssetMappings(ctx.treasury.community_id, plan.mappings);
 
   const tickers = builtTickers(built, plan.unitDisplay);
@@ -362,6 +450,26 @@ export async function persistPayout(
         ),
       );
       await insertPayouts(payoutRows);
+      // Allocation legs share the payments table (transfer vs treasury budget).
+      if (allocations.length > 0) {
+        const budgetMonth = plan.allocationBudgetMonth
+          ? `${plan.allocationBudgetMonth}-01`
+          : null;
+        await insertPayments(allocations.flatMap((a) =>
+          a.amounts.map((x) => ({
+            transaction_id: tx.id,
+            community_id: ctx.treasury.community_id,
+            treasury_id: plan.treasuryId,
+            recipient_wallet: a.address,
+            recipient_treasury_id: a.recipientTreasuryId,
+            recipient_float_wallet_id: null,
+            label: a.label,
+            unit: x.unit,
+            amount: x.quantity.toString(),
+            budget_month: a.recipientTreasuryId ? null : budgetMonth,
+          })),
+        ));
+      }
       // Unset tasks are stamped with their resolved month: the quarter's
       // first month in a quarterly workgroup, as the task dialog would write.
       const unsetByMonth = new Map<string, string[]>();

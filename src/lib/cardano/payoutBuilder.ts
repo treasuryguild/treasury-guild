@@ -25,7 +25,7 @@ import {
   type PayoutForMetadata,
 } from "./metadata";
 import {
-  planPayoutOutputs,
+  planOutputs,
   type PayoutRecipient,
   type PlannedOutput,
   type TaskPayment,
@@ -303,6 +303,13 @@ export async function completeDrainTx(opts: {
   };
 }
 
+/** An ops-fee / savings output that rides on the same Payday transaction. */
+export interface PayoutAllocationOutput {
+  address: string;
+  transfer: boolean;
+  amounts: { unit: string; quantity: bigint }[];
+}
+
 export async function buildPayoutTx(opts: {
   treasuryAddress: string;
   scriptCbor: string;
@@ -310,6 +317,8 @@ export async function buildPayoutTx(opts: {
   network: Network;
   provider: IFetcher;
   recipients: PayoutRecipient[];
+  /** Payday allocation outputs after contributor outputs (optional). */
+  allocations?: readonly PayoutAllocationOutput[];
   /** unit -> ticker/decimals, for metadata and readable errors. */
   unitDisplay?: UnitDisplay;
   /** The community's due anchors, in order; as many as fit ride along (label 190002). */
@@ -326,11 +335,19 @@ export async function buildPayoutTx(opts: {
     throw new Error("No recipients to pay");
   }
 
-  const { outputs, totalByUnit } = planPayoutOutputs(recipients);
+  const allocations = (opts.allocations ?? []).filter((a) => a.amounts.some((x) => x.quantity > 0n));
+  // Contributors first (metadata `p`), then allocations (`a`), then change.
+  const { outputs, totalByUnit } = planOutputs([
+    ...recipients.map((r) => ({
+      address: r.contributorWallet,
+      amounts: r.tasks.flatMap((task) => task.amounts),
+    })),
+    ...allocations.map((a) => ({ address: a.address, amounts: a.amounts })),
+  ]);
 
-  // Metadata records bounty amounts only: the min-UTxO bump planPayoutOutputs
+  // Metadata records bounty amounts only: the min-UTxO bump planOutputs
   // adds to token outputs is a ledger rule, not a payment, and stays in the
-  // body. The recipient's position is its output index: planPayoutOutputs
+  // body. The recipient's position is its output index: planOutputs
   // emits one output per recipient in order, and completeTreasuryTx follows
   // that order with the change output last.
   const payoutsForMetadata: PayoutForMetadata[] = recipients.flatMap(
@@ -344,14 +361,20 @@ export async function buildPayoutTx(opts: {
         citations: t.citations,
       })),
   );
+  const allocationsForMetadata = allocations.map((a, i) => ({
+    outputIndex: recipients.length + i,
+    transfer: a.transfer,
+    amounts: a.amounts.map((x) => ({ ...metadataDisplay(x.unit, unitDisplay), quantity: x.quantity })),
+  }));
 
-  const payoutMetadata = buildPayoutMetadata(communitySlug, payoutsForMetadata);
+  const payoutMetadata = buildPayoutMetadata(communitySlug, payoutsForMetadata, allocationsForMetadata);
   assertPayoutMetadataFits(payoutMetadata);
   // The payout record has priority; due anchors ride in whatever room the
   // metadata guard leaves, and the rest stay due.
   const anchors = attachAnchors(communitySlug, payoutMetadata, opts.anchors);
 
   const dateStr = new Date().toISOString().slice(0, 10);
+  const allocNote = allocations.length > 0 ? `, ${allocations.length} allocation${allocations.length === 1 ? "" : "s"}` : "";
   const { unsignedTxHex, txHash } = await completeTreasuryTx({
     ...opts,
     outputs,
@@ -362,7 +385,7 @@ export async function buildPayoutTx(opts: {
       [
         CIP20_LABEL,
         buildMessageMetadata(
-          `Treasury Guild payout: ${communitySlug} ${dateStr}, ${recipients.length} contributors`,
+          `Treasury Guild payout: ${communitySlug} ${dateStr}, ${recipients.length} contributors${allocNote}`,
         ),
       ],
     ],

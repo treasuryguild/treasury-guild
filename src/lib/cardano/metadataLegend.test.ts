@@ -108,6 +108,8 @@ describe("metadata legends, both directions", () => {
   it("list no payout key the builder cannot write", () => {
     const meta = buildPayoutMetadata("signius", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }], citations: [CITATION] },
+    ], [
+      { outputIndex: 1, transfer: false, amounts: [{ ...ADA, quantity: 50_000n }] },
     ]);
     expect([...keysOf(PAYOUT_METADATA_LEGEND)].sort()).toEqual(Object.keys(meta).sort());
   });

@@ -108,7 +108,8 @@ beforeEach(() => {
   mocks.extract.mockReturnValue({ v: 3, src: "treasury-guild" });
   mocks.compare.mockReturnValue([]);
   mocks.payouts.mockResolvedValue([payout()]);
-  mocks.payments.mockResolvedValue([payment()]);
+  // Empty by default: payout tests only load payments when allocation legs exist.
+  mocks.payments.mockResolvedValue([]);
   mocks.mints.mockResolvedValue([]);
   mocks.proposals.mockResolvedValue([]);
   mocks.settings.mockResolvedValue({ enabled: false });
@@ -158,7 +159,8 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
     mocks.extract.mockReturnValue(meta);
     await runCosignerCheck(tx(), TREASURY);
     expect(mocks.payouts).toHaveBeenCalledExactlyOnceWith("tx-1");
-    expect(mocks.payments).not.toHaveBeenCalled();
+    // Allocation payment legs may ride on a payout tx.
+    expect(mocks.payments).toHaveBeenCalledExactlyOnceWith("tx-1");
     expect(mocks.mints).not.toHaveBeenCalled();
     expect(mocks.siblings).toHaveBeenCalledExactlyOnceWith("c-1", "t-1");
     expect(mocks.compare).toHaveBeenCalledExactlyOnceWith({

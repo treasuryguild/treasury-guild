@@ -91,6 +91,20 @@ async function budgetProblems(
         ticker: unitTicker(row.unit, display), decimals: display.get(row.unit)?.decimals ?? 0,
       });
     }
+    // Payday allocation spends (payments rows on a payout tx) hit the treasury budget.
+    if (payments.length > 0) {
+      const treasurySetups = await loadBudgetSetupsForTreasury(treasury.id);
+      const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId: treasury.id });
+      for (const p of payments) {
+        if (p.recipient_treasury_id !== null || p.recipient_float_wallet_id !== null || !p.budget_month) continue;
+        const period = taskBudgetPeriod(p.budget_month, treasurySetups, defaultMonth);
+        lines.push({
+          ownerKey, ownerType: "treasury", ownerId: treasury.id, ownerName: budgetOwnerLabel("treasury", treasury.name),
+          periodMonth: period.month, unit: p.unit, amount: BigInt(p.amount),
+          ticker: unitTicker(p.unit, display), decimals: display.get(p.unit)?.decimals ?? 0,
+        });
+      }
+    }
   } else if (tx.kind === TxKind.Payment) {
     const setups = await loadBudgetSetupsForTreasury(treasury.id);
     const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId: treasury.id });
@@ -162,7 +176,8 @@ export async function runCosignerCheck(tx: TransactionRow, treasury: TreasuryRow
 
   const [payouts, payments, mints, siblings, floats] = await Promise.all([
     tx.kind === TxKind.Payout ? loadPayoutsForCheck(tx.id) : [],
-    tx.kind === TxKind.Payment ? loadPaymentsForTx(tx.id) : [],
+    // Payments also ride on payout txs that carried Payday allocation rules.
+    tx.kind === TxKind.Payout || tx.kind === TxKind.Payment ? loadPaymentsForTx(tx.id) : [],
     tx.kind === TxKind.Mint ? loadMintsForTx(tx.id) : [],
     loadSiblingTreasuries(treasury.community_id, treasury.id),
     loadActiveFloatWallets(treasury.community_id),

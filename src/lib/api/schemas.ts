@@ -885,6 +885,60 @@ export const floatWalletLifecycleSchema = z.object({
   action: z.enum(["archive", "restore"]),
 });
 
+// --- Payday allocation rules (ops fee / savings) ------------------------------
+
+const allocationLabel = nonEmpty.max(80);
+const allocationBasisPoints = z.number().int().min(1).max(10000);
+const allocationUnitScope = z.enum(["all", "selected"]);
+const allocationUnits = z.array(nonEmpty.max(120)).max(50);
+
+export const createAllocationRuleSchema = z.object({
+  treasuryId: id,
+  label: allocationLabel,
+  basisPoints: allocationBasisPoints,
+  enabled: z.boolean().default(true),
+  unitScope: allocationUnitScope,
+  units: allocationUnits.default([]),
+  recipientWallet: walletAddress.nullable().optional(),
+  recipientTreasuryId: id.nullable().optional(),
+  sortOrder: z.number().int().min(0).max(100).default(0),
+}).superRefine((v, ctx) => {
+  const hasWallet = !!v.recipientWallet;
+  const hasTreasury = !!v.recipientTreasuryId;
+  if (hasWallet === hasTreasury) {
+    ctx.addIssue({ code: "custom", message: "Choose an outside address or a sibling treasury" });
+  }
+  if (v.unitScope === "selected" && v.units.length === 0) {
+    ctx.addIssue({ code: "custom", message: "Select at least one token" });
+  }
+  if (v.unitScope === "all" && v.units.length > 0) {
+    ctx.addIssue({ code: "custom", message: "Clear the token list when applying to all tokens" });
+  }
+});
+
+export const patchAllocationRuleSchema = z.object({
+  label: allocationLabel,
+  basisPoints: allocationBasisPoints,
+  enabled: z.boolean(),
+  unitScope: allocationUnitScope,
+  units: allocationUnits,
+  recipientWallet: walletAddress.nullable(),
+  recipientTreasuryId: id.nullable(),
+  sortOrder: z.number().int().min(0).max(100),
+}).superRefine((v, ctx) => {
+  const hasWallet = !!v.recipientWallet;
+  const hasTreasury = !!v.recipientTreasuryId;
+  if (hasWallet === hasTreasury) {
+    ctx.addIssue({ code: "custom", message: "Choose an outside address or a sibling treasury" });
+  }
+  if (v.unitScope === "selected" && v.units.length === 0) {
+    ctx.addIssue({ code: "custom", message: "Select at least one token" });
+  }
+  if (v.unitScope === "all" && v.units.length > 0) {
+    ctx.addIssue({ code: "custom", message: "Clear the token list when applying to all tokens" });
+  }
+});
+
 // --- Bridge / swap conversion episodes ---------------------------------------
 
 const conversionAmount = z.string().trim().max(60).regex(/^\d+(?:\.\d{1,30})?$/, "Enter a positive number")
@@ -1382,6 +1436,8 @@ export type PatchLegacyWalletBody = z.infer<typeof patchLegacyWalletSchema>;
 export type CreateFloatWalletBody = z.infer<typeof createFloatWalletSchema>;
 export type PatchFloatWalletBody = z.infer<typeof patchFloatWalletSchema>;
 export type FloatWalletLifecycleBody = z.infer<typeof floatWalletLifecycleSchema>;
+export type CreateAllocationRuleBody = z.infer<typeof createAllocationRuleSchema>;
+export type PatchAllocationRuleBody = z.infer<typeof patchAllocationRuleSchema>;
 export type CreateConversionBody = z.infer<typeof createConversionSchema>;
 export type PatchConversionBody = z.infer<typeof patchConversionSchema>;
 export type LegacyWorkgroupBody = z.infer<typeof legacyWorkgroupSchema>;
