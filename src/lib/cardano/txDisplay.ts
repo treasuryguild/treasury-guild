@@ -1,14 +1,29 @@
 // Pure display helpers for a decoded transaction (signing page). Client-safe.
 
 import { formatUnitAmount, type UnitDisplay } from "@/lib/assetRegistry";
-import { formatUnits, shortUnit } from "@/lib/format";
+import { tokenFallbackLabel } from "@/lib/assets";
+import { formatUnits } from "@/lib/format";
 import { ipfsToHttp } from "@/lib/ipfs";
+import { assetNameFromUnit } from "./assetInfo";
 import { cip25Entry, hexToUtf8, readCip25Fields } from "./cip25";
-import type { DecodedTxMint } from "./types";
+import type { DecodedTxMint, DecodedTxView } from "./types";
+
+/** Units carried by a decoded transaction's outputs and mint field. */
+export function unitsFromDecodedTx(
+  decoded: Pick<DecodedTxView, "outputs" | "mint">,
+): string[] {
+  const units = new Set<string>();
+  for (const output of decoded.outputs) {
+    for (const asset of output.assets) units.add(asset.unit);
+  }
+  for (const minted of decoded.mint) units.add(minted.unit);
+  return [...units];
+}
 
 /**
  * Render an output asset: registry ticker/decimals first, then the tx's own
- * CIP-25 mint metadata (for freshly minted units), then a raw fallback.
+ * CIP-25 mint metadata (for freshly minted units), then a name / TOKEN fallback
+ * (never the policy-id prefix).
  */
 export function formatTxAsset(
   unit: string,
@@ -23,10 +38,15 @@ export function formatTxAsset(
     const fields = readCip25Fields(
       cip25Entry(cip25Meta, minted.policyId, minted.assetNameHex),
     );
-    const label = fields.ticker ?? hexToUtf8(minted.assetNameHex) ?? shortUnit(unit);
+    const label =
+      fields.ticker ??
+      hexToUtf8(minted.assetNameHex) ??
+      assetNameFromUnit(unit) ??
+      tokenFallbackLabel(unit);
     return formatUnits(quantity, fields.decimals ?? 0, label);
   }
-  return `${quantity} ${shortUnit(unit)}`;
+  const label = assetNameFromUnit(unit) ?? tokenFallbackLabel(unit);
+  return formatUnits(quantity, 0, label);
 }
 
 export interface MintDescription {

@@ -16,7 +16,9 @@ import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
 import { decodeTxForDisplay } from "@/lib/cardano/cborMetadata";
 import { txCborBulk } from "@/lib/cardano/koios";
+import { unitsFromDecodedTx } from "@/lib/cardano/txDisplay";
 import { EMPTY_TX_VIEW, type DecodedTxView } from "@/lib/cardano/types";
+import { enrichRegistryFromUnits } from "@/lib/cardano/walletAssets";
 import { asNetwork } from "@/lib/config";
 import { TxKind } from "@/lib/constants";
 import {
@@ -212,6 +214,12 @@ export async function loadOnChainTxPageData(
     citedProposals[p.number] = p.id;
   }
 
+  const assetRegistry = await enrichRegistryFromUnits(
+    network,
+    registryFromRows((assetRows ?? []) as CommunityAssetColumns[]),
+    unitsFromDecodedTx(decoded),
+  );
+
   return {
     slug,
     row,
@@ -221,7 +229,7 @@ export async function loadOnChainTxPageData(
     governanceAction,
     decoded,
     cborTrusted,
-    assetRegistry: registryFromRows((assetRows ?? []) as CommunityAssetColumns[]),
+    assetRegistry,
     citedProposals,
   };
 }
