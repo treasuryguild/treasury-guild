@@ -32,6 +32,7 @@ import { BudgetTable } from "@/components/dashboard/BudgetTable";
 import { ContributorsTasksChart } from "@/components/dashboard/ContributorsTasksChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { FundingFlowChart } from "@/components/dashboard/FundingFlowChart";
+import { ConversionFeesPanel } from "@/components/dashboard/ConversionFeesPanel";
 import { IncomingPanel } from "@/components/dashboard/IncomingPanel";
 import { SpendingDetailList } from "@/components/dashboard/SpendingDetailList";
 import { TreasurySpendingChart } from "@/components/dashboard/TreasurySpendingChart";
@@ -197,7 +198,14 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.7fr)]">
           <SpendingDetailList items={model.spendingList} display={display} loading={dashboard.loading} />
-          <IncomingPanel items={data?.incoming ?? []} display={display} loading={dashboard.loading} manageHref={routes.reconcile(slug)} />
+          <div className="space-y-6">
+            <IncomingPanel items={data?.incoming ?? []} display={display} loading={dashboard.loading} manageHref={routes.reconcile(slug)} />
+            <ConversionFeesPanel
+              fees={data?.conversionFees ?? []}
+              loading={dashboard.loading}
+              manageHref={routes.reconcile(slug)}
+            />
+          </div>
         </div>
       </>}
 

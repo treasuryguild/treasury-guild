@@ -28,8 +28,23 @@ Admins see **Details** on every card. It opens a form with:
 - **Reconciliation** — **Needs reconciliation** or **No reconciliation needed**.
 - **Funding source** and **Commitment** — shown once the community has a [funding source](/docs/funding): the outside funder this whole inflow came from and, optionally, which of its commitments it pays (for example a Catalyst proposal, or the monthly allocation). The card then shows the source as a badge, the inflow counts as received on the Funding page, and the Dashboard's Funding flow names the source. Not offered for a transfer between the community's own wallets.
 - **Internal note** — context for the next admin, for example "September membership contribution".
+- **Bridge / swap conversion** — optional bookkeeping when the Cardano inflow came from a bridge or swap (see below).
 
-**Save details** stores it. Marking an inflow as not needing reconciliation moves it to **logged**; an inflow that already has a reconciliation recorded stays **reconciled** whatever you choose.
+**Save details** stores the type, reconciliation, funding and note. The conversion form saves on its own.
+
+## Bridge and swap conversions
+
+When tokens arrive after a bridge (for example Eth FET → Cardano FET) or a swap, an admin can attach a **conversion episode** to that Cardano inflow. The received amounts stay on the chain row; the form records:
+
+- **Kind** — Bridge or Swap
+- **Sent** — amount, asset label, chain (Ethereum, Cardano, Bitcoin or Other) and optional address
+- **Fees** — gas, bridge fee, spread or other (amount, asset label, optional chain)
+- **Proofs** — other-chain transaction hashes, optional explorer URL and label
+- **Note** — free text
+
+One episode per inflow (treasury or [float wallet](/docs/treasury#float-wallets) incoming). Members can read it; only admins create, edit or delete. Fee totals appear on the [Funding](/docs/funding#conversion-fees) page and as **Conversion fees** on the [Dashboard](/docs/budgets#dashboard) for the selected period (by the inflow's block time). They are **ops bookkeeping** — never charged to workgroup or treasury budgets, and never drawn on the Funding flow chart.
+
+On a float wallet card, **Recent activity** offers the same form on each **incoming** row.
 
 ## Reconciling a refund
 

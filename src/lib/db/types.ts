@@ -480,6 +480,56 @@ export interface FloatExternalTxRow {
 export const FLOAT_EXTERNAL_TX_COLUMNS =
   "tx_hash, float_wallet_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, to_treasury_id, created_at";
 
+/** Bridge / swap bookkeeping attached to a Cardano inflow (migration 0089). */
+export type ConversionKind = "bridge" | "swap";
+export type ConversionChain = "ethereum" | "cardano" | "bitcoin" | "other";
+export type ConversionFeeKind = "gas" | "bridge" | "spread" | "other";
+
+export interface IncomingConversionRow {
+  id: string;
+  community_id: string;
+  kind: ConversionKind;
+  incoming_tx_hash: string | null;
+  float_incoming_tx_hash: string | null;
+  sent_amount: string;
+  sent_asset_label: string;
+  sent_chain: ConversionChain;
+  sent_address: string | null;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const INCOMING_CONVERSION_COLUMNS =
+  "id, community_id, kind, incoming_tx_hash, float_incoming_tx_hash, sent_amount, sent_asset_label, sent_chain, sent_address, note, created_by, created_at, updated_at";
+
+export interface IncomingConversionFeeRow {
+  id: string;
+  conversion_id: string;
+  kind: ConversionFeeKind;
+  amount: string;
+  asset_label: string;
+  chain: ConversionChain | null;
+  position: number;
+}
+
+export const INCOMING_CONVERSION_FEE_COLUMNS =
+  "id, conversion_id, kind, amount, asset_label, chain, position";
+
+export interface IncomingConversionProofRow {
+  id: string;
+  conversion_id: string;
+  chain: ConversionChain;
+  tx_hash: string;
+  url: string | null;
+  label: string | null;
+  position: number;
+}
+
+export const INCOMING_CONVERSION_PROOF_COLUMNS =
+  "id, conversion_id, chain, tx_hash, url, label, position";
+
 /** One step of a workgroup's dated wallet routing (migration 0035). */
 export interface WorkgroupTreasuryAssignmentRow {
   id: string;

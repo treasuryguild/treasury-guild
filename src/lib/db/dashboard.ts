@@ -6,9 +6,11 @@ import type { BudgetIncomingItem, DashboardFlows, DashboardLegacy, DashboardSeri
 import { monthOf, quarterStartMonth } from "@/lib/budgets";
 import { cadenceAt } from "@/lib/budgetSetups";
 import { SPENT_PAYOUT_STATUSES, TxState } from "@/lib/constants";
+import { sumConversionFees } from "@/lib/conversions/fees";
 import {
   aggregateDashboardSeries,
   allTimeWindow,
+  bucketKey,
   dashboardWindow,
   spendingMonth,
   type DashboardView,
@@ -20,8 +22,10 @@ import { aggregateFlows, type FlowIncomingRow } from "@/lib/fundingFlow";
 import { EPOCH } from "./budgetDashboard";
 import { loadBudgetSetupsForTreasuries, loadBudgetSetupsForWorkgroups, type BudgetSetupCadenceRow } from "./budgetSetups";
 import { allRows, relation, rows, serviceClient } from "./client";
+import { loadCommunityConversions } from "./conversions";
 import { legacyContributorKey, legacyTaskKey } from "@/lib/legacyHistory/display";
 import { loadKnownWallets, loadLegacySpend, loadLegacyWallets } from "./legacyHistory";
+import type { DashboardConversionFee } from "@/lib/api/types";
 
 interface PayoutSeriesRow {
   id: string;
@@ -114,6 +118,7 @@ export async function loadDashboardActivity(
   legacy: DashboardLegacy;
   floats: { id: string; name: string }[];
   fundingSources: { id: string; name: string }[];
+  conversionFees: DashboardConversionFee[];
 }> {
   const range = view === "all"
     ? { start: EPOCH, end: allTimeWindow(null, month).end }
@@ -126,7 +131,7 @@ export async function loadDashboardActivity(
     `budget_month.is.null,and(budget_month.gte.${quarterStartMonth(monthOf(range.start))}-01,budget_month.lt.${range.end.slice(0, 10)})`;
   const db = serviceClient();
 
-  const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyWallets, fundingRows] = await Promise.all([
+  const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyWallets, fundingRows, conversions] = await Promise.all([
     allRows<IncomingFlowRow>((from, to) => db
       .from("incoming_txs")
       .select("treasury_id, from_treasury_id, from_float_wallet_id, funding_source_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
@@ -191,6 +196,7 @@ export async function loadDashboardActivity(
     }),
     loadLegacyWallets(communityId),
     db.from("funding_sources").select("id, name").eq("community_id", communityId).order("name"),
+    loadCommunityConversions(communityId),
   ]);
 
   const [workgroupSetups, treasurySetups, knownWallets] = await Promise.all([
@@ -300,6 +306,16 @@ export async function loadDashboardActivity(
   }
 
   const assets = new Map(legacyRows.map((row) => [row.unit, { unit: row.unit, ticker: row.ticker, decimals: row.decimals }]));
+  const monthSet = new Set(window.months);
+  const conversionFees = sumConversionFees(
+    conversions
+      .filter((c) => c.block_time && monthSet.has(bucketKey(c.block_time, window.bucket)))
+      .flatMap((c) => c.fees.map((f) => ({
+        amount: f.amount,
+        assetLabel: f.asset_label,
+        chain: f.chain,
+      }))),
+  );
   return {
     series: { ...aggregateDashboardSeries(payouts, refunds, window), treasuries },
     flows: { months: aggregateFlows(flows, window) },
@@ -309,6 +325,7 @@ export async function loadDashboardActivity(
     },
     floats,
     fundingSources: rows<{ id: string; name: string }>(fundingRows, "load funding sources"),
+    conversionFees,
   };
 }
 

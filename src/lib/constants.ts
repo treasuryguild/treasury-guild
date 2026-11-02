@@ -487,6 +487,8 @@ export const RATE_LIMITS = {
   legacyHistory: { limit: 60, windowSeconds: 600 },
   /** Creating a watched float wallet, per admin wallet. */
   floatWalletCreate: { limit: 20, windowSeconds: 3600 },
+  /** Creating or updating a bridge/swap conversion episode, per admin wallet. */
+  conversionWrite: { limit: 60, windowSeconds: 3600 },
   /** New proposals, per wallet. */
   proposalCreate: { limit: 10, windowSeconds: 3600 },
   /** Ballot texts and signed ballots, per wallet. */

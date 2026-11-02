@@ -15,8 +15,10 @@ import { formatDate, formatLovelace, formatUnits, shortAddress, shortHash, short
 import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useConversionsForInflows } from "@/hooks/useConversions";
 import { activeFloatWallets, useFloatWallets } from "@/hooks/useFloatWallets";
 import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
+import { ConversionForm, ConversionSummary } from "@/components/reconcile/ConversionForm";
 import {
   Badge,
   Button,
@@ -202,7 +204,7 @@ export function FloatWalletsSection({
                     </Button>
                   )}
                 </div>
-                <FloatActivity floatWalletId={wallet.id} />
+                <FloatActivity floatWalletId={wallet.id} isAdmin={isAdmin} />
               </Card>
             );
           })}
@@ -212,9 +214,10 @@ export function FloatWalletsSection({
   );
 }
 
-/** Recent float inflows and outs (no signing chrome). */
-function FloatActivity({ floatWalletId }: { floatWalletId: string }) {
+/** Recent float inflows and outs (no signing chrome); inflows can carry a conversion. */
+function FloatActivity({ floatWalletId, isAdmin }: { floatWalletId: string; isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
+  const [editHash, setEditHash] = useState<string | null>(null);
   const activity = useAsyncData(open ? floatWalletId : null, async () => {
     const db = browserClient();
     const [incoming, external] = await Promise.all([
@@ -233,24 +236,45 @@ function FloatActivity({ floatWalletId }: { floatWalletId: string }) {
     ]);
     if (incoming.error) throw new Error(incoming.error.message);
     if (external.error) throw new Error(external.error.message);
-    const rows: { kind: "in" | "out"; hash: string; time: string | null; lovelace: string; note: string }[] = [
-      ...((incoming.data ?? []) as FloatIncomingTxRow[]).map((row) => ({
+    return {
+      incoming: (incoming.data ?? []) as FloatIncomingTxRow[],
+      external: (external.data ?? []) as FloatExternalTxRow[],
+    };
+  });
+  const incomingHashes = useMemo(
+    () => (activity.data?.incoming ?? []).map((row) => row.tx_hash),
+    [activity.data],
+  );
+  const conversions = useConversionsForInflows([], open ? incomingHashes : []);
+  const conversionByHash = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof conversions.data>[number]>();
+    for (const row of conversions.data ?? []) {
+      if (row.float_incoming_tx_hash) map.set(row.float_incoming_tx_hash, row);
+    }
+    return map;
+  }, [conversions.data]);
+
+  const rows = useMemo(() => {
+    if (!activity.data) return [];
+    return [
+      ...activity.data.incoming.map((row) => ({
         kind: "in" as const,
         hash: row.tx_hash,
         time: row.block_time,
         lovelace: row.amount_lovelace,
+        assets: row.assets,
         note: row.from_treasury_id ? "From treasury" : "In",
       })),
-      ...((external.data ?? []) as FloatExternalTxRow[]).map((row) => ({
+      ...activity.data.external.map((row) => ({
         kind: "out" as const,
         hash: row.tx_hash,
         time: row.block_time,
         lovelace: row.amount_lovelace,
+        assets: row.assets,
         note: row.to_treasury_id ? "To treasury" : "Out",
       })),
-    ];
-    return rows.sort((a, b) => (b.time ?? "").localeCompare(a.time ?? "")).slice(0, 8);
-  });
+    ].sort((a, b) => (b.time ?? "").localeCompare(a.time ?? "")).slice(0, 8);
+  }, [activity.data]);
 
   return (
     <div className="mt-3 border-t border-zinc-800 pt-3">
@@ -262,18 +286,49 @@ function FloatActivity({ floatWalletId }: { floatWalletId: string }) {
         {open ? "Hide activity" : "Recent activity"}
       </button>
       {open && (
-        <div className="mt-2 space-y-1 text-xs text-zinc-500">
-          <ErrorText error={activity.error} />
+        <div className="mt-2 space-y-2 text-xs text-zinc-500">
+          <ErrorText error={activity.error ?? conversions.error} />
           {activity.loading && <p>Loading…</p>}
-          {activity.data && activity.data.length === 0 && <p>No chain activity yet.</p>}
-          {activity.data?.map((row) => (
-            <div key={`${row.kind}-${row.hash}`} className="flex flex-wrap gap-x-3 gap-y-0.5 font-mono">
-              <span>{row.note}</span>
-              <span>{formatLovelace(row.lovelace)}</span>
-              <span title={row.hash}>{shortHash(row.hash)}</span>
-              {row.time && <span>{formatDate(row.time, "datetime")}</span>}
-            </div>
-          ))}
+          {!activity.loading && rows.length === 0 && <p>No chain activity yet.</p>}
+          {rows.map((row) => {
+            const conversion = row.kind === "in" ? conversionByHash.get(row.hash) : undefined;
+            const editing = editHash === row.hash;
+            const receivedLabel = [
+              formatLovelace(row.lovelace),
+              ...Object.entries(row.assets ?? {}).map(([unit, qty]) => `${qty} ${shortUnit(unit)}`),
+            ].join(", ");
+            return (
+              <div key={`${row.kind}-${row.hash}`} className="rounded border border-zinc-800/80 p-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono">
+                  <span>{row.note}</span>
+                  <span>{formatLovelace(row.lovelace)}</span>
+                  <span title={row.hash}>{shortHash(row.hash)}</span>
+                  {row.time && <span>{formatDate(row.time, "datetime")}</span>}
+                  {conversion && <Badge>{conversion.kind === "bridge" ? "Bridge" : "Swap"}</Badge>}
+                  {isAdmin && row.kind === "in" && !editing && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setEditHash(row.hash)}
+                    >
+                      {conversion ? "Edit conversion" : "Record conversion"}
+                    </Button>
+                  )}
+                </div>
+                {conversion && !editing && (
+                  <ConversionSummary conversion={conversion} isAdmin={false} />
+                )}
+                {editing && (
+                  <ConversionForm
+                    attach={{ floatIncomingTxHash: row.hash }}
+                    existing={conversion ?? null}
+                    receivedLabel={receivedLabel}
+                    onCancel={() => setEditHash(null)}
+                    onSaved={() => { setEditHash(null); conversions.reload(); }}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

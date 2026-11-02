@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { ArrowDownLeft, FilePenLine, Link2 } from "lucide-react";
 import { apiFetch } from "@/lib/api/client";
 import type { MatchSuggestionsResponse } from "@/lib/api/types";
@@ -14,9 +14,11 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useAssetRegistry } from "@/hooks/useAssetRegistry";
 import { useChainSync } from "@/hooks/useChainSync";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { useConversionsForInflows } from "@/hooks/useConversions";
 import { useFunding } from "@/hooks/useFunding";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useTreasuries } from "@/hooks/useTreasuries";
+import { ConversionForm, ConversionSummary, type ConversionView } from "@/components/reconcile/ConversionForm";
 import { Badge, Button, Card, EmptyState, ErrorText, Field, Input, InsetRow, PageTitle, Select, Textarea } from "@/components/ui";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
 
@@ -32,20 +34,24 @@ const INCOMING_LABELS: Record<IncomingType, string> = {
   other: "Other",
 };
 
-function IncomingDetailsForm({ tx, sources, commitments, onSaved }: {
+function IncomingDetailsForm({ tx, sources, commitments, conversion, receivedLabel, onSaved, onConversionSaved }: {
   tx: IncomingTxRow;
   sources: FundingSourceRow[];
   commitments: FundingCommitmentRow[];
+  conversion: ConversionView | null;
+  receivedLabel: string;
   onSaved: () => void;
+  onConversionSaved: () => void;
 }) {
   const [incomingType, setIncomingType] = useState<IncomingType>(tx.incoming_type);
   const [requiresReconciliation, setRequiresReconciliation] = useState(tx.requires_reconciliation);
   const [note, setNote] = useState(tx.note ?? "");
   const [fundingSourceId, setFundingSourceId] = useState(tx.funding_source_id ?? "");
   const [fundingCommitmentId, setFundingCommitmentId] = useState(tx.funding_commitment_id ?? "");
+  const [editingConversion, setEditingConversion] = useState(false);
   const save = useAsyncAction("Failed to save incoming details");
   // Money from another of the community's treasuries is a transfer, never funding.
-  const canFund = !tx.from_treasury_id && sources.length > 0;
+  const canFund = !tx.from_treasury_id && !tx.from_float_wallet_id && sources.length > 0;
   const sourceCommitments = commitments.filter((c) => c.source_id === fundingSourceId);
 
   async function submit() {
@@ -87,6 +93,21 @@ function IncomingDetailsForm({ tx, sources, commitments, onSaved }: {
       <Field label="Internal note" className="mt-3" hint="Add context that will help the next admin understand this inflow."><Textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="e.g. September membership contribution" /></Field>
       <div className="mt-3 flex justify-end"><Button loading={save.busy} onClick={() => void submit()}>{save.busy ? "Saving…" : "Save details"}</Button></div>
       <ErrorText error={save.error} className="mt-2" />
+
+      <div className="mt-5 border-t border-zinc-800 pt-4">
+        <p className="mb-2 text-sm font-medium text-zinc-300">Bridge / swap conversion</p>
+        {conversion && !editingConversion ? (
+          <ConversionSummary conversion={conversion} isAdmin onEdit={() => setEditingConversion(true)} />
+        ) : (
+          <ConversionForm
+            attach={{ incomingTxHash: tx.tx_hash }}
+            existing={conversion}
+            receivedLabel={receivedLabel}
+            onCancel={conversion ? () => setEditingConversion(false) : undefined}
+            onSaved={() => { setEditingConversion(false); onConversionSaved(); }}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -102,6 +123,15 @@ export default function ReconcilePage({ params }: { params: Promise<{ slug: stri
     if (error) throw error;
     return (data ?? []) as IncomingTxRow[];
   });
+  const incomingHashes = useMemo(() => (incoming.data ?? []).map((tx) => tx.tx_hash), [incoming.data]);
+  const conversions = useConversionsForInflows(incomingHashes);
+  const conversionByHash = useMemo(() => {
+    const map = new Map<string, ConversionView>();
+    for (const row of conversions.data ?? []) {
+      if (row.incoming_tx_hash) map.set(row.incoming_tx_hash, row);
+    }
+    return map;
+  }, [conversions.data]);
   // Background chain poll on visit (two-minute staleness); reloads the list if anything was polled.
   const sync = useChainSync(community?.id, incoming.reload);
   const registry = useAssetRegistry(community?.id);
@@ -169,14 +199,30 @@ export default function ReconcilePage({ params }: { params: Promise<{ slug: stri
                       {(funding.data?.sources ?? []).find((source) => source.id === tx.funding_source_id)?.name ?? "Funding source"}
                       {tx.funding_commitment_id && ` · ${(funding.data?.commitments ?? []).find((c) => c.id === tx.funding_commitment_id)?.name ?? "commitment"}`}
                     </Badge>
-                  )}<Badge tone={status === "needs review" ? "yellow" : "green"}>{status}</Badge>
+                  )}
+                  {conversionByHash.has(tx.tx_hash) && (
+                    <Badge>{conversionByHash.get(tx.tx_hash)!.kind === "bridge" ? "Bridge" : "Swap"}</Badge>
+                  )}
+                  <Badge tone={status === "needs review" ? "yellow" : "green"}>{status}</Badge>
                   {isAdmin && <Button variant="secondary" onClick={() => setDetailsOpen(detailsOpen === tx.tx_hash ? null : tx.tx_hash)}><FilePenLine className="mr-2 h-4 w-4" />Details</Button>}
                   {canReconcile && tx.requires_reconciliation && !tx.matched && <Button onClick={() => setMatchOpen(matchOpen === tx.tx_hash ? null : tx.tx_hash)}><Link2 className="mr-2 h-4 w-4" />Reconcile</Button>}
                 </div>
               </div>
 
-              {detailsOpen === tx.tx_hash && <IncomingDetailsForm tx={tx} sources={funding.data?.sources ?? []}
-                commitments={funding.data?.commitments ?? []} onSaved={() => { setDetailsOpen(null); incoming.reload(); }} />}
+              {detailsOpen === tx.tx_hash && (
+                <IncomingDetailsForm
+                  tx={tx}
+                  sources={funding.data?.sources ?? []}
+                  commitments={funding.data?.commitments ?? []}
+                  conversion={conversionByHash.get(tx.tx_hash) ?? null}
+                  receivedLabel={[
+                    assetLabel(LOVELACE, tx.amount_lovelace),
+                    ...Object.entries(tx.assets ?? {}).map(([unit, qty]) => assetLabel(unit, qty)),
+                  ].join(", ")}
+                  onSaved={() => { setDetailsOpen(null); incoming.reload(); }}
+                  onConversionSaved={() => { conversions.reload(); }}
+                />
+              )}
               {matchOpen === tx.tx_hash && (
                 <div className="mt-4 border-t border-zinc-800 pt-4">
                   <h4 className="mb-2 text-sm font-medium text-zinc-300">Suggested payouts</h4>

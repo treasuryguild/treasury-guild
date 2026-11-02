@@ -641,6 +641,13 @@ export interface DashboardLegacy {
   assets: LegacyToken[];
 }
 /** GET /api/dashboard: the budgets data plus the chart series, flows and inflows. */
+/** Fee total from bridge/swap conversion episodes in the dashboard window. */
+export interface DashboardConversionFee {
+  assetLabel: string;
+  amount: string;
+  chain: string | null;
+}
+
 export interface DashboardResponse extends BudgetsResponse {
   incoming: BudgetIncomingItem[];
   series: DashboardSeries;
@@ -650,6 +657,8 @@ export interface DashboardResponse extends BudgetsResponse {
   floats: { id: string; name: string }[];
   /** Funding sources, which name the Funding flow's tagged income. */
   fundingSources: { id: string; name: string }[];
+  /** Bridge/swap fee totals in the selected window (not budget spend). */
+  conversionFees: DashboardConversionFee[];
 }
 
 // --- Funding sources ------------------------------------------------------------
@@ -776,6 +785,10 @@ export interface LegacyWalletCreatedResponse {
 }
 /** POST /api/float-wallets */
 export interface FloatWalletCreatedResponse {
+  id: string;
+}
+/** POST /api/conversions */
+export interface ConversionCreatedResponse {
   id: string;
 }
 /** POST /api/legacy-history/workgroup */
