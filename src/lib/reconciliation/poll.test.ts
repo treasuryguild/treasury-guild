@@ -8,12 +8,19 @@ const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   addressTxs: vi.fn(),
   txInfoBulk: vi.fn(),
+  lookupStakePool: vi.fn(),
+  lookupDrep: vi.fn(),
   confirm: vi.fn(),
   tagInternalTransfers: vi.fn(),
 }));
 // db/client re-exports this client; its real rows / maybe / check unwrap the results.
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from }) }));
-vi.mock("@/lib/cardano/koios", () => ({ addressTxs: mocks.addressTxs, txInfoBulk: mocks.txInfoBulk }));
+vi.mock("@/lib/cardano/koios", () => ({
+  addressTxs: mocks.addressTxs,
+  txInfoBulk: mocks.txInfoBulk,
+  lookupStakePool: mocks.lookupStakePool,
+  lookupDrep: mocks.lookupDrep,
+}));
 vi.mock("@/lib/db/transactions", () => ({ confirmTransaction: mocks.confirm }));
 vi.mock("@/lib/db/treasuries", () => ({ tagInternalTransfers: mocks.tagInternalTransfers }));
 
@@ -129,6 +136,8 @@ beforeEach(() => {
   chain([], []);
   mocks.confirm.mockResolvedValue(true);
   mocks.tagInternalTransfers.mockResolvedValue(undefined);
+  mocks.lookupStakePool.mockResolvedValue(null);
+  mocks.lookupDrep.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -343,7 +352,8 @@ describe("pollTreasury", () => {
       });
     });
 
-    it("stores stake activity and stamps the alert column for a vote-delegation spend", async () => {
+    it("stores stake activity with DRep name and stamps the alert column", async () => {
+      mocks.lookupDrep.mockResolvedValue({ givenName: "Medusa DRep" });
       chain([listed("h-stake", 850)], [outgoing("h-stake", {
         outputs: [{ payment_addr: { bech32: TREASURY.address }, value: "99820000", tx_index: 0 }],
         certificates: [{
@@ -356,7 +366,12 @@ describe("pollTreasury", () => {
       const inserted = of("external_txs", "insert")[0]?.values;
       expect(inserted).toMatchObject({
         tx_hash: "h-stake",
-        activity: { kind: "stake", action: "vote_delegation", dRepId: "drep1medusa" },
+        activity: {
+          kind: "stake",
+          action: "vote_delegation",
+          dRepId: "drep1medusa",
+          dRepName: "Medusa DRep",
+        },
         governance_alerted_at: expect.any(String),
       });
     });

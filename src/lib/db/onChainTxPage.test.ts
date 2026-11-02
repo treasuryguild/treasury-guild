@@ -4,6 +4,7 @@ import { StakeAction, TxKind } from "@/lib/constants";
 
 const mocks = vi.hoisted(() => ({
   serverClient: vi.fn(),
+  serviceFrom: vi.fn(),
   txCborBulk: vi.fn(),
   resolveTxHash: vi.fn(),
   decodeTxForDisplay: vi.fn(),
@@ -12,6 +13,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/supabase/server", () => ({ serverClient: mocks.serverClient }));
+vi.mock("@/lib/supabase/service", () => ({
+  serviceClient: () => ({ from: mocks.serviceFrom }),
+}));
 vi.mock("@meshsdk/core-cst", () => ({ resolveTxHash: mocks.resolveTxHash }));
 vi.mock("@/lib/cardano/koios", () => ({
   txCborBulk: mocks.txCborBulk,
@@ -26,6 +30,7 @@ import { loadOnChainTxPageData } from "./onChainTxPage";
 
 const HASH = "ab".repeat(32);
 const SLUG = "signius";
+const CBOR = "84a0";
 
 const EXTERNAL_ROW = {
   tx_hash: HASH,
@@ -42,6 +47,7 @@ const EXTERNAL_ROW = {
     action: StakeAction.VoteDelegation,
     dRepId: "drep1medusa",
   },
+  tx_cbor: null as string | null,
   to_treasury_id: null,
   import_status: null,
   import_issues: [],
@@ -81,6 +87,23 @@ function list(result: { data: unknown; error: { message: string } | null }) {
   };
 }
 
+function mockServiceUpdate() {
+  const updates: Record<string, unknown>[] = [];
+  mocks.serviceFrom.mockImplementation(() => {
+    const chain = {
+      update: (values: Record<string, unknown>) => {
+        updates.push(values);
+        return chain;
+      },
+      eq: () => chain,
+      then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+        Promise.resolve({ data: null, error: null }).then(resolve, reject),
+    };
+    return chain;
+  });
+  return updates;
+}
+
 function mockTables(opts: {
   external?: { data: unknown; error: { message: string } | null };
   treasury?: { data: unknown; error: { message: string } | null };
@@ -88,7 +111,9 @@ function mockTables(opts: {
 }) {
   const from = vi.fn((table: string) => {
     if (table === "external_txs") {
-      return single(opts.external ?? { data: EXTERNAL_ROW, error: null });
+      return single(
+        opts.external ?? { data: { ...EXTERNAL_ROW }, error: null },
+      );
     }
     if (table === "treasuries") {
       return single(opts.treasury ?? { data: TREASURY_ROW, error: null });
@@ -113,13 +138,14 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   mocks.lookupStakePool.mockResolvedValue(null);
   mocks.lookupDrep.mockResolvedValue({ givenName: "Medusa DRep" });
-  mocks.txCborBulk.mockResolvedValue(new Map([[HASH, "84a0"]]));
+  mocks.txCborBulk.mockResolvedValue(new Map([[HASH, CBOR]]));
   mocks.resolveTxHash.mockReturnValue(HASH);
   mocks.decodeTxForDisplay.mockReturnValue({
     ...EMPTY_TX_VIEW,
     fee: "200000",
     outputs: [{ address: "addr_test1_gov", lovelace: "99800000", assets: [] }],
   });
+  mockServiceUpdate();
 });
 
 describe("loadOnChainTxPageData", () => {
@@ -149,7 +175,8 @@ describe("loadOnChainTxPageData", () => {
     expect(await loadOnChainTxPageData(SLUG, HASH, "addr")).toBeNull();
   });
 
-  it("loads stepwise, enriches the stake title, and decodes trusted CBOR", async () => {
+  it("fetches CBOR, enriches labels, and persists both via service role", async () => {
+    const updates = mockServiceUpdate();
     const from = mockTables({});
     const data = await loadOnChainTxPageData(SLUG, HASH.toUpperCase(), "addr");
     expect(from.mock.calls.map((c) => c[0])).toEqual(
@@ -160,7 +187,11 @@ describe("loadOnChainTxPageData", () => {
       title: "Stake: vote delegation to Medusa DRep",
       cborTrusted: true,
       treasury: { name: "Gov Treasury", network: 0 },
-      activity: { kind: TxKind.Stake, action: StakeAction.VoteDelegation },
+      activity: {
+        kind: TxKind.Stake,
+        action: StakeAction.VoteDelegation,
+        dRepName: "Medusa DRep",
+      },
       governanceAction: {
         kind: "stake",
         action: StakeAction.VoteDelegation,
@@ -169,6 +200,34 @@ describe("loadOnChainTxPageData", () => {
     });
     expect(data?.decoded.fee).toBe("200000");
     expect(mocks.txCborBulk).toHaveBeenCalled();
+    expect(updates).toEqual([
+      { tx_cbor: CBOR, activity: expect.objectContaining({ dRepName: "Medusa DRep" }) },
+    ]);
+  });
+
+  it("uses stored CBOR and skips Koios when the hash matches", async () => {
+    const updates = mockServiceUpdate();
+    mockTables({
+      external: {
+        data: {
+          ...EXTERNAL_ROW,
+          tx_cbor: CBOR,
+          activity: {
+            kind: TxKind.Stake,
+            action: StakeAction.VoteDelegation,
+            dRepId: "drep1medusa",
+            dRepName: "Medusa DRep",
+          },
+        },
+        error: null,
+      },
+    });
+    mocks.lookupDrep.mockResolvedValue(null);
+    const data = await loadOnChainTxPageData(SLUG, HASH, "addr");
+    expect(data?.cborTrusted).toBe(true);
+    expect(mocks.txCborBulk).not.toHaveBeenCalled();
+    expect(mocks.decodeTxForDisplay).toHaveBeenCalledWith(CBOR);
+    expect(updates).toEqual([]);
   });
 
   it("still returns the row when CBOR is missing", async () => {

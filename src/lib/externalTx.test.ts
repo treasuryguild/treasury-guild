@@ -29,6 +29,7 @@ function external(overrides: Partial<ExternalTxRow> = {}): ExternalTxRow {
     to_addresses: ["addr1a", "addr1b", "addr1c"],
     payout_meta: null,
     activity: null,
+    tx_cbor: null,
     to_treasury_id: null,
     import_status: null,
     import_issues: [],

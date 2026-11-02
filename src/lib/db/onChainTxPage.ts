@@ -1,8 +1,9 @@
 // Data for the read-only on-chain (external_txs) details page: the row the
-// poll recorded, the treasury it spent from, and the transaction's CBOR from
-// Koios when the hash checks out. Loaded in steps like the signing page
-// (flat selects under RLS)—a nested treasuries→communities embed was failing
-// in production and looking like "not found".
+// poll recorded, the treasury it spent from, and the transaction's CBOR —
+// from the row when cached (migration 0087), else Koios, then persisted.
+// Loaded in steps like the signing page (flat selects under RLS)—a nested
+// treasuries→communities embed was failing in production and looking like
+// "not found".
 import "server-only";
 
 import { resolveTxHash } from "@meshsdk/core-cst";
@@ -14,10 +15,10 @@ import {
 import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
 import { decodeTxForDisplay } from "@/lib/cardano/cborMetadata";
-import { lookupDrep, lookupStakePool, txCborBulk } from "@/lib/cardano/koios";
+import { txCborBulk } from "@/lib/cardano/koios";
 import { EMPTY_TX_VIEW, type DecodedTxView } from "@/lib/cardano/types";
-import { asNetwork, type Network } from "@/lib/config";
-import { StakeAction, TxKind } from "@/lib/constants";
+import { asNetwork } from "@/lib/config";
+import { TxKind } from "@/lib/constants";
 import {
   governanceActionFromActivity,
   parseExternalActivity,
@@ -25,7 +26,12 @@ import {
 } from "@/lib/externalActivity";
 import { describeExternalTx } from "@/lib/externalTx";
 import { isTxHash } from "@/lib/guards";
+import {
+  enrichStakeActivityLabels,
+  stakeActivityLabelsChanged,
+} from "@/lib/reconciliation/externalActivityEnrich";
 import { displayTxDescription } from "@/lib/txDescription";
+import { serviceClient } from "@/lib/db/client";
 import { serverClient } from "@/lib/supabase/server";
 import type { ExternalTxRow, GovernanceAction, TreasuryRow } from "./types";
 import { EXTERNAL_TX_COLUMNS } from "./types";
@@ -41,9 +47,9 @@ export interface OnChainTxPageData {
   title: string;
   /** Stake / DRep / vote card payload when activity carries one. */
   governanceAction: GovernanceAction | null;
-  /** Decoded CBOR when Koios had trusted bytes; empty view otherwise. */
+  /** Decoded CBOR when trusted bytes were available; empty view otherwise. */
   decoded: DecodedTxView;
-  /** False when Koios had no CBOR or the hash did not match. */
+  /** False when no trusted CBOR was available. */
   cborTrusted: boolean;
   assetRegistry: AssetDef[];
   /** Proposal number → id for anchor links in this community. */
@@ -55,36 +61,32 @@ type TreasuryColumns = Pick<
   "id" | "name" | "address" | "network" | "community_id"
 >;
 
-async function enrichGovernanceAction(
-  network: Network,
-  action: GovernanceAction | null,
-): Promise<GovernanceAction | null> {
-  if (!action || action.kind !== "stake") return action;
-  let poolTicker = action.poolTicker?.trim() || null;
-  let dRepName = action.dRepName?.trim() || null;
-  if (action.poolId && !poolTicker) {
-    try {
-      poolTicker = (await lookupStakePool(network, action.poolId))?.ticker ?? null;
-    } catch {
-      /* keep pool id */
-    }
-  }
-  if (
-    action.action === StakeAction.VoteDelegation &&
-    action.dRepId?.trim() &&
-    !dRepName
-  ) {
-    try {
-      dRepName = (await lookupDrep(network, action.dRepId))?.givenName ?? null;
-    } catch {
-      /* keep dRep id */
-    }
-  }
-  return { ...action, poolTicker, dRepName };
+function governanceFromEnrichedActivity(
+  activity: ExternalActivity | null,
+): GovernanceAction | null {
+  return governanceActionFromActivity(activity);
 }
 
 function logSelectError(what: string, error: { message: string } | null): void {
   if (error) console.error(`on-chain tx page: ${what}`, error.message);
+}
+
+/** Best-effort service-role write of cached CBOR and/or enriched activity. */
+async function persistExternalCache(
+  treasuryId: string,
+  txHash: string,
+  patch: { tx_cbor?: string; activity?: ExternalActivity },
+): Promise<void> {
+  try {
+    const { error } = await serviceClient()
+      .from("external_txs")
+      .update(patch)
+      .eq("tx_hash", txHash)
+      .eq("treasury_id", treasuryId);
+    if (error) console.error(`on-chain tx page: persist cache ${txHash}`, error.message);
+  } catch (err) {
+    console.error(`on-chain tx page: persist cache ${txHash}`, err);
+  }
 }
 
 export async function loadOnChainTxPageData(
@@ -131,11 +133,11 @@ export async function loadOnChainTxPageData(
   };
   const network = asNetwork(treasury.network);
 
-  const activity = parseExternalActivity(row.activity);
-  let governanceAction = governanceActionFromActivity(activity);
-  governanceAction = await enrichGovernanceAction(network, governanceAction);
+  const storedActivity = parseExternalActivity(row.activity);
+  const activity = await enrichStakeActivityLabels(storedActivity, network);
+  const governanceAction = governanceFromEnrichedActivity(activity);
 
-  let title = describeExternalTx(row).title;
+  let title = describeExternalTx({ ...row, activity: activity ?? row.activity }).title;
   if (governanceAction?.kind === "stake") {
     title = displayTxDescription({
       description: title,
@@ -145,15 +147,42 @@ export async function loadOnChainTxPageData(
 
   let decoded: DecodedTxView = EMPTY_TX_VIEW;
   let cborTrusted = false;
-  try {
-    const cbors = await txCborBulk(network, [hash]);
-    const cbor = cbors.get(hash);
-    if (cbor && resolveTxHash(cbor) === hash) {
-      decoded = decodeTxForDisplay(cbor);
-      cborTrusted = true;
+  let fetchedCbor: string | null = null;
+
+  const cached = row.tx_cbor?.trim() || null;
+  if (cached) {
+    try {
+      if (resolveTxHash(cached) === hash) {
+        decoded = decodeTxForDisplay(cached);
+        cborTrusted = true;
+      }
+    } catch {
+      /* fall through to Koios */
     }
-  } catch {
-    /* leave empty view; the page shows a load error */
+  }
+
+  if (!cborTrusted) {
+    try {
+      const cbors = await txCborBulk(network, [hash]);
+      const cbor = cbors.get(hash);
+      if (cbor && resolveTxHash(cbor) === hash) {
+        decoded = decodeTxForDisplay(cbor);
+        cborTrusted = true;
+        fetchedCbor = cbor;
+      }
+    } catch {
+      /* leave empty view; the page shows a load error */
+    }
+  }
+
+  const labelsChanged = stakeActivityLabelsChanged(storedActivity, activity);
+  const cachePatch: { tx_cbor?: string; activity?: ExternalActivity } = {};
+  if (fetchedCbor) cachePatch.tx_cbor = fetchedCbor;
+  if (labelsChanged && activity) cachePatch.activity = activity;
+  if (Object.keys(cachePatch).length > 0) {
+    await persistExternalCache(row.treasury_id, hash, cachePatch);
+    if (fetchedCbor) row.tx_cbor = fetchedCbor;
+    if (labelsChanged && activity) row.activity = activity;
   }
 
   const citedNumbers = cborTrusted

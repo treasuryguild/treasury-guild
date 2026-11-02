@@ -404,6 +404,11 @@ export interface ExternalTxRow {
    * looked up with nothing to classify; null when not yet classified.
    */
   activity: unknown | null;
+  /**
+   * Trusted on-chain bytes once the details page (or another writer) cached
+   * them (migration 0087); null until then. Omitted from summary selects.
+   */
+  tx_cbor?: string | null;
   /** Another treasury of the community among the recipients (display only). */
   to_treasury_id: string | null;
   /** Chain import state (migration 0045); null = not evaluated yet. */
@@ -414,8 +419,12 @@ export interface ExternalTxRow {
   governance_alerted_at: string | null;
   created_at: string;
 }
-export const EXTERNAL_TX_COLUMNS =
+/** List / queue selects: no CBOR (large). */
+export const EXTERNAL_TX_SUMMARY_COLUMNS =
   "tx_hash, treasury_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, payout_meta, activity, to_treasury_id, import_status, import_issues, governance_alerted_at, created_at";
+/** Details / import: includes cached `tx_cbor` when present. */
+export const EXTERNAL_TX_COLUMNS =
+  `${EXTERNAL_TX_SUMMARY_COLUMNS}, tx_cbor`;
 
 /** One step of a workgroup's dated wallet routing (migration 0035). */
 export interface WorkgroupTreasuryAssignmentRow {

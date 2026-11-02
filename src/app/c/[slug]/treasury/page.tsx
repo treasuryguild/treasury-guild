@@ -13,7 +13,7 @@ import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
 import { ChainImportStatus, TxState } from "@/lib/constants";
 import {
-  EXTERNAL_TX_COLUMNS,
+  EXTERNAL_TX_SUMMARY_COLUMNS,
   TRANSACTION_SUMMARY_COLUMNS,
   type ExternalTxRow,
   type TransactionSummary,
@@ -120,7 +120,7 @@ export default function TreasuryPage({
     async () => {
       const { data } = await browserClient()
         .from("external_txs")
-        .select(EXTERNAL_TX_COLUMNS)
+        .select(EXTERNAL_TX_SUMMARY_COLUMNS)
         .in("treasury_id", treasuryIds)
         .order("block_time", { ascending: false })
         .limit(RECENT_TX_LIMIT);

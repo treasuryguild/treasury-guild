@@ -12,7 +12,7 @@ import { ChainImportStatus, Role } from "@/lib/constants";
 import { loadAssetRegistry } from "./assets";
 import { check, maybe, must, rows, serviceClient } from "./client";
 import { loadSiblingTreasuries, type SiblingTreasury } from "./payments";
-import { EXTERNAL_TX_COLUMNS, type ExternalTxRow } from "./types";
+import { EXTERNAL_TX_SUMMARY_COLUMNS, type ExternalTxRow } from "./types";
 
 export interface ImportTreasury {
   id: string;
@@ -44,7 +44,7 @@ export async function loadImportCandidates(
 ): Promise<ExternalTxRow[]> {
   let query = serviceClient()
     .from("external_txs")
-    .select(EXTERNAL_TX_COLUMNS)
+    .select(EXTERNAL_TX_SUMMARY_COLUMNS)
     .eq("treasury_id", treasuryId)
     .not("payout_meta", "is", null);
   query = opts.hashes ? query.in("tx_hash", opts.hashes) : query.is("import_status", null);
@@ -59,7 +59,7 @@ export async function loadImportCandidates(
 
 export async function loadExternalTx(txHash: string): Promise<ExternalTxRow | null> {
   return maybe<ExternalTxRow>(
-    await serviceClient().from("external_txs").select(EXTERNAL_TX_COLUMNS).eq("tx_hash", txHash).maybeSingle(),
+    await serviceClient().from("external_txs").select(EXTERNAL_TX_SUMMARY_COLUMNS).eq("tx_hash", txHash).maybeSingle(),
     "load external tx",
   );
 }
@@ -76,7 +76,7 @@ export async function loadBlockedByWorkgroup(communityId: string, name: string):
   const blocked = rows<ExternalTxRow>(
     await db
       .from("external_txs")
-      .select(EXTERNAL_TX_COLUMNS)
+      .select(EXTERNAL_TX_SUMMARY_COLUMNS)
       .in("treasury_id", treasuryIds)
       .eq("import_status", ChainImportStatus.Blocked),
     "load blocked imports",

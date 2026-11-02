@@ -7,7 +7,10 @@
 import "server-only";
 
 import { importExternalTxs } from "@/lib/chainImport/run";
-import { classifyUnlabeledExternalTxs } from "./classifyExternal";
+import {
+  classifyUnlabeledExternalTxs,
+  enrichIncompleteExternalLabels,
+} from "./classifyExternal";
 import { pollTreasury, type PollResult } from "./poll";
 
 // A type alias (not an interface) so the route wrapper's JSON type accepts it.
@@ -18,6 +21,8 @@ export type TreasurySyncResult = PollResult & {
   importBlocked: number;
   /** External rows whose activity was classified (or confirmed empty) this run. */
   classified: number;
+  /** Stake rows that gained a pool ticker or DRep name this run. */
+  labelsEnriched: number;
 };
 
 export async function syncTreasury(treasury: {
@@ -45,5 +50,12 @@ export async function syncTreasury(treasury: {
     console.error(`external activity classify for treasury ${treasury.id} failed`, err);
   }
 
-  return { ...polled, imported, importBlocked, classified };
+  let labelsEnriched = 0;
+  try {
+    labelsEnriched = (await enrichIncompleteExternalLabels(treasury)).enriched;
+  } catch (err) {
+    console.error(`external label enrich for treasury ${treasury.id} failed`, err);
+  }
+
+  return { ...polled, imported, importBlocked, classified, labelsEnriched };
 }

@@ -13,6 +13,7 @@ import {
   isRecognizedExternalActivity,
   type ExternalActivity,
 } from "@/lib/externalActivity";
+import { enrichStakeActivityLabels } from "./externalActivityEnrich";
 import {
   isIncomingTx,
   otherOutputAddresses,
@@ -31,6 +32,14 @@ export function activityOf(info: KoiosTxInfo): ExternalActivity | null {
     withdrawals: info.withdrawals ?? null,
     voting_procedures: info.voting_procedures ?? null,
   });
+}
+
+/** Classify then fill pool/DRep labels before storing on external_txs. */
+export async function activityOfEnriched(
+  info: KoiosTxInfo,
+  network: number,
+): Promise<ExternalActivity | null> {
+  return enrichStakeActivityLabels(activityOf(info), asNetwork(network));
 }
 
 export interface PollResult {
@@ -141,7 +150,7 @@ export async function pollTreasury(treasury: {
     if (t.block_height > maxBlock) maxBlock = t.block_height;
     if (!isIncomingTx(info, treasury.address)) {
       if (known.has(t.tx_hash)) continue;
-      const activity = activityOf(info);
+      const activity = await activityOfEnriched(info, treasury.network);
       // `{}` = looked up, nothing to classify (so sync backfill does not re-fetch).
       // Recognized cert / registration / anchor spends are not budget
       // outside-spends: stamp the alert column so Discord never fires.
