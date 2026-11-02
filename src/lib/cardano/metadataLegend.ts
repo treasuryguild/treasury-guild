@@ -67,14 +67,14 @@ export const PAYMENT_METADATA_LEGEND: MetadataLegend = {
     {
       key: "b",
       meaning:
-        'Budget period the spending counts against, "YYYY-MM" or "YYYY-Qn". Empty when every output is a transfer to another of the community\'s treasuries, which counts against no budget.',
+        'Budget period the spending counts against, "YYYY-MM" or "YYYY-Qn". Empty when every output is a transfer to another of the community\'s treasuries or a float wallet, which counts against no budget.',
     },
     { key: "k", meaning: 'Asset tickers, "ADA" included; every amounts list follows this order.' },
     { key: "m", meaning: "The memo entered when the payment was built; absent when none was." },
     {
       key: "o",
       meaning:
-        'One entry per paid output: [output position, amounts in k order, flag] with "" where the output carries none of that asset. Flag 0 = spending charged to the treasury\'s budget, 1 = transfer to another of the community\'s treasuries. The ADA minimum on token-only outputs is not repeated.',
+        'One entry per paid output: [output position, amounts in k order, flag] with "" where the output carries none of that asset. Flag 0 = spending charged to the treasury\'s budget, 1 = transfer to another of the community\'s treasuries or a float wallet. The ADA minimum on token-only outputs is not repeated.',
     },
     {
       key: "g",

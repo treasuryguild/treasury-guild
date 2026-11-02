@@ -95,6 +95,20 @@ describe("aggregateFlows", () => {
     expect(september.inflows).toEqual([]);
   });
 
+  it("treats a float counterparty the same as a treasury link", () => {
+    const FLOAT = "f-dex";
+    const flows = aggregateFlows([
+      row({ treasuryId: FLOAT, fromTreasuryId: MAIN, incomingType: "transfer", amountLovelace: "2000000" }),
+      row({ treasuryId: MAIN, fromTreasuryId: null, fromFloatWalletId: FLOAT, incomingType: "transfer", amountLovelace: "500000" }),
+    ], window);
+    const september = flows.find((month) => month.month === "2026-09")!;
+    expect(september.transfers).toEqual([
+      { fromTreasuryId: FLOAT, toTreasuryId: MAIN, unit: "lovelace", amount: "500000" },
+      { fromTreasuryId: MAIN, toTreasuryId: FLOAT, unit: "lovelace", amount: "2000000" },
+    ]);
+    expect(september.inflows).toEqual([]);
+  });
+
   it("sums a long all-time window by quarter, under the quarter's first month", () => {
     const flows = aggregateFlows([
       row({ amountLovelace: "1000000", blockTime: "2024-04-02T00:00:00Z" }),
@@ -215,6 +229,34 @@ describe("fundingFlowGraph", () => {
     expect(graph.links[0]!.label).toBe("3 ADA");
     expect(graph.nodes[graph.links[0]!.source]!.name).toBe("Main");
     expect(graph.table).toHaveLength(2);
+    expect(graph.notes[0]).toContain("drawn net");
+  });
+
+  it("draws treasury ↔ float transfers as float nodes", () => {
+    const FLOAT = "f-dex";
+    const floatFlows: FlowMonth[] = [{
+      month: "2026-09",
+      inflows: [{ treasuryId: MAIN, unit: "lovelace", kind: "contribution", amount: "10000000" }],
+      transfers: [
+        { fromTreasuryId: MAIN, toTreasuryId: FLOAT, unit: "lovelace", amount: "3000000" },
+        { fromTreasuryId: FLOAT, toTreasuryId: MAIN, unit: "lovelace", amount: "1000000" },
+      ],
+    }];
+    const graph = fundingFlowGraph({
+      ...base,
+      flows: floatFlows,
+      series: series([]),
+      floats: [{ id: FLOAT, name: "DEX float" }],
+    });
+    expect(graph.nodes.map((node) => ({ key: node.key, name: node.name, kind: node.kind }))).toEqual([
+      { key: "source:contribution", name: "Contributions", kind: "source" },
+      { key: `treasury:${MAIN}`, name: "Main", kind: "treasury" },
+      { key: `float:${FLOAT}`, name: "DEX float", kind: "float" },
+    ]);
+    expect(graph.links.map((link) => [graph.nodes[link.source]!.name, graph.nodes[link.target]!.name, link.label])).toEqual([
+      ["Contributions", "Main", "10 ADA"],
+      ["Main", "DEX float", "2 ADA"],
+    ]);
     expect(graph.notes[0]).toContain("drawn net");
   });
 

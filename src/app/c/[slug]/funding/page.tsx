@@ -9,9 +9,13 @@ import type { OkResponse } from "@/lib/api/types";
 import type { FundingCommitmentKind, FundingCommitmentRow, FundingSourceRow } from "@/lib/db/types";
 import { fundingTokenOptions } from "@/lib/funding/display";
 import { sourceSummary, type FundingInflow } from "@/lib/funding/plan";
+import { sumConversionFees } from "@/lib/conversions/fees";
+import { shortHash } from "@/lib/format";
+import { routes } from "@/lib/routes";
 import { useAssetRegistry } from "@/hooks/useAssetRegistry";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { useCommunityConversions } from "@/hooks/useConversions";
 import { useFunding } from "@/hooks/useFunding";
 import { useTreasuries } from "@/hooks/useTreasuries";
 import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
@@ -19,7 +23,7 @@ import { CommitmentDialog } from "@/components/funding/CommitmentDialog";
 import { FundingSourceCard } from "@/components/funding/FundingSourceCard";
 import { FundingSourceDialog } from "@/components/funding/FundingSourceDialog";
 import { ScheduleEditor } from "@/components/funding/ScheduleEditor";
-import { Button, ConfirmDialog, EmptyState, ErrorText, Field, Input, Modal, PageTitle } from "@/components/ui";
+import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorText, Field, Input, LinkButton, Modal, PageTitle, SectionTitle } from "@/components/ui";
 
 type Dialog =
   | { type: "source"; source?: FundingSourceRow }
@@ -34,6 +38,7 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
   const treasuries = useTreasuries(community?.id);
   const treasuryIds = useMemo(() => (treasuries.data ?? []).map((t) => t.id), [treasuries.data]);
   const funding = useFunding(community?.id, treasuryIds);
+  const conversions = useCommunityConversions(community?.id);
   const registry = useAssetRegistry(community?.id);
   const wallets = useWalletAssetsMany(isAdmin ? (treasuries.data ?? []).map((t) => t.address) : []);
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -41,6 +46,14 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
   const remove = useAsyncAction("Failed to delete");
 
   const data = funding.data;
+  const feeTotals = useMemo(
+    () => sumConversionFees(
+      (conversions.data ?? []).flatMap((c) => c.fees.map((f) => ({
+        amount: f.amount, assetLabel: f.asset_label, chain: f.chain,
+      }))),
+    ),
+    [conversions.data],
+  );
   const options = useMemo(() => fundingTokenOptions(
     registry.data ?? [],
     Object.values(wallets.data ?? {}).flatMap((w) => w.tokens.map((t) => ({ unit: t.unit, ticker: t.ticker, decimals: t.decimals }))),
@@ -91,7 +104,7 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
         proposals, against what actually arrived in your treasuries. Tie an inflow to a source with <strong>Details</strong> on
         the Incoming page.
       </p>
-      <ErrorText error={funding.error ?? treasuries.error} />
+      <ErrorText error={funding.error ?? treasuries.error ?? conversions.error} />
       {data && data.sources.length === 0 && (
         <EmptyState>No funding sources yet.{isAdmin ? " Add the first one to start tracking what was promised." : ""}</EmptyState>
       )}
@@ -116,6 +129,47 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
           onEditSchedule={(commitment) => setDialog({ type: "schedule", commitmentId: commitment.id })}
         />
       ))}
+
+      <section className="space-y-3">
+        <SectionTitle action={<LinkButton href={routes.reconcile(slug)} variant="secondary">Incoming</LinkButton>}>
+          Conversion fees
+        </SectionTitle>
+        <p className="max-w-3xl text-sm text-zinc-400">
+          Bridge and swap costs recorded on Cardano inflows (gas, bridge fees, spread). These are ops bookkeeping —
+          they are not charged to workgroup budgets. Record them under <strong>Details</strong> on Incoming, or on a
+          float wallet&apos;s activity.
+        </p>
+        <Card>
+          {feeTotals.length === 0 ? (
+            <p className="text-sm text-zinc-500">No conversion fees recorded yet.</p>
+          ) : (
+            <ul className="mb-4 space-y-1">
+              {feeTotals.map((fee) => (
+                <li key={`${fee.assetLabel}:${fee.chain ?? ""}`} className="flex justify-between gap-3 text-sm">
+                  <span className="text-zinc-400">{fee.assetLabel}{fee.chain ? ` · ${fee.chain}` : ""}</span>
+                  <span className="font-medium tabular-nums">{fee.amount} {fee.assetLabel}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {(conversions.data ?? []).slice(0, 8).map((c) => (
+            <div key={c.id} className="border-t border-zinc-800 py-2 text-sm first:border-t-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge>{c.kind === "bridge" ? "Bridge" : "Swap"}</Badge>
+                <span>Sent {c.sent_amount} {c.sent_asset_label} on {c.sent_chain}</span>
+                <span className="font-mono text-xs text-zinc-500">
+                  {shortHash(c.incoming_tx_hash ?? c.float_incoming_tx_hash ?? "")}
+                </span>
+              </div>
+              {c.fees.length > 0 && (
+                <p className="mt-1 text-xs text-zinc-500">
+                  Fees: {c.fees.map((f) => `${f.amount} ${f.asset_label}`).join(", ")}
+                </p>
+              )}
+            </div>
+          ))}
+        </Card>
+      </section>
 
       {community && dialog?.type === "source" && (
         <FundingSourceDialog communityId={community.id} source={dialog.source} onClose={close} onSaved={saved} />

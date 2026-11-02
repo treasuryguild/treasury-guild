@@ -18,6 +18,7 @@ const NOTE_LINE = 36;
 const NODE_COLOR: Record<FlowNode["kind"], string> = {
   source: CHART_SERIES[0],
   treasury: CHART_SERIES[1],
+  float: CHART_SERIES[1],
   workgroup: CHART_SERIES[2],
   direct: CHART_SERIES[2],
 };

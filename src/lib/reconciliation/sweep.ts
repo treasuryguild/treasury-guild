@@ -28,12 +28,16 @@ import { notifyOutsideSpends, type OutsideSpendNotifyResult } from "@/lib/discor
 import { advanceDueProposals, type AdvanceSweepResult } from "@/lib/governance/advance";
 import { freezeMissingTallyDocuments, type FreezeSweepResult } from "@/lib/governance/freeze";
 import { publishTallyDocuments, type PublishSweepResult } from "@/lib/governance/publish";
+import { listAllFloatWalletsForSync } from "@/lib/db/floatWallets";
+import { pollFloatWallet, type FloatPollResult } from "@/lib/reconciliation/pollFloat";
 import { syncTreasury, type TreasurySyncResult } from "@/lib/reconciliation/syncTreasury";
 
 // A type alias (not an interface) so the route wrapper's JSON type accepts it.
 export type ReconcileSweepResult = {
   /** Per treasury id; a treasury whose poll threw is absent (logged). */
   results: Record<string, TreasurySyncResult>;
+  /** Per float wallet id; a float whose poll threw is absent (logged). */
+  floatResults: Record<string, FloatPollResult>;
   /** GitHub issues that received a payment comment this run. */
   writtenBack: number;
   /** GitHub project items now sitting in their repo's Paid status. */
@@ -144,6 +148,20 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     } catch (err) {
       console.error(`syncTreasury ${treasury.id} failed`, err);
     }
+  }
+
+  const floatResults: ReconcileSweepResult["floatResults"] = {};
+  try {
+    const floats = await listAllFloatWalletsForSync();
+    for (const float of floats) {
+      try {
+        floatResults[float.id] = await pollFloatWallet(float);
+      } catch (err) {
+        console.error(`pollFloatWallet ${float.id} failed`, err);
+      }
+    }
+  } catch (err) {
+    console.error("listAllFloatWalletsForSync failed", err);
   }
 
   // Outgoing transactions the app did not build, once the chain import has
@@ -354,7 +372,7 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
   }
 
   return {
-    results, writtenBack, statusMoved, discordPosted, proposals, proposalAnnouncements, tallyDocuments, documentCopies,
+    results, floatResults, writtenBack, statusMoved, discordPosted, proposals, proposalAnnouncements, tallyDocuments, documentCopies,
     anchorAlerts, outsideSpends, cosigned, releasedTasks, releasedCanceled,
   };
 }

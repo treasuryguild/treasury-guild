@@ -864,6 +864,69 @@ export const patchLegacyWalletSchema = z.object({
 });
 export const deleteLegacyWalletSchema = z.object({ confirmName: z.string().max(64) });
 
+// --- Float wallets (watched DEX / dApp floats) ---------------------------------
+
+const floatWalletName = nonEmpty.max(100);
+const floatWalletNote = z.string().max(500).nullable().optional();
+
+export const createFloatWalletSchema = z.object({
+  communityId: id,
+  name: floatWalletName,
+  address: walletAddress.refine((a) => /^addr(_test)?1/.test(a), "Use a Shelley address (addr1… or addr_test1…)"),
+  note: floatWalletNote,
+  /** Ignore history at and before this Cardano tx (seeds the sync cursor). */
+  afterTxHash: txHash.optional(),
+});
+export const patchFloatWalletSchema = z.object({
+  name: floatWalletName.optional(),
+  note: floatWalletNote,
+});
+export const floatWalletLifecycleSchema = z.object({
+  action: z.enum(["archive", "restore"]),
+});
+
+// --- Bridge / swap conversion episodes ---------------------------------------
+
+const conversionAmount = z.string().trim().max(60).regex(/^\d+(?:\.\d{1,30})?$/, "Enter a positive number")
+  .refine((v) => !/^0+(?:\.0+)?$/.test(v), "Amount must be greater than zero");
+const conversionAssetLabel = nonEmpty.max(32);
+const conversionChain = z.enum(["ethereum", "cardano", "bitcoin", "other"]);
+const conversionFeeKind = z.enum(["gas", "bridge", "spread", "other"]);
+const conversionFeeSchema = z.object({
+  kind: conversionFeeKind,
+  amount: conversionAmount,
+  assetLabel: conversionAssetLabel,
+  chain: conversionChain.nullable().optional(),
+});
+const conversionProofSchema = z.object({
+  chain: conversionChain,
+  txHash: nonEmpty.max(128),
+  url: z.union([z.string().url().max(500), z.literal("")]).nullable().optional()
+    .transform((v) => (v ? v : null)),
+  label: z.string().max(80).nullable().optional(),
+});
+const conversionFields = {
+  kind: z.enum(["bridge", "swap"]),
+  sentAmount: conversionAmount,
+  sentAssetLabel: conversionAssetLabel,
+  sentChain: conversionChain,
+  sentAddress: z.string().max(200).nullable().optional(),
+  note: z.string().max(1000).nullable().optional(),
+  fees: z.array(conversionFeeSchema).max(20).default([]),
+  proofs: z.array(conversionProofSchema).max(20).default([]),
+};
+
+export const createConversionSchema = z.object({
+  ...conversionFields,
+  incomingTxHash: txHash.optional(),
+  floatIncomingTxHash: txHash.optional(),
+}).refine(
+  (v) => (v.incomingTxHash ? 1 : 0) + (v.floatIncomingTxHash ? 1 : 0) === 1,
+  "Attach the conversion to exactly one Cardano inflow",
+);
+
+export const patchConversionSchema = z.object(conversionFields);
+
 /**
  * Settle a workgroup name a history CSV uses: create a workgroup, or point
  * the (normalized) name at an existing one, archived ones included.
@@ -1316,6 +1379,11 @@ export type ChainImportWorkgroupBody = z.infer<typeof chainImportWorkgroupSchema
 export type ChainImportResolveBody = z.infer<typeof chainImportResolveSchema>;
 export type CreateLegacyWalletBody = z.infer<typeof createLegacyWalletSchema>;
 export type PatchLegacyWalletBody = z.infer<typeof patchLegacyWalletSchema>;
+export type CreateFloatWalletBody = z.infer<typeof createFloatWalletSchema>;
+export type PatchFloatWalletBody = z.infer<typeof patchFloatWalletSchema>;
+export type FloatWalletLifecycleBody = z.infer<typeof floatWalletLifecycleSchema>;
+export type CreateConversionBody = z.infer<typeof createConversionSchema>;
+export type PatchConversionBody = z.infer<typeof patchConversionSchema>;
 export type LegacyWorkgroupBody = z.infer<typeof legacyWorkgroupSchema>;
 export type LegacyUploadBody = z.input<typeof legacyUploadSchema>;
 export type UpsertBudgetsBody = z.infer<typeof upsertBudgetsSchema>;

@@ -4,11 +4,20 @@ import { StakeAction, TxKind } from "@/lib/constants";
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   txInfoBulk: vi.fn(),
+  lookupStakePool: vi.fn(),
+  lookupDrep: vi.fn(),
 }));
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from }) }));
-vi.mock("@/lib/cardano/koios", () => ({ txInfoBulk: mocks.txInfoBulk }));
+vi.mock("@/lib/cardano/koios", () => ({
+  txInfoBulk: mocks.txInfoBulk,
+  lookupStakePool: mocks.lookupStakePool,
+  lookupDrep: mocks.lookupDrep,
+}));
 
-import { classifyUnlabeledExternalTxs } from "./classifyExternal";
+import {
+  classifyUnlabeledExternalTxs,
+  enrichIncompleteExternalLabels,
+} from "./classifyExternal";
 
 type Op = "select" | "update";
 interface Call {
@@ -37,6 +46,7 @@ function builder(table: string) {
     },
     eq: record,
     is: record,
+    not: (k: string, op: string, v: unknown) => record(`not:${k}`, [op, v]),
     order: () => chain,
     limit: () => chain,
     then: (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) => {
@@ -56,6 +66,10 @@ beforeEach(() => {
   selectData = [];
   mocks.from.mockReset();
   mocks.txInfoBulk.mockReset();
+  mocks.lookupStakePool.mockReset();
+  mocks.lookupDrep.mockReset();
+  mocks.lookupStakePool.mockResolvedValue(null);
+  mocks.lookupDrep.mockResolvedValue(null);
   mocks.from.mockImplementation(builder);
 });
 
@@ -65,8 +79,9 @@ describe("classifyUnlabeledExternalTxs", () => {
     expect(mocks.txInfoBulk).not.toHaveBeenCalled();
   });
 
-  it("writes stake activity and stamps the alert column", async () => {
+  it("writes stake activity with DRep name and stamps the alert column", async () => {
     selectData = [{ tx_hash: "h-stake" }];
+    mocks.lookupDrep.mockResolvedValue({ givenName: "Medusa DRep" });
     mocks.txInfoBulk.mockResolvedValue([{
       tx_hash: "h-stake",
       block_height: 1,
@@ -85,7 +100,12 @@ describe("classifyUnlabeledExternalTxs", () => {
     );
     const update = calls.find((c) => c.op === "update");
     expect(update?.values).toMatchObject({
-      activity: { kind: TxKind.Stake, action: StakeAction.VoteDelegation, dRepId: "drep1medusa" },
+      activity: {
+        kind: TxKind.Stake,
+        action: StakeAction.VoteDelegation,
+        dRepId: "drep1medusa",
+        dRepName: "Medusa DRep",
+      },
       governance_alerted_at: expect.any(String),
     });
   });
@@ -113,6 +133,59 @@ describe("classifyUnlabeledExternalTxs", () => {
     expect(calls.find((c) => c.op === "select")?.filters).toEqual(
       expect.arrayContaining([["activity", null]]),
     );
+    expect(calls.filter((c) => c.op === "update")).toEqual([]);
+  });
+});
+
+describe("enrichIncompleteExternalLabels", () => {
+  it("updates stake rows missing a ticker or DRep name", async () => {
+    selectData = [
+      {
+        tx_hash: "h-1",
+        activity: {
+          kind: TxKind.Stake,
+          action: StakeAction.Delegate,
+          poolId: "pool1abc",
+        },
+      },
+      {
+        tx_hash: "h-done",
+        activity: {
+          kind: TxKind.Stake,
+          action: StakeAction.Delegate,
+          poolId: "pool1abc",
+          poolTicker: "SIG",
+        },
+      },
+      { tx_hash: "h-empty", activity: {} },
+    ];
+    mocks.lookupStakePool.mockResolvedValue({ ticker: "SIG" });
+    expect(await enrichIncompleteExternalLabels({ id: "t-1", network: 0 })).toEqual({
+      enriched: 1,
+    });
+    const updates = calls.filter((c) => c.op === "update");
+    expect(updates).toHaveLength(1);
+    expect(updates[0]?.values?.activity).toMatchObject({
+      kind: TxKind.Stake,
+      action: StakeAction.Delegate,
+      poolId: "pool1abc",
+      poolTicker: "SIG",
+    });
+  });
+
+  it("writes nothing when lookups fail", async () => {
+    selectData = [{
+      tx_hash: "h-1",
+      activity: {
+        kind: TxKind.Stake,
+        action: StakeAction.VoteDelegation,
+        dRepId: "drep1medusa",
+      },
+    }];
+    mocks.lookupDrep.mockResolvedValue(null);
+    expect(await enrichIncompleteExternalLabels({ id: "t-1", network: 0 })).toEqual({
+      enriched: 0,
+    });
     expect(calls.filter((c) => c.op === "update")).toEqual([]);
   });
 });

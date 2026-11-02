@@ -82,7 +82,7 @@ export function TxSigningPanel({
   const isRegistrationTx = tx.kind === TxKind.Registration;
   const isCosigned = tx.spendingPath === SpendingPath.Cosigned;
   const transferAddresses = useMemo(
-    () => new Set(payments.filter((p) => p.recipient_treasury_id).map((p) => p.recipient_wallet)),
+    () => new Set(payments.filter((p) => p.recipient_treasury_id || p.recipient_float_wallet_id).map((p) => p.recipient_wallet)),
     [payments],
   );
   // Whose signatures count: the rule of the transaction's own spending path.

@@ -5,10 +5,16 @@ import "server-only";
 import { registryFromRows, COMMUNITY_ASSET_COLUMNS, type CommunityAssetColumns } from "@/lib/assetRegistry";
 import type { AssetDef } from "@/lib/assets";
 import { anchorProposalNumbers } from "@/lib/cardano/anchorMetadata";
-import { extractAnchorMetadata, extractPayoutMetadata } from "@/lib/cardano/cborMetadata";
+import {
+  decodeTxForDisplay,
+  extractAnchorMetadata,
+  extractPayoutMetadata,
+} from "@/lib/cardano/cborMetadata";
 import { lookupDrep, lookupStakePool } from "@/lib/cardano/koios";
 import { citedProposalNumbers } from "@/lib/cardano/metadata";
 import { slotTime } from "@/lib/cardano/slots";
+import { unitsFromDecodedTx } from "@/lib/cardano/txDisplay";
+import { enrichRegistryFromUnits } from "@/lib/cardano/walletAssets";
 import type { Network } from "@/lib/config";
 import { asNetwork } from "@/lib/config";
 import { SpendingPath, StakeAction, TxKind } from "@/lib/constants";
@@ -151,7 +157,14 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
   }
 
   const network = asNetwork(treasury.network);
-  const description = await stakePageDescription(network, row.governance_action, row.description);
+  const [description, assetRegistry] = await Promise.all([
+    stakePageDescription(network, row.governance_action, row.description),
+    enrichRegistryFromUnits(
+      network,
+      registryFromRows((assetRows ?? []) as CommunityAssetColumns[]),
+      unitsFromDecodedTx(decodeTxForDisplay(row.tx_cbor)),
+    ),
+  ]);
 
   return {
     tx: {
@@ -183,7 +196,7 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
       cosigner_kind: treasury.cosigner_kind,
     },
     signers: (signers ?? []) as TxPanelSigner[],
-    assetRegistry: registryFromRows((assetRows ?? []) as CommunityAssetColumns[]),
+    assetRegistry,
     payments: (paymentRows ?? []) as PaymentRow[],
     localTaskNumbers,
     citedProposals,

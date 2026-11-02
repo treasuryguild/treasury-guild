@@ -10,7 +10,8 @@ import {
   tokenFromAssetInfo,
   type WalletToken,
 } from "@/lib/cardano/assetInfo";
-import { addQuantity, LOVELACE } from "@/lib/assets";
+import { addQuantity, LOVELACE, type AssetDef } from "@/lib/assets";
+import { budgetTokenLabel } from "@/lib/budgets";
 
 export type { WalletToken };
 
@@ -62,6 +63,36 @@ async function assetInfoCached(
 export async function describeTokens(network: Network, units: string[]): Promise<WalletToken[]> {
   const infos = await assetInfoCached(network, units);
   return units.map((unit) => tokenFromAssetInfo(unit, 0n, infos.get(unit)));
+}
+
+/**
+ * Extend a community asset registry with Koios labels for units seen on a
+ * transaction (outputs / mint). Display-only — never writes community_assets.
+ * Best-effort: a Koios failure leaves the registry unchanged so the page loads.
+ */
+export async function enrichRegistryFromUnits(
+  network: Network,
+  registry: AssetDef[],
+  units: readonly string[],
+): Promise<AssetDef[]> {
+  const known = new Set(registry.map((a) => a.unit));
+  const missing = [...new Set(units)].filter(
+    (unit) => unit !== LOVELACE && !known.has(unit),
+  );
+  if (missing.length === 0) return registry;
+  try {
+    const tokens = await describeTokens(network, missing);
+    return [
+      ...registry,
+      ...tokens.map((t) => ({
+        fieldName: budgetTokenLabel(t),
+        unit: t.unit,
+        decimals: t.decimals,
+      })),
+    ];
+  } catch {
+    return registry;
+  }
 }
 
 /**

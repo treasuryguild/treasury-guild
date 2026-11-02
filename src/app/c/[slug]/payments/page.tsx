@@ -25,6 +25,7 @@ import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
+import { activeFloatWallets, useFloatWallets } from "@/hooks/useFloatWallets";
 import { activeTreasuries, useTreasuries } from "@/hooks/useTreasuries";
 import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useTreasuryBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
@@ -48,6 +49,7 @@ export default function PaymentsPage({ params, searchParams }: {
   const prefill = useMemo(() => parsePaymentPrefill(query), [query]);
   const { community, blocked } = useCommunityGate(slug);
   const treasuriesQuery = useTreasuries(community?.id);
+  const floatsQuery = useFloatWallets(community?.id);
   const workgroupsQuery = useWorkgroups(community?.id);
   const members = useCommunityMembers(community?.id);
   const roles = useMyTreasuryRoles(community?.id);
@@ -74,6 +76,7 @@ export default function PaymentsPage({ params, searchParams }: {
   const setups = useTreasuryBudgetSetups(treasuryId || null);
   const memberOptions = useMemo(() => toMemberOptions(members.data ?? []), [members.data]);
   const siblings = useMemo(() => treasuries.filter((t) => t.id !== treasuryId), [treasuries, treasuryId]);
+  const floats = useMemo(() => activeFloatWallets(floatsQuery.data), [floatsQuery.data]);
   const tokens = useMemo(() => walletTokens(wallet), [wallet]);
 
   // The prefilled transfer, once the treasuries are known: one row to the
@@ -96,9 +99,12 @@ export default function PaymentsPage({ params, searchParams }: {
 
   const model = useMemo(() => {
     const totals = draftTotals(rows, tokens);
-    const siblingAddresses = new Set(siblings.map((t) => t.address));
-    const transferRows = rows.filter((row) => siblingAddresses.has(row.address.trim()));
-    const spendTotals = draftTotals(rows.filter((row) => !siblingAddresses.has(row.address.trim())), tokens);
+    const transferAddresses = new Set([
+      ...siblings.map((t) => t.address),
+      ...floats.map((f) => f.address),
+    ]);
+    const transferRows = rows.filter((row) => transferAddresses.has(row.address.trim()));
+    const spendTotals = draftTotals(rows.filter((row) => !transferAddresses.has(row.address.trim())), tokens);
     return {
       totals,
       transfers: transferRows.length,
@@ -110,7 +116,7 @@ export default function PaymentsPage({ params, searchParams }: {
         : [],
       budgets: budgetLines(budgetsQuery.data?.budgets ?? [], treasuryId, spendTotals),
     };
-  }, [rows, tokens, siblings, selectedTreasury, community, budgetsQuery.data, treasuryId, drain]);
+  }, [rows, tokens, siblings, floats, selectedTreasury, community, budgetsQuery.data, treasuryId, drain]);
 
   if (blocked) return blocked;
 
@@ -145,8 +151,8 @@ export default function PaymentsPage({ params, searchParams }: {
     <div>
       <PageTitle>Payments</PageTitle>
       <p className="-mt-3 mb-6 max-w-3xl text-sm text-zinc-400">
-        Pay outside addresses, community members or another of your treasuries in one transaction.
-        Payments count against the paying treasury&apos;s own budget; transfers between your treasuries never do.
+        Pay outside addresses, community members, another of your treasuries or a float wallet in one transaction.
+        Payments count against the paying treasury&apos;s own budget; transfers to your treasuries or float wallets never do.
       </p>
 
       {prefill && receivingActive && (
@@ -182,6 +188,7 @@ export default function PaymentsPage({ params, searchParams }: {
       <div className="mb-6 space-y-3">
         {rows.map((row, index) => (
           <RecipientRow key={row.key} row={row} index={index} members={memberOptions} treasuries={siblings}
+            floats={floats}
             tokens={tokens} disabled={busy || !treasuryId} drain={drain}
             canDrain={!!row.address.trim() && tokens.some((t) => t.held > 0n)}
             onChange={(patch) => updateRow(row.key, patch)}
@@ -223,7 +230,7 @@ export default function PaymentsPage({ params, searchParams }: {
         onMemoChange={setMemo}
         canBuild={canBuild}
         busy={busy}
-        error={error ?? budgetsQuery.error ?? treasuriesQuery.error ?? members.error}
+        error={error ?? budgetsQuery.error ?? treasuriesQuery.error ?? floatsQuery.error ?? members.error}
         blockedReason={networkReason}
         onBuild={() =>
           void build<BuildPaymentResponse>("/api/tx/build-payment", {

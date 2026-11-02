@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { unitDisplayFromRegistry } from "@/lib/assetRegistry";
-import { describeMint, formatTxAsset } from "./txDisplay";
+import { describeMint, formatTxAsset, unitsFromDecodedTx } from "./txDisplay";
 import type { DecodedTxMint } from "./types";
 
 const POLICY = "e".repeat(56);
@@ -13,6 +13,27 @@ const meta721 = {
   },
 };
 
+describe("unitsFromDecodedTx", () => {
+  it("collects unique units from outputs and mint", () => {
+    expect(
+      unitsFromDecodedTx({
+        outputs: [
+          { address: "a", lovelace: "1", assets: [{ unit: UNIT, quantity: "1" }] },
+          {
+            address: "b",
+            lovelace: "1",
+            assets: [
+              { unit: UNIT, quantity: "2" },
+              { unit: `${"a".repeat(56)}00`, quantity: "3" },
+            ],
+          },
+        ],
+        mint: [{ ...mint, unit: `${"b".repeat(56)}01` }],
+      }),
+    ).toEqual([UNIT, `${"a".repeat(56)}00`, `${"b".repeat(56)}01`]);
+  });
+});
+
 describe("formatTxAsset", () => {
   const display = unitDisplayFromRegistry([{ fieldName: "HOSKY", unit: `${"a".repeat(56)}00`, decimals: 0 }]);
   const mintByUnit = new Map([[UNIT, mint]]);
@@ -22,12 +43,13 @@ describe("formatTxAsset", () => {
     expect(formatTxAsset("lovelace", "1500000", display, mintByUnit, meta721)).toBe("1.5 ADA");
   });
 
-  it("falls back to the tx's own mint metadata, then to a raw label", () => {
+  it("falls back to the tx's own mint metadata, then to a name / TOKEN label", () => {
     expect(formatTxAsset(UNIT, "1000000", display, mintByUnit, meta721)).toBe("1 GVT");
     // Without 721 metadata the decimals are unknown (0) and the name is the asset name.
     expect(formatTxAsset(UNIT, "1000000", display, mintByUnit, null)).toBe("1,000,000 GVT");
+    // Binary asset name → TOKEN-xxxxxx, never the policy-id prefix.
     expect(formatTxAsset(`${"f".repeat(56)}00`, "7", display, mintByUnit, null)).toBe(
-      "7 ffffffffffff…",
+      "7 TOKEN-FFFF00",
     );
   });
 });

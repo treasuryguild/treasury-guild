@@ -124,7 +124,7 @@ export const transactionDetail = defineEndpoint({
     const participants = pathParticipants(rule);
     const labels = await loadMemberLabels(community.id, [
       ...detail.payouts.map((p) => p.wallet),
-      ...detail.payments.filter((p) => !p.recipient_treasury_id).map((p) => p.recipient_wallet),
+      ...detail.payments.filter((p) => !p.recipient_treasury_id && !p.recipient_float_wallet_id).map((p) => p.recipient_wallet),
     ]);
 
     // The record as it is on chain, read from the transaction's own CBOR.
@@ -156,7 +156,7 @@ export const transactionDetail = defineEndpoint({
       payments: detail.payments.map((p) => ({
         recipient: p.label ?? voterName(p.recipient_wallet, labels.get(p.recipient_wallet)),
         wallet: p.recipient_wallet,
-        transfer: p.recipient_treasury_id !== null,
+        transfer: p.recipient_treasury_id !== null || p.recipient_float_wallet_id !== null,
         budgetMonth: p.budget_month ? p.budget_month.slice(0, 7) : null,
         ...amount(p.unit, p.amount),
       })),

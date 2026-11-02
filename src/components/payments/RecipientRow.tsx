@@ -11,18 +11,21 @@ import { Button, Input, Select } from "@/components/ui";
 const KIND_LABELS: Record<RecipientKind, string> = {
   member: "Community member",
   treasury: "Another treasury",
+  float: "Float wallet",
   address: "Any address",
 };
 
-/** One recipient of a payment: who (member, sibling treasury or typed address) and how much per token. */
+/** One recipient of a payment: who (member, sibling treasury, float or typed address) and how much per token. */
 export function RecipientRow({
-  row, index, members, treasuries, tokens, disabled, drain, canDrain, onChange, onRemove, onDrain, onClearDrain,
+  row, index, members, treasuries, floats, tokens, disabled, drain, canDrain, onChange, onRemove, onDrain, onClearDrain,
 }: {
   row: RecipientDraft;
   index: number;
   members: MemberOption[];
   /** The community's other treasuries (the paying one excluded). */
   treasuries: TreasurySummary[];
+  /** Active float wallets of the community. */
+  floats: { id: string; name: string; address: string }[];
   tokens: DraftToken[];
   disabled: boolean;
   /** Every held asset is being moved; amounts are a preview (fee comes from ADA at build). */
@@ -61,7 +64,16 @@ export function RecipientRow({
           <Select aria-label={`${label} kind`} value={row.kind} disabled={disabled}
             onChange={(event) => onChange({ kind: event.target.value as RecipientKind, address: "" })}>
             {(Object.keys(KIND_LABELS) as RecipientKind[]).map((kind) => (
-              <option key={kind} value={kind} disabled={kind === "treasury" && treasuries.length === 0}>{KIND_LABELS[kind]}</option>
+              <option
+                key={kind}
+                value={kind}
+                disabled={
+                  (kind === "treasury" && treasuries.length === 0)
+                  || (kind === "float" && floats.length === 0)
+                }
+              >
+                {KIND_LABELS[kind]}
+              </option>
             ))}
           </Select>
         </div>
@@ -81,6 +93,15 @@ export function RecipientRow({
               <option value="">Choose a treasury…</option>
               {treasuries.map((treasury) => (
                 <option key={treasury.id} value={treasury.address}>{treasury.name}</option>
+              ))}
+            </Select>
+          )}
+          {row.kind === "float" && (
+            <Select aria-label={`${label} float wallet`} value={row.address} disabled={disabled}
+              onChange={(event) => onChange({ address: event.target.value })}>
+              <option value="">Choose a float wallet…</option>
+              {floats.map((float) => (
+                <option key={float.id} value={float.address}>{float.name}</option>
               ))}
             </Select>
           )}

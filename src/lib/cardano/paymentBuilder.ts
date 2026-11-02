@@ -22,9 +22,15 @@ export interface PaymentRecipient {
   address: string;
   /** Set when the address is another treasury of the community: a transfer. */
   treasuryId: string | null;
-  /** Member handle or treasury name, for display. */
+  /** Set when the address is a community float wallet: a transfer. */
+  floatWalletId: string | null;
+  /** Member handle, treasury name or float name, for display. */
   label: string | null;
   amounts: { unit: string; quantity: bigint }[];
+}
+
+function isTransfer(r: PaymentRecipient): boolean {
+  return r.treasuryId !== null || r.floatWalletId !== null;
 }
 
 export interface BuildPaymentResult {
@@ -81,7 +87,7 @@ export async function buildPaymentTx(opts: {
   // Recipient order is output order (completeTreasuryTx appends change last).
   const metadata = buildPaymentMetadata(communitySlug, budgetPeriod, memo, recipients.map((r, outputIndex) => ({
     outputIndex,
-    transfer: r.treasuryId !== null,
+    transfer: isTransfer(r),
     amounts: r.amounts.map((a) => ({ ...metadataDisplay(a.unit, unitDisplay), quantity: a.quantity })),
   })), opts.citations ?? []);
   assertPaymentMetadataFits(metadata);
@@ -90,7 +96,7 @@ export async function buildPaymentTx(opts: {
   const dateStr = new Date().toISOString().slice(0, 10);
   const summary = paymentRecipientSummary({
     recipients: recipients.length,
-    transfers: recipients.filter((r) => r.treasuryId !== null).length,
+    transfers: recipients.filter(isTransfer).length,
   });
   const { unsignedTxHex, txHash } = await completeTreasuryTx({
     ...opts,
@@ -130,7 +136,7 @@ async function buildDrainPayment(opts: {
   const dateStr = new Date().toISOString().slice(0, 10);
   const summary = paymentRecipientSummary({
     recipients: 1,
-    transfers: recipient.treasuryId !== null ? 1 : 0,
+    transfers: isTransfer(recipient) ? 1 : 0,
   });
   const message = buildMessageMetadata(
     `Treasury Guild payment: ${communitySlug} ${dateStr}, ${summary}${memo ? `: ${memo}` : ""}`,
@@ -150,7 +156,7 @@ async function buildDrainPayment(opts: {
     metadataFor: (amounts) => {
       const metadata = buildPaymentMetadata(communitySlug, budgetPeriod, memo, [{
         outputIndex: 0,
-        transfer: recipient.treasuryId !== null,
+        transfer: isTransfer(recipient),
         amounts: amounts.map((a) => ({ ...metadataDisplay(a.unit, unitDisplay), quantity: a.quantity })),
       }], opts.citations ?? []);
       assertPaymentMetadataFits(metadata);

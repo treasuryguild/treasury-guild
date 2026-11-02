@@ -32,6 +32,7 @@ import { BudgetTable } from "@/components/dashboard/BudgetTable";
 import { ContributorsTasksChart } from "@/components/dashboard/ContributorsTasksChart";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
 import { FundingFlowChart } from "@/components/dashboard/FundingFlowChart";
+import { ConversionFeesPanel } from "@/components/dashboard/ConversionFeesPanel";
 import { IncomingPanel } from "@/components/dashboard/IncomingPanel";
 import { SpendingDetailList } from "@/components/dashboard/SpendingDetailList";
 import { TreasurySpendingChart } from "@/components/dashboard/TreasurySpendingChart";
@@ -88,14 +89,17 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
       [workgroup.id, workgroup.archived_at ? `${workgroup.name} (Archived)` : workgroup.name]),
     ...(treasuries ?? []).map((treasury): [string, string] => [treasury.id, budgetOwnerLabel("treasury", treasury.name)]),
   ]), [workgroups.data, treasuries]);
-  // Where spend was paid from: the treasuries, then previous wallets whose
-  // history was imported. Only the charts use it; previous wallets never own
-  // a budget, so the filters and the names map stay on treasuries.
+  // Where spend was paid from / funding-flow nodes: treasuries, float wallets,
+  // then previous wallets whose history was imported. Only the charts use it;
+  // previous wallets never own a budget, so the filters and the names map stay
+  // on treasuries.
   const legacyWallets = data?.legacy.wallets;
+  const floats = data?.floats;
   const spendSources = useMemo(() => [
     ...(treasuries ?? []),
+    ...(floats ?? []).map((wallet) => ({ id: wallet.id, name: wallet.name })),
     ...(legacyWallets ?? []).map((wallet) => ({ id: wallet.id, name: legacyWalletLabel(wallet.name) })),
-  ], [treasuries, legacyWallets]);
+  ], [treasuries, floats, legacyWallets]);
 
   const model = useMemo(() => {
     if (!data) return null;
@@ -128,7 +132,7 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
           workgroups: workgroupSpendingRows(tableRows, token, info),
           flow: fundingFlowGraph({
             flows: data.flows.months, series: data.series, months: flowMonths, unit: token, info,
-            workgroupId, treasuries: spendSources, names, fundingSources: data.fundingSources,
+            workgroupId, treasuries: spendSources, floats: floats ?? [], names, fundingSources: data.fundingSources,
           }),
         };
       }),
@@ -194,7 +198,14 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
         </div>
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,0.7fr)]">
           <SpendingDetailList items={model.spendingList} display={display} loading={dashboard.loading} />
-          <IncomingPanel items={data?.incoming ?? []} display={display} loading={dashboard.loading} manageHref={routes.reconcile(slug)} />
+          <div className="space-y-6">
+            <IncomingPanel items={data?.incoming ?? []} display={display} loading={dashboard.loading} manageHref={routes.reconcile(slug)} />
+            <ConversionFeesPanel
+              fees={data?.conversionFees ?? []}
+              loading={dashboard.loading}
+              manageHref={routes.reconcile(slug)}
+            />
+          </div>
         </div>
       </>}
 

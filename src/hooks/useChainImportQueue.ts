@@ -5,7 +5,7 @@
 // can read external_txs, so this is a plain browser query; the actions go
 // through /api/chain-import/*.
 import { ChainImportStatus } from "@/lib/constants";
-import { EXTERNAL_TX_COLUMNS, type ExternalTxRow } from "@/lib/db/types";
+import { EXTERNAL_TX_SUMMARY_COLUMNS, type ExternalTxRow } from "@/lib/db/types";
 import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncData, type AsyncData } from "./useAsyncData";
 
@@ -13,7 +13,7 @@ export function useChainImportQueue(treasuryIds: readonly string[]): AsyncData<E
   return useAsyncData(treasuryIds.length > 0 ? treasuryIds.join(",") : null, async () => {
     const { data, error } = await browserClient()
       .from("external_txs")
-      .select(EXTERNAL_TX_COLUMNS)
+      .select(EXTERNAL_TX_SUMMARY_COLUMNS)
       .in("treasury_id", [...treasuryIds])
       .in("import_status", [ChainImportStatus.Blocked, ChainImportStatus.Ignored])
       .order("block_time", { ascending: true });

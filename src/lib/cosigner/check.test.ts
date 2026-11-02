@@ -28,6 +28,7 @@ vi.mock("@/lib/db/governance", () => ({
   loadGovernanceSettings: mocks.settings, loadGovernanceCommunitySettings: mocks.communitySettings,
 }));
 vi.mock("@/lib/db/payments", () => ({ loadSiblingTreasuries: mocks.siblings }));
+vi.mock("@/lib/db/floatWallets", () => ({ loadActiveFloatWallets: vi.fn(async () => []) }));
 vi.mock("@/lib/db/spendCheck", () => ({ loadSpentForTargets: mocks.spent }));
 vi.mock("@/lib/db/assets", () => ({ loadAssetRegistry: mocks.registry }));
 vi.mock("@/lib/db/budgetSetups", () => ({
@@ -75,7 +76,7 @@ function payout(patch: Partial<PayoutForCheck> = {}): PayoutForCheck {
 function payment(patch: Partial<PaymentRow> = {}): PaymentRow {
   return {
     id: "pm-1", transaction_id: "tx-1", community_id: "c-1", treasury_id: "t-1", recipient_wallet: BOB,
-    recipient_treasury_id: null, label: null, unit: LOVELACE, amount: "2000000", budget_month: "2026-10-01",
+    recipient_treasury_id: null, recipient_float_wallet_id: null, label: null, unit: LOVELACE, amount: "2000000", budget_month: "2026-10-01",
     created_at: "2026-10-01T00:00:00Z", ...patch,
   };
 }
@@ -182,7 +183,10 @@ describe("runCosignerCheck: step 1, the stored rows", () => {
     expect(mocks.payouts).not.toHaveBeenCalled();
     expect(mocks.compare).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       kind: TxKind.Payment,
-      payments: [{ recipientWallet: SIBLING, recipientTreasuryId: "t-2", unit: LOVELACE, amount: "9000000" }],
+      payments: [{
+        recipientWallet: SIBLING, recipientTreasuryId: "t-2", recipientFloatWalletId: null,
+        unit: LOVELACE, amount: "9000000",
+      }],
       payouts: [],
     }));
     // A transfer is no spend: nothing to budget, nothing already spent to read.

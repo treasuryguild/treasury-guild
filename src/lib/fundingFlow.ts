@@ -39,10 +39,17 @@ export interface FlowMonth {
   transfers: FlowTransfer[];
 }
 
-/** The subset of an `incoming_txs` row the aggregation reads. */
+/**
+ * The subset of an incoming row the aggregation reads. `treasuryId` is the
+ * receiving wallet (a treasury or a float wallet id). `fromTreasuryId` /
+ * `fromFloatWalletId` name an internal counterparty; either makes the row a
+ * transfer (ids are opaque Sankey node keys).
+ */
 export interface FlowIncomingRow {
   treasuryId: string;
   fromTreasuryId: string | null;
+  /** A community float wallet among the inputs (migration 0088). */
+  fromFloatWalletId?: string | null;
   incomingType: string;
   amountLovelace: string;
   assets: Record<string, string> | null;
@@ -81,10 +88,11 @@ export function inflowAmounts(row: Pick<FlowIncomingRow, "amountLovelace" | "ass
 const KEY = "|";
 
 /**
- * Bucket inflows by block-time month (the window's bucket) over the window. A row linked to another
- * treasury of the community is a transfer whatever its type (the link is a
- * chain fact); the rest are income by kind, refunds and unlinked transfers
- * excluded. Rows without a block time are skipped.
+ * Bucket inflows by block-time month (the window's bucket) over the window. A
+ * row linked to another treasury or float wallet of the community is a
+ * transfer whatever its type (the link is a chain fact); the rest are income
+ * by kind, refunds and unlinked transfers excluded. Rows without a block time
+ * are skipped.
  */
 export function aggregateFlows(rows: readonly FlowIncomingRow[], window: DashboardWindow): FlowMonth[] {
   const inflows = new Map<string, Map<string, bigint>>(window.months.map((month) => [month, new Map()]));
@@ -92,12 +100,13 @@ export function aggregateFlows(rows: readonly FlowIncomingRow[], window: Dashboa
   for (const row of rows) {
     if (!row.blockTime) continue;
     const month = bucketKey(row.blockTime, window.bucket);
-    const kind = row.fromTreasuryId ? null : inflowKind(row.incomingType);
-    const target = row.fromTreasuryId ? transfers.get(month) : kind ? inflows.get(month) : undefined;
+    const fromId = row.fromTreasuryId ?? row.fromFloatWalletId ?? null;
+    const kind = fromId ? null : inflowKind(row.incomingType);
+    const target = fromId ? transfers.get(month) : kind ? inflows.get(month) : undefined;
     if (!target) continue;
     for (const [unit, quantity] of inflowAmounts(row)) {
-      const key = row.fromTreasuryId
-        ? [row.fromTreasuryId, row.treasuryId, unit].join(KEY)
+      const key = fromId
+        ? [fromId, row.treasuryId, unit].join(KEY)
         : [row.treasuryId, unit, kind, row.fundingSourceId ?? ""].join(KEY);
       addQuantity(target, key, BigInt(quantity));
     }
@@ -134,7 +143,7 @@ export function flowUnits(flows: readonly FlowMonth[]): string[] {
 // --- Sankey graph ---------------------------------------------------------------
 
 /** `direct` is the one sink for manual payments made straight from a treasury. */
-export type FlowNodeKind = "source" | "treasury" | "workgroup" | "direct";
+export type FlowNodeKind = "source" | "treasury" | "float" | "workgroup" | "direct";
 export type FlowLinkKind = "income" | "transfer" | "payout";
 
 export interface FlowNode {
@@ -231,6 +240,13 @@ function fundingKey(id: string): string {
 function treasuryKey(id: string): string {
   return `treasury:${id}`;
 }
+function floatKey(id: string): string {
+  return `float:${id}`;
+}
+/** A wallet node: treasury or watched float (ids are distinct UUIDs). */
+function walletKey(id: string, floatIds: ReadonlySet<string>): string {
+  return floatIds.has(id) ? floatKey(id) : treasuryKey(id);
+}
 function workgroupKey(id: string): string {
   return `workgroup:${id}`;
 }
@@ -239,7 +255,7 @@ export const DIRECT_PAYMENTS_NAME = "Direct payments";
 
 /**
  * Sum the selected months' flows of one token into raw links: source kind →
- * treasury (income), treasury → treasury (transfer), treasury → workgroup
+ * treasury (income), treasury ↔ treasury/float (transfer), treasury → workgroup
  * (payouts net of refunds, from the series) and treasury → direct payments
  * (manual payments charged to the treasury's own budget). Zero and negative
  * links are dropped: a workgroup refunded more than it was paid has nothing
@@ -250,6 +266,7 @@ function collectLinks(input: {
   series: DashboardSeries;
   months: readonly string[];
   unit: string;
+  floatIds: ReadonlySet<string>;
 }): RawLink[] {
   const sums = new Map<string, RawLink>();
   const add = (from: string, to: string, kind: FlowLinkKind, amount: bigint) => {
@@ -264,11 +281,16 @@ function collectLinks(input: {
     for (const inflow of month.inflows) {
       if (inflow.unit !== input.unit) continue;
       const from = inflow.fundingSourceId ? fundingKey(inflow.fundingSourceId) : sourceKey(inflow.kind);
-      add(from, treasuryKey(inflow.treasuryId), "income", BigInt(inflow.amount));
+      add(from, walletKey(inflow.treasuryId, input.floatIds), "income", BigInt(inflow.amount));
     }
     for (const transfer of month.transfers) {
       if (transfer.unit === input.unit) {
-        add(treasuryKey(transfer.fromTreasuryId), treasuryKey(transfer.toTreasuryId), "transfer", BigInt(transfer.amount));
+        add(
+          walletKey(transfer.fromTreasuryId, input.floatIds),
+          walletKey(transfer.toTreasuryId, input.floatIds),
+          "transfer",
+          BigInt(transfer.amount),
+        );
       }
     }
   }
@@ -370,11 +392,15 @@ export function fundingFlowGraph(input: {
   /** `ALL_WORKGROUPS` or one budget owner id (a workgroup or a treasury). */
   workgroupId: string;
   treasuries: readonly { id: string; name: string }[];
+  /** Watched float wallets (transfer counterparties; not spend sinks). */
+  floats?: readonly { id: string; name: string }[];
   /** Workgroup id → display name. */
   names: ReadonlyMap<string, string>;
   /** Funding sources that tagged inflows name. */
   fundingSources?: readonly { id: string; name: string }[];
 }): FlowGraph {
+  const floats = input.floats ?? [];
+  const floatIds = new Set(floats.map((wallet) => wallet.id));
   const name = (key: string): string => {
     const [kind, id] = key.split(":", 2) as [string, string];
     if (kind === "source" && id.startsWith(FUNDING_PREFIX)) {
@@ -382,12 +408,13 @@ export function fundingFlowGraph(input: {
     }
     if (kind === "source") return SOURCE_NAMES[id as InflowKind] ?? id;
     if (kind === "treasury") return input.treasuries.find((treasury) => treasury.id === id)?.name ?? "Treasury";
+    if (kind === "float") return floats.find((wallet) => wallet.id === id)?.name ?? "Float wallet";
     if (kind === "direct") return DIRECT_PAYMENTS_NAME;
     return input.names.get(id) ?? "Workgroup";
   };
   const format = (amount: bigint) => formatUnits(amount, input.info.decimals, input.info.ticker);
 
-  let raw = collectLinks(input);
+  let raw = collectLinks({ ...input, floatIds });
   if (input.workgroupId !== ALL_WORKGROUPS) raw = narrowToOwner(raw, input.workgroupId);
   const table = raw.map((link) => [name(link.from), name(link.to), format(link.amount)]);
 
@@ -401,6 +428,10 @@ export function fundingFlowGraph(input: {
     if (kind === "treasury") {
       const index = input.treasuries.findIndex((treasury) => treasury.id === id);
       return 10 + (index < 0 ? input.treasuries.length : index);
+    }
+    if (kind === "float") {
+      const index = floats.findIndex((wallet) => wallet.id === id);
+      return 50 + (index < 0 ? floats.length : index);
     }
     // Workgroups by name, then the direct-payments sink last.
     return kind === "direct" ? 101 : 100;

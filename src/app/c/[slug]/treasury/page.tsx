@@ -13,7 +13,7 @@ import { describeTemplate, signerCounts } from "@/lib/cardano/spendingPaths";
 import { asNetwork } from "@/lib/config";
 import { ChainImportStatus, TxState } from "@/lib/constants";
 import {
-  EXTERNAL_TX_COLUMNS,
+  EXTERNAL_TX_SUMMARY_COLUMNS,
   TRANSACTION_SUMMARY_COLUMNS,
   type ExternalTxRow,
   type TransactionSummary,
@@ -57,6 +57,7 @@ import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice
 import { IntegrationStatusLink } from "@/components/integrations/IntegrationStatusLink";
 import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
+import { FloatWalletsSection } from "@/components/treasury/FloatWalletsSection";
 import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
 import { TreasuryLifecycleDialog } from "@/components/treasury/TreasuryLifecycleDialog";
 
@@ -120,7 +121,7 @@ export default function TreasuryPage({
     async () => {
       const { data } = await browserClient()
         .from("external_txs")
-        .select(EXTERNAL_TX_COLUMNS)
+        .select(EXTERNAL_TX_SUMMARY_COLUMNS)
         .in("treasury_id", treasuryIds)
         .order("block_time", { ascending: false })
         .limit(RECENT_TX_LIMIT);
@@ -361,6 +362,10 @@ export default function TreasuryPage({
           </EmptyState>
         )}
       </div>
+
+      {community && (
+        <FloatWalletsSection communityId={community.id} isAdmin={!!isAdmin} />
+      )}
 
       {managing && (
         <TreasuryLifecycleDialog

@@ -54,6 +54,12 @@ export async function notifyOutsideSpends(options: { fetchImpl?: BotFetchLike } 
       result.skipped += 1;
       continue;
     }
+    // Funding a watched float wallet is expected ops, not an outside spend to announce.
+    if (spend.to_float_wallet_id !== null) {
+      await markSpendAlerted([spend.tx_hash]);
+      result.skipped += 1;
+      continue;
+    }
     const communityId = spend.treasuries.community_id;
     if (!budgetKindOn.has(communityId)) {
       budgetKindOn.set(communityId, (await loadGovernanceSettings(communityId, ProposalKind.Budget)).enabled);

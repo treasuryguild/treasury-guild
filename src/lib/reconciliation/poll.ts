@@ -7,12 +7,14 @@ import { addressTxs, txInfoBulk, type KoiosAddressTx, type KoiosTxInfo } from "@
 import { asNetwork } from "@/lib/config";
 import { PgCode, TxState } from "@/lib/constants";
 import { confirmTransaction } from "@/lib/db/transactions";
+import { tagFloatTransfers } from "@/lib/db/floatWallets";
 import { tagInternalTransfers } from "@/lib/db/treasuries";
 import {
   classifyExternalActivity,
   isRecognizedExternalActivity,
   type ExternalActivity,
 } from "@/lib/externalActivity";
+import { enrichStakeActivityLabels } from "./externalActivityEnrich";
 import {
   isIncomingTx,
   otherOutputAddresses,
@@ -31,6 +33,14 @@ export function activityOf(info: KoiosTxInfo): ExternalActivity | null {
     withdrawals: info.withdrawals ?? null,
     voting_procedures: info.voting_procedures ?? null,
   });
+}
+
+/** Classify then fill pool/DRep labels before storing on external_txs. */
+export async function activityOfEnriched(
+  info: KoiosTxInfo,
+  network: number,
+): Promise<ExternalActivity | null> {
+  return enrichStakeActivityLabels(activityOf(info), asNetwork(network));
 }
 
 export interface PollResult {
@@ -141,7 +151,7 @@ export async function pollTreasury(treasury: {
     if (t.block_height > maxBlock) maxBlock = t.block_height;
     if (!isIncomingTx(info, treasury.address)) {
       if (known.has(t.tx_hash)) continue;
-      const activity = activityOf(info);
+      const activity = await activityOfEnriched(info, treasury.network);
       // `{}` = looked up, nothing to classify (so sync backfill does not re-fetch).
       // Recognized cert / registration / anchor spends are not budget
       // outside-spends: stamp the alert column so Discord never fires.
@@ -185,10 +195,12 @@ export async function pollTreasury(treasury: {
     }
   }
 
-  // Link new rows to the community's other treasuries: an inflow from one is
-  // a transfer (no review), an outgoing tx to one is tagged for display.
+  // Link new rows to the community's other treasuries and float wallets: an
+  // inflow from one is a transfer (no review), an outgoing tx to one is tagged
+  // for display (and float outs skip the outside-spend alert).
   if (newIncoming + newExternal > 0) {
     await tagInternalTransfers(treasury.community_id);
+    await tagFloatTransfers(treasury.community_id);
   }
 
   // A hash Koios listed but did not describe (lag, a partial bulk answer) must
