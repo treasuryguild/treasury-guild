@@ -50,6 +50,8 @@ const plan = (quantity = 50_000_000n, problems: unknown[] = []) => ({
   tasks: [{ id: "k1", number: 12, title: "Fix login", workgroups: { name: "Development" } }],
   periods: new Map([["k1", { month: "2026-10", code: "2026-10" }]]),
   recipients: [{ contributorWallet: "addr_x", tasks: [{ taskId: "k1", taskNumber: 12, amounts: [{ unit: "lovelace", quantity }] }] }],
+  allocations: [],
+  allocationBudgetMonth: null,
   payments: 1,
   unitDisplay: new Map([["lovelace", { ticker: "ADA", decimals: 6 }]]),
   spendProblems: problems,

@@ -87,7 +87,8 @@ Each payout transaction carries a public record under metadata label **190001**,
 - `b` — the list of budget periods: `YYYY-MM` for a task in a workgroup budgeted by month, `YYYY-Qn` for one budgeted by quarter,
 - `k` — the list of asset tickers paid as bounties, including `ADA` when an ADA bounty is paid,
 - `p` — for each output (by its position in the transaction), the tasks it pays: the task number, which workgroup and budget period it belongs to (as positions in `w` and `b`), and the amounts in the same order as `k`,
-- `g` — only when a decision is cited: for each cited [proposal](/docs/governance), its number, its content hash (the sha256 fingerprint every ballot signed) and the numbers of the tasks citing it. A task cites the proposal that created it and the budget proposal that set its period's budget.
+- `g` — only when a decision is cited: for each cited [proposal](/docs/governance), its number, its content hash (the sha256 fingerprint every ballot signed) and the numbers of the tasks citing it. A task cites the proposal that created it and the budget proposal that set its period's budget,
+- `a` — only when [Payday allocation rules](/docs/payday#allocation-rules-ops-fee-and-savings) applied: for each allocation output, its position, amounts in `k` order, and a flag (`0` = spend charged to the paying treasury's budget, `1` = transfer to a sibling treasury).
 
 Example, for output 0 paying task #12 (Dev, May 2026) 150 ADA and 250 GVT, and output 1 paying task #15 (Design, Q2 2026) 40 ADA, where task #15 was created by proposal #7 and both tasks' budgets were set by proposal #3:
 

@@ -4,10 +4,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  withTx: vi.fn(), insertPayouts: vi.fn(), upsertMappings: vi.fn(),
+  withTx: vi.fn(), insertPayouts: vi.fn(), insertPayments: vi.fn(), upsertMappings: vi.fn(),
   stampMonth: vi.fn(), queue: vi.fn(), recordAnchors: vi.fn(),
 }));
 vi.mock("@/lib/db/transactions", () => ({ assertNoPendingTx: vi.fn(), withTransactionRow: mocks.withTx, insertPayouts: mocks.insertPayouts }));
+vi.mock("@/lib/db/payments", () => ({ insertPayments: mocks.insertPayments, loadSiblingTreasuries: vi.fn() }));
+vi.mock("@/lib/db/allocationRules", () => ({ loadEnabledAllocationRules: vi.fn() }));
 vi.mock("@/lib/db/assets", () => ({ loadAssetRegistry: vi.fn(), upsertAssetMappings: mocks.upsertMappings }));
 vi.mock("@/lib/db/tasks", () => ({
   loadTasksForBuild: vi.fn(), tasksWithLivePayouts: vi.fn(), claimTasksForPayout: mocks.queue, setBudgetMonthIfNull: mocks.stampMonth,
@@ -51,6 +53,8 @@ function plan(overrides: Partial<PayoutPlan> = {}): PayoutPlan {
         { taskId: "task-c", amounts: [{ unit: "lovelace", quantity: 3_000_000n }] },
       ] },
     ],
+    allocations: [],
+    allocationBudgetMonth: null,
     payments: 4,
     unitDisplay: new Map([[GVTT, { ticker: "GVTT", decimals: 6 }]]),
     spendProblems: [],

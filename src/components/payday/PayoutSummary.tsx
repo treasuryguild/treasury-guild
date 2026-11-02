@@ -1,11 +1,26 @@
 "use client";
 
-import type { WalletAssetsResponse } from "@/lib/api/types";
+import type { AllocationRuleResponse, WalletAssetsResponse } from "@/lib/api/types";
 import { MAX_PAYOUT_CONTRIBUTORS, TOKEN_CONTRIBUTOR_WARNING } from "@/lib/constants";
 import type { PaydayMatching } from "@/lib/payday/matching";
 import { describeTotals, type PaydaySummary } from "@/lib/payday/summary";
 import { Button, Card, ErrorText, WarningText } from "@/components/ui";
 import { TokenConnector } from "./TokenConnector";
+
+function describeAllocationRules(rules: readonly AllocationRuleResponse[]): string | null {
+  const enabled = rules.filter((r) => r.enabled);
+  if (enabled.length === 0) return null;
+  return enabled
+    .map((r) => {
+      const pct = (r.basis_points / 100).toString();
+      const dest = r.recipient_treasury_id
+        ? "sibling treasury"
+        : (r.recipient_wallet ? `${r.recipient_wallet.slice(0, 10)}…` : "destination");
+      const scope = r.unit_scope === "all" ? "all tokens" : "selected tokens";
+      return `${r.label}: ${pct}% of ${scope} → ${dest}`;
+    })
+    .join("; ");
+}
 
 /** What the payout leaves out, each linking to the view that lists it. */
 export interface PayoutCoverage {
@@ -33,6 +48,7 @@ export function PayoutSummary({
   coverage,
   onShow,
   onBuild,
+  allocationRules = [],
 }: {
   summary: PaydaySummary;
   matching: PaydayMatching;
@@ -49,7 +65,10 @@ export function PayoutSummary({
   coverage: PayoutCoverage;
   onShow: (target: CoverageTarget) => void;
   onBuild: () => void;
+  /** Enabled rules are listed so builders see the fee/savings before build. */
+  allocationRules?: readonly AllocationRuleResponse[];
 }) {
+  const allocationNote = describeAllocationRules(allocationRules);
   const overBudget = overBudgetFields.length > 0;
   const blocked =
     busy ||
@@ -70,6 +89,11 @@ export function PayoutSummary({
             {summary.wallets.size} contributors
           </p>
           <p className="mt-1 text-xl font-semibold">{describeTotals(summary.totals)}</p>
+          {allocationNote && (
+            <p className="mt-1 text-sm text-amber-200/90">
+              Also applying (on top of bounties): {allocationNote}
+            </p>
+          )}
           <CoverageLine coverage={coverage} onShow={onShow} />
           {treasuryId && wallet && (
             <TokenConnector

@@ -54,6 +54,11 @@ export const PAYOUT_METADATA_LEGEND: MetadataLegend = {
       meaning:
         "The decisions behind the payout: one entry per cited proposal, [proposal number, content hash, task numbers]. A task cites the proposal that created it and the budget proposal that set its period's budget. Absent when nothing is cited.",
     },
+    {
+      key: "a",
+      meaning:
+        'Payday allocation outputs (ops fee or savings): [output position, amounts in k order, flag]. Flag 0 = spending charged to the paying treasury\'s budget, 1 = transfer to a sibling treasury. Absent when no allocation rules applied.',
+    },
   ],
   docs: { href: docHref({ slug: "transactions", hash: "on-chain-metadata" }), label: "On-chain metadata" },
 };

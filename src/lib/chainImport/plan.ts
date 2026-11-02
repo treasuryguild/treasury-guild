@@ -236,6 +236,8 @@ export interface PayoutImportInput {
   existingTasks: readonly ImportExistingTask[];
   /** Chain numbers an admin chose to import under a new number. */
   asNewNumbers: ReadonlySet<number>;
+  /** Sibling treasuries for allocation transfer flags in metadata `a`. */
+  siblings?: readonly { id: string; name: string; address: string }[];
 }
 
 export function planPayoutImport(input: PayoutImportInput): ChainImportPlanResult {
@@ -332,8 +334,57 @@ export function planPayoutImport(input: PayoutImportInput): ChainImportPlanResul
       }
     }
   }
+  // Optional Payday allocations (`a`): rebuild as payments rows on the payout.
+  const siblingByAddress = new Map((input.siblings ?? []).map((s) => [s.address, s]));
+  const paymentRows = new Map<string, ImportPlanPayment & { quantity: bigint }>();
+  for (const [outputIndex, amounts, flag] of meta.a ?? []) {
+    const output = input.outputs[outputIndex];
+    if (!output) {
+      issues.push({ code: Code.OutputMissing, outputIndex });
+      continue;
+    }
+    const scaled = scaleAmounts(amounts, assets);
+    if (!scaled) {
+      bad(`allocation output ${outputIndex} has no readable amounts`);
+      continue;
+    }
+    issues.push(...checkOutputAmounts(outputIndex, output, scaled.units, input.treasuryAddress));
+    const sibling = siblingByAddress.get(output.address) ?? null;
+    if (flag === 1 && !sibling) {
+      issues.push({ code: Code.UnknownTreasury, outputIndex, address: output.address });
+      continue;
+    }
+    if (flag === 0 && sibling) {
+      issues.push({ code: Code.TransferMismatch, outputIndex, address: output.address });
+      continue;
+    }
+    // Spend allocations have no period on the payout record; stamp the
+    // current calendar month so treasury budget history stays attributable.
+    const spendMonth = sibling ? null : `${new Date().toISOString().slice(0, 7)}-01`;
+    for (const [unit, quantity] of scaled.units) {
+      const key = `${output.address}\n${unit}`;
+      const row = paymentRows.get(key);
+      if (row) row.quantity += quantity;
+      else {
+        paymentRows.set(key, {
+          recipientWallet: output.address,
+          recipientTreasuryId: sibling?.id ?? null,
+          label: truncateUtf8(sibling?.name ?? "") || null,
+          unit,
+          amount: "",
+          budgetMonth: spendMonth,
+          quantity,
+        });
+      }
+    }
+  }
+
   if (issues.length > 0) return { ok: false, issues };
 
+  const payments = [...paymentRows.values()].map(({ quantity, ...row }) => ({
+    ...row,
+    amount: quantity.toString(),
+  }));
   const contributors = [...new Set(tasks.flatMap((t) => t.wallets))];
   return {
     ok: true,
@@ -349,7 +400,7 @@ export function planPayoutImport(input: PayoutImportInput): ChainImportPlanResul
       assets: tickers.discovered,
       tasks,
       payouts,
-      payments: [],
+      payments,
     },
   };
 }

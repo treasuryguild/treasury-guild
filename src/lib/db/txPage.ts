@@ -128,7 +128,7 @@ export async function loadTxPageData(txId: string, viewer: string | null): Promi
       .from("community_assets")
       .select(COMMUNITY_ASSET_COLUMNS)
       .eq("community_id", treasury.community_id),
-    row.kind === TxKind.Payment
+    row.kind === TxKind.Payment || row.kind === TxKind.Payout
       ? db.from("payments").select(PAYMENT_COLUMNS).eq("transaction_id", row.id).order("id")
       : Promise.resolve({ data: [] as PaymentRow[] }),
     row.kind === TxKind.Payout

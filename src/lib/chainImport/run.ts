@@ -133,6 +133,7 @@ async function planRow(
     aliases: context.aliases,
     existingTasks: await loadTasksByNumber(treasury.community_id, numbers),
     asNewNumbers,
+    siblings: context.siblings,
   });
 }
 

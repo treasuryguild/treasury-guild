@@ -26,6 +26,12 @@
 // under every proposal it cites. Omitted when nothing is cited. Still v3:
 // readers ignore a key they do not know, and the task entry keeps its four
 // elements.
+//
+// Optional `a` (Payday allocation outputs — ops fee / savings):
+//   a: [ [<output index>, [<amount>, …], <flag>], … ]
+// Amounts aligned to the same `k` as tasks. Flag 0 = spend charged to the
+// paying treasury's budget, 1 = transfer to a sibling treasury. Omitted when
+// no allocation rules applied. Still v3.
 
 import { formatQuantity } from "@/lib/assets";
 import { MAX_TASK_NUMBER } from "@/lib/constants";
@@ -81,6 +87,11 @@ export type PayoutMetadataEntry = [o: number, t: PayoutMetadataTask[]];
 /** One cited proposal: its number, its content hash (sha256 hex) and the tasks citing it. */
 export type PayoutCitation = [n: number, h: string, tasks: number[]];
 
+/** 0 = treasury-budget spend, 1 = sibling-treasury transfer (Payday allocations). */
+export type PayoutAllocationFlag = 0 | 1;
+/** One allocation output: body index, amounts aligned to `k`, spend/transfer flag. */
+export type PayoutAllocationEntry = [o: number, x: string[], f: PayoutAllocationFlag];
+
 export interface PayoutMetadata {
   v: typeof PAYOUT_METADATA_VERSION;
   src: typeof METADATA_SRC;
@@ -95,6 +106,8 @@ export interface PayoutMetadata {
   p: PayoutMetadataEntry[];
   /** The decisions behind the payout, by proposal number; absent when none is cited. */
   g?: PayoutCitation[];
+  /** Payday allocation outputs (ops fee / savings); absent when none applied. */
+  a?: PayoutAllocationEntry[];
 }
 
 /** A proposal a spend cites: its number and the content hash every ballot signed. */
@@ -170,9 +183,20 @@ export function parsePayoutMetadata(value: unknown): PayoutMetadata | null {
     e[1].every(isTask);
   if (!m.p.every(isEntry)) return null;
   if (m.g !== undefined && !(Array.isArray(m.g) && m.g.every(isPayoutCitation))) return null;
+  const isAllocation = (e: unknown): e is PayoutAllocationEntry =>
+    Array.isArray(e) &&
+    e.length === 3 &&
+    typeof e[0] === "number" &&
+    Number.isInteger(e[0]) &&
+    e[0] >= 0 &&
+    isStringArray(e[1]) &&
+    e[1].length <= k.length &&
+    (e[2] === 0 || e[2] === 1);
+  if (m.a !== undefined && !(Array.isArray(m.a) && m.a.every(isAllocation))) return null;
   return {
     v: PAYOUT_METADATA_VERSION, src: METADATA_SRC, c: m.c, w, b, k, p: m.p,
     ...(m.g !== undefined ? { g: m.g as PayoutCitation[] } : {}),
+    ...(m.a !== undefined ? { a: m.a as PayoutAllocationEntry[] } : {}),
   };
 }
 
@@ -237,6 +261,13 @@ export interface PayoutForMetadata {
   citations?: readonly Citation[];
 }
 
+/** One Payday allocation output for the optional metadata `a` list. */
+export interface PayoutAllocationForMetadata {
+  outputIndex: number;
+  transfer: boolean;
+  amounts: { ticker: string; quantity: bigint; decimals: number }[];
+}
+
 /** A top-level list (`w`, `b`, `k`) that records reference by index. */
 export interface InternList {
   values: string[];
@@ -295,6 +326,7 @@ export function alignedAmounts(
 export function buildPayoutMetadata(
   communitySlug: string,
   payouts: PayoutForMetadata[],
+  allocations: readonly PayoutAllocationForMetadata[] = [],
 ): PayoutMetadata {
   const workgroups = internList();
   const periods = internList();
@@ -322,6 +354,16 @@ export function buildPayoutMetadata(
     }
   }
 
+  // Allocations share `k` with tasks so amounts stay aligned; intern their
+  // tickers after tasks so contributor columns stay stable when possible.
+  const a: PayoutAllocationEntry[] = [...allocations]
+    .sort((x, y) => x.outputIndex - y.outputIndex)
+    .map((alloc) => [
+      alloc.outputIndex,
+      alignedAmounts(alloc.amounts, assets),
+      alloc.transfer ? 1 : 0,
+    ]);
+
   const g: PayoutCitation[] = [...cited.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([number, { hash, tasks }]) => [number, hash, [...tasks].sort((a, b) => a - b)]);
@@ -335,6 +377,7 @@ export function buildPayoutMetadata(
     k: assets.values,
     p: [...byOutput.values()].sort((a, b) => a[0] - b[0]),
     ...(g.length > 0 ? { g } : {}),
+    ...(a.length > 0 ? { a } : {}),
   };
 }
 

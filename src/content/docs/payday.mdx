@@ -35,6 +35,15 @@ The list then shows only the tasks that treasury can pay: those of workgroups wh
 
 **Spending path.** When the selected treasury offers more than one way to spend right now, a **Spending path** choice appears under the picker: on a co-signer treasury, **Co-signed** (the default) or **Bypass (every base signer)**. Payouts never use a clawback treasury's recovery path. A lock-until treasury says it is locked until its date instead, and nothing can be built before then. See [Spending paths](/docs/treasury#spending-paths).
 
+## Allocation rules (ops fee and savings)
+
+Admins can configure **Allocation rules** for the selected paying treasury (up to five). Each enabled rule sends a **percent of the paid tokens** in the payout, **on top of** full contributor bounties, in the **same** transaction:
+
+- **Outside wallet** — spending charged to that treasury's [budget](/docs/budgets#treasury-budgets) (for example a bulk-payment operator fee).
+- **Sibling treasury** — a transfer into another of the community's treasuries (savings / reserve pot); transfers are not charged to a budget.
+
+The percent is of each token the payout pays (or of a selected allowlist of units). Several rules can apply at once; amounts to the same destination are merged into one output. The Payday summary lists enabled rules before you build. Contributors still receive 100% of their task bounties.
+
 ## Selecting tasks
 
 Tasks are grouped by workgroup, and each group's header shows how many of its tasks are selected, how many need attention, and the selected subtotal. **Select all** and **Clear** tick or untick the ready tasks the group lists, which makes paying every workgroup routed to a treasury in one batch a matter of checking each group.

@@ -146,6 +146,38 @@ function comparePayoutRecord(meta: PayoutMetadata | null, input: CompareInput, p
   for (const wallet of tasksByWallet.keys()) {
     if (!named.has(wallet)) problems.push(`The record names no output for ${wallet}`);
   }
+
+  // Optional `a`: Payday allocation outputs must match stored payments rows.
+  const allocations = meta.a ?? [];
+  if (allocations.length === 0 && input.payments.length > 0) {
+    problems.push("The stored payments have no matching allocation record");
+    return;
+  }
+  if (allocations.length === 0) return;
+  const transferByWallet = new Map<string, boolean>();
+  for (const p of input.payments) transferByWallet.set(p.recipientWallet, isStoredTransfer(p));
+  const allocNamed = new Set<string>();
+  for (const [outputIndex, , flag] of allocations) {
+    const output = input.outputs[outputIndex];
+    if (!output || output.address === input.treasuryAddress) {
+      problems.push(`The allocation record names output ${outputIndex}, which pays nobody`);
+      continue;
+    }
+    const transfer = transferByWallet.get(output.address);
+    if (transfer === undefined) {
+      problems.push(`The allocation record names output ${outputIndex}, which the stored payments do not`);
+      continue;
+    }
+    if ((flag === 1) !== transfer) {
+      problems.push(
+        `Output ${outputIndex} is ${transfer ? "" : "not "}a transfer in the stored payments but ${flag === 1 ? "" : "not "}in the allocation record`,
+      );
+    }
+    allocNamed.add(output.address);
+  }
+  for (const wallet of transferByWallet.keys()) {
+    if (!allocNamed.has(wallet)) problems.push(`The allocation record names no output for ${wallet}`);
+  }
 }
 
 function comparePaymentRecord(meta: PaymentMetadata | null, input: CompareInput, problems: string[]) {
@@ -211,11 +243,27 @@ export function compareTxToRows(input: CompareInput): string[] {
     case TxKind.Payout: {
       if (input.payouts.length === 0) problems.push("No payouts are stored for this transaction");
       if (input.mint.length > 0) problems.push("A payout forges no assets");
-      compareOutputs(
-        leaving,
-        byRecipient(input.payouts, (p) => p.contributorWallet, (p) => ({ unit: p.unit, quantity: BigInt(p.amount) })),
-        problems,
+      for (const p of input.payments) {
+        if (isStoredTransfer(p) && !input.siblingAddresses.has(p.recipientWallet)) {
+          problems.push(`The transfer to ${p.recipientWallet} does not go to a treasury or float wallet of this community`);
+        }
+      }
+      // Contributors (payouts) plus Payday allocation legs (payments) leave the treasury.
+      const expected = byRecipient(
+        input.payouts,
+        (p) => p.contributorWallet,
+        (p) => ({ unit: p.unit, quantity: BigInt(p.amount) }),
       );
+      for (const [address, amounts] of byRecipient(
+        input.payments,
+        (p) => p.recipientWallet,
+        (p) => ({ unit: p.unit, quantity: BigInt(p.amount) }),
+      )) {
+        const list = expected.get(address) ?? [];
+        list.push(...amounts);
+        expected.set(address, list);
+      }
+      compareOutputs(leaving, expected, problems);
       comparePayoutRecord(parsePayoutMetadata(input.payoutMeta), input, problems);
       break;
     }

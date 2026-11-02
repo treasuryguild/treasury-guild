@@ -30,6 +30,7 @@ import { BusyOverlay, Button, EmptyState, PageTitle } from "@/components/ui";
 import { offeredPaths, PathPicker } from "@/components/tx/PathPicker";
 import { TxKind, type SpendingPath } from "@/lib/constants";
 import { TaskModal } from "@/components/board/TaskModal";
+import { AllocationRulesPanel } from "@/components/payday/AllocationRulesPanel";
 import { ElsewhereSection } from "@/components/payday/ElsewhereSection";
 import { PaydayFilters } from "@/components/payday/PaydayFilters";
 import { PaydayWorkgroupGroup } from "@/components/payday/PaydayWorkgroupGroup";
@@ -37,6 +38,7 @@ import { PayoutSummary, type CoverageTarget } from "@/components/payday/PayoutSu
 import { TaskRow } from "@/components/payday/TaskRow";
 import { TreasuryPicker } from "@/components/payday/TreasuryPicker";
 import { managesWorkgroup } from "@/lib/roles";
+import { useAllocationRules } from "@/hooks/useAllocationRules";
 import { useTreasuryChoice } from "@/hooks/useTreasuryChoice";
 
 const EMPTY_REGISTRY: never[] = [];
@@ -104,6 +106,7 @@ export default function PaydayPage({
   const treasuries = useMemo(() => pickable ?? [], [pickable]);
   const registry = registryQuery.data ?? EMPTY_REGISTRY;
   const wallet = useWalletAssets(selectedTreasury?.address).data;
+  const allocationRules = useAllocationRules(treasuryId || null);
 
   const selected = useMemo(
     () => deriveSelection(tasks, treasuryId, optedOut, routing),
@@ -203,6 +206,21 @@ export default function PaydayPage({
 
       <PathPicker treasury={selectedTreasury} kind={TxKind.Payout} value={chosenPath ?? ""} onChange={setPath} disabled={busy} nowMs={nowMs} />
 
+      {isAdmin && treasuryId && (
+        <div className="mb-6">
+          <AllocationRulesPanel
+            treasuryId={treasuryId}
+            siblings={allTreasuries.filter((t) => t.id !== treasuryId).map((t) => ({
+              id: t.id,
+              name: t.name,
+              archived_at: t.archived_at,
+            }))}
+            rules={allocationRules.data ?? []}
+            onChanged={() => void allocationRules.reload()}
+          />
+        </div>
+      )}
+
       <div ref={listRef} className="mb-6 scroll-mt-4">
         {!tasksQuery.loading && tasks.length === 0 && (
           <EmptyState>
@@ -295,6 +313,7 @@ export default function PaydayPage({
             hiddenSelected: view.hiddenSelected,
           }}
           onShow={show}
+          allocationRules={allocationRules.data ?? []}
           onBuild={() =>
             void build<BuildPayoutResponse>("/api/tx/build-payout", {
               treasuryId,

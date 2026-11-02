@@ -49,6 +49,13 @@ function payoutFingerprint(plan: PayoutPlan): string {
           .sort((a, b) => a.task.localeCompare(b.task)),
       }))
       .sort((a, b) => a.wallet.localeCompare(b.wallet)),
+    allocations: (plan.allocations ?? [])
+      .map((a) => ({
+        address: a.address,
+        treasuryId: a.recipientTreasuryId,
+        amounts: a.amounts.map((x) => [x.unit, x.quantity.toString()]).sort(),
+      }))
+      .sort((a, b) => a.address.localeCompare(b.address)),
     spendProblems: plan.spendProblems,
   }));
 }
@@ -160,11 +167,24 @@ export const previewPayout = defineEndpoint({
           ).map((a) => amountText(plan, a.unit, a.quantity)),
         })),
         total: totals,
+        ...((plan.allocations ?? []).length > 0
+          ? {
+            allocations: plan.allocations.map((a) => ({
+              label: a.label,
+              wallet: a.address,
+              transfer: !!a.recipientTreasuryId,
+              amounts: a.amounts.map((x) => amountText(plan, x.unit, x.quantity)),
+            })),
+          }
+          : {}),
       },
       effects: [
         `It becomes ${treasury.name}'s pending transaction: no other payout or payment can be built from that treasury until it is signed and submitted, or rejected.`,
         `Nothing is paid until ${requiredSignatures(rule)} signer${requiredSignatures(rule) === 1 ? "" : "s"} sign it in the app; the network fee is added when it is built.`,
         "The tasks are queued for this payout and leave the payable list.",
+        ...((plan.allocations ?? []).length > 0
+          ? [`This payout also sends ${plan.allocations.length} allocation output${plan.allocations.length === 1 ? "" : "s"} (ops fee or savings) on top of the bounties.`]
+          : []),
       ],
       ...(plan.spendProblems.length > 0 ? { problems: plan.spendProblems.map(spendProblemText) } : {}),
       next: CONFIRM_NEXT,
