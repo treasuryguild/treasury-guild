@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   lookupDrep: vi.fn(),
   confirm: vi.fn(),
   tagInternalTransfers: vi.fn(),
+  tagFloatTransfers: vi.fn(),
 }));
 // db/client re-exports this client; its real rows / maybe / check unwrap the results.
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from }) }));
@@ -23,6 +24,7 @@ vi.mock("@/lib/cardano/koios", () => ({
 }));
 vi.mock("@/lib/db/transactions", () => ({ confirmTransaction: mocks.confirm }));
 vi.mock("@/lib/db/treasuries", () => ({ tagInternalTransfers: mocks.tagInternalTransfers }));
+vi.mock("@/lib/db/floatWallets", () => ({ tagFloatTransfers: mocks.tagFloatTransfers }));
 
 import { pollTreasury } from "./poll";
 
@@ -136,6 +138,7 @@ beforeEach(() => {
   chain([], []);
   mocks.confirm.mockResolvedValue(true);
   mocks.tagInternalTransfers.mockResolvedValue(undefined);
+  mocks.tagFloatTransfers.mockResolvedValue(undefined);
   mocks.lookupStakePool.mockResolvedValue(null);
   mocks.lookupDrep.mockResolvedValue(null);
 });
@@ -157,6 +160,7 @@ describe("pollTreasury", () => {
         { treasury_id: "t-1", last_block_height: 0, synced_at: new Date(NOW).toISOString() },
       ]);
       expect(mocks.tagInternalTransfers).not.toHaveBeenCalled();
+      expect(mocks.tagFloatTransfers).not.toHaveBeenCalled();
     });
 
     it("resumes from the stored height on the community's network and advances to the highest block seen", async () => {
@@ -287,8 +291,9 @@ describe("pollTreasury", () => {
       }]);
       expect(of("external_txs", "insert")).toEqual([]);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
+      expect(mocks.tagFloatTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
       // Bookkeeping comes last: the rows are in before the cursor moves.
-      const tagged = mocks.tagInternalTransfers.mock.invocationCallOrder[0]!;
+      const tagged = mocks.tagFloatTransfers.mock.invocationCallOrder[0]!;
       expect(mocks.from.mock.invocationCallOrder.at(-1)!).toBeGreaterThan(tagged);
       expect(of("treasury_sync_cursors", "upsert")[0]?.values).toMatchObject({ last_block_height: 800 });
     });
@@ -301,6 +306,7 @@ describe("pollTreasury", () => {
       expect(await pollTreasury(TREASURY)).toEqual({ newIncoming: 0, confirmed: 0, newExternal: 0 });
       expect(of("incoming_txs", "insert")).toHaveLength(1);
       expect(mocks.tagInternalTransfers).not.toHaveBeenCalled();
+      expect(mocks.tagFloatTransfers).not.toHaveBeenCalled();
       expect(of("treasury_sync_cursors", "upsert")[0]?.values).toMatchObject({ last_block_height: 800 });
     });
 
@@ -340,6 +346,7 @@ describe("pollTreasury", () => {
       }]);
       expect(of("incoming_txs", "insert")).toEqual([]);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
+      expect(mocks.tagFloatTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
     });
 
     it("stores no payout_meta for a spend without the label, and a zero fee when Koios gives none", async () => {
@@ -405,6 +412,7 @@ describe("pollTreasury", () => {
       expect(await pollTreasury(TREASURY)).toEqual({ newIncoming: 0, confirmed: 0, newExternal: 1 });
       expect(console.error).toHaveBeenCalledExactlyOnceWith("external_txs insert h-bad failed", refusals["h-bad"]?.error);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledTimes(1);
+      expect(mocks.tagFloatTransfers).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -414,6 +422,7 @@ describe("pollTreasury", () => {
       await expect(pollTreasury(TREASURY)).rejects.toThrow("koios 503");
       expect(calls.filter((c) => c.op !== "select")).toEqual([]);
       expect(mocks.tagInternalTransfers).not.toHaveBeenCalled();
+      expect(mocks.tagFloatTransfers).not.toHaveBeenCalled();
     });
 
     it("throws when Koios cannot describe the transactions, before any write", async () => {

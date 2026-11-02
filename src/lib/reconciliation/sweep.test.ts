@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => ({
   cosign: vi.fn(),
   releaseOrphans: vi.fn(),
   releaseCanceled: vi.fn(),
+  listFloats: vi.fn(),
+  pollFloat: vi.fn(),
 }));
 // db/client re-exports this client; its real rows / maybe / check unwrap the results.
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }));
@@ -32,6 +34,7 @@ vi.mock("@/lib/db/invites", () => ({ purgeCommunityInvites: mocks.purgeInvites }
 vi.mock("@/lib/db/signerDrafts", () => ({ purgeSignerDrafts: mocks.purgeSignerDrafts }));
 vi.mock("@/lib/db/tasks", () => ({ releaseOrphanedQueuedTasks: mocks.releaseOrphans }));
 vi.mock("@/lib/db/transactions", () => ({ releaseExpiredCanceledTransactions: mocks.releaseCanceled }));
+vi.mock("@/lib/db/floatWallets", () => ({ listAllFloatWalletsForSync: mocks.listFloats }));
 vi.mock("@/lib/cardano/slots", () => ({ slotAt: (_n: number, ms: number) => Math.floor(ms / 1000) }));
 vi.mock("@/lib/discord/notifyPayouts", () => ({ notifyConfirmedPayouts: mocks.notifyPayouts }));
 vi.mock("@/lib/discord/notifyProposals", () => ({ notifyProposalMilestones: mocks.notifyProposals }));
@@ -43,6 +46,7 @@ vi.mock("@/lib/discord/notifyAnchorsDue", () => ({ notifyAnchorsDue: mocks.notif
 vi.mock("@/lib/discord/notifyOutsideSpends", () => ({ notifyOutsideSpends: mocks.notifyOutside }));
 vi.mock("@/lib/cosigner/sign", () => ({ cosignReadyTransactions: mocks.cosign }));
 vi.mock("@/lib/reconciliation/syncTreasury", () => ({ syncTreasury: mocks.syncTreasury }));
+vi.mock("@/lib/reconciliation/pollFloat", () => ({ pollFloatWallet: mocks.pollFloat }));
 
 import { runReconcileSweep } from "./sweep";
 
@@ -110,6 +114,8 @@ beforeEach(() => {
   mocks.cosign.mockResolvedValue({ signed: 1, refused: 0 });
   mocks.releaseOrphans.mockResolvedValue(0);
   mocks.releaseCanceled.mockResolvedValue(0);
+  mocks.listFloats.mockResolvedValue([]);
+  mocks.pollFloat.mockResolvedValue({ newIncoming: 0, newOutgoing: 0 });
 });
 
 const EMPTY_FREEZE = { frozen: 0, failed: 0 };
@@ -126,6 +132,7 @@ describe("runReconcileSweep", () => {
     const result = await runReconcileSweep();
     expect(result).toEqual({
       results: { "t-1": SYNCED, "t-2": SYNCED, "t-3": SYNCED },
+      floatResults: {},
       writtenBack: 0,
       statusMoved: 0,
       discordPosted: 4,
@@ -246,12 +253,12 @@ describe("runReconcileSweep", () => {
     for (const step of [
       mocks.advance, mocks.notifyProposals, mocks.freeze, mocks.publish, mocks.notifyAnchors, mocks.syncTreasury,
       mocks.notifyOutside, mocks.notifyPayouts, mocks.purgeRateLimits, mocks.purgeInvites, mocks.purgeSignerDrafts, mocks.purgeOAuth,
-      mocks.cosign, mocks.releaseOrphans, mocks.releaseCanceled,
+      mocks.cosign, mocks.releaseOrphans, mocks.releaseCanceled, mocks.listFloats,
     ]) {
       step.mockRejectedValue(new Error("boom"));
     }
     expect(await runReconcileSweep()).toEqual({
-      results: {}, writtenBack: 0, statusMoved: 0, discordPosted: 0,
+      results: {}, floatResults: {}, writtenBack: 0, statusMoved: 0, discordPosted: 0,
       proposals: { advanced: 0, failed: 0 }, proposalAnnouncements: { posted: 0, failed: 0, dead: 0 },
       tallyDocuments: EMPTY_FREEZE, documentCopies: EMPTY_PUBLISH, anchorAlerts: EMPTY_ANCHORS,
       outsideSpends: EMPTY_OUTSIDE, cosigned: { signed: 0, refused: 0 },
