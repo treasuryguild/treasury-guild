@@ -1,4 +1,4 @@
-**Payments** (community sidebar) is for money that is not a task bounty: paying another community or a contractor for a service, paying a member for something outside any workgroup budget, or moving funds from one of your treasuries to another. You pick the treasury that pays, list the recipients and amounts, and build **one** transaction that the treasury's signers approve on the [signing page](/docs/transactions), exactly like a payout.
+**Payments** (community sidebar) is for money that is not a task bounty: paying another community or a contractor for a service, paying a member for something outside any workgroup budget, or moving funds from one of your treasuries to another treasury or a [float wallet](/docs/treasury#float-wallets). You pick the treasury that pays, list the recipients and amounts, and build **one** transaction that the treasury's signers approve on the [signing page](/docs/transactions), exactly like a payout.
 
 ## The Payments page
 
@@ -14,6 +14,7 @@ Each row starts with what kind of recipient it is:
 
 - **Community member** — pick a member; their wallet is paid and their handle is shown on the transaction.
 - **Another treasury** — pick one of the community's other treasuries (greyed out while the community has only one). This is a **transfer** (see [Transfers between your treasuries](#transfers-between-your-treasuries)).
+- **Float wallet** — pick one of the community's [float wallets](/docs/treasury#float-wallets) (greyed out while none are registered). This is also a **transfer**: it funds a DEX/dApp float and is not charged to a budget.
 - **Any address** — paste a Cardano address on the community's network, for a contractor, another community or anyone else.
 
 Then add assets one at a time with **Add asset…**: pick a token the treasury holds, enter its amount in the token's own units (10 GVTT, 2.5 ADA), and remove a line with the bin icon. Only tokens you add are paid; two rows naming the same address are paid as one output with the sum. Treasury Guild reads what the treasury holds from the chain, so no token needs to be registered.
@@ -34,7 +35,7 @@ The period is written into the [on-chain record](#on-chain-record) as `YYYY-MM` 
 
 ## Transfers between your treasuries
 
-An output to another of the community's treasuries is a **transfer**, not spending: it takes no budget period, counts against no budget, and is marked *Transfer* on the transaction page. Once the chain confirms it, the receiving treasury logs the inflow as an internal transfer without review (see [Several treasuries](/docs/treasury#several-treasuries)), and the Dashboard's funding flow draws it between the two wallets. A payment can mix transfers and other recipients; only the other recipients are charged to the budget. Use **Move all assets** with **Another treasury** when you want to empty one wallet into another (for example before you stop using it).
+An output to another of the community's treasuries, or to a [float wallet](/docs/treasury#float-wallets), is a **transfer**, not spending: it takes no budget period, counts against no budget, and is marked *Transfer* on the transaction page. Once the chain confirms it, the receiving treasury (or float) is linked without treating the move as income, and the Dashboard's funding flow draws it between the wallets. A payment can mix transfers and other recipients; only the other recipients are charged to the budget. Use **Move all assets** with **Another treasury** when you want to empty one wallet into another (for example before you stop using it).
 
 **Fund this budget** on an applied [budget proposal](/docs/governance#funding-a-voted-budget) opens this page with such a transfer filled in: the workgroup's treasury as the recipient, the period's voted amounts, and the proposal to cite. A notice at the top says which budget is being funded. Pick the treasury that pays (not the one being funded), edit the amounts if you like, and build; the transfer's on-chain record then cites the budget proposal under `g`. A voted amount in a token the paying treasury does not hold is listed as a problem until you clear it or pay from another treasury.
 

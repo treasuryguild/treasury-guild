@@ -52,6 +52,7 @@ function spend(patch: Partial<UnalertedSpend> = {}): UnalertedSpend {
     assets: null,
     to_addresses: ["addr_test1bob"],
     to_treasury_id: null,
+    to_float_wallet_id: null,
     activity: null,
     treasuries: { name: "Main", network: 0, community_id: "c-1" },
     ...patch,

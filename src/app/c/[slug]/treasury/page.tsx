@@ -57,6 +57,7 @@ import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice
 import { IntegrationStatusLink } from "@/components/integrations/IntegrationStatusLink";
 import { ChainImportQueue } from "@/components/treasury/ChainImportQueue";
 import { ChainSyncStatus } from "@/components/treasury/ChainSyncStatus";
+import { FloatWalletsSection } from "@/components/treasury/FloatWalletsSection";
 import { TreasuryDetailsModal } from "@/components/treasury/TreasuryDetailsModal";
 import { TreasuryLifecycleDialog } from "@/components/treasury/TreasuryLifecycleDialog";
 
@@ -361,6 +362,10 @@ export default function TreasuryPage({
           </EmptyState>
         )}
       </div>
+
+      {community && (
+        <FloatWalletsSection communityId={community.id} isAdmin={!!isAdmin} />
+      )}
 
       {managing && (
         <TreasuryLifecycleDialog

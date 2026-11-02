@@ -305,9 +305,9 @@ export interface PayoutRow {
 
 /**
  * One output of a manual payment (transactions.kind = 'payment'), per
- * recipient address and unit. A row with `recipient_treasury_id` is a
- * transfer to another of the community's treasuries and carries no budget
- * month; every other row is charged to the paying treasury's budget.
+ * recipient address and unit. A row with `recipient_treasury_id` or
+ * `recipient_float_wallet_id` is a transfer and carries no budget month;
+ * every other row is charged to the paying treasury's budget.
  */
 export interface PaymentRow {
   id: string;
@@ -316,7 +316,9 @@ export interface PaymentRow {
   treasury_id: string;
   recipient_wallet: string;
   recipient_treasury_id: string | null;
-  /** Member handle or treasury name at build time. */
+  /** A community float wallet among the recipients (migration 0088). */
+  recipient_float_wallet_id: string | null;
+  /** Member handle or treasury / float name at build time. */
   label: string | null;
   unit: string;
   amount: string;
@@ -326,7 +328,7 @@ export interface PaymentRow {
 }
 
 export const PAYMENT_COLUMNS =
-  "id, transaction_id, community_id, treasury_id, recipient_wallet, recipient_treasury_id, label, unit, amount, budget_month, created_at";
+  "id, transaction_id, community_id, treasury_id, recipient_wallet, recipient_treasury_id, recipient_float_wallet_id, label, unit, amount, budget_month, created_at";
 
 export interface CommunityAssetRow {
   community_id: string;
@@ -376,6 +378,8 @@ export interface IncomingTxRow {
   note: string | null;
   /** Another treasury of the community it came from (tag_internal_transfers). */
   from_treasury_id: string | null;
+  /** A community float wallet among the inputs (tag_float_transfers, 0088). */
+  from_float_wallet_id: string | null;
   /** The funding source (and commitment) an admin tied this inflow to (migration 0052). */
   funding_source_id: string | null;
   funding_commitment_id: string | null;
@@ -411,6 +415,8 @@ export interface ExternalTxRow {
   tx_cbor?: string | null;
   /** Another treasury of the community among the recipients (display only). */
   to_treasury_id: string | null;
+  /** A community float wallet among the recipients (tag_float_transfers, 0088). */
+  to_float_wallet_id: string | null;
   /** Chain import state (migration 0045); null = not evaluated yet. */
   import_status: ChainImportStatus | null;
   /** Why the import is held, when `import_status` is 'blocked'. */
@@ -421,10 +427,58 @@ export interface ExternalTxRow {
 }
 /** List / queue selects: no CBOR (large). */
 export const EXTERNAL_TX_SUMMARY_COLUMNS =
-  "tx_hash, treasury_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, payout_meta, activity, to_treasury_id, import_status, import_issues, governance_alerted_at, created_at";
+  "tx_hash, treasury_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, payout_meta, activity, to_treasury_id, to_float_wallet_id, import_status, import_issues, governance_alerted_at, created_at";
 /** Details / import: includes cached `tx_cbor` when present. */
 export const EXTERNAL_TX_COLUMNS =
   `${EXTERNAL_TX_SUMMARY_COLUMNS}, tx_cbor`;
+
+/** A watched payment-key float wallet (migration 0088). Not a signable treasury. */
+export interface FloatWalletRow {
+  id: string;
+  community_id: string;
+  name: string;
+  address: string;
+  note: string | null;
+  archived_at: string | null;
+  archived_by: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export const FLOAT_WALLET_COLUMNS =
+  "id, community_id, name, address, note, archived_at, archived_by, created_by, created_at";
+
+/** Inflow seen at a float wallet address (pollFloatWallet). */
+export interface FloatIncomingTxRow {
+  tx_hash: string;
+  float_wallet_id: string;
+  from_addresses: string[];
+  amount_lovelace: string;
+  assets: Record<string, string> | null;
+  block_time: string | null;
+  from_treasury_id: string | null;
+  created_at: string;
+}
+
+export const FLOAT_INCOMING_TX_COLUMNS =
+  "tx_hash, float_wallet_id, from_addresses, amount_lovelace, assets, block_time, from_treasury_id, created_at";
+
+/** Outgoing tx seen at a float wallet (DEX / dApp spend, or return to treasury). */
+export interface FloatExternalTxRow {
+  tx_hash: string;
+  float_wallet_id: string;
+  block_height: number;
+  block_time: string;
+  fee_lovelace: string;
+  amount_lovelace: string;
+  assets: Record<string, string> | null;
+  to_addresses: string[];
+  to_treasury_id: string | null;
+  created_at: string;
+}
+
+export const FLOAT_EXTERNAL_TX_COLUMNS =
+  "tx_hash, float_wallet_id, block_height, block_time, fee_lovelace, amount_lovelace, assets, to_addresses, to_treasury_id, created_at";
 
 /** One step of a workgroup's dated wallet routing (migration 0035). */
 export interface WorkgroupTreasuryAssignmentRow {

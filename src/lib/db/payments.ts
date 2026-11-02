@@ -63,6 +63,7 @@ export interface NewPaymentRow {
   treasury_id: string;
   recipient_wallet: string;
   recipient_treasury_id: string | null;
+  recipient_float_wallet_id: string | null;
   label: string | null;
   unit: string;
   amount: string;

@@ -11,12 +11,12 @@ import type { Network } from "@/lib/config";
 import { MAX_PAYOUT_CONTRIBUTORS } from "@/lib/constants";
 import { shortUnit } from "@/lib/format";
 
-export type RecipientKind = "member" | "treasury" | "address";
+export type RecipientKind = "member" | "treasury" | "float" | "address";
 
 export interface RecipientDraft {
   key: number;
   kind: RecipientKind;
-  /** The address paid: a member's wallet, a sibling treasury's address, or typed. */
+  /** The address paid: a member's wallet, sibling treasury, float wallet, or typed. */
   address: string;
   /** unit -> display amount as typed ("" = none). */
   amounts: Record<string, string>;

@@ -646,6 +646,8 @@ export interface DashboardResponse extends BudgetsResponse {
   series: DashboardSeries;
   flows: DashboardFlows;
   legacy: DashboardLegacy;
+  /** Active float wallets (Sankey nodes for treasury↔float transfers). */
+  floats: { id: string; name: string }[];
   /** Funding sources, which name the Funding flow's tagged income. */
   fundingSources: { id: string; name: string }[];
 }
@@ -770,6 +772,10 @@ export interface LegacyPaymentView {
 }
 /** POST /api/legacy-history/wallets */
 export interface LegacyWalletCreatedResponse {
+  id: string;
+}
+/** POST /api/float-wallets */
+export interface FloatWalletCreatedResponse {
   id: string;
 }
 /** POST /api/legacy-history/workgroup */

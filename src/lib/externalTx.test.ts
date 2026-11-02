@@ -31,6 +31,7 @@ function external(overrides: Partial<ExternalTxRow> = {}): ExternalTxRow {
     activity: null,
     tx_cbor: null,
     to_treasury_id: null,
+    to_float_wallet_id: null,
     import_status: null,
     import_issues: [],
     governance_alerted_at: null,

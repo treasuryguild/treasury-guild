@@ -28,6 +28,7 @@ import {
   loadPayoutsForCheck,
   loadProposalsByNumbers,
 } from "@/lib/db/cosigner";
+import { loadActiveFloatWallets } from "@/lib/db/floatWallets";
 import { loadGovernanceSettings } from "@/lib/db/governance";
 import { loadSiblingTreasuries } from "@/lib/db/payments";
 import { loadSpentForTargets, type SpentTarget } from "@/lib/db/spendCheck";
@@ -94,7 +95,7 @@ async function budgetProblems(
     const setups = await loadBudgetSetupsForTreasury(treasury.id);
     const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId: treasury.id });
     for (const p of payments) {
-      if (p.recipient_treasury_id !== null || !p.budget_month) continue;
+      if (p.recipient_treasury_id !== null || p.recipient_float_wallet_id !== null || !p.budget_month) continue;
       const period = taskBudgetPeriod(p.budget_month, setups, defaultMonth);
       lines.push({
         ownerKey, ownerType: "treasury", ownerId: treasury.id, ownerName: budgetOwnerLabel("treasury", treasury.name),
@@ -159,23 +160,33 @@ export async function runCosignerCheck(tx: TransactionRow, treasury: TreasuryRow
   }
   if (!hashOk) return { passed: false, problems };
 
-  const [payouts, payments, mints, siblings] = await Promise.all([
+  const [payouts, payments, mints, siblings, floats] = await Promise.all([
     tx.kind === TxKind.Payout ? loadPayoutsForCheck(tx.id) : [],
     tx.kind === TxKind.Payment ? loadPaymentsForTx(tx.id) : [],
     tx.kind === TxKind.Mint ? loadMintsForTx(tx.id) : [],
     loadSiblingTreasuries(treasury.community_id, treasury.id),
+    loadActiveFloatWallets(treasury.community_id),
   ]);
   const payoutMeta = extractPayoutMetadata(tx.tx_cbor);
 
   problems.push(...compareTxToRows({
     kind: tx.kind,
     treasuryAddress: treasury.address,
-    siblingAddresses: new Set(siblings.map((s) => s.address)),
+    siblingAddresses: new Set([
+      ...siblings.map((s) => s.address),
+      ...floats.map((f) => f.address),
+    ]),
     outputs: decodeTxOutputs(tx.tx_cbor),
     mint: decodeTxMint(tx.tx_cbor),
     payoutMeta,
     payouts: payouts.map((p) => ({ taskNumber: p.tasks.number, contributorWallet: p.contributor_wallet, unit: p.unit, amount: p.amount })),
-    payments: payments.map((p) => ({ recipientWallet: p.recipient_wallet, recipientTreasuryId: p.recipient_treasury_id, unit: p.unit, amount: p.amount })),
+    payments: payments.map((p) => ({
+      recipientWallet: p.recipient_wallet,
+      recipientTreasuryId: p.recipient_treasury_id,
+      recipientFloatWalletId: p.recipient_float_wallet_id,
+      unit: p.unit,
+      amount: p.amount,
+    })),
     mints: mints.map((m) => ({ policyId: m.policy_id, assetNameHex: m.asset_name_hex, quantity: m.quantity, recipient: m.recipient })),
   }));
 

@@ -8,10 +8,12 @@ const DEV = "addr_test1dev";
 const ALICE = "addr_test1alice";
 const OUTSIDE = "addr_test1outside";
 
+const FLOAT = "addr_test1float";
 const ctx: PaymentRecipientContext = {
   network: 0,
   treasuryAddress: TREASURY,
   siblingTreasuries: [{ id: "dev", name: "Dev wallet", address: DEV }],
+  floatWallets: [{ id: "float-1", name: "DEX float", address: FLOAT }],
   members: new Map([[ALICE, "alice (@alice)"], ["addr_test1bob", null]]),
   tokens: new Map([[GVTT, { ticker: "GVTT", decimals: 6 }]]),
 };
@@ -26,11 +28,11 @@ describe("resolvePaymentRecipients", () => {
     ], ctx);
     expect(problems).toEqual([]);
     expect(recipients).toEqual([
-      { address: ALICE, treasuryId: null, label: "alice (@alice)", amounts: [
+      { address: ALICE, treasuryId: null, floatWalletId: null, label: "alice (@alice)", amounts: [
         { unit: "lovelace", quantity: 3_500_000n }, { unit: GVTT, quantity: 10_000_000n },
       ] },
-      { address: OUTSIDE, treasuryId: null, label: null, amounts: [{ unit: GVTT, quantity: 1n }] },
-      { address: DEV, treasuryId: "dev", label: "Dev wallet", amounts: [{ unit: "lovelace", quantity: 100_000_000n }] },
+      { address: OUTSIDE, treasuryId: null, floatWalletId: null, label: null, amounts: [{ unit: GVTT, quantity: 1n }] },
+      { address: DEV, treasuryId: "dev", floatWalletId: null, label: "Dev wallet", amounts: [{ unit: "lovelace", quantity: 100_000_000n }] },
     ]);
     expect(paymentTotals(recipients)).toEqual(new Map([["lovelace", 103_500_000n], [GVTT, 10_000_001n]]));
   });
@@ -63,5 +65,16 @@ describe("resolvePaymentRecipients", () => {
     const { recipients, problems } = resolvePaymentRecipients(inputs, ctx);
     expect(recipients).toHaveLength(MAX_PAYOUT_CONTRIBUTORS + 1);
     expect(problems).toEqual([`At most ${MAX_PAYOUT_CONTRIBUTORS} recipients per payment (${MAX_PAYOUT_CONTRIBUTORS + 1} given)`]);
+  });
+
+  it("resolves a float wallet as a transfer recipient", () => {
+    const { recipients, problems } = resolvePaymentRecipients([
+      { address: FLOAT, amounts: { lovelace: "50" } },
+    ], ctx);
+    expect(problems).toEqual([]);
+    expect(recipients).toEqual([{
+      address: FLOAT, treasuryId: null, floatWalletId: "float-1", label: "DEX float",
+      amounts: [{ unit: "lovelace", quantity: 50_000_000n }],
+    }]);
   });
 });

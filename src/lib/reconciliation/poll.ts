@@ -7,6 +7,7 @@ import { addressTxs, txInfoBulk, type KoiosAddressTx, type KoiosTxInfo } from "@
 import { asNetwork } from "@/lib/config";
 import { PgCode, TxState } from "@/lib/constants";
 import { confirmTransaction } from "@/lib/db/transactions";
+import { tagFloatTransfers } from "@/lib/db/floatWallets";
 import { tagInternalTransfers } from "@/lib/db/treasuries";
 import {
   classifyExternalActivity,
@@ -194,10 +195,12 @@ export async function pollTreasury(treasury: {
     }
   }
 
-  // Link new rows to the community's other treasuries: an inflow from one is
-  // a transfer (no review), an outgoing tx to one is tagged for display.
+  // Link new rows to the community's other treasuries and float wallets: an
+  // inflow from one is a transfer (no review), an outgoing tx to one is tagged
+  // for display (and float outs skip the outside-spend alert).
   if (newIncoming + newExternal > 0) {
     await tagInternalTransfers(treasury.community_id);
+    await tagFloatTransfers(treasury.community_id);
   }
 
   // A hash Koios listed but did not describe (lag, a partial bulk answer) must

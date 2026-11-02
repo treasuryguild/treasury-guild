@@ -84,8 +84,8 @@ describe("compareTxToRows: payouts", () => {
 
 describe("compareTxToRows: payments", () => {
   const payments = [
-    { recipientWallet: ALICE, recipientTreasuryId: null, unit: LOVELACE, amount: "2000000" },
-    { recipientWallet: SIBLING, recipientTreasuryId: "t2", unit: LOVELACE, amount: "9000000" },
+    { recipientWallet: ALICE, recipientTreasuryId: null, recipientFloatWalletId: null, unit: LOVELACE, amount: "2000000" },
+    { recipientWallet: SIBLING, recipientTreasuryId: "t2", recipientFloatWalletId: null, unit: LOVELACE, amount: "9000000" },
   ];
   const outputs = [
     ...outputsOf([
@@ -105,7 +105,7 @@ describe("compareTxToRows: payments", () => {
   });
 
   it("refuses a transfer to a stranger, a swapped transfer flag and a missing record", () => {
-    expect(compareTxToRows({ ...input, siblingAddresses: new Set() })).toEqual([expect.stringMatching(/transfer to addr_test1sibling does not go to a treasury/)]);
+    expect(compareTxToRows({ ...input, siblingAddresses: new Set() })).toEqual([expect.stringMatching(/transfer to addr_test1sibling does not go to a treasury or float wallet/)]);
     const flipped = buildPaymentMetadata("guild", "2026-10", null, [
       { outputIndex: 0, transfer: true, amounts: [{ ticker: "ADA", decimals: 6, quantity: 2_000_000n }] },
       { outputIndex: 1, transfer: true, amounts: [{ ticker: "ADA", decimals: 6, quantity: 9_000_000n }] },

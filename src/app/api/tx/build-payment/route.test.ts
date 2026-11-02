@@ -6,7 +6,7 @@ import { SPEND_CHECK_FAILED } from "@/lib/governance/spendGuard";
 
 const mocks = vi.hoisted(() => ({
   session: vi.fn(), context: vi.fn(), noPending: vi.fn(), withTx: vi.fn(),
-  wallet: vi.fn(), siblings: vi.fn(), members: vi.fn(), setups: vi.fn(), sources: vi.fn(),
+  wallet: vi.fn(), siblings: vi.fn(), floats: vi.fn(), members: vi.fn(), setups: vi.fn(), sources: vi.fn(),
   insert: vi.fn(), build: vi.fn(), script: vi.fn(), provider: vi.fn(),
   citations: vi.fn(), budgetProposal: vi.fn(), budgetSettings: vi.fn(),
   guard: vi.fn(), dueAnchors: vi.fn(), recordAnchors: vi.fn(),
@@ -23,6 +23,7 @@ vi.mock("@/lib/cardano/walletAssets", () => ({ fetchWalletAssets: mocks.wallet }
 vi.mock("@/lib/db/payments", () => ({
   loadSiblingTreasuries: mocks.siblings, loadMemberLabels: mocks.members, insertPayments: mocks.insert,
 }));
+vi.mock("@/lib/db/floatWallets", () => ({ loadFloatWallets: mocks.floats }));
 vi.mock("@/lib/db/budgetSetups", () => ({ loadBudgetSetupsForTreasury: mocks.setups, loadBudgetSources: mocks.sources }));
 vi.mock("@/lib/db/governance", () => ({
   loadProposalCitations: mocks.citations,
@@ -73,6 +74,7 @@ beforeEach(() => {
     { unit: GVTT, quantity: 1_000_000_000n, ticker: "GVTT", name: "Test Token", decimals: 6, source: "registry" },
   ] });
   mocks.siblings.mockResolvedValue([{ id: DEV_ID, name: "Dev wallet", address: DEV }]);
+  mocks.floats.mockResolvedValue([]);
   mocks.members.mockResolvedValue(new Map([[ALICE, "alice"]]));
   mocks.setups.mockResolvedValue([{ starts_on: "2026-01-01", cadence: "quarterly" }]);
   mocks.sources.mockResolvedValue({ setups: new Map(), plans: [] });
@@ -87,9 +89,9 @@ beforeEach(() => {
     outputs: [{ address: ALICE, assets: [{ unit: "lovelace", quantity: 2_500_000n }] }],
     totalByUnit: new Map([["lovelace", 3_500_000n], [GVTT, 15_000_000n]]),
     recipients: [
-      { address: ALICE, treasuryId: null, label: "alice", amounts: [{ unit: "lovelace", quantity: 2_500_000n }, { unit: GVTT, quantity: 10_000_000n }] },
-      { address: OUTSIDE, treasuryId: null, label: null, amounts: [{ unit: "lovelace", quantity: 1_000_000n }] },
-      { address: DEV, treasuryId: DEV_ID, label: "Dev wallet", amounts: [{ unit: GVTT, quantity: 5_000_000n }] },
+      { address: ALICE, treasuryId: null, floatWalletId: null, label: "alice", amounts: [{ unit: "lovelace", quantity: 2_500_000n }, { unit: GVTT, quantity: 10_000_000n }] },
+      { address: OUTSIDE, treasuryId: null, floatWalletId: null, label: null, amounts: [{ unit: "lovelace", quantity: 1_000_000n }] },
+      { address: DEV, treasuryId: DEV_ID, floatWalletId: null, label: "Dev wallet", amounts: [{ unit: GVTT, quantity: 5_000_000n }] },
     ],
     anchorsCarried: [],
   });
@@ -127,9 +129,9 @@ describe("build-payment API", () => {
     expect(mocks.build).toHaveBeenCalledWith(expect.objectContaining({
       communitySlug: "guild", budgetPeriod: "2026-Q3", memo: "Design invoice", scriptCbor: "00",
       recipients: [
-        { address: ALICE, treasuryId: null, label: "alice", amounts: [{ unit: "lovelace", quantity: 2_500_000n }, { unit: GVTT, quantity: 10_000_000n }] },
-        { address: OUTSIDE, treasuryId: null, label: null, amounts: [{ unit: "lovelace", quantity: 1_000_000n }] },
-        { address: DEV, treasuryId: DEV_ID, label: "Dev wallet", amounts: [{ unit: GVTT, quantity: 5_000_000n }] },
+        { address: ALICE, treasuryId: null, floatWalletId: null, label: "alice", amounts: [{ unit: "lovelace", quantity: 2_500_000n }, { unit: GVTT, quantity: 10_000_000n }] },
+        { address: OUTSIDE, treasuryId: null, floatWalletId: null, label: null, amounts: [{ unit: "lovelace", quantity: 1_000_000n }] },
+        { address: DEV, treasuryId: DEV_ID, floatWalletId: null, label: "Dev wallet", amounts: [{ unit: GVTT, quantity: 5_000_000n }] },
       ],
     }));
     expect(mocks.withTx).toHaveBeenCalledWith(expect.objectContaining({
@@ -143,10 +145,10 @@ describe("build-payment API", () => {
       expect.objectContaining({ ownerKey: `t:${TREASURY_ID}`, periodMonth: "2026-07", unit: "lovelace", amount: 1_000_000n }),
     ], { setups: new Map(), plans: [] });
     expect(mocks.insert).toHaveBeenCalledWith([
-      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: ALICE, recipient_treasury_id: null, label: "alice", unit: "lovelace", amount: "2500000", budget_month: "2026-07-01" },
-      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: ALICE, recipient_treasury_id: null, label: "alice", unit: GVTT, amount: "10000000", budget_month: "2026-07-01" },
-      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: OUTSIDE, recipient_treasury_id: null, label: null, unit: "lovelace", amount: "1000000", budget_month: "2026-07-01" },
-      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: DEV, recipient_treasury_id: DEV_ID, label: "Dev wallet", unit: GVTT, amount: "5000000", budget_month: null },
+      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: ALICE, recipient_treasury_id: null, recipient_float_wallet_id: null, label: "alice", unit: "lovelace", amount: "2500000", budget_month: "2026-07-01" },
+      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: ALICE, recipient_treasury_id: null, recipient_float_wallet_id: null, label: "alice", unit: GVTT, amount: "10000000", budget_month: "2026-07-01" },
+      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: OUTSIDE, recipient_treasury_id: null, recipient_float_wallet_id: null, label: null, unit: "lovelace", amount: "1000000", budget_month: "2026-07-01" },
+      { transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID, recipient_wallet: DEV, recipient_treasury_id: DEV_ID, recipient_float_wallet_id: null, label: "Dev wallet", unit: GVTT, amount: "5000000", budget_month: null },
     ]);
   });
 
@@ -226,7 +228,7 @@ describe("build-payment API", () => {
     const response = await POST(request(body()), context);
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({
-      error: "Cite an applied budget proposal to transfer to another treasury while budget governance is on",
+      error: "Cite an applied budget proposal to transfer to another treasury or float wallet while budget governance is on",
     });
     expect(mocks.build).not.toHaveBeenCalled();
   });
@@ -262,7 +264,7 @@ describe("build-payment API", () => {
       ] }],
       totalByUnit: new Map([["lovelace", feeAdjusted], [GVTT, 1_000_000_000n]]),
       recipients: [{
-        address: DEV, treasuryId: DEV_ID, label: "Dev wallet",
+        address: DEV, treasuryId: DEV_ID, floatWalletId: null, label: "Dev wallet",
         amounts: [{ unit: "lovelace", quantity: feeAdjusted }, { unit: GVTT, quantity: 1_000_000_000n }],
       }],
       anchorsCarried: [],
@@ -275,7 +277,7 @@ describe("build-payment API", () => {
     expect(mocks.build).toHaveBeenCalledWith(expect.objectContaining({
       drain: true,
       recipients: [{
-        address: DEV, treasuryId: DEV_ID, label: "Dev wallet",
+        address: DEV, treasuryId: DEV_ID, floatWalletId: null, label: "Dev wallet",
         amounts: [
           { unit: "lovelace", quantity: 100_000_000n },
           { unit: GVTT, quantity: 1_000_000_000n },
@@ -287,12 +289,12 @@ describe("build-payment API", () => {
     expect(mocks.insert).toHaveBeenCalledWith([
       {
         transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID,
-        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, label: "Dev wallet",
+        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, recipient_float_wallet_id: null, label: "Dev wallet",
         unit: "lovelace", amount: feeAdjusted.toString(), budget_month: null,
       },
       {
         transaction_id: "tx-1", community_id: "community", treasury_id: TREASURY_ID,
-        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, label: "Dev wallet",
+        recipient_wallet: DEV, recipient_treasury_id: DEV_ID, recipient_float_wallet_id: null, label: "Dev wallet",
         unit: GVTT, amount: "1000000000", budget_month: null,
       },
     ]);
@@ -345,7 +347,7 @@ describe("build-payment API", () => {
     ]);
     const response = await POST(request(body({ recipients: [{ address: ALICE, amounts: { lovelace: "1" } }] })), context);
     expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({ error: "Restore that treasury before transferring to it." });
+    expect(await response.json()).toMatchObject({ error: "Restore that wallet before transferring to it." });
     expect(mocks.build).not.toHaveBeenCalled();
   });
 

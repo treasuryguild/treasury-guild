@@ -118,7 +118,7 @@ describe("transaction_detail", () => {
     mocks.registry.mockResolvedValue([{ fieldName: "HOSKY", unit: HOSKY, decimals: 2 }]);
     const payment = (patch: Record<string, unknown>) => ({
       id: "pm1", transaction_id: "tx-1", community_id: "c1", treasury_id: "t1", recipient_wallet: "addr_x",
-      recipient_treasury_id: null, label: null, unit: HOSKY, amount: "150", budget_month: "2026-09-01",
+      recipient_treasury_id: null, recipient_float_wallet_id: null, label: null, unit: HOSKY, amount: "150", budget_month: "2026-09-01",
       created_at: "2026-10-01T00:00:00Z", ...patch,
     });
     mocks.txDetail.mockResolvedValue({

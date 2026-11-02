@@ -24,8 +24,13 @@ export interface StoredPayout {
 export interface StoredPayment {
   recipientWallet: string;
   recipientTreasuryId: string | null;
+  recipientFloatWalletId: string | null;
   unit: string;
   amount: string;
+}
+
+function isStoredTransfer(p: StoredPayment): boolean {
+  return p.recipientTreasuryId !== null || p.recipientFloatWalletId !== null;
 }
 
 export interface StoredMint {
@@ -38,7 +43,7 @@ export interface StoredMint {
 export interface CompareInput {
   kind: string;
   treasuryAddress: string;
-  /** Addresses of the community's other treasuries: where a transfer may go. */
+  /** Addresses of sibling treasuries and float wallets: where a transfer may go. */
   siblingAddresses: ReadonlySet<string>;
   /** The transaction's outputs in body order. */
   outputs: readonly DecodedTxOutput[];
@@ -149,7 +154,7 @@ function comparePaymentRecord(meta: PaymentMetadata | null, input: CompareInput,
     return;
   }
   const transferByWallet = new Map<string, boolean>();
-  for (const p of input.payments) transferByWallet.set(p.recipientWallet, p.recipientTreasuryId !== null);
+  for (const p of input.payments) transferByWallet.set(p.recipientWallet, isStoredTransfer(p));
   const named = new Set<string>();
   for (const [outputIndex, , flag] of meta.o) {
     const output = input.outputs[outputIndex];
@@ -218,8 +223,8 @@ export function compareTxToRows(input: CompareInput): string[] {
       if (input.payments.length === 0) problems.push("No payments are stored for this transaction");
       if (input.mint.length > 0) problems.push("A payment forges no assets");
       for (const p of input.payments) {
-        if (p.recipientTreasuryId !== null && !input.siblingAddresses.has(p.recipientWallet)) {
-          problems.push(`The transfer to ${p.recipientWallet} does not go to a treasury of this community`);
+        if (isStoredTransfer(p) && !input.siblingAddresses.has(p.recipientWallet)) {
+          problems.push(`The transfer to ${p.recipientWallet} does not go to a treasury or float wallet of this community`);
         }
       }
       compareOutputs(

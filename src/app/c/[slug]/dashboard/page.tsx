@@ -88,14 +88,17 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
       [workgroup.id, workgroup.archived_at ? `${workgroup.name} (Archived)` : workgroup.name]),
     ...(treasuries ?? []).map((treasury): [string, string] => [treasury.id, budgetOwnerLabel("treasury", treasury.name)]),
   ]), [workgroups.data, treasuries]);
-  // Where spend was paid from: the treasuries, then previous wallets whose
-  // history was imported. Only the charts use it; previous wallets never own
-  // a budget, so the filters and the names map stay on treasuries.
+  // Where spend was paid from / funding-flow nodes: treasuries, float wallets,
+  // then previous wallets whose history was imported. Only the charts use it;
+  // previous wallets never own a budget, so the filters and the names map stay
+  // on treasuries.
   const legacyWallets = data?.legacy.wallets;
+  const floats = data?.floats;
   const spendSources = useMemo(() => [
     ...(treasuries ?? []),
+    ...(floats ?? []).map((wallet) => ({ id: wallet.id, name: wallet.name })),
     ...(legacyWallets ?? []).map((wallet) => ({ id: wallet.id, name: legacyWalletLabel(wallet.name) })),
-  ], [treasuries, legacyWallets]);
+  ], [treasuries, floats, legacyWallets]);
 
   const model = useMemo(() => {
     if (!data) return null;
@@ -128,7 +131,7 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
           workgroups: workgroupSpendingRows(tableRows, token, info),
           flow: fundingFlowGraph({
             flows: data.flows.months, series: data.series, months: flowMonths, unit: token, info,
-            workgroupId, treasuries: spendSources, names, fundingSources: data.fundingSources,
+            workgroupId, treasuries: spendSources, floats: floats ?? [], names, fundingSources: data.fundingSources,
           }),
         };
       }),

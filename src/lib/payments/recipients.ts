@@ -14,6 +14,8 @@ import { shortAddress } from "@/lib/format";
 export interface ResolvedPaymentRecipient {
   address: string;
   treasuryId: string | null;
+  /** Set when the address is a community float wallet: a transfer. */
+  floatWalletId: string | null;
   label: string | null;
   amounts: { unit: string; quantity: bigint }[];
 }
@@ -30,10 +32,17 @@ export interface PaymentRecipientContext {
   treasuryAddress: string;
   /** The community's other treasuries, by address. */
   siblingTreasuries: readonly { id: string; name: string; address: string }[];
+  /** Active float wallets of the community, by address. */
+  floatWallets: readonly { id: string; name: string; address: string }[];
   /** Member wallet -> display label (handle, GitHub login or null). */
   members: ReadonlyMap<string, string | null>;
   /** Tokens the paying wallet holds (ADA is built in), with the decimals their amounts use. */
   tokens: ReadonlyMap<string, { ticker: string; decimals: number }>;
+}
+
+/** Whether the resolved recipient is an internal transfer (sibling treasury or float). */
+export function isPaymentTransfer(r: { treasuryId: string | null; floatWalletId: string | null }): boolean {
+  return r.treasuryId !== null || r.floatWalletId !== null;
 }
 
 export interface ResolvedPaymentRecipients {
@@ -53,10 +62,12 @@ export function resolvePaymentRecipients(
   const problems: string[] = [];
   const byAddress = new Map<string, Map<string, bigint>>();
   const siblings = new Map(ctx.siblingTreasuries.map((t) => [t.address, t]));
+  const floats = new Map(ctx.floatWallets.map((f) => [f.address, f]));
 
   for (const input of inputs) {
     const address = input.address.trim();
-    const who = siblings.get(address)?.name ?? ctx.members.get(address) ?? shortAddress(address);
+    const who = siblings.get(address)?.name ?? floats.get(address)?.name
+      ?? ctx.members.get(address) ?? shortAddress(address);
     if (address === ctx.treasuryAddress) {
       problems.push(`${who}: this is the paying treasury itself`);
       continue;
@@ -105,10 +116,12 @@ export function resolvePaymentRecipients(
 
   const recipients: ResolvedPaymentRecipient[] = [...byAddress].map(([address, amounts]) => {
     const sibling = siblings.get(address);
+    const float = sibling ? undefined : floats.get(address);
     return {
       address,
       treasuryId: sibling?.id ?? null,
-      label: sibling?.name ?? ctx.members.get(address) ?? null,
+      floatWalletId: float?.id ?? null,
+      label: sibling?.name ?? float?.name ?? ctx.members.get(address) ?? null,
       // Lovelace first, then tokens in the order they were entered.
       amounts: [...amounts].sort(([a], [b]) => (a === LOVELACE ? -1 : b === LOVELACE ? 1 : 0))
         .map(([unit, quantity]) => ({ unit, quantity })),

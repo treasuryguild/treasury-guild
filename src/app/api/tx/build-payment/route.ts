@@ -1,8 +1,8 @@
 // Builds a manual payment from a treasury (Payments page): one multisig tx
-// to any mix of outside addresses, community members and the community's
-// other treasuries. Spend outputs are charged to the treasury's own budget
-// for the chosen period; an output to a sibling treasury is a transfer and
-// carries no budget month. Never writes community_assets.
+// to any mix of outside addresses, community members, the community's other
+// treasuries and float wallets. Spend outputs are charged to the treasury's
+// own budget for the chosen period; an output to a sibling treasury or float
+// is a transfer and carries no budget month. Never writes community_assets.
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { buildPaymentSchema } from "@/lib/api/schemas";
 import type { BuildPaymentResponse } from "@/lib/api/types";
@@ -21,6 +21,7 @@ import {
   loadGovernanceSettings,
   loadProposalCitations,
 } from "@/lib/db/governance";
+import { loadFloatWallets } from "@/lib/db/floatWallets";
 import { insertPayments, loadMemberLabels, loadSiblingTreasuries } from "@/lib/db/payments";
 import { ARCHIVED_TREASURY_PAYMENT } from "@/lib/db/treasuries";
 import { assertNoPendingTx, withTransactionRow } from "@/lib/db/transactions";
@@ -30,7 +31,7 @@ import { citationsOf } from "@/lib/governance/citations";
 import { budgetOwnerKey } from "@/lib/governance/payload";
 import { spendKey } from "@/lib/governance/spendCheck";
 import { budgetsForLines, guardSpend, type SpendGuardLine } from "@/lib/governance/spendGuard";
-import { resolvePaymentRecipients } from "@/lib/payments/recipients";
+import { isPaymentTransfer, resolvePaymentRecipients } from "@/lib/payments/recipients";
 import { resolveTreasuryScript } from "@/lib/treasury";
 import { builtTickers, builtTxResponse, loadBuildContext, requirePathBuilder, resolveSpendingPath, validFromSlotFor, validToSlotFor } from "@/lib/tx";
 import { paymentDescription } from "@/lib/txDescription";
@@ -62,9 +63,10 @@ export const POST = sessionRoute(async (req, { session }) => {
   await assertNoPendingTx(treasuryId);
 
   const ownerKey = budgetOwnerKey({ workgroupId: null, treasuryId });
-  const [walletAssets, allSiblings, members, setups, budgetSources, namedProposal, budgetKind] = await Promise.all([
+  const [walletAssets, allSiblings, allFloats, members, setups, budgetSources, namedProposal, budgetKind] = await Promise.all([
     fetchWalletAssets(network, treasury.address),
     loadSiblingTreasuries(treasury.community_id, treasuryId),
+    loadFloatWallets(treasury.community_id),
     loadMemberLabels(treasury.community_id, rawInputs.map((r) => r.address)),
     loadBudgetSetupsForTreasury(treasuryId),
     loadBudgetSources([ownerKey]),
@@ -94,14 +96,21 @@ export const POST = sessionRoute(async (req, { session }) => {
     })()
     : rawInputs;
   const siblingTreasuries = allSiblings.filter((t) => !t.archived_at);
-  const archivedAddresses = new Set(allSiblings.filter((t) => t.archived_at).map((t) => t.address));
+  const floatWallets = allFloats.filter((f) => !f.archived_at).map((f) => ({
+    id: f.id, name: f.name, address: f.address,
+  }));
+  const archivedAddresses = new Set([
+    ...allSiblings.filter((t) => t.archived_at).map((t) => t.address),
+    ...allFloats.filter((f) => f.archived_at).map((f) => f.address),
+  ]);
   if (inputs.some((input) => archivedAddresses.has(input.address.trim()))) {
-    throw new ConflictError("Restore that treasury before transferring to it.");
+    throw new ConflictError("Restore that wallet before transferring to it.");
   }
   const { recipients, problems } = resolvePaymentRecipients(inputs, {
     network,
     treasuryAddress: treasury.address,
     siblingTreasuries,
+    floatWallets,
     members,
     tokens: unitDisplay,
   });
@@ -109,15 +118,15 @@ export const POST = sessionRoute(async (req, { session }) => {
     throw new BadRequestError("Some recipients cannot be paid", { problems });
   }
   // Transfers skip the spend check by design; when budget governance is on,
-  // they still need a cited applied budget proposal so a sibling drain is not
-  // an unchecked sidestep of the voted budget.
-  const hasTransfer = recipients.some((r) => r.treasuryId !== null);
+  // they still need a cited applied budget proposal so a sibling/float drain
+  // is not an unchecked sidestep of the voted budget.
+  const hasTransfer = recipients.some(isPaymentTransfer);
   if (hasTransfer && budgetKind.enabled && !namedProposal) {
     throw new BadRequestError(
-      "Cite an applied budget proposal to transfer to another treasury while budget governance is on",
+      "Cite an applied budget proposal to transfer to another treasury or float wallet while budget governance is on",
     );
   }
-  if (treasury.archived_at && recipients.some((r) => r.treasuryId === null)) {
+  if (treasury.archived_at && recipients.some((r) => !isPaymentTransfer(r))) {
     throw new ConflictError(ARCHIVED_TREASURY_PAYMENT);
   }
 
@@ -135,7 +144,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   // Spend outputs count against the treasury's budget for the period and
   // cite the proposal that set it; transfers are not spends and cite only a
   // proposal named in the request (a "fund this budget" transfer).
-  const lines: SpendGuardLine[] = recipients.filter((r) => r.treasuryId === null).flatMap((r) =>
+  const lines: SpendGuardLine[] = recipients.filter((r) => !isPaymentTransfer(r)).flatMap((r) =>
     r.amounts.map((a) => ({
       ownerKey, ownerType: "treasury" as const, ownerId: treasuryId, ownerName: budgetOwnerLabel("treasury", treasury.name),
       periodMonth: period.month, unit: a.unit, amount: a.quantity,
@@ -174,7 +183,7 @@ export const POST = sessionRoute(async (req, { session }) => {
   const paid = built.recipients;
 
   const tickers = builtTickers(built, unitDisplay);
-  const transfers = paid.filter((r) => r.treasuryId !== null).length;
+  const transfers = paid.filter(isPaymentTransfer).length;
   const txRow = await withTransactionRow(
     {
       treasury_id: treasuryId,
@@ -196,10 +205,11 @@ export const POST = sessionRoute(async (req, { session }) => {
           treasury_id: treasuryId,
           recipient_wallet: r.address,
           recipient_treasury_id: r.treasuryId,
+          recipient_float_wallet_id: r.floatWalletId ?? null,
           label: r.label,
           unit: a.unit,
           amount: a.quantity.toString(),
-          budget_month: r.treasuryId ? null : `${period.month}-01`,
+          budget_month: isPaymentTransfer(r) ? null : `${period.month}-01`,
         })),
       ));
       await recordProposalAnchors(tx.id, carried);

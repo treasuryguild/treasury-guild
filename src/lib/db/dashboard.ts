@@ -67,8 +67,17 @@ interface IncomingWithTreasury {
 interface IncomingFlowRow {
   treasury_id: string;
   from_treasury_id: string | null;
+  from_float_wallet_id: string | null;
   funding_source_id: string | null;
   incoming_type: string;
+  amount_lovelace: string;
+  assets: Record<string, string> | null;
+  block_time: string | null;
+}
+
+interface FloatIncomingFlowRow {
+  float_wallet_id: string;
+  from_treasury_id: string | null;
   amount_lovelace: string;
   assets: Record<string, string> | null;
   block_time: string | null;
@@ -92,13 +101,20 @@ interface IncomingFlowRow {
  * one ending with the recipient's address end.
  * Flows: inflows bucketed by block-time month, outside income by kind (or by
  * the funding source an admin tied it to) per treasury, and transfers between
- * the community's own treasuries (rows tagged by tag_internal_transfers).
+ * the community's own treasuries and float wallets (tag_internal_transfers /
+ * tag_float_transfers).
  */
 export async function loadDashboardActivity(
   communityId: string,
   month: string,
   view: DashboardView,
-): Promise<{ series: DashboardSeries; flows: DashboardFlows; legacy: DashboardLegacy; fundingSources: { id: string; name: string }[] }> {
+): Promise<{
+  series: DashboardSeries;
+  flows: DashboardFlows;
+  legacy: DashboardLegacy;
+  floats: { id: string; name: string }[];
+  fundingSources: { id: string; name: string }[];
+}> {
   const range = view === "all"
     ? { start: EPOCH, end: allTimeWindow(null, month).end }
     : dashboardWindow(month, view);
@@ -110,15 +126,24 @@ export async function loadDashboardActivity(
     `budget_month.is.null,and(budget_month.gte.${quarterStartMonth(monthOf(range.start))}-01,budget_month.lt.${range.end.slice(0, 10)})`;
   const db = serviceClient();
 
-  const [flowRows, payoutRows, refundRows, paymentRows, treasuryRows, legacyRows, legacyWallets, fundingRows] = await Promise.all([
+  const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyWallets, fundingRows] = await Promise.all([
     allRows<IncomingFlowRow>((from, to) => db
       .from("incoming_txs")
-      .select("treasury_id, from_treasury_id, funding_source_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
+      .select("treasury_id, from_treasury_id, from_float_wallet_id, funding_source_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
       .eq("treasuries.community_id", communityId)
       .gte("block_time", range.start)
       .lt("block_time", range.end)
       .order("tx_hash")
       .range(from, to), "load dashboard flows"),
+    allRows<FloatIncomingFlowRow>((from, to) => db
+      .from("float_incoming_txs")
+      .select("float_wallet_id, from_treasury_id, amount_lovelace, assets, block_time, float_wallets!inner(community_id)")
+      .eq("float_wallets.community_id", communityId)
+      .not("from_treasury_id", "is", null)
+      .gte("block_time", range.start)
+      .lt("block_time", range.end)
+      .order("tx_hash")
+      .range(from, to), "load dashboard float flows"),
     allRows<PayoutSeriesRow>((from, to) => db
       .from("payouts")
       .select(
@@ -144,6 +169,7 @@ export async function loadDashboardActivity(
       .select("id, recipient_wallet, treasury_id, unit, amount, budget_month, created_at, transactions!inner(submitted_at)")
       .eq("community_id", communityId)
       .is("recipient_treasury_id", null)
+      .is("recipient_float_wallet_id", null)
       .in("transactions.state", [TxState.Submitted, TxState.Confirmed])
       .or(budgetMonthRange)
       .order("id")
@@ -152,6 +178,12 @@ export async function loadDashboardActivity(
       .from("treasuries")
       .select("id, name")
       .eq("community_id", communityId)
+      .order("created_at"),
+    db
+      .from("float_wallets")
+      .select("id, name")
+      .eq("community_id", communityId)
+      .is("archived_at", null)
       .order("created_at"),
     loadLegacySpend(communityId, {
       from: `${quarterStartMonth(monthOf(range.start))}-01`,
@@ -227,15 +259,31 @@ export async function loadDashboardActivity(
     };
   });
   const treasuries = rows<{ id: string; name: string }>(treasuryRows, "load dashboard treasuries");
-  const flows: FlowIncomingRow[] = flowRows.map((row) => ({
-    treasuryId: row.treasury_id,
-    fromTreasuryId: row.from_treasury_id,
-    incomingType: row.incoming_type,
-    amountLovelace: row.amount_lovelace,
-    assets: row.assets,
-    blockTime: row.block_time,
-    fundingSourceId: row.funding_source_id,
-  }));
+  const floats = rows<{ id: string; name: string }>(floatWalletRows, "load dashboard float wallets");
+  const flows: FlowIncomingRow[] = [
+    ...flowRows.map((row) => ({
+      treasuryId: row.treasury_id,
+      fromTreasuryId: row.from_treasury_id,
+      fromFloatWalletId: row.from_float_wallet_id,
+      incomingType: row.incoming_type,
+      amountLovelace: row.amount_lovelace,
+      assets: row.assets,
+      blockTime: row.block_time,
+      fundingSourceId: row.funding_source_id,
+    })),
+    // Treasury → float: the float's tagged inflow is the amount source (like
+    // the receiver side of an internal treasury transfer).
+    ...floatFlowRows.map((row) => ({
+      treasuryId: row.float_wallet_id,
+      fromTreasuryId: row.from_treasury_id,
+      fromFloatWalletId: null as string | null,
+      incomingType: "transfer",
+      amountLovelace: row.amount_lovelace,
+      assets: row.assets,
+      blockTime: row.block_time,
+      fundingSourceId: null as string | null,
+    })),
+  ];
 
   let window: DashboardWindow;
   if (view === "all") {
@@ -259,6 +307,7 @@ export async function loadDashboardActivity(
       wallets: legacyWallets.map((wallet) => ({ id: wallet.id, name: wallet.name })),
       assets: [...assets.values()],
     },
+    floats,
     fundingSources: rows<{ id: string; name: string }>(fundingRows, "load funding sources"),
   };
 }

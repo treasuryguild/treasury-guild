@@ -864,6 +864,25 @@ export const patchLegacyWalletSchema = z.object({
 });
 export const deleteLegacyWalletSchema = z.object({ confirmName: z.string().max(64) });
 
+// --- Float wallets (watched DEX / dApp floats) ---------------------------------
+
+const floatWalletName = nonEmpty.max(100);
+const floatWalletNote = z.string().max(500).nullable().optional();
+
+export const createFloatWalletSchema = z.object({
+  communityId: id,
+  name: floatWalletName,
+  address: walletAddress.refine((a) => /^addr(_test)?1/.test(a), "Use a Shelley address (addr1… or addr_test1…)"),
+  note: floatWalletNote,
+});
+export const patchFloatWalletSchema = z.object({
+  name: floatWalletName.optional(),
+  note: floatWalletNote,
+});
+export const floatWalletLifecycleSchema = z.object({
+  action: z.enum(["archive", "restore"]),
+});
+
 /**
  * Settle a workgroup name a history CSV uses: create a workgroup, or point
  * the (normalized) name at an existing one, archived ones included.
@@ -1316,6 +1335,9 @@ export type ChainImportWorkgroupBody = z.infer<typeof chainImportWorkgroupSchema
 export type ChainImportResolveBody = z.infer<typeof chainImportResolveSchema>;
 export type CreateLegacyWalletBody = z.infer<typeof createLegacyWalletSchema>;
 export type PatchLegacyWalletBody = z.infer<typeof patchLegacyWalletSchema>;
+export type CreateFloatWalletBody = z.infer<typeof createFloatWalletSchema>;
+export type PatchFloatWalletBody = z.infer<typeof patchFloatWalletSchema>;
+export type FloatWalletLifecycleBody = z.infer<typeof floatWalletLifecycleSchema>;
 export type LegacyWorkgroupBody = z.infer<typeof legacyWorkgroupSchema>;
 export type LegacyUploadBody = z.input<typeof legacyUploadSchema>;
 export type UpsertBudgetsBody = z.infer<typeof upsertBudgetsSchema>;
