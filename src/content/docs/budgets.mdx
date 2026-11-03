@@ -14,6 +14,8 @@ The arrows step to the previous or next period, and **This month** / **This quar
 
 **Who can edit.** Admins can edit every row. A workgroup lead can edit the rows of the workgroups they lead. Treasury cards are edited by admins only. Everyone else sees the worksheet read-only, as does everyone for an archived workgroup (marked **View only**). With [budget consent](#budget-consent) on, whoever may propose budget changes edits instead, and a project with an open budget proposal is locked until it closes.
 
+**Payment wallet.** Each workgroup card shows **Paid from** for the period in view (a named treasury, or **any wallet**). **Change wallet** opens that workgroup's board so you can set the payment wallet under **Edit details** — the worksheet does not edit routing itself (see [Workgroups](/docs/workgroups-boards)).
+
 **Finding a card.** The search box filters cards by name, **Changed projects only** keeps the ones with staged edits, and the recurring view adds a frequency filter (**All frequencies**, **Monthly**, **Quarterly**). The save bar counts changes hidden by the filters so nothing is saved unseen.
 
 **Editing.** **Add budget** puts a first ADA row on a card; **Add token** then offers ADA, the community's registered tokens and — for a workgroup — every token currently held across the community's treasury wallets, or for a treasury card only the tokens that wallet holds, up to 50 tokens per card. Type amounts directly in the cells. Edits are staged and highlighted; nothing is written until you click **Save all changes**. Clearing a saved cell removes that token for that period only; the trash icon removes the token from every period in view, and the undo icon restores it. A token added without any amount is ignored. **Discard changes** throws the staged edits away. Switching period with unsaved edits asks for confirmation first.
@@ -45,6 +47,8 @@ Each card with a setup shows **Setup history & scheduled changes**: the setup ti
 ### Treasury budgets
 
 A treasury's card (marked **Treasury**) budgets the [payments](/docs/payments) made straight from that wallet: contractors, other communities, members paid outside any workgroup, and [Payday allocation](/docs/payday#allocation-rules-ops-fee-and-savings) spends to an outside wallet (ops fee). It has the same setups, periods, corrections and history as a workgroup card; the tokens offered are ADA, the community's registered tokens and those the treasury holds, and an unregistered token is accepted only while the treasury holds it. Transfers to another of the community's treasuries (including a Payday savings allocation) are never charged to it. Treasury budgets cannot be reset; correct them through the editor.
+
+When one or more workgroups are [routed](/docs/workgroups-boards) to that treasury for the period in view, the card notes which ones: their **task** payouts are budgeted on the workgroup cards, and amounts on the treasury card are only for manual payments from that wallet.
 
 ## Budget consent
 

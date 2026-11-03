@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Plus, RotateCcw, Trash2 } from "lucide-react";
 import { BudgetSetupHistory } from "./BudgetSetupDialog";
@@ -11,6 +12,17 @@ import type { WalletTokenWire } from "@/lib/api/types";
 import { budgetAssetOptions, type BudgetCadence } from "@/lib/budgets";
 import { budgetRowChanged, budgetRowError, draftRowKey, type BudgetDraftRow } from "@/lib/budgetDrafts";
 import { Badge, Button, ErrorText, Input, Select } from "@/components/ui";
+
+/** Workgroup card: period-correct payment wallet + link to Edit details on the board. */
+export interface WorkgroupRoutingNote {
+  paidFrom: string;
+  changeWalletHref: string;
+}
+
+/** Treasury card: which workgroups this wallet pays for the viewed period. */
+export interface TreasuryRoutingNote {
+  paysWorkgroups: readonly string[];
+}
 
 /** One card of the worksheet: a workgroup's board budget, or a treasury's budget for manual payments. */
 export interface BudgetOwner {
@@ -56,7 +68,8 @@ export function blankRow(asset: AssetDef, cell: Pick<BudgetCell, "start" | "cade
 }
 
 export function BudgetProjectCard({ owner: group, view, columns, cells, fallback, rows, frequency, canEdit, disabled, assets,
-  heldTokens, heldTokensLoading, heldTokensError, error, showValidation, onChange, context, config, referenceMonth,
+  heldTokens, heldTokensLoading, heldTokensError, workgroupRouting, treasuryRouting,
+  error, showValidation, onChange, context, config, referenceMonth,
   onSetup, onReset, onClearBudgets, onOpenQuarter }: {
   owner: BudgetOwner;
   view: BudgetView;
@@ -73,6 +86,8 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
   heldTokens: WalletTokenWire[];
   heldTokensLoading?: boolean;
   heldTokensError?: unknown;
+  workgroupRouting?: WorkgroupRoutingNote;
+  treasuryRouting?: TreasuryRoutingNote;
   error?: string;
   showValidation: boolean;
   context?: BudgetSetupContext;
@@ -149,6 +164,16 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
               aria-label={`Reset budgets for ${group.name}`}>Reset budgets</Button>}
         </div>}
       </div>
+      {workgroupRouting && <p className="border-b border-[var(--border)] px-5 py-2 text-xs text-zinc-500">
+        Paid from <span className="text-zinc-300">{workgroupRouting.paidFrom}</span>
+        {" · "}
+        <Link className="text-indigo-400 hover:underline" href={workgroupRouting.changeWalletHref}>Change wallet</Link>
+        {" "}in Edit details
+      </p>}
+      {treasuryRouting && treasuryRouting.paysWorkgroups.length > 0 && <p className="border-b border-[var(--border)] px-5 py-2 text-xs text-zinc-500">
+        Pays task payouts for {treasuryRouting.paysWorkgroups.join(", ")}. Those amounts are budgeted on the workgroup
+        cards; set amounts here only for manual payments from this wallet.
+      </p>}
       {context && (context.timeline.length > 0 || context.legacyConflict) &&
         <div className="border-b border-[var(--border)] px-5 py-2"><BudgetSetupHistory context={context} /></div>}
 
