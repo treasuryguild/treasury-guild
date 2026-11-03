@@ -19,7 +19,7 @@ export function WorkgroupProposalView({ slug, proposal, names }: {
   return (
     <Card>
       <SectionTitle action={created ? <Link className="text-sm underline" href={routes.board(slug, created)}>Open its board</Link> : undefined}>
-        New workgroup
+        New workgroup or project
       </SectionTitle>
       <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
         <dt className="text-zinc-500">Name</dt>
@@ -34,7 +34,7 @@ export function WorkgroupProposalView({ slug, proposal, names }: {
         <dd>App board with {columns.map((c) => c.name).join(", ")}</dd>
       </dl>
       <p className="mt-4 text-xs text-zinc-500">
-        Created when the proposal passes, unless an active workgroup has taken the name by then. A proposed lead who has left
+        Created when the proposal passes, unless an active workgroup or project has taken the name by then. A proposed lead who has left
         the community is skipped.
       </p>
     </Card>

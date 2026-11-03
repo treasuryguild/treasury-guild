@@ -93,14 +93,17 @@ export default function WorkgroupsPage({
 
   return (
     <div>
-      <PageTitle>Workgroups</PageTitle>
+      <PageTitle>Workgroups & projects</PageTitle>
+      <p className="-mt-3 mb-5 text-sm text-zinc-400">
+        Ongoing teams and time-bounded projects share the same setup: a board, a budget and an optional payment wallet.
+      </p>
 
       <label className="mb-4 flex items-center gap-2 text-sm text-zinc-400">
         <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Show archived
       </label>
       <NoticeText className="mb-4">{lifecycleMessage}</NoticeText>
       <ErrorText error={workgroups.error} className="mb-4" />
-      <NoticeText className="mb-4">{detailsSaved && "Workgroup / project details saved."}</NoticeText>
+      <NoticeText className="mb-4">{detailsSaved && "Details saved."}</NoticeText>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(workgroups.data ?? []).map((w) => (
           <Card key={w.id} className="relative isolate transition-colors hover:border-indigo-600">
@@ -132,9 +135,9 @@ export default function WorkgroupsPage({
         ))}
         {workgroupVote?.enabled && (
           <Card>
-            <p className="text-sm text-zinc-400">New workgroups are created by a community vote.</p>
+            <p className="text-sm text-zinc-400">New workgroups and projects are created by a community vote.</p>
             {canProposeWorkgroup && (
-              <LinkButton className="mt-3" href={routes.proposals(slug, { kind: ProposalKind.Workgroup })}>Propose a workgroup</LinkButton>
+              <LinkButton className="mt-3" href={routes.proposals(slug, { kind: ProposalKind.Workgroup })}>Propose a workgroup or project</LinkButton>
             )}
           </Card>
         )}
@@ -144,7 +147,7 @@ export default function WorkgroupsPage({
               <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="New workgroup name"
+                placeholder="Name (team or project)"
                 onKeyDown={(e) => e.key === "Enter" && void addWorkgroup()}
               />
               <Button loading={create.busy} onClick={() => void addWorkgroup()}>Add</Button>
@@ -173,8 +176,8 @@ export default function WorkgroupsPage({
                   onChange={() => setNewKind(TaskSource.Github)}
                 />
                 <span>
-                  <span className="text-zinc-200">GitHub project</span> — sync
-                  issues from a repo&apos;s project board
+                  <span className="text-zinc-200">GitHub board</span> — sync
+                  issues from a repo&apos;s GitHub project
                 </span>
               </label>
             </div>
@@ -186,7 +189,7 @@ export default function WorkgroupsPage({
         <div className="mt-10">
           <SectionTitle>In proposal</SectionTitle>
           <p className="mb-4 text-sm text-zinc-400">
-            Workgroups still under discussion or vote. Opening a card goes to the proposal, not a board.
+            Workgroups and projects still under discussion or vote. Opening a card goes to the proposal, not a board.
           </p>
           <ErrorText error={proposed.error} className="mb-4" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

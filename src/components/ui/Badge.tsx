@@ -53,11 +53,11 @@ export function CallStateBadge({ state }: { state: string }) {
   return <Badge tone={finalized ? "green" : "default"}>{finalized ? "Finalized" : "Open"}</Badge>;
 }
 
-/** "github" / "native" source marker. */
+/** Workgroup kind / task source: App board vs GitHub board. */
 export function SourceBadge({ source }: { source: string }) {
   return (
     <Badge tone={source === TaskSource.Github ? "blue" : "default"}>
-      {source}
+      {source === TaskSource.Github ? "GitHub" : "App"}
     </Badge>
   );
 }

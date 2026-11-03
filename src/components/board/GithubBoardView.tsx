@@ -73,7 +73,7 @@ function NoRepoLinked({ isAdmin, settingsHref }: { isAdmin: boolean; settingsHre
   return (
     <div className="mx-auto max-w-md py-12 text-center">
       <p className="text-zinc-400">
-        This workgroup uses a GitHub project, but no repository is linked yet.
+        This workgroup uses a GitHub board, but no repository is linked yet.
       </p>
       {isAdmin ? (
         <LinkButton href={settingsHref} className="mt-4">

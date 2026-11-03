@@ -609,7 +609,7 @@ export function BudgetWorksheet({ communityId, slug, month, view, title, budgets
         </div>
         {workgroupCards.length > 0 && <div className="space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-zinc-200">Workgroups</h3>
+            <h3 className="text-sm font-semibold text-zinc-200">Workgroups & projects</h3>
             <p className="mt-1 text-xs text-zinc-500">Budgets for task payouts from each workgroup or project.</p>
           </div>
           {workgroupCards.map(renderCard)}

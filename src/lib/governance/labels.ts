@@ -13,7 +13,7 @@ import type { ProposalRules } from "./rules";
 
 export const KIND_LABELS: Record<ProposalKind, string> = {
   [ProposalKind.Budget]: "Budget",
-  [ProposalKind.Workgroup]: "New workgroup",
+  [ProposalKind.Workgroup]: "New workgroup or project",
   [ProposalKind.Task]: "Task",
   [ProposalKind.Decision]: "Decision",
   [ProposalKind.Lead]: "Lead change",

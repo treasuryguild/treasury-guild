@@ -137,13 +137,13 @@ describe("worksheet sections", () => {
     });
     input.budgets.push(budget("main", { ownerType: "treasury", ownerName: "Treasury: Main", treasuryId: "main", workgroupKind: null }));
     render(<BudgetWorksheet {...input} />);
-    expect(screen.getByRole("heading", { name: "Workgroups" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Workgroups & projects" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
     expect(screen.getByText("Budgets for task payouts from each workgroup or project.")).toBeTruthy();
     expect(screen.getByText("Budgets for manual payments made straight from each treasury wallet.")).toBeTruthy();
   });
 
-  it("hides the Workgroups section when search leaves only treasuries", async () => {
+  it("hides the Workgroups & projects section when search leaves only treasuries", async () => {
     const user = userEvent.setup();
     const input = props();
     input.treasuries = [treasury("main", "addr_main", "Main")];
@@ -155,7 +155,7 @@ describe("worksheet sections", () => {
     input.budgets.push(budget("main", { ownerType: "treasury", ownerName: "Treasury: Main", treasuryId: "main", workgroupKind: null }));
     render(<BudgetWorksheet {...input} />);
     await user.type(screen.getByLabelText("Search workgroups, projects and treasuries"), "Main");
-    expect(screen.queryByRole("heading", { name: "Workgroups" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Workgroups & projects" })).toBeNull();
     expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
     expect(screen.getByRole("rowgroup", { name: "Main" })).toBeTruthy();
   });
@@ -236,7 +236,7 @@ describe("treasury budgets", () => {
     expect(card.textContent).toContain("Treasury");
     expect(screen.queryByRole("button", { name: "Reset budgets for Main" })).toBeNull();
     expect(screen.getByText("3 of 3 projects")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Workgroups" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Workgroups & projects" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
     const field = screen.getByRole("textbox", { name: "Main ADA budget amount" });
     await user.clear(field); await user.type(field, "500");
