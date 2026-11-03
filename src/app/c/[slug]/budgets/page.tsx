@@ -109,7 +109,7 @@ function BudgetsView({ slug, initialMonth, initialView }: { slug: string; initia
       ) : dashboard.loading || workgroups.loading || governance.loading || openProposals.loading || !dashboard.data || !community ? (
         <p role="status" className="py-10 text-sm text-zinc-500">Loading budget worksheet…</p>
       ) : (
-        <BudgetWorksheet key={scope} communityId={community.id} slug={slug}
+        <BudgetWorksheet key={scope} communityId={community.id}
           month={view === "recurring" ? null : periodStart} view={view}
           title={title} budgets={dashboard.data.budgets} setups={dashboard.data.setups} selectedMonth={month} workgroups={workgroups.data ?? []}
           treasuries={treasuries.data ?? []} assets={registry.data ?? []}

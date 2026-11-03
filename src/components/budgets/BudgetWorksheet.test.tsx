@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { BudgetSetupContext, BudgetView } from "@/lib/budgetSetups";
 import type { BudgetSummary } from "@/lib/api/types";
@@ -31,10 +31,22 @@ vi.mock("@/hooks/useWalletAssets", () => ({
 }));
 
 const { assignmentsMock } = vi.hoisted(() => ({
-  assignmentsMock: vi.fn(() => new Map() as ReadonlyMap<string, { treasury_id: string | null; starts_on: string }[]>),
+  assignmentsMock: vi.fn(() => ({
+    data: new Map() as ReadonlyMap<string, { treasury_id: string | null; starts_on: string }[]>,
+    loading: false,
+    error: null as string | null,
+    reload: vi.fn(),
+    setData: vi.fn(),
+  })),
 }));
 vi.mock("@/hooks/useWorkgroupTreasuryAssignments", () => ({
   useWorkgroupTreasuryAssignments: () => assignmentsMock(),
+}));
+vi.mock("@/hooks/useTreasuries", () => ({
+  useTreasuries: () => ({
+    data: [{ id: "ops", name: "Ops", archived_at: null }, { id: "main", name: "Main", archived_at: null }],
+    loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+  }),
 }));
 
 function treasury(id: string, address: string, name = id): TreasurySummary {
@@ -56,7 +68,7 @@ function budget(id: string, changes: Partial<BudgetSummary> = {}): BudgetSummary
 }
 
 const props = () => ({
-  communityId: "community", slug: "demo", month: "2026-09", view: "month" as BudgetView, title: "September 2026",
+  communityId: "community", month: "2026-09", view: "month" as BudgetView, title: "September 2026",
   budgets: [budget("design"), budget("engineering")],
   setups: ["design", "engineering"].map((id): BudgetSetupContext => ({
     ownerType: "workgroup", ownerId: id, ownerName: id, workgroupId: id, workgroupKind: "native", treasuryId: null,
@@ -88,7 +100,19 @@ beforeEach(() => {
     data: {}, loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
   });
   assignmentsMock.mockReset();
-  assignmentsMock.mockReturnValue(new Map());
+  assignmentsMock.mockReturnValue({
+    data: new Map(), loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+  });
+  vi.mocked(apiFetch).mockImplementation(async (path: string, init?: { body?: unknown }) => {
+    if (path === "/api/workgroups/routing" && !init?.body) {
+      return {
+        treasuryId: null, cadence: "monthly", currentStart: "2026-09-01", nextStart: "2026-10-01",
+        currentBlocked: false, history: [],
+      };
+    }
+    if (path === "/api/workgroups/routing") return { startsOn: "2026-09-01" };
+    throw new Error(`unexpected apiFetch ${path}`);
+  });
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-09T00:00:00Z"));
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
@@ -97,9 +121,10 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
 describe("wallet routing notes", () => {
   it("shows Paid from any wallet when nothing is routed, and annotates a treasury that pays a workgroup", () => {
-    assignmentsMock.mockReturnValue(new Map([
-      ["design", [{ treasury_id: "ops", starts_on: "2026-01-01" }]],
-    ]));
+    assignmentsMock.mockReturnValue({
+      data: new Map([["design", [{ treasury_id: "ops", starts_on: "2026-01-01" }]]]),
+      loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+    });
     const input = props();
     input.treasuries = [treasury("ops", "addr_ops", "Ops"), treasury("main", "addr_main", "Main")];
     for (const id of ["ops", "main"] as const) {
@@ -117,12 +142,31 @@ describe("wallet routing notes", () => {
     render(<BudgetWorksheet {...input} />);
     const design = screen.getByRole("rowgroup", { name: "Design" });
     expect(design.textContent).toMatch(/Paid from\s*Ops/);
-    expect(design.querySelector('a[href="/c/demo/boards/design"]')?.textContent).toBe("Change wallet");
+    expect(design.querySelector("a")).toBeNull();
+    expect(within(design).getByRole("button", { name: "Change wallet" })).toBeTruthy();
     expect(screen.getByRole("rowgroup", { name: "Engineering" }).textContent).toMatch(/Paid from\s*any wallet/);
     expect(screen.getByRole("rowgroup", { name: "Ops" }).textContent).toContain(
       "Pays task payouts for Design. Those amounts are budgeted on the workgroup cards",
     );
     expect(screen.getByRole("rowgroup", { name: "Main" }).textContent).not.toContain("Pays task payouts");
+  });
+
+  it("opens the payment-wallet dialog for admins and hides Change wallet for leads", async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    assignmentsMock.mockReturnValue({
+      data: new Map([["design", [{ treasury_id: "ops", starts_on: "2026-01-01" }]]]),
+      loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+    });
+    const input = props();
+    input.treasuries = [treasury("ops", "addr_ops", "Ops")];
+    render(<BudgetWorksheet {...input} />);
+    await user.click(screen.getAllByRole("button", { name: "Change wallet" })[0]!);
+    expect(screen.getByRole("heading", { name: "Change payment wallet" })).toBeTruthy();
+    expect(screen.getByLabelText("Payment wallet")).toBeTruthy();
+    cleanup();
+    render(<BudgetWorksheet {...input} isAdmin={false} ledWorkgroupIds={new Set(["design"])} />);
+    expect(screen.getByRole("rowgroup", { name: "Design" }).textContent).toMatch(/Paid from\s*Ops/);
+    expect(screen.queryByRole("button", { name: "Change wallet" })).toBeNull();
   });
 });
 

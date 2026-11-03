@@ -25,6 +25,7 @@ import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useCommunityBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { useWorkgroups } from "@/hooks/useWorkgroups";
 import { useWorkgroupTreasuryAssignments } from "@/hooks/useWorkgroupTreasuryAssignments";
+import type { TreasuryAssignment } from "@/lib/workgroupRouting";
 import { IntegrationsNotice } from "@/components/integrations/IntegrationsNotice";
 import { BusyOverlay, Button, EmptyState, PageTitle } from "@/components/ui";
 import { offeredPaths, PathPicker } from "@/components/tx/PathPicker";
@@ -40,6 +41,8 @@ import { TreasuryPicker } from "@/components/payday/TreasuryPicker";
 import { managesWorkgroup } from "@/lib/roles";
 import { useAllocationRules } from "@/hooks/useAllocationRules";
 import { useTreasuryChoice } from "@/hooks/useTreasuryChoice";
+
+const EMPTY_ASSIGNMENTS: ReadonlyMap<string, TreasuryAssignment[]> = new Map();
 
 const EMPTY_REGISTRY: never[] = [];
 
@@ -77,7 +80,8 @@ export default function PaydayPage({
   }, [walletTokens]);
   // Setups are also what resolves a task's wallet for its budget period.
   const budgetSetupsByWorkgroup = useCommunityBudgetSetups(community?.id, true);
-  const assignmentsByWorkgroup = useWorkgroupTreasuryAssignments(community?.id);
+  const assignmentsQuery = useWorkgroupTreasuryAssignments(community?.id);
+  const assignmentsByWorkgroup = assignmentsQuery.data ?? EMPTY_ASSIGNMENTS;
   const routing = useMemo(
     () => ({ assignments: assignmentsByWorkgroup, setups: budgetSetupsByWorkgroup }),
     [assignmentsByWorkgroup, budgetSetupsByWorkgroup],

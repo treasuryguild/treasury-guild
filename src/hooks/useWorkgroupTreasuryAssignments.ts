@@ -2,9 +2,7 @@
 
 import { browserClient } from "@/lib/supabase/browser";
 import type { TreasuryAssignment } from "@/lib/workgroupRouting";
-import { useAsyncData } from "./useAsyncData";
-
-const NONE: ReadonlyMap<string, TreasuryAssignment[]> = new Map();
+import { useAsyncData, type AsyncData } from "./useAsyncData";
 
 /**
  * Every workgroup's dated wallet routing for a community (member-readable),
@@ -13,8 +11,8 @@ const NONE: ReadonlyMap<string, TreasuryAssignment[]> = new Map();
  */
 export function useWorkgroupTreasuryAssignments(
   communityId: string | null | undefined,
-): ReadonlyMap<string, TreasuryAssignment[]> {
-  const { data } = useAsyncData(communityId ?? null, async () => {
+): AsyncData<ReadonlyMap<string, TreasuryAssignment[]>> {
+  return useAsyncData(communityId ?? null, async () => {
     const { data: rows, error } = await browserClient()
       .from("workgroup_treasury_assignments")
       .select("workgroup_id, treasury_id, starts_on, workgroups!inner(community_id)")
@@ -28,5 +26,4 @@ export function useWorkgroupTreasuryAssignments(
     }
     return byWorkgroup as ReadonlyMap<string, TreasuryAssignment[]>;
   });
-  return data ?? NONE;
 }
