@@ -78,7 +78,7 @@ function BudgetsView({ slug, initialMonth, initialView }: { slug: string; initia
     <div>
       <PageTitle>Budgets</PageTitle>
       <p className="-mt-3 mb-5 text-sm text-zinc-400">
-        Plan across your workgroups and projects. Edit amounts in place, then save your changes together.
+        Plan workgroup task payouts and treasury direct payments. Edit amounts in place, then save your changes together.
         {budgetSettings?.enabled && <> Budget consent is on: changes go to a <a className="underline" href={routes.proposals(slug)}>vote</a> and apply when it passes.</>}
       </p>
       <Card className="mb-5">
@@ -109,7 +109,8 @@ function BudgetsView({ slug, initialMonth, initialView }: { slug: string; initia
       ) : dashboard.loading || workgroups.loading || governance.loading || openProposals.loading || !dashboard.data || !community ? (
         <p role="status" className="py-10 text-sm text-zinc-500">Loading budget worksheet…</p>
       ) : (
-        <BudgetWorksheet key={scope} communityId={community.id} month={view === "recurring" ? null : periodStart} view={view}
+        <BudgetWorksheet key={scope} communityId={community.id} slug={slug}
+          month={view === "recurring" ? null : periodStart} view={view}
           title={title} budgets={dashboard.data.budgets} setups={dashboard.data.setups} selectedMonth={month} workgroups={workgroups.data ?? []}
           treasuries={treasuries.data ?? []} assets={registry.data ?? []}
           isAdmin={isAdmin} ledWorkgroupIds={roles.ledWorkgroupIds}

@@ -98,6 +98,94 @@ function loginsEqual(a: string[], b: string[]): boolean {
   return left.every((l, i) => l === right[i]);
 }
 
+const DISCARD_TASK_CHANGES = "Discard unsaved task changes?";
+
+function initialAssigneeRows(
+  task: BoardTask,
+  members: MemberOption[],
+  isGithub: boolean,
+): AssigneeEditorRow[] {
+  const initial = sortedAssignees(task.task_assignees).map((a, key) => {
+    const wallet = a.wallet_address;
+    const isMember = !wallet || members.some((m) => m.wallet === wallet);
+    return {
+      key,
+      source: a.source,
+      id: a.id,
+      ghLogin: a.gh_login,
+      selection: isMember ? (wallet ?? "") : CUSTOM,
+      custom: isMember ? "" : (wallet ?? ""),
+    };
+  });
+  // A native task with nobody assigned opens with one empty row to fill.
+  return initial.length === 0 && !isGithub ? [emptyManualRow(0)] : initial;
+}
+
+function initialAmountRows(
+  task: BoardTask,
+  tickerOptions: readonly string[],
+): EditorRow[] {
+  // A task without a bounty opens with no rows: a pre-filled ticker with a
+  // blank amount would fail validation on an assignee-only save, and ADA is
+  // not every community's payout token. "+ Add token" starts a row.
+  const initial = amountRowsFromTask(task);
+  // A stored ticker the wallet doesn't hold (yet) opens in custom mode.
+  return initial.map((row) => ({
+    ...row,
+    custom: !tickerOptions.some(
+      (t) => t.toLowerCase() === row.ticker.toLowerCase(),
+    ),
+  }));
+}
+
+/** Assignee identity for dirty checks — ignore ephemeral React keys. */
+function assigneeFingerprint(rows: readonly AssigneeEditorRow[]): string {
+  return JSON.stringify(
+    rows.map(({ source, id, ghLogin, selection, custom }) => ({
+      source,
+      id,
+      ghLogin,
+      selection,
+      custom,
+    })),
+  );
+}
+
+function amountFingerprint(rows: readonly EditorRow[]): string {
+  return JSON.stringify(rows.map(({ ticker, amount, custom }) => ({ ticker, amount, custom })));
+}
+
+export function taskEditorDirty(
+  initial: {
+    title: string;
+    body: string;
+    ghLabels: string;
+    ghStatus: string;
+    budgetMonth: string;
+    assignees: readonly AssigneeEditorRow[];
+    rows: readonly EditorRow[];
+  },
+  current: {
+    title: string;
+    body: string;
+    ghLabels: string;
+    ghStatus: string;
+    budgetMonth: string;
+    assignees: readonly AssigneeEditorRow[];
+    rows: readonly EditorRow[];
+  },
+): boolean {
+  return (
+    current.title !== initial.title
+    || current.body !== initial.body
+    || current.ghLabels !== initial.ghLabels
+    || current.ghStatus !== initial.ghStatus
+    || current.budgetMonth !== initial.budgetMonth
+    || assigneeFingerprint(current.assignees) !== assigneeFingerprint(initial.assignees)
+    || amountFingerprint(current.rows) !== amountFingerprint(initial.rows)
+  );
+}
+
 export function TaskModal({
   task,
   members,
@@ -151,49 +239,43 @@ export function TaskModal({
     "ADA",
     ...tokenTickers.filter((t) => t.toLowerCase() !== "ada"),
   ];
-  const [assigneeRows, setAssigneeRows] = useState<AssigneeEditorRow[]>(() => {
-    const initial = sortedAssignees(task.task_assignees).map((a, key) => {
-      const wallet = a.wallet_address;
-      const isMember = !wallet || members.some((m) => m.wallet === wallet);
-      return {
-        key,
-        source: a.source,
-        id: a.id,
-        ghLogin: a.gh_login,
-        selection: isMember ? (wallet ?? "") : CUSTOM,
-        custom: isMember ? "" : (wallet ?? ""),
-      };
-    });
-    // A native task with nobody assigned opens with one empty row to fill.
-    return initial.length === 0 && !isGithub ? [emptyManualRow(0)] : initial;
+  // Snapshot at open so leave-protection compares against editor defaults
+  // (empty assignee row, current budget month), not the raw task row.
+  const [initial] = useState(() => {
+    const assignees = initialAssigneeRows(task, members, isGithub);
+    return {
+      title: task.title,
+      body: task.body ?? "",
+      ghLabels: (task.gh_labels ?? []).join(", "),
+      ghStatus: task.gh_status ?? "",
+      budgetMonth: task.budget_month?.slice(0, 7) ?? currentBudgetMonth(),
+      assignees,
+      rows: initialAmountRows(task, tickerOptions),
+    };
   });
-  const [nextKey, setNextKey] = useState(assigneeRows.length);
+  const [assigneeRows, setAssigneeRows] = useState<AssigneeEditorRow[]>(initial.assignees);
+  const [nextKey, setNextKey] = useState(initial.assignees.length);
   const [addGithubLogin, setAddGithubLogin] = useState("");
-  const [body, setBody] = useState(task.body ?? "");
+  const [body, setBody] = useState(initial.body);
   // GitHub issue fields, pushed to GitHub on save when changed.
-  const [ghLabels, setGhLabels] = useState((task.gh_labels ?? []).join(", "));
-  const [ghStatus, setGhStatus] = useState(task.gh_status ?? "");
+  const [ghLabels, setGhLabels] = useState(initial.ghLabels);
+  const [ghStatus, setGhStatus] = useState(initial.ghStatus);
   // Budget attribution is editable on every task (the GitHub sync never
   // touches it). Unset tasks default to the current month; the payout build
   // uses the same default, so what the user sees is what goes on chain.
-  const [budgetMonth, setBudgetMonth] = useState(
-    task.budget_month?.slice(0, 7) ?? currentBudgetMonth(),
-  );
-  const [rows, setRows] = useState<EditorRow[]>(() => {
-    // A task without a bounty opens with no rows: a pre-filled ticker with a
-    // blank amount would fail validation on an assignee-only save, and ADA is
-    // not every community's payout token. "+ Add token" starts a row.
-    const initial = amountRowsFromTask(task);
-    // A stored ticker the wallet doesn't hold (yet) opens in custom mode.
-    return initial.map((row) => ({
-      ...row,
-      custom: !tickerOptions.some(
-        (t) => t.toLowerCase() === row.ticker.toLowerCase(),
-      ),
-    }));
-  });
-  const [title, setTitle] = useState(task.title);
+  const [budgetMonth, setBudgetMonth] = useState(initial.budgetMonth);
+  const [rows, setRows] = useState<EditorRow[]>(initial.rows);
+  const [title, setTitle] = useState(initial.title);
   const [error, setError] = useState<string | null>(null);
+  const dirty = taskEditorDirty(initial, {
+    title, body, ghLabels, ghStatus, budgetMonth, assignees: assigneeRows, rows,
+  });
+
+  function requestClose() {
+    if (busy) return;
+    if (dirty && !window.confirm(DISCARD_TASK_CHANGES)) return;
+    onClose();
+  }
   // Budgets are attributed by month; a quarter is its first month. When the
   // workgroup is budgeted by quarter the editor asks for the quarter, so the
   // user never has to know that convention.
@@ -368,7 +450,7 @@ export function TaskModal({
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={requestClose}
       busy={busy}
       scroll
       title={`#${task.number} ${task.title}`}
@@ -726,7 +808,7 @@ export function TaskModal({
 
           <div className="flex flex-wrap justify-end gap-2">
             {!isGithub && onArchive && <Button variant="ghost" className="mr-auto" disabled={busy} onClick={onArchive}>Archive task</Button>}
-            <Button variant="secondary" disabled={busy} onClick={onClose}>
+            <Button variant="secondary" disabled={busy} onClick={requestClose}>
               Cancel
             </Button>
             <Button loading={busy} onClick={save}>Save</Button>

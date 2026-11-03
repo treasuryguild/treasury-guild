@@ -121,7 +121,7 @@ export const COMMUNITY_NAV: readonly CommunityNavEntry[] = [
   { key: "community", label: "Overview", exact: true },
   {
     key: "workgroups",
-    label: "Workgroups",
+    label: "Workgroups & projects",
     activeOn: (pathname) => /\/c\/[^/]+\/boards\//.test(pathname),
   },
   { key: "treasury", label: "Treasury" },
@@ -215,8 +215,8 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p.includes("/proposals"), "Proposals"],
   [(p) => p.includes("/settings/github"), "GitHub"],
   [(p) => p.includes("/settings/members"), "Members"],
-  [(p) => p.includes("/workgroups"), "Workgroups"],
-  [(p) => p.includes("/boards/"), "Workgroup board"],
+  [(p) => p.includes("/workgroups"), "Workgroups & projects"],
+  [(p) => p.includes("/boards/"), "Board"],
   [(p) => p.includes("/tx/"), "Transaction"],
   [(p) => p.startsWith("/c/"), "Community overview"],
 ];

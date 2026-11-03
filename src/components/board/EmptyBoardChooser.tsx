@@ -37,7 +37,7 @@ export function EmptyBoardChooser({
         </Button>
       </Card>
       <Card className="flex flex-col">
-        <h3 className="font-medium">🐙 Connect a GitHub project</h3>
+        <h3 className="font-medium">🐙 Connect a GitHub board</h3>
         <p className="mt-1 flex-1 text-sm text-zinc-400">
           Link a repository and its project board — issues sync in
           automatically and the full board shows here.

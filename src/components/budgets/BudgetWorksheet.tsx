@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BudgetDialog, BudgetSetupDialog } from "./BudgetSetupDialog";
 import { BudgetResetDialog } from "./BudgetResetDialog";
 import {
@@ -20,7 +20,7 @@ import {
 } from "@/lib/budgetSetups";
 import { Copy, Save, Search } from "lucide-react";
 import { apiFetch, describeApiError } from "@/lib/api/client";
-import type { BudgetsResponse, BudgetSummary } from "@/lib/api/types";
+import type { BudgetsResponse, BudgetSummary, CreateProposalResponse, WalletTokenWire } from "@/lib/api/types";
 import type { AssetDef } from "@/lib/assets";
 import {
   alignBudgetMonth, budgetPeriod, currentBudgetMonth, isPastPeriod, monthDate, periodLabel, quarterMonths, shiftMonth,
@@ -30,12 +30,15 @@ import {
   acceptBudgetDraft, budgetDraftRows, budgetRowBlank, budgetRowChanged,
   budgetRowError, budgetSaveBodies, copyPeriodBudgets, draftRowKey, type BudgetDraftRow,
 } from "@/lib/budgetDrafts";
-import type { CreateProposalResponse } from "@/lib/api/types";
 import { ProposalKind } from "@/lib/constants";
 import type { TreasurySummary } from "@/lib/db/types";
 import { plural } from "@/lib/format";
 import type { GovernanceSettings } from "@/lib/governance/rules";
 import { mayPropose } from "@/lib/roles";
+import { routes } from "@/lib/routes";
+import { routedTreasuryAt, workgroupsByTreasury } from "@/lib/workgroupRouting";
+import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
+import { useWorkgroupTreasuryAssignments } from "@/hooks/useWorkgroupTreasuryAssignments";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
 import { Button, EmptyState, ErrorText, Input, Select } from "@/components/ui";
 import { ProposeBudgetDialog, type BudgetProposalText } from "./ProposeBudgetDialog";
@@ -51,6 +54,8 @@ export interface BudgetConsent {
 
 interface Props {
   communityId: string;
+  /** Community slug for board links on workgroup routing notes. */
+  slug: string;
   /** Period start of the view ("YYYY-MM"; the quarter's first month in the quarter view), null for recurring defaults. */
   month: string | null;
   view: BudgetView;
@@ -73,7 +78,7 @@ interface Props {
 }
 
 
-export function BudgetWorksheet({ communityId, month, view, title, budgets, workgroups,
+export function BudgetWorksheet({ communityId, slug, month, view, title, budgets, workgroups,
   treasuries, assets, isAdmin, ledWorkgroupIds, onDirtyChange, onBusyChange, onRefresh,
   setups, selectedMonth, onOpenQuarter, consent }: Props) {
   const periodCadence: BudgetCadence = view === "quarter" ? "quarterly" : "monthly";
@@ -119,6 +124,29 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
   const working = busy || copying;
   const [proposing, setProposing] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
+  // Eager load of every treasury wallet so workgroup Add-token offers the community-wide union.
+  const treasuryAddresses = useMemo(() => treasuries.map((treasury) => treasury.address), [treasuries]);
+  const walletBalances = useWalletAssetsMany(treasuryAddresses);
+  const communityHeldTokens = useMemo(
+    (): WalletTokenWire[] => Object.values(walletBalances.data ?? {}).flatMap((wallet) => wallet.tokens),
+    [walletBalances.data],
+  );
+  const heldByTreasuryId = useMemo(() => {
+    const byId = new Map<string, WalletTokenWire[]>();
+    for (const treasury of treasuries) {
+      byId.set(treasury.id, walletBalances.data?.[treasury.address]?.tokens ?? []);
+    }
+    return byId;
+  }, [treasuries, walletBalances.data]);
+  const assignmentsByWorkgroup = useWorkgroupTreasuryAssignments(communityId);
+  const treasuryById = useMemo(
+    () => new Map(treasuries.map((treasury) => [treasury.id, treasury])),
+    [treasuries],
+  );
+  const paysWorkgroupsByTreasury = useMemo(
+    () => workgroupsByTreasury(workgroups, assignmentsByWorkgroup, referenceMonth),
+    [workgroups, assignmentsByWorkgroup, referenceMonth],
+  );
   const canEdit = (id: string) => {
     const owner = ownerFor(id);
     if (!owner || owner.archived_at) return false;
@@ -173,6 +201,8 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
     (!changesOnly || setupDrafts[group.id] || rowsFor(group.id).some(budgetRowChanged)) &&
     (frequency === "all" || rowsFor(group.id).some((row) => row.cadence === frequency || budgetRowChanged(row))),
   );
+  const workgroupCards = visible.filter((group) => group.kind === "workgroup");
+  const treasuryCards = visible.filter((group) => group.kind === "treasury");
   const hiddenChanges = pending.filter((group) => !visible.some((item) => item.id === group.id)).length;
   const dirty = changed.length > 0;
   const periodWord = periodCadence === "quarterly" ? "quarter" : "month";
@@ -429,6 +459,40 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
   const lockedOwners = consent ? owners.filter((owner) => consent.openProposals.has(owner.id)) : [];
   const gridClass = GRID_CLASS[columns.length]!;
 
+  function renderCard(group: BudgetOwner) {
+    const heldTokens = group.kind === "treasury"
+      ? (heldByTreasuryId.get(group.id) ?? [])
+      : communityHeldTokens;
+    const workgroupRouting = group.kind === "workgroup" ? (() => {
+      const treasuryId = routedTreasuryAt(assignmentsByWorkgroup.get(group.id) ?? [], referenceMonth);
+      return {
+        paidFrom: treasuryId ? (treasuryById.get(treasuryId)?.name ?? "Unknown treasury") : "any wallet",
+        changeWalletHref: routes.board(slug, group.id),
+      };
+    })() : undefined;
+    const pays = group.kind === "treasury" ? paysWorkgroupsByTreasury.get(group.id) : undefined;
+    const treasuryRouting = pays && pays.length > 0 ? { paysWorkgroups: pays } : undefined;
+    return <BudgetProjectCard key={group.id} owner={group} view={view} columns={columns}
+      cells={cellsFor(group.id)} fallback={fallback} rows={rowsFor(group.id)} frequency={frequency}
+      config={setupDrafts[group.id]} context={contextFor(group.id)} referenceMonth={referenceMonth}
+      onSetup={(cell) => promptSetup(group.id, rowsFor(group.id), cell)}
+      onOpenQuarter={onOpenQuarter}
+      // Reset is a workgroup action: treasury budgets have no legacy data and are corrected in place.
+      // Under budget consent a reset is refused: budgets change only by proposal.
+      onClearBudgets={!consent && isAdmin && group.kind === "workgroup" && canEdit(group.id) ? () => setResetPrompt({
+        id: group.id, revision: revisions[group.id] ?? contextFor(group.id)?.revision ?? 0,
+      }) : undefined}
+      onReset={() => {
+        setSetupDrafts((current) => { const next = { ...current }; delete next[group.id]; return next; });
+        setDrafts((current) => { const next = { ...current }; delete next[group.id]; return next; });
+      }} canEdit={canEdit(group.id)} disabled={working || !!accepted[group.id]}
+      assets={assets} heldTokens={heldTokens}
+      heldTokensLoading={walletBalances.loading} heldTokensError={walletBalances.error}
+      workgroupRouting={workgroupRouting} treasuryRouting={treasuryRouting}
+      error={errors[group.id]} showValidation={showValidation}
+      onChange={(rows) => updateGroup(group.id, rows)} />;
+  }
+
   return (
     <div>
       {resetPrompt && <BudgetResetDialog workgroupId={resetPrompt.id}
@@ -543,23 +607,20 @@ export function BudgetWorksheet({ communityId, month, view, title, budgets, work
           {columns.map((column) => <span key={column.start} role="columnheader">{column.label}</span>)}
           <span role="columnheader">Changes</span>
         </div>
-        {visible.map((group) => <BudgetProjectCard key={group.id} owner={group} view={view} columns={columns}
-          cells={cellsFor(group.id)} fallback={fallback} rows={rowsFor(group.id)} frequency={frequency}
-          config={setupDrafts[group.id]} context={contextFor(group.id)} referenceMonth={referenceMonth}
-          onSetup={(cell) => promptSetup(group.id, rowsFor(group.id), cell)}
-          onOpenQuarter={onOpenQuarter}
-          // Reset is a workgroup action: treasury budgets have no legacy data and are corrected in place.
-          // Under budget consent a reset is refused: budgets change only by proposal.
-          onClearBudgets={!consent && isAdmin && group.kind === "workgroup" && canEdit(group.id) ? () => setResetPrompt({
-            id: group.id, revision: revisions[group.id] ?? contextFor(group.id)?.revision ?? 0,
-          }) : undefined}
-          onReset={() => {
-            setSetupDrafts((current) => { const next = { ...current }; delete next[group.id]; return next; });
-            setDrafts((current) => { const next = { ...current }; delete next[group.id]; return next; });
-          }} canEdit={canEdit(group.id)} disabled={working || !!accepted[group.id]}
-          assets={assets} treasury={treasuries.find((treasury) => treasury.id === group.treasury_id)}
-          error={errors[group.id]} showValidation={showValidation}
-          onChange={(rows) => updateGroup(group.id, rows)} />)}
+        {workgroupCards.length > 0 && <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-200">Workgroups & projects</h3>
+            <p className="mt-1 text-xs text-zinc-500">Budgets for task payouts from each workgroup or project.</p>
+          </div>
+          {workgroupCards.map(renderCard)}
+        </div>}
+        {treasuryCards.length > 0 && <div className="space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-200">Treasuries</h3>
+            <p className="mt-1 text-xs text-zinc-500">Budgets for manual payments made straight from each treasury wallet.</p>
+          </div>
+          {treasuryCards.map(renderCard)}
+        </div>}
       </div>
       {visible.length === 0 && <EmptyState>
         {changesOnly ? "No changed projects in this view." : "No matching workgroups, projects or treasuries."}

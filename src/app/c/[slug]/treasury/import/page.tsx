@@ -306,7 +306,7 @@ export default function ImportTreasury({ params }: { params: Promise<{ slug: str
                   Match each key to its payment address. Known community wallets are filled in automatically.
                   Base signers of the community&apos;s first (primary) treasury become community admins; later
                   treasuries add them as members only. Recovery signers and a co-signer must already be members.
-                  You must be a base signer of the first treasury.
+                  Your connected wallet must be a base signer of the treasury you are importing.
                 </p>
                 {signers.map((signer, i) => (
                   <Field key={signer.keyHash} label={`${GROUP_LABELS[signer.group]} ${groupNumber(i)}`}>

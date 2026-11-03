@@ -52,3 +52,32 @@ export function routingPeriod(
   const currentStart = alignBudgetMonth(today, cadence);
   return { cadence, currentStart, nextStart: shiftMonth(currentStart, cadence === "quarterly" ? 3 : 1) };
 }
+
+/** Enough of a workgroup for period routing labels on the Budgets worksheet. */
+export interface RoutingWorkgroupRef {
+  id: string;
+  name: string;
+  archived_at: string | null;
+}
+
+/**
+ * Non-archived workgroups whose payment wallet for `month` ("YYYY-MM") is each
+ * treasury, keyed by treasury id. Workgroups routed to "any wallet" (null) are
+ * omitted. Names stay in the input order.
+ */
+export function workgroupsByTreasury(
+  workgroups: readonly RoutingWorkgroupRef[],
+  assignmentsByWorkgroup: ReadonlyMap<string, readonly TreasuryAssignment[]>,
+  month: string,
+): Map<string, string[]> {
+  const byTreasury = new Map<string, string[]>();
+  for (const group of workgroups) {
+    if (group.archived_at) continue;
+    const treasuryId = routedTreasuryAt(assignmentsByWorkgroup.get(group.id) ?? [], month);
+    if (!treasuryId) continue;
+    const names = byTreasury.get(treasuryId) ?? [];
+    names.push(group.name);
+    byTreasury.set(treasuryId, names);
+  }
+  return byTreasury;
+}

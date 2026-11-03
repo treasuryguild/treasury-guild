@@ -23,8 +23,8 @@ const ENABLE_TEXT: Partial<Record<ProposalKind, { label: string; help: string }>
     help: "Budget changes on the Budgets page become proposals and apply only when they pass. Direct saves and budget resets are refused.",
   },
   [ProposalKind.Workgroup]: {
-    label: "New workgroups by vote",
-    help: "A new workgroup is created when its proposal passes, as an app board with the proposed leads. Admins can no longer add workgroups directly. Changing who leads an existing workgroup is a proposal too: the other leads can object, and an admin can still remove a lead immediately with a reason.",
+    label: "New workgroups or projects by vote",
+    help: "A new workgroup or project is created when its proposal passes, as an app board with the proposed leads. Both are the same kind of board with a budget and optional payment wallet. Admins can no longer add them directly. Changing who leads an existing one is a proposal too: the other leads can object, and an admin can still remove a lead immediately with a reason.",
   },
   [ProposalKind.Task]: {
     label: "Task proposals",

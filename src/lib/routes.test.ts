@@ -65,8 +65,8 @@ describe("routes", () => {
     expect(pageLabel("/c/dao/proposals")).toBe("Proposals");
     expect(pageLabel("/c/dao/proposals/abc")).toBe("Proposal");
     expect(pageLabel("/c/dao/settings/governance")).toBe("Governance");
-    expect(pageLabel("/c/dao/workgroups")).toBe("Workgroups");
-    expect(pageLabel("/c/dao/boards/wg")).toBe("Workgroup board");
+    expect(pageLabel("/c/dao/workgroups")).toBe("Workgroups & projects");
+    expect(pageLabel("/c/dao/boards/wg")).toBe("Board");
     expect(pageLabel("/c/dao/tx/abc")).toBe("Transaction");
     expect(pageLabel("/c/dao")).toBe("Community overview");
     expect(pageLabel("/docs")).toBe("Documentation");

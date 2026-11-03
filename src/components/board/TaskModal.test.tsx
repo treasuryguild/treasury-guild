@@ -40,10 +40,11 @@ function setup(
   githubStatusOptions: string[] = [],
 ) {
   const onSave = vi.fn();
+  const onClose = vi.fn();
   render(
-    <TaskModal task={t} members={members} tokenTickers={[]} network={0 as Network} budgetSetups={budgetSetups} githubStatusOptions={githubStatusOptions} onClose={() => {}} onSave={onSave} />,
+    <TaskModal task={t} members={members} tokenTickers={[]} network={0 as Network} budgetSetups={budgetSetups} githubStatusOptions={githubStatusOptions} onClose={onClose} onSave={onSave} />,
   );
-  return { user: userEvent.setup(), onSave };
+  return { user: userEvent.setup(), onSave, onClose };
 }
 
 afterEach(cleanup);
@@ -201,6 +202,46 @@ describe("TaskModal GitHub issue editing", () => {
     await user.selectOptions(screen.getByLabelText("Wallet for @carol"), "addr1alice");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(onSave).toHaveBeenCalledWith(expect.not.objectContaining({ github: expect.anything() }));
+  });
+});
+
+describe("TaskModal discard guard", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("closes without confirming when nothing changed", async () => {
+    const confirm = vi.fn();
+    vi.stubGlobal("confirm", confirm);
+    const { user, onClose } = setup(task({}));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirm).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("asks before discarding edits, and Cancel keeps the dialog open", async () => {
+    const confirm = vi.fn().mockReturnValue(false);
+    vi.stubGlobal("confirm", confirm);
+    const { user, onClose } = setup(task({}));
+    const title = screen.getByLabelText("Title");
+    await user.clear(title);
+    await user.type(title, "Changed");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved task changes?");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Title")).toBeTruthy();
+  });
+
+  it("closes after the user confirms discard", async () => {
+    const confirm = vi.fn().mockReturnValue(true);
+    vi.stubGlobal("confirm", confirm);
+    const { user, onClose } = setup(task({}));
+    const title = screen.getByLabelText("Title");
+    await user.clear(title);
+    await user.type(title, "Changed");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(confirm).toHaveBeenCalledWith("Discard unsaved task changes?");
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
 

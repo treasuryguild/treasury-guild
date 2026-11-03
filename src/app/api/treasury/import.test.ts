@@ -107,12 +107,18 @@ describe("import treasury API", () => {
     expect(mocks.insert).not.toHaveBeenCalled();
   });
 
-  it("requires the importing admin to sign for the first treasury", async () => {
+  it("requires the importing admin to be a base signer of the script", async () => {
     mocks.session.mockResolvedValue({ wallet: serializeAddress({ pubKeyHash: "c".repeat(56) }, 0) });
     expect((await POST(request(), context)).status).toBe(400);
     expect(mocks.insert).not.toHaveBeenCalled();
+    // Sibling import: still refused when the caller is not on the script.
     mocks.count.mockResolvedValue(1);
-    expect((await POST(request(), context)).status).toBe(200);
+    const later = await POST(request(), context);
+    expect(later.status).toBe(400);
+    expect(await later.json()).toMatchObject({
+      error: "You must be a base signer of the treasury you are importing",
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
   });
 
   it("restricts both preview and import to admins", async () => {

@@ -168,7 +168,7 @@ export function NewProposalDialog({
     const replace = revising ? { replacesProposalId: reviseFrom.id } : {};
     const request =
       kind === ProposalKind.Workgroup
-        ? { kind, communityId, title: `New workgroup: ${name.trim()}`.slice(0, MAX_PROPOSAL_TITLE), body, discussionUrl: link,
+        ? { kind, communityId, title: `New workgroup or project: ${name.trim()}`.slice(0, MAX_PROPOSAL_TITLE), body, discussionUrl: link,
           workgroup: { name: name.trim(), description, leads }, ...override, ...replace }
         : kind === ProposalKind.Task
           ? { kind, communityId, title: title.trim(), body, discussionUrl: link, task: { workgroupId, amounts: amounts!, assignSelf }, ...override, ...replace }
@@ -197,11 +197,11 @@ export function NewProposalDialog({
 
         {kind === ProposalKind.Workgroup && (
           <>
-            <Field label="Workgroup name">
-              <Input aria-label="Workgroup name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+            <Field label="Name" hint="An ongoing team or a time-bounded project — both use the same board, budget and optional wallet.">
+              <Input aria-label="Workgroup or project name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="What it does" hint="Becomes the workgroup's description.">
-              <Textarea aria-label="Workgroup description" value={description} maxLength={1000} rows={3}
+            <Field label="What it does" hint="Becomes the description on its board.">
+              <Textarea aria-label="Workgroup or project description" value={description} maxLength={1000} rows={3}
                 onChange={(e) => setDescription(e.target.value)} />
             </Field>
             <Field label="Leads" hint="They manage its board and budget once it exists. Changing leads later is its own proposal.">
