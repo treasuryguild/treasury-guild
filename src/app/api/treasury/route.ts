@@ -267,13 +267,17 @@ export const POST = sessionRoute(async (req, { session }) => {
   const { rows, shape } = built;
   const baseRows = rows.filter((r) => r.signer_group === SignerGroup.Base);
 
-  // The community's first treasury becomes primary and must include its
-  // creator: the caller is necessarily the owner (sole admin) at that point,
-  // and its base signers become the community's admins. A later sibling can
-  // receive unrestricted transfers, so only a primary base signer may add one.
+  // An import always needs the caller's wallet among the script's base
+  // signers (otherwise anyone with CBOR could squat the address). A new
+  // first treasury must include its creator for the same reason; its base
+  // signers become the community's admins. A later sibling can receive
+  // unrestricted transfers, so only a primary base signer may add one.
   const treasuryCount = await countCommunityTreasuries(communityId);
   const isPrimary = treasuryCount === 0;
-  if (isPrimary && !baseRows.some((s) => s.wallet_address === session.wallet)) {
+  if (imported && !baseRows.some((s) => s.wallet_address === session.wallet)) {
+    throw new BadRequestError("You must be a base signer of the treasury you are importing");
+  }
+  if (!imported && isPrimary && !baseRows.some((s) => s.wallet_address === session.wallet)) {
     throw new BadRequestError("You must be a signer of the community's first treasury");
   }
   if (!isPrimary && !(await isPrimaryTreasuryBaseSigner(communityId, session.wallet))) {

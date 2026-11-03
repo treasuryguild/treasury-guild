@@ -145,7 +145,7 @@ Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer k
 3. Pick a match (or resolve a transaction hash). The app reconstructs the native script from the registration transaction's witnesses, refuses anything that is not a Treasury Guild template shape, and fills known member addresses and participant names from the metadata.
 4. Confirm the derived address (including a stake credential when the registration was for an SDK wallet), finish matching any missing payment addresses, and import as usual.
 
-As with new treasuries, base signers of the first (primary) treasury become community admins; later imports add them as members only (recovery signers and a co-signer must already be members). You must be a base signer when importing the community's first treasury. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
+As with new treasuries, base signers of the first (primary) treasury become community admins; later imports add them as members only (recovery signers and a co-signer must already be members). You must be a base signer of the script you are importing (your connected wallet must match one of its base keys), whether it is the community's first treasury or a later one. Wallet addresses must match the script's keys and the community's network. An address already registered as a treasury cannot be imported again. Importing registers the existing wallet; it does not move funds.
 
 ## Payment history from a previous wallet
 
