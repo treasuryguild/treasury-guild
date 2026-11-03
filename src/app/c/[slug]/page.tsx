@@ -5,10 +5,13 @@ import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import type { JoinCommunityResponse } from "@/lib/api/types";
 import { Visibility } from "@/lib/constants";
-import { COMMUNITY_CARDS, communityHref } from "@/lib/routes";
+import { COMMUNITY_CARDS, communityHref, routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
+import { useTreasuries } from "@/hooks/useTreasuries";
 import { NetworkBadge } from "@/components/community/NetworkNotice";
+import { OverviewAttention } from "@/components/community/OverviewAttention";
+import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
 import { SetupChecklist } from "@/components/integrations/SetupChecklist";
 import {
   Badge,
@@ -28,6 +31,7 @@ export default function CommunityDashboard({
     require: "community",
   });
   const join = useAsyncAction("Failed to join");
+  const treasuries = useTreasuries(community?.id);
 
   if (blocked) return blocked;
 
@@ -79,8 +83,43 @@ export default function CommunityDashboard({
         {community!.name}
       </PageTitle>
 
+      {community!.description && (
+        <p className="mb-6 text-sm text-zinc-400">{community!.description}</p>
+      )}
+
       {isAdmin && community && (
         <SetupChecklist communityId={community.id} slug={slug} />
+      )}
+
+      {isAdmin && (
+        <p className="mb-6 text-sm text-zinc-400">
+          <Link
+            className="text-indigo-400 hover:underline"
+            href={`${routes.members(slug)}#invite-links`}
+          >
+            Invite members
+          </Link>
+          {" "}with a shareable link on Members.
+        </p>
+      )}
+
+      {community && (
+        <>
+          <OverviewAttention
+            slug={slug}
+            communityId={community.id}
+            treasuries={treasuries.data}
+            isAdmin={isAdmin}
+          />
+          <div className="mb-6">
+            <AnchorsDueNotice
+              slug={slug}
+              communityId={community.id}
+              treasuries={treasuries.data}
+              isAdmin={isAdmin}
+            />
+          </div>
+        </>
       )}
 
       <div className="mb-8 grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-4">

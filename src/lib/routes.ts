@@ -149,6 +149,8 @@ export interface CommunityCard {
 
 /** Dashboard cards on the community overview page. */
 export const COMMUNITY_CARDS: readonly CommunityCard[] = [
+  { key: "workgroups", title: "Workgroups & projects", blurb: "Boards, leads and treasury routing" },
+  { key: "dashboard", title: "Dashboard", blurb: "Budget vs spending and funding flow" },
   { key: "budgets", title: "Budgets", blurb: "Track project budgets, balances & spending" },
   { key: "proposals", title: "🗳️ Proposals", blurb: "Vote on budgets and community decisions" },
   { key: "treasury", title: "💰 Treasury", blurb: "Multisig wallets & pending transactions" },

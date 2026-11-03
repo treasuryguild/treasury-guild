@@ -92,7 +92,7 @@ export function InviteLinks({ communityId }: { communityId: string }) {
   const invites = list.data?.invites ?? [];
 
   return (
-    <div className="mt-4 border-t border-zinc-800 pt-4">
+    <div id="invite-links" className="mt-4 border-t border-zinc-800 pt-4">
       <h4 className="text-sm font-medium">Invite links</h4>
       <p className="mt-1 text-xs text-zinc-500">
         Share a link so people can join with their wallet. They set a handle and
