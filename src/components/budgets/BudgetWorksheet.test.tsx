@@ -65,8 +65,8 @@ const props = () => ({
     plans: [], legacy: [], history: [],
   })),
   workgroups: [
-    { id: "design", name: "Design", kind: "native", treasury_id: null, archived_at: null as string | null },
-    { id: "engineering", name: "Engineering", kind: "native", treasury_id: null, archived_at: null as string | null },
+    { id: "design", name: "Design", kind: "native", treasury_id: null as string | null, archived_at: null as string | null },
+    { id: "engineering", name: "Engineering", kind: "native", treasury_id: null as string | null, archived_at: null as string | null },
   ],
   treasuries: [] as TreasurySummary[], assets: [], isAdmin: true, ledWorkgroupIds: new Set<string>(),
   onDirtyChange: vi.fn(), onBusyChange: vi.fn(), onRefresh: vi.fn().mockResolvedValue(undefined),

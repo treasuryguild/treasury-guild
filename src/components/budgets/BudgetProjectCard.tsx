@@ -85,7 +85,7 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
   /** Tokens the Add-token picker offers beyond the registry (community-wide for workgroups). */
   heldTokens: WalletTokenWire[];
   heldTokensLoading?: boolean;
-  heldTokensError?: unknown;
+  heldTokensError?: string | null;
   workgroupRouting?: WorkgroupRoutingNote;
   treasuryRouting?: TreasuryRoutingNote;
   error?: string;
