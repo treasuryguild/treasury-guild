@@ -7,10 +7,9 @@ import {
   setupAt, setupLabel, type BudgetOwnerType, type BudgetSetupContext, type BudgetSetupDraft, type BudgetView,
 } from "@/lib/budgetSetups";
 import { ADA_ASSET, type AssetDef } from "@/lib/assets";
+import type { WalletTokenWire } from "@/lib/api/types";
 import { budgetAssetOptions, type BudgetCadence } from "@/lib/budgets";
 import { budgetRowChanged, budgetRowError, draftRowKey, type BudgetDraftRow } from "@/lib/budgetDrafts";
-import type { TreasurySummary } from "@/lib/db/types";
-import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { Badge, Button, ErrorText, Input, Select } from "@/components/ui";
 
 /** One card of the worksheet: a workgroup's board budget, or a treasury's budget for manual payments. */
@@ -20,7 +19,7 @@ export interface BudgetOwner {
   kind: BudgetOwnerType;
   /** Workgroups only; a treasury is never archived. */
   archived_at: string | null;
-  /** The wallet whose tokens the token picker offers: a workgroup's routed treasury, or the treasury itself. */
+  /** Workgroup's current routed treasury (display/routing); token picks come from the worksheet. */
   treasury_id: string | null;
 }
 
@@ -57,7 +56,8 @@ export function blankRow(asset: AssetDef, cell: Pick<BudgetCell, "start" | "cade
 }
 
 export function BudgetProjectCard({ owner: group, view, columns, cells, fallback, rows, frequency, canEdit, disabled, assets,
-  treasury, error, showValidation, onChange, context, config, referenceMonth, onSetup, onReset, onClearBudgets, onOpenQuarter }: {
+  heldTokens, heldTokensLoading, heldTokensError, error, showValidation, onChange, context, config, referenceMonth,
+  onSetup, onReset, onClearBudgets, onOpenQuarter }: {
   owner: BudgetOwner;
   view: BudgetView;
   columns: BudgetColumn[];
@@ -69,7 +69,10 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
   canEdit: boolean;
   disabled: boolean;
   assets: AssetDef[];
-  treasury?: TreasurySummary;
+  /** Tokens the Add-token picker offers beyond the registry (community-wide for workgroups). */
+  heldTokens: WalletTokenWire[];
+  heldTokensLoading?: boolean;
+  heldTokensError?: unknown;
   error?: string;
   showValidation: boolean;
   context?: BudgetSetupContext;
@@ -84,8 +87,7 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
 }) {
   const [adding, setAdding] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
-  const wallet = useWalletAssets(adding ? treasury?.address : undefined);
-  const options = budgetAssetOptions([...assets, ...rows.map((row) => row.asset)], wallet.data?.tokens ?? [])
+  const options = budgetAssetOptions([...assets, ...rows.map((row) => row.asset)], heldTokens)
     .filter((asset) => !rows.some((row) => row.asset.unit === asset.unit));
   const active = setupAt(context, referenceMonth);
   const editable = cells.filter((cell) => !cell.needsSetup && !cell.quarterLink);
@@ -255,9 +257,11 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
             {options.map((asset) => <option key={asset.unit} value={asset.unit}>{asset.fieldName}</option>)}
           </Select>
           <Button variant="ghost" className="!min-h-8 !px-2 !py-1 text-xs" disabled={disabled} onClick={() => setAdding(false)}>Cancel</Button>
-          <span className="text-xs text-zinc-500">{wallet.loading ? "Loading treasury tokens…"
-            : group.kind === "treasury" ? "Registry and this treasury's tokens" : "Registry and assigned treasury tokens"}</span>
-          <ErrorText error={wallet.error} />
+          <span className="text-xs text-zinc-500">{heldTokensLoading ? "Loading treasury tokens…"
+            : group.kind === "treasury"
+              ? "Registry and this treasury's tokens"
+              : "Registry and tokens held in any community treasury"}</span>
+          <ErrorText error={heldTokensError} />
         </>}
       </div>}
     </div>

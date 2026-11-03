@@ -13,9 +13,30 @@ vi.mock("@/lib/api/client", async (importOriginal) => ({
   ...await importOriginal<typeof ApiClientModule>(),
   apiFetch: vi.fn(),
 }));
-vi.mock("@/hooks/useWalletAssets", () => ({
-  useWalletAssets: () => ({ data: null, loading: false, error: null }),
+
+const { walletBalancesMock } = vi.hoisted(() => ({
+  walletBalancesMock: vi.fn(() => ({
+    data: {} as Record<string, { lovelace: string; utxoCount: number; tokens: {
+      unit: string; quantity: string; ticker: string | null; name: string | null; decimals: number; source: "registry";
+    }[] }>,
+    loading: false,
+    error: null as string | null,
+    reload: vi.fn(),
+    setData: vi.fn(),
+  })),
 }));
+vi.mock("@/hooks/useWalletAssets", () => ({
+  useWalletAssets: () => ({ data: null, loading: false, error: null, reload: vi.fn(), setData: vi.fn() }),
+  useWalletAssetsMany: () => walletBalancesMock(),
+}));
+
+function treasury(id: string, address: string, name = id): TreasurySummary {
+  return {
+    id, name, address, required: 1, script_type: "atLeast",
+    template: "plain", lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null,
+    archived_at: null, stake_credential_hash: null, treasury_signers: [{ signer_group: "base" }],
+  };
+}
 
 function budget(id: string, changes: Partial<BudgetSummary> = {}): BudgetSummary {
   return {
@@ -55,22 +76,115 @@ it("keeps archived budget history visible and read-only for admins", () => {
 
 beforeEach(() => {
   vi.mocked(apiFetch).mockReset();
+  walletBalancesMock.mockReset();
+  walletBalancesMock.mockReturnValue({
+    data: {}, loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+  });
   vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-09T00:00:00Z"));
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.useRealTimers(); });
 
+describe("worksheet sections", () => {
+  it("groups workgroups and treasuries under separate section headings", () => {
+    const input = props();
+    input.treasuries = [treasury("main", "addr_main", "Main")];
+    input.setups.push({
+      ownerType: "treasury", ownerId: "main", ownerName: "Main", workgroupId: null, workgroupKind: null, treasuryId: "main",
+      revision: 0, legacyConflict: false, plans: [], legacy: [], history: [],
+      timeline: [{ id: "main-setup", starts_on: "2026-01-01", mode: "monthly", cadence: "monthly", amounts: [] }],
+    });
+    input.budgets.push(budget("main", { ownerType: "treasury", ownerName: "Treasury: Main", treasuryId: "main", workgroupKind: null }));
+    render(<BudgetWorksheet {...input} />);
+    expect(screen.getByRole("heading", { name: "Workgroups" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
+    expect(screen.getByText("Budgets for task payouts from each workgroup or project.")).toBeTruthy();
+    expect(screen.getByText("Budgets for manual payments made straight from each treasury wallet.")).toBeTruthy();
+  });
+
+  it("hides the Workgroups section when search leaves only treasuries", async () => {
+    const user = userEvent.setup();
+    const input = props();
+    input.treasuries = [treasury("main", "addr_main", "Main")];
+    input.setups.push({
+      ownerType: "treasury", ownerId: "main", ownerName: "Main", workgroupId: null, workgroupKind: null, treasuryId: "main",
+      revision: 0, legacyConflict: false, plans: [], legacy: [], history: [],
+      timeline: [{ id: "main-setup", starts_on: "2026-01-01", mode: "monthly", cadence: "monthly", amounts: [] }],
+    });
+    input.budgets.push(budget("main", { ownerType: "treasury", ownerName: "Treasury: Main", treasuryId: "main", workgroupKind: null }));
+    render(<BudgetWorksheet {...input} />);
+    await user.type(screen.getByLabelText("Search workgroups, projects and treasuries"), "Main");
+    expect(screen.queryByRole("heading", { name: "Workgroups" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
+    expect(screen.getByRole("rowgroup", { name: "Main" })).toBeTruthy();
+  });
+});
+
+describe("community-wide workgroup tokens", () => {
+  const OTHER = "b".repeat(56);
+  const ONLY_MAIN = "c".repeat(56);
+
+  it("offers a workgroup tokens held on any community treasury, and a treasury only its own", async () => {
+    const user = userEvent.setup();
+    walletBalancesMock.mockReturnValue({
+      data: {
+        addr_main: {
+          lovelace: "0", utxoCount: 1, tokens: [{
+            unit: ONLY_MAIN, quantity: "1", ticker: "MAINONLY", name: null, decimals: 0, source: "registry",
+          }],
+        },
+        addr_ops: {
+          lovelace: "0", utxoCount: 1, tokens: [{
+            unit: OTHER, quantity: "1", ticker: "OPS", name: null, decimals: 0, source: "registry",
+          }],
+        },
+      },
+      loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
+    });
+    const input = props();
+    // Design is routed to Ops, so MAINONLY is not on its assigned wallet.
+    input.workgroups[0]!.treasury_id = "ops";
+    input.treasuries = [treasury("main", "addr_main", "Main"), treasury("ops", "addr_ops", "Ops")];
+    for (const id of ["main", "ops"] as const) {
+      input.setups.push({
+        ownerType: "treasury", ownerId: id, ownerName: id === "main" ? "Main" : "Ops",
+        workgroupId: null, workgroupKind: null, treasuryId: id,
+        revision: 0, legacyConflict: false, plans: [], legacy: [], history: [],
+        timeline: [{ id: `${id}-setup`, starts_on: "2026-01-01", mode: "monthly", cadence: "monthly", amounts: [] }],
+      });
+      input.budgets.push(budget(id, {
+        ownerType: "treasury", ownerName: `Treasury: ${id === "main" ? "Main" : "Ops"}`,
+        treasuryId: id, workgroupKind: null,
+      }));
+    }
+    render(<BudgetWorksheet {...input} />);
+
+    await user.click(screen.getAllByRole("button", { name: /Add token/ })[0]!);
+    const workgroupSelect = screen.getByLabelText("Add token for Design") as HTMLSelectElement;
+    expect([...workgroupSelect.options].map((o) => o.text)).toEqual(
+      expect.arrayContaining(["MAINONLY", "OPS"]),
+    );
+    expect(screen.getByText("Registry and tokens held in any community treasury")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    const mainAdd = screen.getAllByRole("button", { name: /Add token/ }).find((button) =>
+      button.closest("[role=rowgroup]")?.getAttribute("aria-label") === "Main");
+    await user.click(mainAdd!);
+    const treasurySelect = screen.getByLabelText("Add token for Main") as HTMLSelectElement;
+    const labels = [...treasurySelect.options].map((o) => o.text);
+    expect(labels).toContain("MAINONLY");
+    expect(labels).not.toContain("OPS");
+    expect(screen.getByText("Registry and this treasury's tokens")).toBeTruthy();
+  });
+});
+
 describe("treasury budgets", () => {
   it("lists a treasury as its own card that only admins edit, saving with the treasury owner", async () => {
     const user = userEvent.setup();
     vi.mocked(apiFetch).mockResolvedValue({ ok: true, revision: 1 });
     const input = props();
-    input.treasuries = [{
-      id: "main", name: "Main", address: "addr_main", required: 1, script_type: "atLeast",
-      template: "plain", lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null, archived_at: null, stake_credential_hash: null,
-      treasury_signers: [{ signer_group: "base" }],
-    }];
+    input.treasuries = [treasury("main", "addr_main", "Main")];
     input.setups.push({
       ownerType: "treasury", ownerId: "main", ownerName: "Main", workgroupId: null, workgroupKind: null, treasuryId: "main",
       revision: 0, legacyConflict: false, plans: [], legacy: [], history: [],
@@ -82,6 +196,8 @@ describe("treasury budgets", () => {
     expect(card.textContent).toContain("Treasury");
     expect(screen.queryByRole("button", { name: "Reset budgets for Main" })).toBeNull();
     expect(screen.getByText("3 of 3 projects")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Workgroups" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Treasuries" })).toBeTruthy();
     const field = screen.getByRole("textbox", { name: "Main ADA budget amount" });
     await user.clear(field); await user.type(field, "500");
     await user.click(screen.getByRole("button", { name: "Save all changes" }));
