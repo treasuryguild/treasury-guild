@@ -91,4 +91,6 @@ An internal `/dev` tools page, gated by the `DEV_WALLETS` allowlist, hosts teste
 
 ## Not in scope today
 
-Fiat, payroll or tax handling; non-Cardano chains; on-chain voting (proposals are decided by off-chain signed ballots and only their fingerprints are anchored, see Proposals & voting); on-chain enforcement of budgets (the co-signer is near-enforcement, and a community-run co-signer service is not built); escrow or milestone-based release; contributor reputation. These are natural adjacent areas for ideas.
+Fiat, payroll or tax handling; non-Cardano chains; on-chain voting (proposals are decided by off-chain signed ballots and only their fingerprints are anchored, see Proposals & voting); on-chain enforcement of budgets (the co-signer is near-enforcement, and a community-run co-signer service is not built); escrow or milestone-based release.
+
+**Optional recognition** (off by default; see `docs/recognition-module.md` and `/docs/recognition`): communities may enable lead endorsements (and optionally peer kudos) on paid tasks, scored in seasons, with optional “recognized contributors” as a proposal electorate and admin-downloaded season badge NFT drafts. Recognition never changes payouts, budgets, or signing authority.

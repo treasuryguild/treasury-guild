@@ -28,6 +28,7 @@ import {
   HandCoins,
   Send,
   Settings,
+  Sparkles,
   Users,
   Vote,
   Wrench,
@@ -85,6 +86,7 @@ const COMMUNITY_ICONS: Record<CommunityRouteKey, LucideIcon> = {
   githubSettings: FolderGit2,
   callSettings: Radio,
   governanceSettings: Scale,
+  recognitionSettings: Sparkles,
   members: Users,
 };
 

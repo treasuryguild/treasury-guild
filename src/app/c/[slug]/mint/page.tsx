@@ -1,12 +1,13 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import type { BuildMintResponse } from "@/lib/api/types";
 import { downloadJson, fetchAsBase64 } from "@/lib/browser/download";
 import type { MintWithTx } from "@/lib/db/types";
 import { ipfsUrl } from "@/lib/ipfs";
 import { cip26DraftForMint, cip26FileName } from "@/lib/mint/cip26";
+import type { MintReuseMode } from "@/lib/mint/reuseMint";
 import { routes } from "@/lib/routes";
 import { useBuildTx } from "@/hooks/useBuildTx";
 import { useNetworkGate } from "@/hooks/useNetworkGate";
@@ -32,6 +33,11 @@ export default function MintPage({
   const gateway = useIpfsGateway();
   const { build, busy, error } = useBuildTx(slug);
   const { reason: networkReason } = useNetworkGate(community?.network);
+  const [reuseSeed, setReuseSeed] = useState<{
+    row: MintWithTx;
+    mode: MintReuseMode;
+    nonce: number;
+  } | null>(null);
 
   if (blocked) return blocked;
 
@@ -40,6 +46,7 @@ export default function MintPage({
   const mintList = mints.data ?? [];
   const canMintAnywhere = roles.signerTreasuryIds.size > 0;
   const ready = !treasuries.loading && !roles.loading;
+  const showForm = ready && canMintAnywhere && treasuryList.length > 0;
 
   async function downloadCip26(row: MintWithTx) {
     const logoBase64 =
@@ -89,6 +96,7 @@ export default function MintPage({
           busy={busy}
           error={error}
           blockedReason={networkReason}
+          reuseSeed={reuseSeed}
           onBuild={(body) => void build<BuildMintResponse>("/api/tx/build-mint", body)}
         />
       )}
@@ -100,6 +108,11 @@ export default function MintPage({
         gateway={gateway}
         loading={mints.loading}
         onDownloadCip26={(row) => void downloadCip26(row)}
+        onReuse={
+          showForm
+            ? (row, mode) => setReuseSeed({ row, mode, nonce: Date.now() })
+            : undefined
+        }
       />
     </div>
   );

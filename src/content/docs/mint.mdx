@@ -44,6 +44,13 @@ Token metadata follows CIP-25 (label 721); images are pinned on IPFS. The record
 
 Below the form, **Minted assets** lists every token the community has minted with its type (**FT** or **NFT**), quantity, date, transaction state, policy lock date if any, its unit (policy id + asset name) with a copy button, and a link to its transaction. For a fungible token, **CIP-26 draft ↓** downloads a draft entry for the Cardano token registry (`<unit>.json`, with the name, description, ticker, decimals, website and logo), so wallets and explorers can show the ticker, decimals and logo. The draft is unsigned: sign it with the policy keys (token-metadata-creator) before opening a registry pull request.
 
+Confirmed mints can prefill the form so you do not re-enter every field:
+
+- **Mint more** — on a fungible token whose policy can still mint (open, or time-locked and not yet expired). Fills the form with the same treasury, asset name, ticker, decimals, logo and metadata, keeps that policy, and locks those identity fields so the new transaction increases supply of the **same** on-chain unit. Enter only the new supply, then build as usual.
+- **Use as template** — on every confirmed mint (and as a second action next to **Mint more**). Copies metadata into the form without locking identity. For an NFT the name is cleared so you choose a new one; for an expired time-locked FT the policy resets to open because that locked policy can no longer mint. A template under a new policy is a **different** token even if you keep the old name.
+
+**Start blank** on the form banner clears a prefill. Pending or rejected mints offer neither action.
+
 ## Using minted tokens
 
 Once confirmed, a minted token sits in the treasury like any other asset. It is discovered automatically: use its ticker in a task's bounty and Payday will match it to the treasury's balance. See [Payday](/docs/payday#tokens).

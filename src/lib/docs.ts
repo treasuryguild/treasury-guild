@@ -86,6 +86,12 @@ export const DOCS = [
     group: "Your community",
   },
   {
+    slug: "recognition",
+    title: "Recognition",
+    summary: "Optional endorsements of paid work, season scores, and badge drafts — off until an admin turns it on.",
+    group: "Your community",
+  },
+  {
     slug: "payday",
     title: "Payday",
     summary: "Selecting payable tasks and building one batch payout transaction.",
@@ -227,6 +233,8 @@ export const DOC_PATHS: readonly [test: (p: string) => boolean, link: DocLink][]
   [(p) => p.includes("/funding"), { slug: "funding" }],
   [(p) => p.includes("/settings/integrations"), { slug: "integrations" }],
   [(p) => p.includes("/settings/governance"), { slug: "governance", hash: "governance-settings" }],
+  [(p) => p.includes("/settings/recognition"), { slug: "recognition", hash: "turning-it-on" }],
+  [(p) => p.includes("/recognition"), { slug: "recognition" }],
   [(p) => p.includes("/proposals/"), { slug: "governance", hash: "voting" }],
   [(p) => p.includes("/proposals"), { slug: "governance" }],
   [(p) => p.includes("/settings/github"), { slug: "github" }],

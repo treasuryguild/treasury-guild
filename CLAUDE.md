@@ -526,6 +526,15 @@ Supabase (RLS, no ORM) + Netlify.
   community holds and accepts an unclaimed one only when GitHub created or
   updated it in the last 15 minutes. Repo links are checked against the
   installation (`GET /repositories/{id}`), never trusted from the body.
+- **Recognition** (migration 0092, `src/lib/recognition/`, `src/lib/db/recognition.ts`,
+  settings `/c/[slug]/settings/recognition`, season board `/c/[slug]/recognition`):
+  opt-in per community (`recognition_settings`; missing row = off). Lead/admin
+  endorsements (and optional peer kudos) on paid/reconciled tasks only; call
+  attendance tasks refused; soft revoke; season scores pure (no ADA in the
+  formula). Optional `endorsed` proposal electorate and admin-downloaded season
+  badge NFT drafts. **Never** writes tasks/payouts/payments/budgets or changes
+  signing/membership roles. User doc `recognition.mdx`; design
+  `docs/recognition-module.md`.
 - **Community invite links** (migration 0073, `src/lib/invites/`,
   `src/lib/db/invites.ts`, page `/invite/[token]`): admins create and revoke
   on Members (`InviteLinks`, `/api/community/invites`); redeem joins as

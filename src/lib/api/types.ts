@@ -20,11 +20,13 @@ import type {
   CommunityRow,
   CosignerDecisionRow,
   PaydayAllocationRuleRow,
+  RecognitionEventRow,
   TaskAssigneeRow,
   TreasuryRow,
 } from "@/lib/db/types";
 import type { FlowMonth } from "@/lib/fundingFlow";
 import type { GovernanceCommunitySettings } from "@/lib/governance/rules";
+import type { RecognitionSettings } from "@/lib/recognition/settings";
 import type { MatchSuggestion } from "@/lib/reconciliation/types";
 import type { LiveBoardResponse } from "@/lib/boardTypes";
 import type { LegacyImportPlan, LegacyToken, LegacyTotal } from "@/lib/legacyHistory/types";
@@ -732,6 +734,25 @@ export interface GovernanceDiscordResponse {
 /** GET /api/governance/community-settings: the community-level settings (0059). */
 export interface GovernanceCommunitySettingsResponse {
   settings: GovernanceCommunitySettings;
+}
+
+/** GET /api/recognition/settings */
+export interface RecognitionSettingsResponse {
+  settings: RecognitionSettings;
+}
+
+/** GET /api/recognition/events (by task or season) */
+export interface RecognitionEventsResponse {
+  events: RecognitionEventRow[];
+  /** Remaining endorsements the session wallet may still grant this season (when season query). */
+  endorsementsRemaining?: number;
+  seasonKey?: string;
+  scores?: { wallet: string; score: number; tier: string }[];
+}
+
+/** POST /api/recognition/endorse or /kudos */
+export interface RecognitionCreatedResponse {
+  id: string;
 }
 /** GET /api/proposals/electorate */
 export interface ElectoratePreviewResponse {

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { joinUnit } from "@/lib/cardano/units";
 import type { MintWithTx } from "@/lib/db/types";
 import { formatDate, formatUnits } from "@/lib/format";
 import { ipfsUrl } from "@/lib/ipfs";
+import { reuseActionsFor, type MintReuseMode } from "@/lib/mint/reuseMint";
 import { routes } from "@/lib/routes";
 import {
   Badge,
@@ -20,18 +22,25 @@ export function MintedAssetsList({
   gateway,
   loading,
   onDownloadCip26,
+  onReuse,
 }: {
   mints: MintWithTx[];
   slug: string;
   gateway: string | null;
   loading: boolean;
   onDownloadCip26: (row: MintWithTx) => void;
+  /** Prefill the mint form from this row. Omitted when the form is not shown. */
+  onReuse?: (row: MintWithTx, mode: MintReuseMode) => void;
 }) {
+  // Stable "now" so live vs expired lock does not flicker mid-session.
+  const [nowMs] = useState(() => Date.now());
+
   return (
     <div className="space-y-3">
       {mints.map((m) => {
         const imageUrl = m.image_cid && gateway ? ipfsUrl(gateway, m.image_cid) : null;
         const unit = joinUnit(m.policy_id, m.asset_name_hex);
+        const actions = onReuse ? reuseActionsFor(m, nowMs) : null;
         return (
           <Card key={m.id} className="flex flex-wrap items-center gap-4 py-4 sm:flex-nowrap">
             {imageUrl ? (
@@ -69,6 +78,26 @@ export function MintedAssetsList({
               >
                 Transaction
               </Link>
+              {actions && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onReuse?.(m, actions.primary)}
+                    className="text-xs text-indigo-400 hover:underline"
+                  >
+                    {actions.primary === "mint_more" ? "Mint more" : "Use as template"}
+                  </button>
+                  {actions.secondary === "template" && (
+                    <button
+                      type="button"
+                      onClick={() => onReuse?.(m, "template")}
+                      className="text-xs text-zinc-400 hover:text-zinc-200"
+                    >
+                      Use as template
+                    </button>
+                  )}
+                </>
+              )}
               {m.asset_kind === "ft" && (
                 <button
                   type="button"

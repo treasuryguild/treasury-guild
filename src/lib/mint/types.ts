@@ -2,6 +2,7 @@
 
 export type MintKind = "ft" | "nft";
 export type PolicyMode = "treasury" | "locked";
+export type MintReuseMode = "mint_more" | "template";
 
 /** Sentinel for "create a new locked policy" in the existing-lock picker. */
 export const NEW_LOCK = "new";
@@ -19,6 +20,13 @@ export interface NftDraft {
   description: string;
   attributes: { key: string; value: string }[];
   image: ImageState;
+}
+
+/** Active prefill from a previous mint (Minted assets → form). */
+export interface MintReuseState {
+  mode: MintReuseMode;
+  sourceName: string;
+  sourceTicker: string | null;
 }
 
 export interface MintFormState {
@@ -40,6 +48,8 @@ export interface MintFormState {
   /** NEW_LOCK or a lock slot (as string) of a previously used policy. */
   existingLock: string;
   recipient: string;
+  /** Set when the form was filled from a previous mint; null when blank. */
+  reuse: MintReuseState | null;
 }
 
 export const emptyImage = (): ImageState => ({
@@ -72,6 +82,7 @@ export const emptyMintForm = (): MintFormState => ({
   lockUntil: "",
   existingLock: NEW_LOCK,
   recipient: "",
+  reuse: null,
 });
 
 export interface LockedPolicy {

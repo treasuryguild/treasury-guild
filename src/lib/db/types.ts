@@ -26,12 +26,14 @@ import type {
   ProposalKind,
   Proposers,
   ProposalState,
+  RecognitionKind,
   SignerGroup,
   SpendingPath,
   StakeAction,
   TreasuryTemplate,
   VoteChoice,
 } from "@/lib/constants";
+import type { RecognitionSeason } from "@/lib/recognition/settings";
 
 export interface CommunityRow {
   id: string;
@@ -1163,3 +1165,53 @@ export interface ProposalEventRow {
 }
 
 export const PROPOSAL_EVENT_COLUMNS = "id, proposal_id, community_id, action, actor, detail, occurred_at";
+
+/** One row per community; missing = recognition off (defaults in recognition/settings.ts). */
+export interface RecognitionSettingsRow {
+  community_id: string;
+  enabled: boolean;
+  season: RecognitionSeason;
+  max_endorsements_per_actor_season: number;
+  show_leaderboard: boolean;
+  peer_kudos_enabled: boolean;
+  min_member_days_to_kudos: number;
+  electorate_endorsed: boolean;
+  endorsed_min_score: string;
+  updated_by: string;
+  updated_at: string;
+}
+
+export const RECOGNITION_SETTINGS_COLUMNS =
+  "community_id, enabled, season, max_endorsements_per_actor_season, show_leaderboard, peer_kudos_enabled, min_member_days_to_kudos, electorate_endorsed, endorsed_min_score, updated_by, updated_at";
+
+export interface RecognitionSettingChangeRow {
+  id: string;
+  community_id: string;
+  actor: string;
+  before_value: RecognitionSettingsRow | null;
+  after_value: RecognitionSettingsRow;
+  changed_at: string;
+}
+
+export const RECOGNITION_SETTING_CHANGE_COLUMNS =
+  "id, community_id, actor, before_value, after_value, changed_at";
+
+export interface RecognitionEventRow {
+  id: string;
+  community_id: string;
+  kind: RecognitionKind;
+  subject_wallet: string;
+  actor_wallet: string;
+  task_id: string | null;
+  workgroup_id: string | null;
+  weight: string;
+  note: string | null;
+  season_key: string;
+  created_at: string;
+  revoked_at: string | null;
+  revoke_reason: string | null;
+  revoked_by: string | null;
+}
+
+export const RECOGNITION_EVENT_COLUMNS =
+  "id, community_id, kind, subject_wallet, actor_wallet, task_id, workgroup_id, weight, note, season_key, created_at, revoked_at, revoke_reason, revoked_by";

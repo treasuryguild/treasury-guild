@@ -15,11 +15,14 @@ export function PolicySection({
   patch,
   lockedPolicies,
   selectedTreasury,
+  policyLocked = false,
 }: {
   form: MintFormState;
   patch: (next: Partial<MintFormState>) => void;
   lockedPolicies: LockedPolicy[];
   selectedTreasury: TreasurySummary | null;
+  /** When minting more, keep the same open or locked policy. */
+  policyLocked?: boolean;
 }) {
   return (
     <>
@@ -35,6 +38,7 @@ export function PolicySection({
           <Select
             value={form.policyMode}
             onChange={(e) => patch({ policyMode: e.target.value as PolicyMode })}
+            disabled={policyLocked}
           >
             <option value="treasury">Open — treasury multisig script</option>
             <option value="locked">Time-locked — fixed supply after a date</option>
@@ -47,6 +51,7 @@ export function PolicySection({
                 className="mb-2"
                 value={form.existingLock}
                 onChange={(e) => patch({ existingLock: e.target.value })}
+                disabled={policyLocked}
               >
                 <option value={NEW_LOCK}>New locked policy…</option>
                 {lockedPolicies.map((p) => (
@@ -62,6 +67,7 @@ export function PolicySection({
                 type="datetime-local"
                 value={form.lockUntil}
                 onChange={(e) => patch({ lockUntil: e.target.value })}
+                disabled={policyLocked}
               />
             )}
           </Field>

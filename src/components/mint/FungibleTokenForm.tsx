@@ -12,11 +12,14 @@ export function FungibleTokenForm({
   patch,
   communityId,
   gateway,
+  identityLocked = false,
 }: {
   form: MintFormState;
   patch: (next: Partial<MintFormState>) => void;
   communityId: string;
   gateway: string | null;
+  /** When minting more of an existing token, lock CIP-25 identity fields. */
+  identityLocked?: boolean;
 }) {
   return (
     <>
@@ -27,6 +30,8 @@ export function FungibleTokenForm({
             onChange={(e) => patch({ ftName: e.target.value })}
             placeholder="GuildToken"
             maxLength={MAX_ASSET_NAME_BYTES}
+            readOnly={identityLocked}
+            disabled={identityLocked}
           />
         </Field>
         <Field label="Ticker">
@@ -35,6 +40,8 @@ export function FungibleTokenForm({
             onChange={(e) => patch({ ticker: e.target.value.toUpperCase() })}
             placeholder="GVT"
             maxLength={MAX_TICKER_CHARS}
+            readOnly={identityLocked}
+            disabled={identityLocked}
           />
         </Field>
         <Field label="Decimals">
@@ -48,6 +55,8 @@ export function FungibleTokenForm({
                 decimals: Math.max(0, Math.min(MAX_DECIMALS, Number(e.target.value) || 0)),
               })
             }
+            readOnly={identityLocked}
+            disabled={identityLocked}
           />
         </Field>
         <Field label={`Total supply ${form.ticker ? `(${form.ticker})` : ""}`}>
@@ -65,6 +74,8 @@ export function FungibleTokenForm({
           value={form.ftDescription}
           onChange={(e) => patch({ ftDescription: e.target.value })}
           placeholder="What is this token for?"
+          readOnly={identityLocked}
+          disabled={identityLocked}
         />
       </Field>
       <Field label="Website (optional)">
@@ -72,6 +83,8 @@ export function FungibleTokenForm({
           value={form.url}
           onChange={(e) => patch({ url: e.target.value })}
           placeholder="https://"
+          readOnly={identityLocked}
+          disabled={identityLocked}
         />
       </Field>
       <ImageUpload
@@ -80,6 +93,7 @@ export function FungibleTokenForm({
         gateway={gateway}
         onChange={(ftImage) => patch({ ftImage })}
         label="Logo"
+        disabled={identityLocked}
       />
     </>
   );
