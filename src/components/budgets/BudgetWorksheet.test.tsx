@@ -153,20 +153,54 @@ describe("wallet routing notes", () => {
 
   it("opens the payment-wallet dialog for admins and hides Change wallet for leads", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const reload = vi.fn();
+    assignmentsMock.mockReturnValue({
+      data: new Map([["design", [{ treasury_id: "ops", starts_on: "2026-01-01" }]]]),
+      loading: false, error: null, reload, setData: vi.fn(),
+    });
+    vi.mocked(apiFetch).mockImplementation(async (path: string, init?: { body?: unknown }) => {
+      if (path === "/api/workgroups/routing" && !init?.body) {
+        return {
+          treasuryId: "ops", cadence: "monthly", currentStart: "2026-09-01", nextStart: "2026-10-01",
+          currentBlocked: false, history: [],
+        };
+      }
+      if (path === "/api/workgroups/routing") return { startsOn: "2026-09-01" };
+      throw new Error(`unexpected apiFetch ${path}`);
+    });
+    const input = props();
+    input.workgroups[0]!.treasury_id = "ops";
+    input.treasuries = [treasury("ops", "addr_ops", "Ops"), treasury("main", "addr_main", "Main")];
+    render(<BudgetWorksheet {...input} />);
+    await user.click(within(screen.getByRole("rowgroup", { name: "Design" })).getByRole("button", { name: "Change wallet" }));
+    const dialog = await screen.findByRole("dialog", { name: "Change payment wallet" });
+    await waitFor(() => expect(within(dialog).getByText(/in Sep 2026/)).toBeTruthy());
+    await user.selectOptions(within(dialog).getByLabelText("Payment wallet"), "main");
+    await user.click(within(dialog).getByLabelText(/This period/));
+    await user.click(within(dialog).getByRole("button", { name: "Change wallet" }));
+    await waitFor(() => expect(apiFetch).toHaveBeenCalledWith("/api/workgroups/routing", {
+      body: { workgroupId: "design", treasuryId: "main", effective: "current", reason: undefined },
+    }));
+    expect(reload).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Change payment wallet" })).toBeNull());
+    cleanup();
+    render(<BudgetWorksheet {...input} isAdmin={false} ledWorkgroupIds={new Set(["design"])} />);
+    expect(screen.getByRole("rowgroup", { name: "Design" }).textContent).toMatch(/Paid from\s*Ops/);
+    expect(screen.queryByRole("button", { name: "Change wallet" })).toBeNull();
+  });
+
+  it("hides Change wallet on archived workgroups even for admins", () => {
     assignmentsMock.mockReturnValue({
       data: new Map([["design", [{ treasury_id: "ops", starts_on: "2026-01-01" }]]]),
       loading: false, error: null, reload: vi.fn(), setData: vi.fn(),
     });
     const input = props();
+    input.workgroups[0]!.archived_at = "2026-09-09T00:00:00Z";
     input.treasuries = [treasury("ops", "addr_ops", "Ops")];
     render(<BudgetWorksheet {...input} />);
-    await user.click(screen.getAllByRole("button", { name: "Change wallet" })[0]!);
-    expect(screen.getByRole("heading", { name: "Change payment wallet" })).toBeTruthy();
-    expect(screen.getByLabelText("Payment wallet")).toBeTruthy();
-    cleanup();
-    render(<BudgetWorksheet {...input} isAdmin={false} ledWorkgroupIds={new Set(["design"])} />);
-    expect(screen.getByRole("rowgroup", { name: "Design" }).textContent).toMatch(/Paid from\s*Ops/);
-    expect(screen.queryByRole("button", { name: "Change wallet" })).toBeNull();
+    const design = screen.getByRole("rowgroup", { name: "Design" });
+    expect(design.textContent).toMatch(/Paid from\s*Ops/);
+    expect(within(design).queryByRole("button", { name: "Change wallet" })).toBeNull();
   });
 });
 
