@@ -35,13 +35,15 @@ import type { TreasurySummary } from "@/lib/db/types";
 import { plural } from "@/lib/format";
 import type { GovernanceSettings } from "@/lib/governance/rules";
 import { mayPropose } from "@/lib/roles";
-import { routes } from "@/lib/routes";
-import { routedTreasuryAt, workgroupsByTreasury } from "@/lib/workgroupRouting";
+import { routedTreasuryAt, workgroupsByTreasury, type TreasuryAssignment } from "@/lib/workgroupRouting";
 import { useWalletAssetsMany } from "@/hooks/useWalletAssets";
 import { useWorkgroupTreasuryAssignments } from "@/hooks/useWorkgroupTreasuryAssignments";
 import type { WorkgroupSummary } from "@/hooks/useWorkgroups";
 import { Button, EmptyState, ErrorText, Input, Select } from "@/components/ui";
+import { ChangePaymentWalletDialog } from "@/components/workgroups/ChangePaymentWalletDialog";
 import { ProposeBudgetDialog, type BudgetProposalText } from "./ProposeBudgetDialog";
+
+const EMPTY_ASSIGNMENTS: ReadonlyMap<string, TreasuryAssignment[]> = new Map();
 
 /** Budget consent is on: changes are proposed to a vote instead of saved. */
 export interface BudgetConsent {
@@ -54,8 +56,6 @@ export interface BudgetConsent {
 
 interface Props {
   communityId: string;
-  /** Community slug for board links on workgroup routing notes. */
-  slug: string;
   /** Period start of the view ("YYYY-MM"; the quarter's first month in the quarter view), null for recurring defaults. */
   month: string | null;
   view: BudgetView;
@@ -78,7 +78,7 @@ interface Props {
 }
 
 
-export function BudgetWorksheet({ communityId, slug, month, view, title, budgets, workgroups,
+export function BudgetWorksheet({ communityId, month, view, title, budgets, workgroups,
   treasuries, assets, isAdmin, ledWorkgroupIds, onDirtyChange, onBusyChange, onRefresh,
   setups, selectedMonth, onOpenQuarter, consent }: Props) {
   const periodCadence: BudgetCadence = view === "quarter" ? "quarterly" : "monthly";
@@ -124,6 +124,7 @@ export function BudgetWorksheet({ communityId, slug, month, view, title, budgets
   const working = busy || copying;
   const [proposing, setProposing] = useState(false);
   const [proposalError, setProposalError] = useState<string | null>(null);
+  const [walletWorkgroupId, setWalletWorkgroupId] = useState<string | null>(null);
   // Eager load of every treasury wallet so workgroup Add-token offers the community-wide union.
   const treasuryAddresses = useMemo(() => treasuries.map((treasury) => treasury.address), [treasuries]);
   const walletBalances = useWalletAssetsMany(treasuryAddresses);
@@ -138,7 +139,11 @@ export function BudgetWorksheet({ communityId, slug, month, view, title, budgets
     }
     return byId;
   }, [treasuries, walletBalances.data]);
-  const assignmentsByWorkgroup = useWorkgroupTreasuryAssignments(communityId);
+  const assignmentsQuery = useWorkgroupTreasuryAssignments(communityId);
+  const assignmentsByWorkgroup = assignmentsQuery.data ?? EMPTY_ASSIGNMENTS;
+  const walletWorkgroup = walletWorkgroupId
+    ? workgroups.find((group) => group.id === walletWorkgroupId) ?? null
+    : null;
   const treasuryById = useMemo(
     () => new Map(treasuries.map((treasury) => [treasury.id, treasury])),
     [treasuries],
@@ -467,7 +472,7 @@ export function BudgetWorksheet({ communityId, slug, month, view, title, budgets
       const treasuryId = routedTreasuryAt(assignmentsByWorkgroup.get(group.id) ?? [], referenceMonth);
       return {
         paidFrom: treasuryId ? (treasuryById.get(treasuryId)?.name ?? "Unknown treasury") : "any wallet",
-        changeWalletHref: routes.board(slug, group.id),
+        onChangeWallet: isAdmin && !group.archived_at ? () => setWalletWorkgroupId(group.id) : undefined,
       };
     })() : undefined;
     const pays = group.kind === "treasury" ? paysWorkgroupsByTreasury.get(group.id) : undefined;
@@ -495,6 +500,9 @@ export function BudgetWorksheet({ communityId, slug, month, view, title, budgets
 
   return (
     <div>
+      {walletWorkgroup && <ChangePaymentWalletDialog workgroup={walletWorkgroup} communityId={communityId}
+        onClose={() => setWalletWorkgroupId(null)}
+        onChanged={() => { assignmentsQuery.reload(); }} />}
       {resetPrompt && <BudgetResetDialog workgroupId={resetPrompt.id}
         name={ownerFor(resetPrompt.id)!.name} expectedRevision={resetPrompt.revision}
         onClose={() => setResetPrompt(null)} onReset={async (revision) => {

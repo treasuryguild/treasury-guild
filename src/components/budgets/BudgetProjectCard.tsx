@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { Plus, RotateCcw, Trash2 } from "lucide-react";
 import { BudgetSetupHistory } from "./BudgetSetupDialog";
@@ -13,10 +12,11 @@ import { budgetAssetOptions, type BudgetCadence } from "@/lib/budgets";
 import { budgetRowChanged, budgetRowError, draftRowKey, type BudgetDraftRow } from "@/lib/budgetDrafts";
 import { Badge, Button, ErrorText, Input, Select } from "@/components/ui";
 
-/** Workgroup card: period-correct payment wallet + link to Edit details on the board. */
+/** Workgroup card: period-correct payment wallet; admins can open the change dialog. */
 export interface WorkgroupRoutingNote {
   paidFrom: string;
-  changeWalletHref: string;
+  /** Admin-only; omitted for leads and view-only members. */
+  onChangeWallet?: () => void;
 }
 
 /** Treasury card: which workgroups this wallet pays for the viewed period. */
@@ -166,9 +166,12 @@ export function BudgetProjectCard({ owner: group, view, columns, cells, fallback
       </div>
       {workgroupRouting && <p className="border-b border-[var(--border)] px-5 py-2 text-xs text-zinc-500">
         Paid from <span className="text-zinc-300">{workgroupRouting.paidFrom}</span>
-        {" · "}
-        <Link className="text-indigo-400 hover:underline" href={workgroupRouting.changeWalletHref}>Change wallet</Link>
-        {" "}in Edit details
+        {workgroupRouting.onChangeWallet && <>
+          {" · "}
+          <button type="button" className="text-indigo-400 hover:underline" onClick={workgroupRouting.onChangeWallet}>
+            Change wallet
+          </button>
+        </>}
       </p>}
       {treasuryRouting && treasuryRouting.paysWorkgroups.length > 0 && <p className="border-b border-[var(--border)] px-5 py-2 text-xs text-zinc-500">
         Pays task payouts for {treasuryRouting.paysWorkgroups.join(", ")}. Those amounts are budgeted on the workgroup

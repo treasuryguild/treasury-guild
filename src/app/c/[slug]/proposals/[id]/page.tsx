@@ -45,7 +45,7 @@ export default function ProposalPage({ params }: { params: Promise<{ slug: strin
   const members = useCommunityMembers(community?.id);
   const workgroups = useWorkgroups(community?.id, true);
   const treasuries = useTreasuries(community?.id);
-  const assignments = useWorkgroupTreasuryAssignments(isAdmin ? community?.id : null);
+  const assignments = useWorkgroupTreasuryAssignments(isAdmin ? community?.id : null).data ?? undefined;
   const settings = useGovernanceSettings(community?.id);
   const roles = useMyTreasuryRoles(community?.id);
   const now = useNow(15_000);
