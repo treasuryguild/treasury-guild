@@ -14,12 +14,15 @@ export function ImageUpload({
   gateway,
   onChange,
   label,
+  disabled = false,
 }: {
   communityId: string;
   state: ImageState;
   gateway: string | null;
   onChange: (next: ImageState) => void;
   label: string;
+  /** Hide the file picker when the image is locked (mint more). */
+  disabled?: boolean;
 }) {
   async function upload(file: File) {
     onChange({ ...state, uploading: true, error: null });
@@ -68,17 +71,19 @@ export function ImageUpload({
           </div>
         )}
         <div className="min-w-0 flex-1 space-y-2">
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/gif,image/webp"
-            disabled={state.uploading}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void upload(f);
-              e.target.value = "";
-            }}
-            className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
-          />
+          {!disabled && (
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              disabled={state.uploading}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void upload(f);
+                e.target.value = "";
+              }}
+              className="block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1.5 file:text-sm file:text-zinc-100 hover:file:bg-zinc-700"
+            />
+          )}
           {state.uploading && (
             <p className="text-xs text-zinc-400">Uploading to IPFS…</p>
           )}
@@ -89,9 +94,11 @@ export function ImageUpload({
             </p>
           )}
           <ErrorText error={state.error} className="text-xs" />
-          <p className="text-xs text-zinc-500">
-            PNG, JPEG, GIF, SVG or WebP up to 10 MB. Pinned on IPFS via Pinata.
-          </p>
+          {!disabled && (
+            <p className="text-xs text-zinc-500">
+              PNG, JPEG, GIF or WebP up to 10 MB. Pinned on IPFS via Pinata.
+            </p>
+          )}
         </div>
       </div>
     </Field>

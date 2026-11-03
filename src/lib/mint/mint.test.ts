@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { MintWithTx } from "@/lib/db/types";
+import { TxState } from "@/lib/constants";
 import { buildMintRequest, nftAttributes } from "./buildMintRequest";
 import { cip26DraftForMint, cip26FileName } from "./cip26";
 import { lockedPoliciesFor } from "./lockedPolicies";
+import {
+  mintFormFromRow,
+  reuseActionsFor,
+  reuseBannerText,
+  reuseModeFor,
+} from "./reuseMint";
 import { emptyMintForm, emptyNft, NEW_LOCK, type MintFormState } from "./types";
 import { validateMintForm } from "./validateMintForm";
 
@@ -184,5 +191,182 @@ describe("CIP-26 registry draft", () => {
     const draft = cip26DraftForMint(mintRow({ metadata: { name: "n".repeat(60), description: "d".repeat(600) } }), "");
     expect(draft.name).toEqual(unsigned("n".repeat(50)));
     expect(draft.description).toEqual(unsigned("d".repeat(500)));
+  });
+});
+
+describe("reuseMint", () => {
+  const POLICY = "ab".repeat(28);
+  const CID = "Qm" + "2".repeat(44);
+
+  function row(over: Partial<MintWithTx> = {}): MintWithTx {
+    return {
+      id: "m1",
+      transaction_id: "tx1",
+      treasury_id: "t1",
+      asset_kind: "ft",
+      policy_id: POLICY,
+      policy_script_cbor: "8200581c00",
+      lock_slot: null,
+      lock_until: null,
+      asset_name: "GuildToken",
+      asset_name_hex: "4775696c64546f6b656e",
+      quantity: "1000000000",
+      decimals: 6,
+      ticker: "GVT",
+      image_cid: CID,
+      recipient: "addr_test1recipient",
+      created_at: "2026-09-01T00:00:00Z",
+      metadata: {
+        name: "GuildToken",
+        description: "Community token",
+        url: "https://guild.test",
+        mediaType: "image/png",
+        ticker: "GVT",
+        decimals: 6,
+        image: `ipfs://${CID}`,
+      },
+      transaction: { state: TxState.Confirmed, tx_hash: "ff".repeat(32) },
+      ...over,
+    };
+  }
+
+  it("offers nothing for unconfirmed mints", () => {
+    expect(reuseModeFor(row({ transaction: { state: TxState.Pending, tx_hash: null } }), NOW)).toBeNull();
+    expect(reuseActionsFor(row({ transaction: null }), NOW)).toBeNull();
+  });
+
+  it("offers mint more (+ template) for a confirmed open-policy FT", () => {
+    expect(reuseActionsFor(row(), NOW)).toEqual({
+      primary: "mint_more",
+      secondary: "template",
+    });
+  });
+
+  it("offers mint more while a locked FT policy is still live", () => {
+    const live = row({
+      lock_slot: 99,
+      lock_until: new Date(NOW + 60_000).toISOString(),
+    });
+    expect(reuseModeFor(live, NOW)).toBe("mint_more");
+  });
+
+  it("falls back to template only once the lock has expired", () => {
+    const expired = row({
+      lock_slot: 99,
+      lock_until: new Date(NOW - 60_000).toISOString(),
+    });
+    expect(reuseActionsFor(expired, NOW)).toEqual({ primary: "template" });
+  });
+
+  it("offers template only for NFTs", () => {
+    expect(reuseActionsFor(row({ asset_kind: "nft", ticker: null }), NOW)).toEqual({
+      primary: "template",
+    });
+  });
+
+  it("prefills an FT mint-more with locked identity and empty supply", () => {
+    const patch = mintFormFromRow(row(), "mint_more", NOW);
+    expect(patch).toMatchObject({
+      treasuryId: "t1",
+      kind: "ft",
+      ftName: "GuildToken",
+      ticker: "GVT",
+      decimals: 6,
+      supply: "",
+      ftDescription: "Community token",
+      url: "https://guild.test",
+      policyMode: "treasury",
+      existingLock: NEW_LOCK,
+      reuse: { mode: "mint_more", sourceName: "GuildToken", sourceTicker: "GVT" },
+    });
+    expect(patch.ftImage).toMatchObject({ cid: CID, mediaType: "image/png" });
+  });
+
+  it("keeps a live locked policy when minting more", () => {
+    const patch = mintFormFromRow(
+      row({ lock_slot: 42, lock_until: new Date(NOW + 60_000).toISOString() }),
+      "mint_more",
+      NOW,
+    );
+    expect(patch).toMatchObject({
+      policyMode: "locked",
+      existingLock: "42",
+    });
+  });
+
+  it("resets an expired lock to an open policy for a template", () => {
+    const patch = mintFormFromRow(
+      row({ lock_slot: 42, lock_until: new Date(NOW - 60_000).toISOString() }),
+      "template",
+      NOW,
+    );
+    expect(patch).toMatchObject({
+      policyMode: "treasury",
+      existingLock: NEW_LOCK,
+      reuse: { mode: "template" },
+    });
+  });
+
+  it("clears the NFT name and copies traits for a template", () => {
+    const patch = mintFormFromRow(
+      row({
+        asset_kind: "nft",
+        ticker: null,
+        asset_name: "Badge",
+        metadata: {
+          name: "Badge",
+          description: "A badge",
+          mediaType: "image/png",
+          image: `ipfs://${CID}`,
+          rarity: "legendary",
+          series: "one",
+        },
+      }),
+      "template",
+      NOW,
+    );
+    expect(patch.kind).toBe("nft");
+    expect(patch.nfts).toHaveLength(1);
+    expect(patch.nfts![0]).toMatchObject({
+      name: "",
+      description: "A badge",
+      image: { cid: CID, mediaType: "image/png" },
+    });
+    expect(patch.nfts![0]!.attributes).toEqual([
+      { key: "rarity", value: "legendary" },
+      { key: "series", value: "one" },
+    ]);
+    expect(patch.reuse).toEqual({
+      mode: "template",
+      sourceName: "Badge",
+      sourceTicker: null,
+    });
+  });
+
+  it("reads the image CID from metadata when the column is empty", () => {
+    const patch = mintFormFromRow(
+      row({ image_cid: null, metadata: { image: `ipfs://${CID}`, mediaType: "image/webp" } }),
+      "mint_more",
+      NOW,
+    );
+    expect(patch.ftImage).toMatchObject({ cid: CID, mediaType: "image/webp" });
+  });
+
+  it("describes the banner for mint-more and template", () => {
+    expect(
+      reuseBannerText(
+        { mode: "mint_more", sourceName: "GuildToken", sourceTicker: "GVT" },
+        "treasury",
+      ),
+    ).toMatch(/Minting more of GVT under the open treasury policy/);
+    expect(
+      reuseBannerText(
+        { mode: "mint_more", sourceName: "GuildToken", sourceTicker: null },
+        "locked",
+      ),
+    ).toMatch(/time-locked policy/);
+    expect(
+      reuseBannerText({ mode: "template", sourceName: "Badge", sourceTicker: null }, "treasury"),
+    ).toMatch(/Template from Badge/);
   });
 });
