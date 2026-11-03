@@ -72,6 +72,10 @@ export const routes = {
   callSettings: (slug: string) => `/c/${slug}/settings/calls`,
   /** Who proposes and votes on what, per proposal kind (admins edit). */
   governanceSettings: (slug: string) => `/c/${slug}/settings/governance`,
+  /** Opt-in recognition module (endorsements / seasons). */
+  recognitionSettings: (slug: string) => `/c/${slug}/settings/recognition`,
+  /** Season recognition board (hidden from nav when the module is off). */
+  recognition: (slug: string) => `/c/${slug}/recognition`,
   members: (slug: string) => `/c/${slug}/settings/members`,
   /** Catalog of boards; the kanban itself stays at `board`. */
   workgroups: (slug: string) => `/c/${slug}/workgroups`,
@@ -102,6 +106,7 @@ export type CommunityRouteKey =
   | "githubSettings"
   | "callSettings"
   | "governanceSettings"
+  | "recognitionSettings"
   | "members";
 
 export interface CommunityNavEntry {
@@ -138,6 +143,7 @@ export const COMMUNITY_NAV: readonly CommunityNavEntry[] = [
   { key: "githubSettings", label: "GitHub" },
   { key: "callSettings", label: "Call platforms" },
   { key: "governanceSettings", label: "Governance" },
+  { key: "recognitionSettings", label: "Recognition" },
   { key: "members", label: "Members" },
 ];
 
@@ -162,6 +168,7 @@ export const COMMUNITY_CARDS: readonly CommunityCard[] = [
   { key: "funding", title: "🏦 Funding sources", blurb: "Committed funding vs what arrived" },
   { key: "integrations", title: "🔌 Integrations", blurb: "Discord, GitHub, calls and records status" },
   { key: "githubSettings", title: "🐙 GitHub", blurb: "Connect repos & project boards" },
+  { key: "recognitionSettings", title: "✦ Recognition", blurb: "Endorse quality work (opt-in)" },
   { key: "members", title: "👥 Members", blurb: "Roles & workgroup leads" },
 ];
 
@@ -213,6 +220,8 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p.includes("/funding"), "Funding sources"],
   [(p) => p.includes("/settings/integrations"), "Integrations"],
   [(p) => p.includes("/settings/governance"), "Governance"],
+  [(p) => p.includes("/settings/recognition"), "Recognition settings"],
+  [(p) => p.includes("/recognition"), "Recognition"],
   [(p) => p.includes("/proposals/"), "Proposal"],
   [(p) => p.includes("/proposals"), "Proposals"],
   [(p) => p.includes("/settings/github"), "GitHub"],

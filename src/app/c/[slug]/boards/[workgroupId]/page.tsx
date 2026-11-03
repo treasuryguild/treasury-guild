@@ -20,6 +20,7 @@ import { useCommunityMembers } from "@/hooks/useCommunityMembers";
 import { useLiveBoard } from "@/hooks/useLiveBoard";
 import { useMyTreasuryRoles } from "@/hooks/useMyTreasuryRoles";
 import { useGovernanceSettings, useOpenLeadChanges } from "@/hooks/useProposals";
+import { useRecognitionSettings } from "@/hooks/useRecognition";
 import { useTreasuryWalletTokens } from "@/hooks/useTreasuryTokenTickers";
 import { useWorkgroupBudgetSetups } from "@/hooks/useWorkgroupBudgetSetups";
 import { Button, ErrorText, LinkButton, NoticeText, PageMessage, PageTitle } from "@/components/ui";
@@ -68,6 +69,7 @@ export default function BoardPage({
   }, [walletTokens]);
   const budgetSetups = useWorkgroupBudgetSetups(workgroupId, isMember && board.loaded);
   const governance = useGovernanceSettings(isMember ? community?.id : null);
+  const recognitionSettings = useRecognitionSettings(isMember ? community?.id : null);
   const openLeadChanges = useOpenLeadChanges(isMember ? community?.id : null);
   const workgroupLeads = useAsyncData(isMember ? workgroupId : null, async () => {
     const { data, error } = await browserClient().from("workgroup_leads")
@@ -275,6 +277,11 @@ export default function BoardPage({
           onRename={(title) =>
             void mutations.renameTask(editing, title).then((ok) => ok && setEditing(null))
           }
+          recognition={recognitionSettings.data?.enabled ? {
+            canEndorse: canManage,
+            canKudos: !!recognitionSettings.data.peerKudosEnabled && isMember,
+            sessionWallet,
+          } : null}
         />
       )}
       {editingItem && canManage && (

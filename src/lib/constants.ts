@@ -435,8 +435,25 @@ export const Electorate = {
   Contributors: "contributors",
   /** Current leads of the workgroups concerned. Lead changes only; not a settings choice. */
   Leads: "leads",
+  /**
+   * Members with enough recognition score in the look-back window (module on
+   * and electorate_endorsed). See docs/recognition-module.md.
+   */
+  Endorsed: "endorsed",
 } as const;
 export type Electorate = (typeof Electorate)[keyof typeof Electorate];
+
+/** recognition_events.kind */
+export const RecognitionKind = {
+  Endorsement: "endorsement",
+  PeerKudos: "peer_kudos",
+  Steward: "steward",
+  SeasonAward: "season_award",
+} as const;
+export type RecognitionKind = (typeof RecognitionKind)[keyof typeof RecognitionKind];
+
+/** Optional note on a recognition event (matches vote-reason length). */
+export const MAX_RECOGNITION_NOTE = 500;
 
 /** Who may make a proposal (governance_settings.proposers). */
 export const Proposers = {
@@ -518,6 +535,10 @@ export const RATE_LIMITS = {
   signerDraftPreview: { limit: 60, windowSeconds: 600 },
   /** A signer sending their stake and DRep keys, per wallet. */
   signerDraftContribute: { limit: 20, windowSeconds: 600 },
+  /** Lead/admin endorsements, per wallet. */
+  recognitionEndorse: { limit: 40, windowSeconds: 3600 },
+  /** Peer kudos grants, per wallet. */
+  recognitionKudos: { limit: 40, windowSeconds: 3600 },
 } as const satisfies Record<string, { limit: number; windowSeconds: number }>;
 export type RateLimitBucket = keyof typeof RATE_LIMITS;
 /** Rate-limit counters older than this are purged by the reconcile sweep. */

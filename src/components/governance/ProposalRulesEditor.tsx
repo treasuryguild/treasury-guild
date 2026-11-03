@@ -72,7 +72,9 @@ export function ProposalRulesEditor({
   afterMethod?: ReactNode;
 }) {
   const set = <K extends keyof ProposalRules>(key: K, value: ProposalRules[K]) => onChange({ ...rules, [key]: value });
-  const windowed = rules.electorate === Electorate.Workgroup || rules.electorate === Electorate.Contributors;
+  const windowed = rules.electorate === Electorate.Workgroup
+    || rules.electorate === Electorate.Contributors
+    || rules.electorate === Electorate.Endorsed;
   const recuse = RECUSE_TEXT[kind];
 
   return (

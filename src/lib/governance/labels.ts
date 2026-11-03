@@ -26,6 +26,7 @@ export const ELECTORATE_LABELS: Record<Electorate, string> = {
   [Electorate.Workgroup]: "People of the workgroups concerned",
   [Electorate.Contributors]: "Recently paid contributors",
   [Electorate.Leads]: "Current leads of the workgroup",
+  [Electorate.Endorsed]: "Recognized contributors",
 };
 
 export const PROPOSER_LABELS: Record<Proposers, string> = {
@@ -59,9 +60,12 @@ export const CHOICE_LABELS: Record<VoteChoice, string> = {
 
 /** "Recently paid contributors (last 12 months), members for at least 30 days". */
 export function describeElectorate(rules: Pick<ProposalRules, "electorate" | "activityMonths" | "minMemberDays">): string {
-  const window = rules.electorate === Electorate.Workgroup || rules.electorate === Electorate.Contributors
-    ? ` (last ${plural(rules.activityMonths, "month")})`
-    : "";
+  const window =
+    rules.electorate === Electorate.Workgroup
+    || rules.electorate === Electorate.Contributors
+    || rules.electorate === Electorate.Endorsed
+      ? ` (last ${plural(rules.activityMonths, "month")})`
+      : "";
   const age = rules.minMemberDays > 0 ? `, members for at least ${plural(rules.minMemberDays, "day")}` : "";
   return `${ELECTORATE_LABELS[rules.electorate]}${window}${age}`;
 }

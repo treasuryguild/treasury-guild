@@ -9,9 +9,11 @@ import { isMeetingRef, MEET_CODE_ERROR, ZOOM_MEETING_ID_ERROR } from "@/lib/call
 import { checkValidAddress, checkValidStakeKey } from "@/lib/cardano/multisigSDK";
 import {
   AttendeeStatus, CallProvider, DecisionMethod, DrepAction, Electorate, LEGACY_MAX_CSV_CHARS, LEGACY_MAX_TICKERS, MAX_PASTED_ATTENDEES,
-  MAX_PAYMENT_MEMO_BYTES, MAX_PAYOUT_CONTRIBUTORS, MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, MAX_TASK_ASSIGNEES,
-  MAX_TREASURY_SIGNERS, MAX_VOTE_REASON, ProposalKind, Proposers, Role, SPENDING_PATHS, StakeAction, TREASURY_TEMPLATES, VoteChoice, Visibility,
+  MAX_PAYMENT_MEMO_BYTES, MAX_PAYOUT_CONTRIBUTORS, MAX_PROPOSAL_BODY, MAX_PROPOSAL_TITLE, MAX_RECOGNITION_NOTE,
+  MAX_TASK_ASSIGNEES, MAX_TREASURY_SIGNERS, MAX_VOTE_REASON, ProposalKind, Proposers, Role, SPENDING_PATHS,
+  StakeAction, TREASURY_TEMPLATES, VoteChoice, Visibility,
 } from "@/lib/constants";
+import { RecognitionSeason } from "@/lib/recognition/settings";
 import { MAX_BUDGET_STEPS } from "@/lib/governance/payload";
 import { SpendCheckMode } from "@/lib/governance/rules";
 import { CRON_JOB_IDS } from "@/lib/cron/jobs";
@@ -1101,7 +1103,8 @@ export const governanceSettingsInput = z.object({
   enabled: z.boolean(),
   proposers: z.enum(Proposers),
   electorate: z.enum([
-    Electorate.Members, Electorate.Admins, Electorate.Managers, Electorate.Workgroup, Electorate.Contributors,
+    Electorate.Members, Electorate.Admins, Electorate.Managers, Electorate.Workgroup,
+    Electorate.Contributors, Electorate.Endorsed,
   ]),
   activityMonths: z.number().int().min(1).max(36),
   minMemberDays: z.number().int().min(0).max(365),
@@ -1451,6 +1454,45 @@ export type BallotRequestBody = z.input<typeof ballotRequestSchema>;
 export type CastVoteBody = z.input<typeof castVoteSchema>;
 export type LinkRepoBody = z.infer<typeof linkRepoSchema>;
 export type IpfsSignUploadBody = z.infer<typeof ipfsSignUploadSchema>;
+
+// --- Recognition ---------------------------------------------------------------
+
+export const saveRecognitionSettingsSchema = z.object({
+  communityId: id,
+  enabled: z.boolean(),
+  season: z.enum([RecognitionSeason.Month, RecognitionSeason.Quarter]),
+  maxEndorsementsPerActorSeason: z.number().int().min(1).max(100),
+  showLeaderboard: z.boolean(),
+  peerKudosEnabled: z.boolean(),
+  minMemberDaysToKudos: z.number().int().min(0).max(365),
+  electorateEndorsed: z.boolean(),
+  endorsedMinScore: z.number().min(0).max(1000),
+});
+
+export const recognitionEndorseSchema = z.object({
+  taskId: id,
+  subjectWallet: nonEmpty.max(200),
+  note: z.string().trim().max(MAX_RECOGNITION_NOTE).optional(),
+});
+
+export const recognitionKudosSchema = recognitionEndorseSchema;
+
+export const recognitionRevokeSchema = z.object({
+  eventId: id,
+  reason: z.string().trim().max(MAX_RECOGNITION_NOTE).optional(),
+});
+
+export const recognitionEventsQuerySchema = z.object({
+  communityId: id.optional(),
+  taskId: id.optional(),
+  seasonKey: z.string().min(4).max(16).optional(),
+}).refine((v) => v.taskId || (v.communityId && v.seasonKey), {
+  message: "Provide taskId, or communityId with seasonKey",
+});
+
+export type SaveRecognitionSettingsBody = z.infer<typeof saveRecognitionSettingsSchema>;
+export type RecognitionEndorseBody = z.infer<typeof recognitionEndorseSchema>;
+export type RecognitionRevokeBody = z.infer<typeof recognitionRevokeSchema>;
 
 // --- Agent API OAuth (consent page, Settings connections) ----------------------
 

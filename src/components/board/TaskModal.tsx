@@ -38,6 +38,7 @@ import {
   type MemberOption,
 } from "@/lib/boardTypes";
 import { shortAddress } from "@/lib/format";
+import { RecognitionTaskPanel } from "@/components/recognition/RecognitionTaskPanel";
 import { useGithubEditorOptions } from "@/hooks/useGithubEditorOptions";
 import type { TreasuryWalletToken } from "@/hooks/useTreasuryTokenTickers";
 
@@ -200,6 +201,7 @@ export function TaskModal({
   onArchive,
   busy = false,
   saveError,
+  recognition,
 }: {
   task: BoardTask;
   members: MemberOption[];
@@ -227,6 +229,12 @@ export function TaskModal({
   onArchive?: () => void;
   busy?: boolean;
   saveError?: string | null;
+  /** When the recognition module is on, endorse/kudos controls for paid tasks. */
+  recognition?: {
+    canEndorse: boolean;
+    canKudos: boolean;
+    sessionWallet: string | null;
+  } | null;
 }) {
   const isGithub = task.source === TaskSource.Github;
   // A settled GitHub task's status, labels, assignees and bounty are part of
@@ -465,6 +473,15 @@ export function TaskModal({
                 {shortAddress(task.paid_tx_hash)}
               </ExplorerLink>
             </p>
+          )}
+          {recognition && (
+            <RecognitionTaskPanel
+              task={task}
+              members={members}
+              canEndorse={recognition.canEndorse}
+              canKudos={recognition.canKudos}
+              sessionWallet={recognition.sessionWallet}
+            />
           )}
           {task.chain_number !== null && (
             <p className="text-xs text-zinc-500">
