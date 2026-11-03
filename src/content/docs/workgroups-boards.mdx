@@ -53,6 +53,8 @@ The task dialog has:
 - **Bounty** — one row per token: pick **ADA** or any token the workgroup's payment wallet holds (every community treasury when it is set to **Any wallet**), or **Custom…** to type a ticker that will be matched to a treasury token at payout. Amounts are in display units (for example `150` ADA, not lovelace); ADA allows at most 6 decimal places; a ticker can appear only once. **+ Add token** adds a row.
 - **Archive task**, **Cancel**, **Save**.
 
+**Cancel** or clicking outside the dialog with unsaved edits asks whether to discard them before closing.
+
 Once a task is queued in a payout or paid, its assignees are locked: **Save** is refused ("Assignees are locked once a payout has been queued or paid"). A paid task shows "Paid in tx …" with a link to the explorer.
 
 An [AI assistant](/docs/ai-assistants#preparing-tasks-calls-and-payouts) you connected with the **tasks:write** permission can create a task on an app board you manage, or edit the title, description, bounty or budget month of one that is not payable yet, after showing you the change and you confirm. It never moves a task between columns or makes it payable.
