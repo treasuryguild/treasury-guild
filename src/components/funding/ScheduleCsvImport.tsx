@@ -8,28 +8,13 @@ import { periodLabel, type BudgetCadence } from "@/lib/budgets";
 import type { FundingTokenOption } from "@/lib/funding/display";
 import { formatFundingAmount } from "@/lib/funding/display";
 import {
-  amountColumns, buildSchedule, readScheduleCsv, suggestDateColumn, type SchedulePeriod, type ScheduleTable,
+  amountColumns, buildSchedule, readScheduleCsv, suggestAmountUnits, suggestDateColumn, type SchedulePeriod,
 } from "@/lib/funding/schedule";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 
 const NO_DATE = "none";
 const SKIP = "";
 const PREVIEW_ROWS = 6;
-
-/** A token named by a column header ("signius_gvtt" → GVTT), when exactly one option's ticker appears in it. */
-function guessToken(header: string, options: readonly FundingTokenOption[]): string {
-  const words = header.toLowerCase().split(/[^a-z0-9]+/);
-  const hits = options.filter((o) => words.includes(o.ticker.toLowerCase()));
-  return hits.length === 1 ? hits[0]!.unit : SKIP;
-}
-
-function initialTokens(table: ScheduleTable, dateColumn: number | null, options: readonly FundingTokenOption[]): Record<number, string> {
-  const guesses = Object.fromEntries(amountColumns(table, dateColumn).map((i) => [i, guessToken(table.headers[i]!, options)]));
-  // Two columns naming the same token (yours and another community's) are left for the admin to choose.
-  const counts = new Map<string, number>();
-  for (const unit of Object.values(guesses)) if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1);
-  return Object.fromEntries(Object.entries(guesses).map(([i, unit]) => [i, unit && counts.get(unit) === 1 ? unit : SKIP]));
-}
 
 export function ScheduleCsvImport({ cadence, options, onUse }: {
   cadence: BudgetCadence;
@@ -46,7 +31,7 @@ export function ScheduleCsvImport({ cadence, options, onUse }: {
   const suggested = table ? suggestDateColumn(table) : null;
   const dateColumn = dateChoice === null ? suggested : dateChoice === NO_DATE ? null : Number(dateChoice);
   const columns = table ? amountColumns(table, dateColumn) : [];
-  const chosen = tokens ?? (table ? initialTokens(table, dateColumn, options) : {});
+  const chosen = tokens ?? (table ? suggestAmountUnits(table, dateColumn, options) : {});
   const mapped = columns.flatMap((index) => {
     const token = options.find((o) => o.unit === chosen[index]);
     return token ? [{ index, unit: token.unit, ticker: token.ticker, decimals: token.decimals }] : [];

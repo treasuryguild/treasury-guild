@@ -60,6 +60,8 @@ unnecessary.
 | `stake_preview` | `POST …/governance/stake/preview` | `previewStake` (`governanceWrite.ts`, `governance:write`) |
 | `drep_preview` | `POST …/governance/drep/preview` | `previewDrep` (same) |
 | `vote_preview` | `POST …/governance/vote/preview` | `previewVote` (same) |
+| `payment_history_preview` | `POST …/payment-history/preview` | `previewPaymentHistory` (`historyImport.ts`, `imports:write`; admins only) |
+| `funding_schedule_preview` | `POST …/funding-schedule/preview` | `previewFundingSchedule` (`fundingImport.ts`, same) |
 | `draft_confirm` | `POST /api/v1/drafts/confirm` | `confirmDraft` (`drafts.ts`, any write scope; the action's own scope inside) |
 
 **Almost every tool reads.** Results carry member-written text (task titles, names,
@@ -140,8 +142,8 @@ nothing until members vote on it with their wallets.
 ## Other writes: `*_preview` → `draft_confirm`
 
 Withdrawing a proposal, saving a task, creating a call, paying a call's attendance,
-drafting a payout, and preparing stake / DRep / on-chain vote transactions follow the
-same pattern with one shared confirm tool.
+drafting a payout, preparing stake / DRep / on-chain vote transactions, and importing
+payment history or a funding schedule follow the same pattern with one shared confirm tool.
 
 - **The token names its action** (`act` claim, `DRAFT_ACTIONS` in `draftToken.ts`; a token
   without one reads as `proposal_create`). `DRAFT_ACTION_DEFS` (`src/lib/api/v1/drafts.ts`)
@@ -158,6 +160,8 @@ same pattern with one shared confirm tool.
   | `stake_create` | `governance:write` | `stake_preview` |
   | `drep_create` | `governance:write` | `drep_preview` |
   | `vote_create` | `governance:write` | `vote_preview` |
+  | `legacy_history_import` | `imports:write` | `payment_history_preview` |
+  | `funding_schedule_import` | `imports:write` | `funding_schedule_preview` |
   - `draft_confirm` is offered to a connection holding *any* write scope; an endpoint
     `scope` may be a list, meaning any one of them (`endpointScopes`, `endpointAllowed`).
   - `draft_confirm` then checks the action's own scope, so a `tasks:write` connection
@@ -199,6 +203,20 @@ same pattern with one shared confirm tool.
   never write to public IPFS; confirm (and session build) publish then build. Confirm
   stores a pending `transactions` row (`kind` stake/drep/vote); never a community
   proposal ballot.
+- **Payment history and funding schedules** (`imports:write`, community admins only;
+  holding the scope is not enough for a lead or a signer). The CSV does not fit in the
+  draft token (32,000 characters; a history file may be 1 MB), so the preview stores the
+  original text and the column map in `agent_import_payloads` for 15 minutes (service
+  role only, no policies; migration 0093). The token carries the payload id and a
+  fingerprint of the counts, totals and resolutions the user was shown. Confirm loads
+  the text, plans again and refuses when the fingerprint moved. A successful confirm
+  deletes its payload; the reconcile sweep deletes expired ones. The write is one RPC
+  per import (`import_agent_legacy_history`, `import_agent_funding_schedule`), keyed by
+  `agent_draft_id` on `legacy_imports` and on the funding commitment a schedule confirm
+  creates, so a second confirm reads that row back. The Treasury and Funding pages keep
+  calling `import_legacy_history` and `save_funding_schedule`. Replacing or deleting a
+  history import stays on the Treasury page. Funding still does not keep the file after
+  the periods are saved.
 - **Tasks.** Service-role writes re-check in code what the browser's RLS and column grants
   check: a manager, an active app board, and never a task past `pay_state 'none'`.
   - Create goes in the first column neither payable nor paid (`firstOpenColumn`).

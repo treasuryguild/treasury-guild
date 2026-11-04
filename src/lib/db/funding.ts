@@ -72,6 +72,18 @@ export async function deleteFundingCommitment(id: string): Promise<void> {
   check(await serviceClient().from("funding_commitments").delete().eq("id", id), "delete funding commitment");
 }
 
+/** The periods of one schedule, oldest first. */
+export async function loadFundingPeriods(commitmentId: string): Promise<FundingPeriodRow[]> {
+  return rows<FundingPeriodRow>(
+    await serviceClient()
+      .from("funding_commitment_periods")
+      .select(FUNDING_PERIOD_COLUMNS)
+      .eq("commitment_id", commitmentId)
+      .order("starts_on"),
+    "load funding periods",
+  );
+}
+
 /** Replaces every period of a schedule at once (`save_funding_schedule`). */
 export async function saveFundingSchedule(
   commitmentId: string,

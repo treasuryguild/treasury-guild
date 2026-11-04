@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { amountColumns, buildSchedule, readScheduleCsv, suggestDateColumn, type ScheduleMapping } from "./schedule";
+import {
+  amountColumns, buildSchedule, mergeSchedulePeriods, readScheduleCsv, suggestAmountUnits, suggestDateColumn, type ScheduleMapping,
+} from "./schedule";
 
 const AGIX = "f43a62fdc3965df486de8a0d32fe800963589c41b38946602a0dc53541474958";
 const GVTT = "fe12059162068d4302ae76efd385153a08ee82aed46a0a6f4238ce6a5465737420546f6b656e";
@@ -37,6 +39,32 @@ describe("reading the table", () => {
     expect(suggestDateColumn(readScheduleCsv("amount,Release Date\n5,2026-01-01"))).toBe(1);
     expect(suggestDateColumn(readScheduleCsv("when,amount\n01.02.2026,5\n01.03.2026,6"))).toBe(0);
     expect(suggestDateColumn(readScheduleCsv("amount,bonus\n5,1\n6,2"))).toBeNull();
+  });
+});
+
+describe("suggestAmountUnits", () => {
+  const options = [{ unit: "lovelace", ticker: "ADA" }, { unit: GVTT, ticker: "GVTT" }];
+
+  it("maps a header that names one known ticker, and leaves a shared ticker for the user", () => {
+    const table = readScheduleCsv("month,signius_ada,signius_gvtt,sister_community_gvtt\n2026-01,1,2,3\n");
+    expect(suggestAmountUnits(table, 0, options)).toEqual({ 1: "lovelace", 2: "", 3: "" });
+  });
+});
+
+describe("mergeSchedulePeriods", () => {
+  it("replaces the mapped token and keeps the others", () => {
+    const merged = mergeSchedulePeriods(
+      [
+        { month: "2026-01", amounts: [{ unit: "lovelace", amount: "10" }, { unit: GVTT, amount: "1" }] },
+        { month: "2026-02", amounts: [{ unit: "lovelace", amount: "11" }] },
+      ],
+      [{ month: "2026-01", amounts: [{ unit: "lovelace", amount: "20" }] }, { month: "2026-03", amounts: [{ unit: "lovelace", amount: "30" }] }],
+      ["lovelace"],
+    );
+    expect(merged).toEqual([
+      { month: "2026-01", amounts: [{ unit: GVTT, amount: "1" }, { unit: "lovelace", amount: "20" }] },
+      { month: "2026-03", amounts: [{ unit: "lovelace", amount: "30" }] },
+    ]);
   });
 });
 

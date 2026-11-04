@@ -34,6 +34,8 @@ export const DRAFT_ACTIONS = [
   "stake_create",
   "drep_create",
   "vote_create",
+  "legacy_history_import",
+  "funding_schedule_import",
 ] as const;
 export type DraftAction = (typeof DRAFT_ACTIONS)[number];
 

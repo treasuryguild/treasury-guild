@@ -502,6 +502,8 @@ export const RATE_LIMITS = {
   contributorRegister: { limit: 30, windowSeconds: 3600 },
   /** Payment-history previews and imports (CSV parsing), per wallet. */
   legacyHistory: { limit: 60, windowSeconds: 600 },
+  /** Funding-schedule previews and imports (CSV parsing), per wallet. */
+  fundingImport: { limit: 60, windowSeconds: 600 },
   /** Creating a watched float wallet, per admin wallet. */
   floatWalletCreate: { limit: 20, windowSeconds: 3600 },
   /** Creating or updating a bridge/swap conversion episode, per admin wallet. */
