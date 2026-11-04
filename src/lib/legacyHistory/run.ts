@@ -12,7 +12,7 @@ import { errorMessage, UpstreamError } from "@/lib/errors";
 import type { MatchableToken } from "@/lib/tokenMatch";
 import { readHistoryCsv } from "./parse";
 import { planLegacyImport, resolveLegacyTicker, type TickerContext } from "./plan";
-import type { LegacyImportPlan, LegacyToken } from "./types";
+import type { LegacyImportPlan, LegacyToken, LegacyWorkgroup } from "./types";
 
 export interface LegacyUpload {
   communityId: string;
@@ -31,7 +31,10 @@ function sha256(canonical: string): string {
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
-export async function planLegacyUpload(upload: LegacyUpload): Promise<LegacyImportPlan> {
+async function planHistory(
+  upload: Omit<LegacyUpload, "walletId"> & { walletId: string | null },
+  patch: { workgroups: readonly LegacyWorkgroup[]; aliases: ReadonlyMap<string, string> } | null,
+): Promise<LegacyImportPlan> {
   const ctx = await loadLegacyImportContext(upload.communityId, upload.walletId, upload.replaceImportId);
   const network = asNetwork(ctx.network);
   // A day of slack: "today" where the admin is may already be tomorrow in UTC.
@@ -72,11 +75,41 @@ export async function planLegacyUpload(upload: LegacyUpload): Promise<LegacyImpo
   return planLegacyImport(parsed, {
     ...tickers,
     wallet,
-    aliases: ctx.aliases,
-    workgroups: ctx.workgroups,
+    aliases: patch?.aliases ?? ctx.aliases,
+    workgroups: patch?.workgroups ?? ctx.workgroups,
     setups: ctx.setups,
     existingKeys: ctx.existingKeys,
     hash: sha256,
     includeDuplicates: upload.includeDuplicates,
   });
+}
+
+export async function planLegacyUpload(upload: LegacyUpload): Promise<LegacyImportPlan> {
+  return planHistory(upload, null);
+}
+
+export interface AgentHistoryPlan {
+  communityId: string;
+  /** Null when the confirm will create the previous wallet: nothing is already imported. */
+  walletId: string | null;
+  csv: string;
+  tickerUnits: Record<string, string>;
+  includeDuplicates: boolean;
+  now: Date;
+  /** Workgroups and aliases after the caller's create/map choices, standing in for what the confirm writes. */
+  workgroups: readonly LegacyWorkgroup[];
+  aliases: ReadonlyMap<string, string>;
+}
+
+/** The same plan as an upload, against a wallet that may not exist yet and workgroups the confirm has not created. */
+export async function planAgentHistory(plan: AgentHistoryPlan): Promise<LegacyImportPlan> {
+  return planHistory({
+    communityId: plan.communityId,
+    walletId: plan.walletId,
+    csv: plan.csv,
+    tickerUnits: plan.tickerUnits,
+    replaceImportId: null,
+    includeDuplicates: plan.includeDuplicates,
+    now: plan.now,
+  }, { workgroups: plan.workgroups, aliases: plan.aliases });
 }

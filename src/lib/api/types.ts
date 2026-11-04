@@ -1457,6 +1457,27 @@ export interface V1GovernanceTxCreateResponse {
   url: string;
 }
 
+/** legacy_history_import via draft_confirm. */
+export interface V1LegacyHistoryImportResponse {
+  /** False when this draft had already imported its file. */
+  created: boolean;
+  importId: string;
+  legacyWalletId: string;
+  inserted: number;
+  skipped: number;
+  url: string;
+}
+
+/** funding_schedule_import via draft_confirm. */
+export interface V1FundingScheduleImportResponse {
+  /** False when this draft had already saved its schedule. */
+  created: boolean;
+  commitmentId: string;
+  sourceId: string;
+  periods: number;
+  url: string;
+}
+
 /** POST /api/v1/drafts/confirm (MCP draft_confirm): the action's own answer. */
 export type V1DraftConfirmResponse = { action: string } & (
   | V1ProposalCreateResponse
@@ -1466,6 +1487,8 @@ export type V1DraftConfirmResponse = { action: string } & (
   | V1CallFinalizeResponse
   | V1PayoutCreateResponse
   | V1GovernanceTxCreateResponse
+  | V1LegacyHistoryImportResponse
+  | V1FundingScheduleImportResponse
 );
 
 /** POST /api/v1/communities/[community]/proposals/create (MCP proposal_create). */

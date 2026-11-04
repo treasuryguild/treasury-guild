@@ -253,7 +253,7 @@ export const LegacyIssueCode = {
 export type LegacyIssueCode = (typeof LegacyIssueCode)[keyof typeof LegacyIssueCode];
 
 /** Limits of one payment-history upload. */
-export const LEGACY_MAX_ROWS = 5000;
+export const LEGACY_MAX_ROWS = 20_000;
 export const LEGACY_MAX_TICKERS = 20;
 export const LEGACY_MAX_TASK_CHARS = 500;
 export const LEGACY_MAX_CSV_CHARS = 1_000_000;
@@ -502,6 +502,8 @@ export const RATE_LIMITS = {
   contributorRegister: { limit: 30, windowSeconds: 3600 },
   /** Payment-history previews and imports (CSV parsing), per wallet. */
   legacyHistory: { limit: 60, windowSeconds: 600 },
+  /** Funding-schedule previews and imports (CSV parsing), per wallet. */
+  fundingImport: { limit: 60, windowSeconds: 600 },
   /** Creating a watched float wallet, per admin wallet. */
   floatWalletCreate: { limit: 20, windowSeconds: 3600 },
   /** Creating or updating a bridge/swap conversion episode, per admin wallet. */

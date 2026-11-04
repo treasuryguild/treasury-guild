@@ -72,6 +72,68 @@ export function amountColumns(table: ScheduleTable, dateColumn: number | null): 
     table.rows.some((r) => parseCsvAmount(r.cells[i] ?? "").kind === "amount"));
 }
 
+/**
+ * The token a column header names, when exactly one known ticker appears in
+ * it as a word (`signius_ada` → ADA). Null when none or several do.
+ */
+export function suggestTokenUnit(header: string, options: readonly { unit: string; ticker: string }[]): string | null {
+  const words = header.toLowerCase().split(/[^a-z0-9]+/);
+  const hits = options.filter((o) => words.includes(o.ticker.toLowerCase()));
+  return hits.length === 1 ? hits[0]!.unit : null;
+}
+
+/**
+ * Each amount column's token, or "" when it should be left for the user:
+ * the header names no single known ticker, or two columns name the same one
+ * (a funder's plan often lists two communities' columns for one token).
+ */
+export function suggestAmountUnits(
+  table: ScheduleTable,
+  dateColumn: number | null,
+  options: readonly { unit: string; ticker: string }[],
+): Record<number, string> {
+  const guesses = Object.fromEntries(
+    amountColumns(table, dateColumn).map((i) => [i, suggestTokenUnit(table.headers[i] ?? "", options) ?? ""]),
+  );
+  const counts = new Map<string, number>();
+  for (const unit of Object.values(guesses)) if (unit) counts.set(unit, (counts.get(unit) ?? 0) + 1);
+  return Object.fromEntries(Object.entries(guesses).map(([i, unit]) => [i, unit && counts.get(unit) === 1 ? unit : ""]));
+}
+
+export interface MergedPeriod {
+  month: string;
+  /** Display units. A kept token's amount is whatever the caller passed; an imported one is what the CSV said. */
+  amounts: { unit: string; amount: string }[];
+}
+
+/**
+ * The page's "use these amounts": mapped tokens replace that token's amounts
+ * in every period, and tokens that were not mapped stay.
+ */
+export function mergeSchedulePeriods(
+  existing: readonly { month: string; amounts: readonly { unit: string; amount: string }[] }[],
+  imported: readonly { month: string; amounts: readonly { unit: string; amount: string }[] }[],
+  units: readonly string[],
+): MergedPeriod[] {
+  const replaced = new Set(units);
+  const byMonth = new Map<string, Map<string, string>>();
+  for (const period of existing) {
+    const cells = new Map<string, string>();
+    for (const amount of period.amounts) {
+      if (!replaced.has(amount.unit)) cells.set(amount.unit, amount.amount);
+    }
+    if (cells.size > 0) byMonth.set(period.month, cells);
+  }
+  for (const period of imported) {
+    const cells = byMonth.get(period.month) ?? new Map<string, string>();
+    for (const amount of period.amounts) cells.set(amount.unit, amount.amount);
+    if (cells.size > 0) byMonth.set(period.month, cells);
+  }
+  return [...byMonth.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, cells]) => ({ month, amounts: [...cells.entries()].map(([unit, amount]) => ({ unit, amount })) }));
+}
+
 export interface ScheduleMapping {
   /** Index of the date column; null = the rows are consecutive periods from `startMonth`. */
   dateColumn: number | null;

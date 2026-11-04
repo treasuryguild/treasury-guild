@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LegacyIssueCode as Code } from "@/lib/constants";
+import { LEGACY_MAX_ROWS, LegacyIssueCode as Code } from "@/lib/constants";
 import {
   isTickerHeader, normalizeRecipientRef, normalizeWorkgroupName, parseAmountCell, parseHistoryDate, readHistoryCsv,
 } from "./parse";
@@ -107,6 +107,18 @@ describe("readHistoryCsv", () => {
     expect(parsed.issues).toEqual([]);
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.rows[0]!.recipientRef).toBe("acdefg");
+  });
+
+  it("reads a file past the old 5000-row cap and refuses one past the ceiling", () => {
+    const csv = (rows: number) => ["userId,ADA,task,date,workgroup", ...Array.from({ length: rows }, () => "acdefg,1,t,01.09.2026,ops")].join("\n");
+    const accepted = readHistoryCsv(csv(5001), TODAY);
+    expect(accepted.issues).toEqual([]);
+    expect(accepted.rows).toHaveLength(5001);
+
+    const refused = readHistoryCsv(csv(LEGACY_MAX_ROWS + 1), TODAY);
+    expect(refused.rows).toEqual([]);
+    expect(refused.lineCount).toBe(LEGACY_MAX_ROWS + 1);
+    expect(refused.issues).toEqual([{ code: Code.TooManyRows, line: null, severity: "error", value: String(LEGACY_MAX_ROWS + 1) }]);
   });
 
   it("reports header problems for the whole file", () => {

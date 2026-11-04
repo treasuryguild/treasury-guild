@@ -16,18 +16,25 @@ vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rateLimit }));
 import { previewCallCreate, previewCallFinalize } from "@/lib/api/v1/callWrite";
 import { confirmDraft } from "@/lib/api/v1/drafts";
 import type { ApiEndpoint } from "@/lib/api/v1/endpoint";
+import { previewFundingSchedule } from "@/lib/api/v1/fundingImport";
+import { previewPaymentHistory } from "@/lib/api/v1/historyImport";
 import { previewPayout } from "@/lib/api/v1/payoutWrite";
 import { previewProposalWithdraw } from "@/lib/api/v1/proposalWithdraw";
 import { previewTaskSave } from "@/lib/api/v1/taskWrite";
 import { POST as finalizePOST } from "./communities/[community]/calls/finalize/preview/route";
 import { POST as callPOST } from "./communities/[community]/calls/preview/route";
+import { POST as schedulePOST } from "./communities/[community]/funding-schedule/preview/route";
+import { POST as historyPOST } from "./communities/[community]/payment-history/preview/route";
 import { POST as payoutPOST } from "./communities/[community]/payouts/preview/route";
 import { POST as withdrawPOST } from "./communities/[community]/proposals/withdraw/preview/route";
 import { POST as taskPOST } from "./communities/[community]/tasks/preview/route";
 import { POST as confirmPOST } from "./drafts/confirm/route";
 
-const CALLER = { wallet: "addr_w", scopes: ["proposals:write", "tasks:write", "payouts:write"], clientId: "c1", via: "oauth" };
-const endpoints = { previewPayout, previewProposalWithdraw, previewTaskSave, previewCallCreate, previewCallFinalize, confirmDraft } as Record<string, ApiEndpoint>;
+const CALLER = { wallet: "addr_w", scopes: ["proposals:write", "tasks:write", "payouts:write", "imports:write"], clientId: "c1", via: "oauth" };
+const endpoints = {
+  previewPayout, previewProposalWithdraw, previewTaskSave, previewCallCreate, previewCallFinalize,
+  previewPaymentHistory, previewFundingSchedule, confirmDraft,
+} as Record<string, ApiEndpoint>;
 const runs = {} as Record<string, ReturnType<typeof vi.fn>>;
 
 beforeEach(() => {
@@ -57,6 +64,8 @@ const previews = [
     body: { workgroup: "Design", provider: "manual", title: "Town hall", startsAt: "2026-10-08T17:00:00Z", endsAt: "2026-10-08T18:00:00Z", reward: { ADA: "20" } },
   },
   { segment: "calls/finalize/preview", handler: finalizePOST, name: "previewCallFinalize", body: { call: "77777777-7777-4777-8777-777777777777" }, scope: "tasks:write" },
+  { segment: "payment-history/preview", handler: historyPOST, name: "previewPaymentHistory", body: { csv: "userId,ADA\nx,1" }, scope: "imports:write" },
+  { segment: "funding-schedule/preview", handler: schedulePOST, name: "previewFundingSchedule", body: { csv: "month,ada\n2026-01,1", cadence: "monthly" }, scope: "imports:write" },
 ] as const;
 
 describe("write preview routes", () => {

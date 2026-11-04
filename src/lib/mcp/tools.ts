@@ -12,7 +12,7 @@
 // draft token, and only proposal_create (for proposal_preview) or
 // draft_confirm (for every other preview) carries a token out, after the user
 // agreed. Each write needs a write scope the user ticks separately
-// (proposals:write, tasks:write, payouts:write, governance:write). A payout or
+// (proposals:write, tasks:write, payouts:write, governance:write, imports:write). A payout or
 // Cardano governance draft only creates the pending transaction: the
 // treasury's signers sign it in the app. src/lib/mcp/tools.test.ts pins the
 // list and the two writing tools; a new write is a deliberate decision with
@@ -26,8 +26,10 @@ import { previewCallCreate, previewCallFinalize } from "@/lib/api/v1/callWrite";
 import { listCalls } from "@/lib/api/v1/calls";
 import { listCommunities, whoami } from "@/lib/api/v1/communities";
 import { confirmDraft } from "@/lib/api/v1/drafts";
-import { fundingSummary } from "@/lib/api/v1/funding";
+import { previewFundingSchedule } from "@/lib/api/v1/fundingImport";
 import { previewDrep, previewStake, previewVote } from "@/lib/api/v1/governanceWrite";
+import { fundingSummary } from "@/lib/api/v1/funding";
+import { previewPaymentHistory } from "@/lib/api/v1/historyImport";
 import { listIncoming } from "@/lib/api/v1/incoming";
 import { listMembers } from "@/lib/api/v1/members";
 import { previewPayout } from "@/lib/api/v1/payoutWrite";
@@ -298,10 +300,28 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     annotations: { ...PREVIEWS, openWorldHint: true },
   },
   {
+    name: "payment_history_preview",
+    title: "Preview a payment-history import",
+    description:
+      "Map a CSV of payments made before Treasury Guild onto the payment-history importer, without writing it. Send the file as the user gave it and a column map; do not rewrite amounts, dates or addresses. When a column, token or workgroup is unclear the result is questions and no draftToken: ask the user and call again. A ready result shows counts and totals. Confirming (draft_confirm) adds the lines (creating the previous wallet or workgroup the preview said it would). Replacing or deleting an import stays in the app. Community admins only.",
+    endpoint: previewPaymentHistory,
+    restPath: "/api/v1/communities/{community}/payment-history/preview",
+    annotations: { ...PREVIEWS, openWorldHint: true },
+  },
+  {
+    name: "funding_schedule_preview",
+    title: "Preview a funding-schedule import",
+    description:
+      "Map a funder's CSV onto a funding schedule, without writing it. Send the file as the user gave it; name the date column and each amount column's token, or let the result suggest them. When something is unclear the result is questions and no draftToken: ask the user and call again. A ready result shows the period count and totals. Confirming (draft_confirm) fills the schedule (creating the funding source the preview said it would). Mapped tokens replace that token's existing periods; other tokens stay. Community admins only.",
+    endpoint: previewFundingSchedule,
+    restPath: "/api/v1/communities/{community}/funding-schedule/preview",
+    annotations: { ...PREVIEWS, openWorldHint: true },
+  },
+  {
     name: "draft_confirm",
     title: "Carry out a previewed change",
     description:
-      "Carry out what a *_preview tool (other than proposal_preview, which proposal_create confirms) showed, from its draftToken only: withdraw the proposal, save the task, create the call, pay the call's attendance into tasks, create the payout's pending transaction, or create a stake / DRep / on-chain vote pending transaction. Call it only after the user explicitly agreed to that preview. Refused when anything changed since the preview (preview again). Safe to retry: a repeated token answers with what the first one did (created: false). Never signs, submits or casts a community proposal ballot.",
+      "Carry out what a *_preview tool (other than proposal_preview, which proposal_create confirms) showed, from its draftToken only: withdraw the proposal, save the task, create the call, pay the call's attendance into tasks, create the payout's pending transaction, create a stake / DRep / on-chain vote pending transaction, or import the payment history or funding schedule. Call it only after the user explicitly agreed to that preview, including its totals. Refused when anything changed since the preview (preview again). Safe to retry: a repeated token answers with what the first one did (created: false). Never signs, submits or casts a community proposal ballot.",
     endpoint: confirmDraft,
     restPath: "/api/v1/drafts/confirm",
     annotations: CONFIRMS,

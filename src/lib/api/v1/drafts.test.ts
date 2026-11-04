@@ -19,6 +19,8 @@ describe("draft actions", () => {
       stake_create: "governance:write",
       drep_create: "governance:write",
       vote_create: "governance:write",
+      legacy_history_import: "imports:write",
+      funding_schedule_import: "imports:write",
     });
   });
 

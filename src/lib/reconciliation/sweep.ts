@@ -14,6 +14,7 @@ import { check, maybe, rows, serviceClient } from "@/lib/db/client";
 import { loadAssetRegistry } from "@/lib/db/assets";
 import { cosignReadyTransactions, type CosignSweepResult } from "@/lib/cosigner/sign";
 import { purgeExpiredNonces } from "@/lib/db/auth";
+import { purgeAgentImportPayloads } from "@/lib/db/agentImports";
 import { purgeCommunityInvites } from "@/lib/db/invites";
 import { purgeSignerDrafts } from "@/lib/db/signerDrafts";
 import { purgeOAuth } from "@/lib/db/oauth";
@@ -307,6 +308,13 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     await purgeCommunityInvites(new Date());
   } catch (err) {
     console.error("community invite purge failed", err);
+  }
+
+  // CSV files an assistant previewed and nobody confirmed.
+  try {
+    await purgeAgentImportPayloads(new Date());
+  } catch (err) {
+    console.error("agent import payload purge failed", err);
   }
 
   // SDK signer invites whose signers did not all connect in time.

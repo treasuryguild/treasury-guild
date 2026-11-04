@@ -129,10 +129,14 @@ export interface LegacyImportContext {
   treasuryAddresses: string[];
 }
 
-/** What an upload to `walletId` is planned against; `excludeImportId` is a batch being replaced. */
+/**
+ * What an upload is planned against. `walletId` null is a previous wallet
+ * that does not exist yet (an assistant confirm creates it): nothing is
+ * already imported. `excludeImportId` is a batch being replaced.
+ */
 export async function loadLegacyImportContext(
   communityId: string,
-  walletId: string,
+  walletId: string | null,
   excludeImportId: string | null,
 ): Promise<LegacyImportContext> {
   const db = serviceClient();
@@ -148,12 +152,14 @@ export async function loadLegacyImportContext(
       .order("payment_id")
       .order("unit")
       .range(from, to), "load history tokens"),
-    allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
-      .from("legacy_payments")
-      .select("dedupe_key, import_id")
-      .eq("legacy_wallet_id", walletId)
-      .order("id")
-      .range(from, to), "load history keys"),
+    walletId === null
+      ? Promise.resolve([] as { dedupe_key: string; import_id: string }[])
+      : allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
+        .from("legacy_payments")
+        .select("dedupe_key, import_id")
+        .eq("legacy_wallet_id", walletId)
+        .order("id")
+        .range(from, to), "load history keys"),
     db.from("treasuries").select("address").eq("community_id", communityId),
   ]);
   const groups = rows<{ id: string; name: string; archived_at: string | null }>(workgroups, "load workgroups");

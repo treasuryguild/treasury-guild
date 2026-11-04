@@ -8,6 +8,7 @@ export const API_SCOPES = [
   "tasks:write",
   "payouts:write",
   "governance:write",
+  "imports:write",
 ] as const;
 
 export type ApiScope = (typeof API_SCOPES)[number];
@@ -24,6 +25,8 @@ export const API_SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
     "Prepare payout transactions for tasks ready to pay, after you confirm each one in the conversation. The treasury's signers still sign in the app; nothing is paid until they do.",
   "governance:write":
     "Prepare stake, DRep and Cardano governance vote transactions for plain SDK treasuries you sign for, after you confirm each one in the conversation. The treasury's signers still sign in the app; cannot cast community proposal ballots or pay anything.",
+  "imports:write":
+    "Import a community's earlier payment history or a funding schedule from a file you give it, after you confirm the totals in the conversation. Community admins only. Does not pay anyone.",
 };
 
 /** A scope that lets the assistant change something. Never granted unless asked for and ticked. */
