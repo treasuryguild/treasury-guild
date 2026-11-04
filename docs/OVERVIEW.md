@@ -85,7 +85,7 @@ Treasury Guild collapses that into one place, so a community can go from "this t
 
 ## Stack, briefly
 
-Next.js (App Router) · MeshJS for Cardano transactions · Koios as the chain data provider · Supabase (Postgres with row-level security) · GitHub App for sync · Netlify with scheduled functions for chain polling, GitHub sync repair and call attendance capture.
+Next.js (App Router) · [MeshJS](https://meshjs.dev/) for Cardano transactions · Koios as the chain data provider · Supabase (Postgres with row-level security) · GitHub App for sync · Netlify with scheduled functions for chain polling, GitHub sync repair and call attendance capture.
 
 An internal `/dev` tools page, gated by the `DEV_WALLETS` allowlist, hosts testers for the team: a "run now" trigger for the reconcile, GitHub-sync and call-capture jobs (the scheduled jobs never reach a local stack), the Discord message tester and an anchor test transaction.
 

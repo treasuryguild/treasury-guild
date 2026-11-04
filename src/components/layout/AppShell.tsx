@@ -36,6 +36,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useSession } from "@/hooks/useSession";
+import { SOURCE_REPO_URL } from "@/lib/config";
 import { SIDEBAR_STORAGE_KEY } from "@/lib/constants";
 import { docForPath, docHref } from "@/lib/docs";
 import {
@@ -49,6 +50,7 @@ import {
 import { CommunityNetworkStrip } from "@/components/community/NetworkNotice";
 import { WalletBar } from "./WalletBar";
 import { BrandLogo } from "./BrandLogo";
+import { MeshCredit } from "./MeshCredit";
 
 interface NavItem {
   label: string;
@@ -179,6 +181,10 @@ function SidebarContent({
         )}
       </nav>
 
+      <div className={compact ? "flex justify-center px-2 pb-3" : "px-6 pb-2"}>
+        <MeshCredit compact={compact} />
+      </div>
+
       {/* In the server-rendered chrome of every page, the public home included. */}
       <p className={compact ? "sr-only" : "px-6 pb-4 text-xs text-zinc-500"}>
         <Link href={routes.doc("privacy")} className="hover:text-zinc-300" onClick={onNavigate}>
@@ -188,6 +194,16 @@ function SidebarContent({
         <Link href={routes.doc("terms")} className="hover:text-zinc-300" onClick={onNavigate}>
           Terms of service
         </Link>
+        {" · "}
+        <a
+          href={SOURCE_REPO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-zinc-300"
+          onClick={onNavigate}
+        >
+          Contribute
+        </a>
       </p>
     </>
   );

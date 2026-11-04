@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { browserClient } from "@/lib/supabase/browser";
 import type { CommunityRow } from "@/lib/db/types";
+import { SOURCE_REPO_URL } from "@/lib/config";
 import { routes } from "@/lib/routes";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useSession } from "@/hooks/useSession";
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
 import { BrandLogo } from "@/components/layout/BrandLogo";
+import { MeshCredit } from "@/components/layout/MeshCredit";
 
 type CommunityCard = Pick<CommunityRow, "id" | "slug" | "name" | "description">;
 
@@ -56,6 +58,13 @@ export default function Home() {
           <Link href={routes.doc("terms")} className={LINK_CLASS}>
             Terms of service
           </Link>
+          {" · "}
+          <a href={SOURCE_REPO_URL} target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
+            Contribute
+          </a>
+        </p>
+        <p className="mt-6">
+          <MeshCredit />
         </p>
       </div>
     );

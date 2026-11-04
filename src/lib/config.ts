@@ -22,6 +22,9 @@ export function explorerTxUrl(network: Network, txHash: string): string {
     : `https://preprod.cexplorer.io/tx/${txHash}`;
 }
 
+/** Public source repository. The repo page is the contribution entry point. */
+export const SOURCE_REPO_URL = "https://github.com/treasuryguild/treasury-guild";
+
 /** Wallet page: pool.pm on mainnet (no preprod support there), cexplorer on preprod. */
 export function explorerAddressUrl(network: Network, address: string): string {
   return network === 1

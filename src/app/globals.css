@@ -202,6 +202,27 @@ a, button { outline-offset: 3px; }
 
 .sidebar-collapse:hover { background: var(--surface-soft); color: var(--foreground); }
 
+.mesh-credit {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--subtle);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.mesh-credit:hover { color: var(--foreground); }
+
+.mesh-credit-compact { justify-content: center; }
+
+/* Official mark is 300×200. Height is fixed; width follows so it is not stretched. */
+.mesh-credit-mark {
+  height: 1.15rem;
+  width: auto;
+  flex: none;
+}
+
 .topbar {
   position: sticky;
   top: 0;

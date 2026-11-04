@@ -58,7 +58,7 @@ task boards, batch payouts anchored on-chain, and refund reconciliation.
   confirms (proposals and withdrawals, tasks, calls and their attendance,
   payout transactions to sign); no assistant ever signs, submits or votes.
 
-Stack: Next.js (App Router) · MeshJS · Koios · Supabase (RLS) · Netlify.
+Stack: Next.js (App Router) · [MeshJS](https://meshjs.dev/) · Koios · Supabase (RLS) · Netlify.
 
 ## Documentation
 
