@@ -73,6 +73,10 @@ export interface ReceiptPlanContext extends TickerContext {
   sourceAliases?: ReadonlyMap<string, string>;
   /** `${sourceId}|${commitmentRef}` → funding_commitments.id. */
   commitmentAliases?: ReadonlyMap<string, string>;
+  /** Applied to every blank-source row (must be a community funding source). */
+  defaultSourceId?: string | null;
+  /** Optional commitment under defaultSourceId, for blank commitment cells. */
+  defaultCommitmentId?: string | null;
   existingKeys: ReadonlySet<string>;
   hash: (canonical: string) => string;
   includeDuplicates: boolean;
@@ -97,6 +101,24 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
     if (owners.length > 1) {
       issues.push({ code: Code.SameToken, line: null, severity: "error", column: owners.join(", ") });
     }
+  }
+
+  let defaultSource: FundingSourceRef | null = null;
+  let defaultCommitment: FundingCommitmentRef | null = null;
+  if (ctx.defaultSourceId) {
+    defaultSource = ctx.sources.find((s) => s.id === ctx.defaultSourceId) ?? null;
+    if (!defaultSource) {
+      issues.push({ code: Code.UnresolvedSource, line: null, severity: "error", value: "chosen default" });
+    } else if (ctx.defaultCommitmentId) {
+      defaultCommitment = ctx.commitments.find(
+        (c) => c.id === ctx.defaultCommitmentId && c.sourceId === defaultSource!.id,
+      ) ?? null;
+      if (!defaultCommitment) {
+        issues.push({ code: Code.UnresolvedCommitment, line: null, severity: "error", value: "chosen default" });
+      }
+    }
+  } else if (ctx.defaultCommitmentId) {
+    issues.push({ code: Code.CommitmentWithoutSource, line: null, severity: "error", value: "chosen default" });
   }
 
   const sourceRefs = new Map<string, string>();
@@ -155,9 +177,20 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
     });
 
     const source = bySource.get(row.sourceRef);
-    const sourceId = source?.status === "resolved" ? source.source.id : null;
-    const commitment = byCommitment.get(`${sourceId ?? ""}|${row.commitmentRef}`);
-    const commitmentId = commitment?.status === "resolved" ? commitment.commitment.id : null;
+    let sourceId = source?.status === "resolved" ? source.source.id : null;
+    const fromCsv = byCommitment.get(`${sourceId ?? ""}|${row.commitmentRef}`);
+    let commitmentId = fromCsv?.status === "resolved" ? fromCsv.commitment.id : null;
+    // Blank source (and blank commitment): stamp the preview's default choice.
+    let canonicalSource = row.sourceRef;
+    let canonicalCommitment = row.commitmentRef;
+    if (row.sourceRef === "" && defaultSource) {
+      sourceId = defaultSource.id;
+      canonicalSource = normalizeFundingName(defaultSource.name);
+      if (row.commitmentRef === "" && defaultCommitment) {
+        commitmentId = defaultCommitment.id;
+        canonicalCommitment = normalizeFundingName(defaultCommitment.name);
+      }
+    }
 
     const complete = amounts.every((a) => a.quantity !== null && a.unit !== null)
       && (row.sourceRef === "" || sourceId !== null)
@@ -167,8 +200,8 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
     if (complete) {
       const canonical = canonicalReceiptRow({
         receivedOn: row.receivedOn,
-        sourceRef: row.sourceRef,
-        commitmentRef: row.commitmentRef,
+        sourceRef: canonicalSource,
+        commitmentRef: canonicalCommitment,
         note: row.note,
         amounts: amounts.map((a) => ({ unit: a.unit!, quantity: a.quantity! })),
       });
@@ -207,6 +240,10 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
     tickers,
     sources,
     commitments,
+    availableSources: [...ctx.sources],
+    availableCommitments: [...ctx.commitments],
+    defaultSourceId: defaultSource?.id ?? null,
+    defaultCommitmentId: defaultCommitment?.id ?? null,
     rows,
     issues,
     counts: {

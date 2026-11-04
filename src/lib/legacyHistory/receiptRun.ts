@@ -22,6 +22,10 @@ export interface LegacyReceiptUpload {
   sourceMap: Record<string, string>;
   /** `${sourceId}|${commitmentRef}` → commitment id. */
   commitmentMap: Record<string, string>;
+  /** Tag every blank-source row with this funding source. */
+  defaultSourceId: string | null;
+  /** Optional commitment under defaultSourceId for blank commitment cells. */
+  defaultCommitmentId: string | null;
   replaceImportId: string | null;
   includeDuplicates: boolean;
   now: Date;
@@ -76,6 +80,8 @@ async function planReceipts(
     commitments: ctx.commitments,
     sourceAliases: new Map(Object.entries(upload.sourceMap)),
     commitmentAliases: new Map(Object.entries(upload.commitmentMap)),
+    defaultSourceId: upload.defaultSourceId,
+    defaultCommitmentId: upload.defaultCommitmentId,
     existingKeys: ctx.existingKeys,
     hash: sha256,
     includeDuplicates: upload.includeDuplicates,
@@ -93,6 +99,8 @@ export interface AgentReceiptPlan {
   tickerUnits: Record<string, string>;
   sourceMap: Record<string, string>;
   commitmentMap: Record<string, string>;
+  defaultSourceId: string | null;
+  defaultCommitmentId: string | null;
   includeDuplicates: boolean;
   now: Date;
 }
@@ -105,6 +113,8 @@ export async function planAgentReceipts(plan: AgentReceiptPlan): Promise<LegacyR
     tickerUnits: plan.tickerUnits,
     sourceMap: plan.sourceMap,
     commitmentMap: plan.commitmentMap,
+    defaultSourceId: plan.defaultSourceId,
+    defaultCommitmentId: plan.defaultCommitmentId,
     replaceImportId: null,
     includeDuplicates: plan.includeDuplicates,
     now: plan.now,

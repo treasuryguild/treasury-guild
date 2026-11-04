@@ -37,6 +37,8 @@ interface ReceiptUploadState {
   tickerUnits: Record<string, string>;
   sourceMap: Record<string, string>;
   commitmentMap: Record<string, string>;
+  defaultSourceId: string | null;
+  defaultCommitmentId: string | null;
   includeDuplicates: boolean;
 }
 
@@ -87,6 +89,8 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
       tickerUnits: state.tickerUnits,
       sourceMap: state.sourceMap,
       commitmentMap: state.commitmentMap,
+      defaultSourceId: state.defaultSourceId,
+      defaultCommitmentId: state.defaultCommitmentId,
       includeDuplicates: state.includeDuplicates,
       replaceImportId: replace?.id ?? null,
     };
@@ -260,7 +264,8 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
           </div>
           <ReceiptUpload fileName={receiptUpload?.file.name ?? null} disabled={busy}
             onFile={(file) => void runReceiptPreview({
-              file, tickerUnits: {}, sourceMap: {}, commitmentMap: {}, includeDuplicates: false,
+              file, tickerUnits: {}, sourceMap: {}, commitmentMap: {},
+              defaultSourceId: null, defaultCommitmentId: null, includeDuplicates: false,
             })} />
           <ErrorText error={review.error} />
           {review.busy && !receiptPreview && <p className="text-sm text-zinc-500">Reading the file…</p>}
@@ -281,6 +286,9 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
               })}
               onCommitment={(key, commitmentId) => void runReceiptPreview({
                 ...receiptUpload, commitmentMap: { ...receiptUpload.commitmentMap, [key]: commitmentId },
+              })}
+              onDefaults={(sourceId, commitmentId) => void runReceiptPreview({
+                ...receiptUpload, defaultSourceId: sourceId, defaultCommitmentId: commitmentId,
               })}
               onImport={() => void runReceiptImport()}
             />

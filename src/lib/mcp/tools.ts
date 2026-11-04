@@ -313,7 +313,7 @@ export const MCP_TOOLS: readonly McpToolDef[] = [
     name: "receipt_history_preview",
     title: "Preview a previous-wallet receipts import",
     description:
-      "Plan a CSV of income a previous wallet received before Treasury Guild (date, token columns, optional funding source/commitment/note), without writing it. Funding sources must already exist. When a token or source name is unclear the result is questions and no draftToken: ask the user and call again. A ready result shows counts and totals. Confirming (draft_confirm) adds the receipts (creating the previous wallet the preview said it would). They feed the Dashboard funding flow and Funding Received. Community admins only.",
+      "Plan a CSV of income a previous wallet received before Treasury Guild (date, token columns, optional funding source/commitment/note), without writing it. Funding sources must already exist. Blank-source lines can all be tagged with defaultSourceId (and optional defaultCommitmentId). When a token or source name is unclear the result is questions and no draftToken: ask the user and call again. A ready result shows counts and totals. Confirming (draft_confirm) adds the receipts (creating the previous wallet the preview said it would). They feed the Dashboard funding flow and Funding Received. Community admins only.",
     endpoint: previewReceiptHistory,
     restPath: "/api/v1/communities/{community}/receipt-history/preview",
     annotations: { ...PREVIEWS, openWorldHint: true },

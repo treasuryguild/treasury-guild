@@ -41,6 +41,10 @@ const receiptInput = z.object({
     .describe("CSV source name (normalized) → funding source id when several match"),
   commitmentMap: z.record(z.string().trim().min(1).max(200), z.string().uuid()).optional()
     .describe("`sourceId|commitmentRef` → commitment id when several match"),
+  defaultSourceId: z.string().uuid().optional()
+    .describe("Tag every blank-source line with this existing funding source id"),
+  defaultCommitmentId: z.string().uuid().optional()
+    .describe("Optional commitment under defaultSourceId for blank commitment cells"),
   legacyWalletId: z.string().uuid().optional().describe("An existing previous wallet"),
   walletName: z.string().trim().min(1).max(64).optional().describe("Name of a previous wallet to create"),
   walletAddress: z.string().trim().min(1).max(200).optional().describe("Optional address label. Never read on chain."),
@@ -52,6 +56,8 @@ interface StoredReceipt {
   tickerUnits: Record<string, string>;
   sourceMap: Record<string, string>;
   commitmentMap: Record<string, string>;
+  defaultSourceId: string | null;
+  defaultCommitmentId: string | null;
   legacyWalletId: string | null;
   wallet: { name: string; address: string | null } | null;
   fileName: string;
@@ -62,6 +68,8 @@ const storedReceipt = z.object({
   tickerUnits: z.record(z.string(), z.string()),
   sourceMap: z.record(z.string(), z.string()),
   commitmentMap: z.record(z.string(), z.string()),
+  defaultSourceId: z.string().nullable(),
+  defaultCommitmentId: z.string().nullable(),
   legacyWalletId: z.string().nullable(),
   wallet: z.object({ name: z.string(), address: z.string().nullable() }).nullable(),
   fileName: z.string(),
@@ -108,6 +116,8 @@ async function planStored(communityId: string, csv: string, stored: StoredReceip
     tickerUnits: stored.tickerUnits,
     sourceMap: stored.sourceMap,
     commitmentMap: stored.commitmentMap,
+    defaultSourceId: stored.defaultSourceId,
+    defaultCommitmentId: stored.defaultCommitmentId,
     includeDuplicates: stored.includeDuplicates,
     now: new Date(),
   });
@@ -187,6 +197,8 @@ export const previewReceiptHistory = defineEndpoint({
       tickerUnits: input.tickerUnits ?? {},
       sourceMap: input.sourceMap ?? {},
       commitmentMap: input.commitmentMap ?? {},
+      defaultSourceId: input.defaultSourceId ?? null,
+      defaultCommitmentId: input.defaultCommitmentId ?? null,
       legacyWalletId,
       wallet,
       fileName: fileNameOf(input.fileName),
