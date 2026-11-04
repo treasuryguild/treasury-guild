@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 720" fill="none">
+  <defs>
+    <clipPath id="logo-arms">
+      <circle cx="360" cy="360" r="348"/>
+    </clipPath>
+  </defs>
+  <circle cx="360" cy="360" r="345.5" stroke="currentColor" stroke-width="29"/>
+  <g clip-path="url(#logo-arms)" stroke="currentColor" stroke-linecap="butt">
+    <path d="M104 0V360A256 256 0 0 0 616 360V0" stroke-width="28"/>
+    <path d="M192.5 0V360A167.5 167.5 0 0 0 527.5 360V0" stroke-width="29"/>
+  </g>
+</svg>

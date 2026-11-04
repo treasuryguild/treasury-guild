@@ -7,7 +7,7 @@ interface MeshCreditProps {
  * "Powered by Mesh" credit. The marks are the official black and white
  * SVGs from https://meshjs.dev/about/branding (public/mesh-logo-*.svg),
  * unmodified. `<picture>` follows `prefers-color-scheme` with no
- * JavaScript, the same way BrandLogo does.
+ * JavaScript.
  */
 export function MeshCredit({ compact = false }: MeshCreditProps) {
   return (

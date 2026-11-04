@@ -5,23 +5,20 @@ interface BrandLogoProps {
 }
 
 /**
- * Treasury Guild logo mark. Serves the black outline on light themes and the
- * white outline on dark themes via `<picture>`, so the swap follows the
- * active `prefers-color-scheme` with no JavaScript and no hydration flicker.
- * Source files live in `public/logo-black.png` and `public/logo-white.png`.
+ * Treasury Guild logo mark. The drawing is `public/logo.svg` (strokes in
+ * `currentColor`). An `<img>` cannot inherit color, so the mark is a mask
+ * painted with the text color: near-black in light mode, near-white in dark,
+ * with no JavaScript and no hydration flicker. Discord webhook avatars still
+ * use `public/logo-white.png`.
  */
 export function BrandLogo({ className, alt = "" }: BrandLogoProps) {
+  const decorative = alt === "";
   return (
-    <picture>
-      <source srcSet="/logo-white.png" media="(prefers-color-scheme: dark)" />
-      {/* Plain <img>: next/image has no <picture>/<source> support. */}
-      <img
-        src="/logo-black.png"
-        alt={alt}
-        className={className}
-        draggable={false}
-        decoding="async"
-      />
-    </picture>
+    <span
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : alt}
+      aria-hidden={decorative ? true : undefined}
+      className={`brand-logo ${className ?? ""}`}
+    />
   );
 }
