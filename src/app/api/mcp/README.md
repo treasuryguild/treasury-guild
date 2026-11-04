@@ -161,6 +161,7 @@ payment history or a funding schedule follow the same pattern with one shared co
   | `drep_create` | `governance:write` | `drep_preview` |
   | `vote_create` | `governance:write` | `vote_preview` |
   | `legacy_history_import` | `imports:write` | `payment_history_preview` |
+  | `legacy_receipts_import` | `imports:write` | `receipt_history_preview` |
   | `funding_schedule_import` | `imports:write` | `funding_schedule_preview` |
   - `draft_confirm` is offered to a connection holding *any* write scope; an endpoint
     `scope` may be a list, meaning any one of them (`endpointScopes`, `endpointAllowed`).
@@ -203,20 +204,23 @@ payment history or a funding schedule follow the same pattern with one shared co
   never write to public IPFS; confirm (and session build) publish then build. Confirm
   stores a pending `transactions` row (`kind` stake/drep/vote); never a community
   proposal ballot.
-- **Payment history and funding schedules** (`imports:write`, community admins only;
-  holding the scope is not enough for a lead or a signer). The CSV does not fit in the
-  draft token (32,000 characters; a history file may be 1 MB), so the preview stores the
-  original text and the column map in `agent_import_payloads` for 15 minutes (service
-  role only, no policies; migration 0093). The token carries the payload id and a
-  fingerprint of the counts, totals and resolutions the user was shown. Confirm loads
-  the text, plans again and refuses when the fingerprint moved. A successful confirm
-  deletes its payload; the reconcile sweep deletes expired ones. The write is one RPC
-  per import (`import_agent_legacy_history`, `import_agent_funding_schedule`), keyed by
-  `agent_draft_id` on `legacy_imports` and on the funding commitment a schedule confirm
-  creates, so a second confirm reads that row back. The Treasury and Funding pages keep
-  calling `import_legacy_history` and `save_funding_schedule`. Replacing or deleting a
-  history import stays on the Treasury page. Funding still does not keep the file after
-  the periods are saved.
+- **Payment history, previous-wallet receipts and funding schedules** (`imports:write`,
+  community admins only; holding the scope is not enough for a lead or a signer). The
+  CSV does not fit in the draft token (32,000 characters; a history file may be 1 MB),
+  so the preview stores the original text and the column map in `agent_import_payloads`
+  for 15 minutes (service role only, no policies; migration 0093; receipts use kind
+  `legacy_receipts`). The token carries the payload id and a fingerprint of the counts,
+  totals and resolutions the user was shown. Confirm loads the text, plans again and
+  refuses when the fingerprint moved. A successful confirm deletes its payload; the
+  reconcile sweep deletes expired ones. The write is one RPC per import
+  (`import_agent_legacy_history`, `import_agent_legacy_receipts`,
+  `import_agent_funding_schedule`), keyed by `agent_draft_id` on `legacy_imports` /
+  `legacy_receipt_imports` and on the funding commitment a schedule confirm creates, so
+  a second confirm reads that row back. The Treasury and Funding pages keep calling
+  `import_legacy_history` / `import_legacy_receipts` and `save_funding_schedule`.
+  Replacing or deleting a history or receipts import stays on the Treasury page.
+  Funding still does not keep the file after the periods are saved. Receipt funding
+  sources must already exist (no auto-create).
 - **Tasks.** Service-role writes re-check in code what the browser's RLS and column grants
   check: a manager, an active app board, and never a task past `pay_state 'none'`.
   - Create goes in the first column neither payable nor paid (`firstOpenColumn`).

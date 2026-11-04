@@ -1,6 +1,6 @@
 Some communities are funded from outside: a large treasury that releases an allocation to several communities every month, [Project Catalyst](https://projectcatalyst.io) paying approved proposals, a sponsor. **Funding sources** records what each of them committed and compares it with what actually arrived in your treasuries, so you can see whether a funder is on plan, behind or ahead, and what is still to come.
 
-It is an overview, not a wallet: the money still arrives in your own treasuries as ordinary [inflows](/docs/reconciliation), and nothing new is read from the chain. An admin ties each inflow to its source.
+It is an overview, not a wallet: the money still arrives in your own treasuries as ordinary [inflows](/docs/reconciliation), and nothing new is read from the chain. An admin ties each inflow to its source. Receipts imported for a [previous wallet](/docs/treasury#payment-history-from-a-previous-wallet) that name a funding source also count as received.
 
 ## The Funding page
 
@@ -8,7 +8,7 @@ It is an overview, not a wallet: the money still arrives in your own treasuries 
 
 - **Planned** — everything the source committed. A recurring commitment without an end date reads **Open-ended**.
 - **Due so far** — what should have arrived by now: one-off amounts whose expected month has come (or that have none), and every period of a recurring commitment or schedule up to the current one.
-- **Received** — the inflows tied to the source.
+- **Received** — the inflows tied to the source (live treasury inflows plus tagged previous-wallet receipts).
 - **Against the plan** — received minus due: **On plan**, an amount **over** (it arrived early or was more), or an amount **under** (it is late or was less).
 - **Still to receive** — planned minus received (**Nothing** once received reaches planned).
 
@@ -49,7 +49,9 @@ month,sc_allocation,ambassador_allocation
 
 On [Incoming & reconciliation](/docs/reconciliation#classifying-an-inflow), an admin opens **Details** on an inflow, picks the **Funding source** and, optionally, the **Commitment** it pays, and saves. The whole inflow counts as received, every token in it, in the period of the day it arrived. A transfer between the community's own wallets cannot be tied to a source, and an inflow later recognised as such a transfer loses its tag.
 
-On the [Dashboard](/docs/budgets#dashboard), the Funding flow draws a tagged inflow from its source by name, instead of from Contributions, Revenue or the other income kinds. A refund stays a refund: it never counts as income, tagged or not.
+For money that arrived in a wallet before Treasury Guild, import it as a [previous-wallet receipt](/docs/treasury#receipts-csv) with the funding source (and optional commitment) named in the CSV. Those lines appear under **Show received inflows** as previous-wallet receipts, not as chain transaction hashes.
+
+On the [Dashboard](/docs/budgets#dashboard), the Funding flow draws a tagged inflow from its source by name, instead of from Contributions, Revenue or the other income kinds — including tagged previous-wallet receipts into "*name* (previous wallet)". A refund stays a refund: it never counts as income, tagged or not.
 
 ## Conversion fees
 

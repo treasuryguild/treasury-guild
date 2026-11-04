@@ -820,6 +820,36 @@ export interface LegacyPaymentRow {
 export const LEGACY_PAYMENT_COLUMNS =
   "id, import_id, community_id, legacy_wallet_id, workgroup_id, recipient_ref, task, paid_on, budget_month, line_no";
 
+/** One uploaded previous-wallet receipts CSV (migration 0095). */
+export interface LegacyReceiptImportRow {
+  id: string;
+  community_id: string;
+  legacy_wallet_id: string;
+  file_name: string;
+  line_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+export const LEGACY_RECEIPT_IMPORT_COLUMNS =
+  "id, community_id, legacy_wallet_id, file_name, line_count, created_by, created_at";
+
+/** One imported receipt line. */
+export interface LegacyReceiptRow {
+  id: string;
+  import_id: string;
+  community_id: string;
+  legacy_wallet_id: string;
+  received_on: string;
+  funding_source_id: string | null;
+  funding_commitment_id: string | null;
+  note: string | null;
+  line_no: number;
+}
+
+export const LEGACY_RECEIPT_COLUMNS =
+  "id, import_id, community_id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, note, line_no";
+
 /** A planned amount of a funding commitment, in base units (the budget amount shape). */
 export interface FundingAmount {
   unit: string;

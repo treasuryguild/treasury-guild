@@ -8,7 +8,7 @@ import { MCP_TOOLS, toolsForScopes } from "./tools";
 const PREVIEWS = [
   "proposal_preview", "proposal_withdraw_preview", "task_preview", "call_create_preview", "call_finalize_preview",
   "payout_preview", "stake_preview", "drep_preview", "vote_preview",
-  "payment_history_preview", "funding_schedule_preview",
+  "payment_history_preview", "receipt_history_preview", "funding_schedule_preview",
 ];
 
 describe("MCP tool registry", () => {
@@ -20,7 +20,7 @@ describe("MCP tool registry", () => {
       "proposal_preview", "proposal_create",
       "proposal_withdraw_preview", "task_preview", "call_create_preview", "call_finalize_preview", "payout_preview",
       "stake_preview", "drep_preview", "vote_preview",
-      "payment_history_preview", "funding_schedule_preview",
+      "payment_history_preview", "receipt_history_preview", "funding_schedule_preview",
       "draft_confirm",
     ]);
     // Only these two carry anything out, and only from a preview's draft token.
@@ -45,7 +45,9 @@ describe("MCP tool registry", () => {
     expect(names("tasks:write")).toEqual(["task_preview", "call_create_preview", "call_finalize_preview", "draft_confirm"]);
     expect(names("proposals:write")).toEqual(["proposal_preview", "proposal_create", "proposal_withdraw_preview", "draft_confirm"]);
     expect(names("governance:write")).toEqual(["stake_preview", "drep_preview", "vote_preview", "draft_confirm"]);
-    expect(names("imports:write")).toEqual(["payment_history_preview", "funding_schedule_preview", "draft_confirm"]);
+    expect(names("imports:write")).toEqual([
+      "payment_history_preview", "receipt_history_preview", "funding_schedule_preview", "draft_confirm",
+    ]);
   });
 
   it("serves every tool's endpoint over /api/v1 as well", () => {

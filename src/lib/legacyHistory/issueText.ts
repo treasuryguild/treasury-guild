@@ -1,5 +1,7 @@
 // One sentence per payment-history issue, for the import preview.
-import { LEGACY_MAX_ROWS, LEGACY_MAX_TASK_CHARS, LEGACY_MAX_TICKERS, LegacyIssueCode as Code } from "@/lib/constants";
+import {
+  LEGACY_MAX_NOTE_CHARS, LEGACY_MAX_ROWS, LEGACY_MAX_TASK_CHARS, LEGACY_MAX_TICKERS, LegacyIssueCode as Code,
+} from "@/lib/constants";
 import { MAX_WORKGROUP_REF_BYTES } from "./parse";
 import type { LegacyIssue } from "./types";
 
@@ -61,5 +63,15 @@ export function legacyIssueText(issue: LegacyIssue): string {
       return `The workgroup "${value}" is archived. Its history is still counted.`;
     case Code.DuplicateInFile:
       return `This line repeats line ${value}. Both are imported.`;
+    case Code.UnresolvedSource:
+      return `The funding source "${value}" could not be matched. Create it on the Funding page, or choose it below.`;
+    case Code.UnresolvedCommitment:
+      return `The commitment "${value}" could not be matched under its funding source.`;
+    case Code.CommitmentWithoutSource:
+      return value
+        ? `Commitment "${value}" needs a funding source on the same line.`
+        : "A commitment needs a funding source on the same line.";
+    case Code.NoteTooLong:
+      return `The note is longer than ${LEGACY_MAX_NOTE_CHARS} characters.`;
   }
 }

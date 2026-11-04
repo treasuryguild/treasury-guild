@@ -29,6 +29,7 @@ import type { GovernanceCommunitySettings } from "@/lib/governance/rules";
 import type { RecognitionSettings } from "@/lib/recognition/settings";
 import type { MatchSuggestion } from "@/lib/reconciliation/types";
 import type { LiveBoardResponse } from "@/lib/boardTypes";
+import type { LegacyReceiptImportPlan } from "@/lib/legacyHistory/receiptTypes";
 import type { LegacyImportPlan, LegacyToken, LegacyTotal } from "@/lib/legacyHistory/types";
 
 export interface ApiErrorBody {
@@ -791,6 +792,7 @@ export interface LegacyImportSummary {
 export interface LegacyHistoryOverview {
   wallets: LegacyWalletSummary[];
   imports: LegacyImportSummary[];
+  receiptImports: LegacyReceiptImportSummary[];
 }
 /** POST /api/legacy-history/preview: the plan, its rows possibly cut short. */
 export interface LegacyHistoryPreview extends LegacyImportPlan {
@@ -818,6 +820,41 @@ export interface LegacyPaymentView {
   workgroupArchived: boolean;
   /** Base units per token. */
   amounts: (LegacyToken & { amount: string })[];
+}
+export interface LegacyReceiptImportSummary {
+  id: string;
+  legacyWalletId: string;
+  fileName: string;
+  createdAt: string;
+  createdBy: string;
+  lineCount: number;
+  rowCount: number;
+  firstReceivedOn: string | null;
+  lastReceivedOn: string | null;
+  totals: LegacyTotal[];
+}
+/** POST /api/legacy-history/receipts/preview */
+export interface LegacyReceiptPreview extends LegacyReceiptImportPlan {
+  rowsTruncated: boolean;
+}
+export interface LegacyReceiptView {
+  id: string;
+  importId: string;
+  legacyWalletId: string;
+  lineNo: number;
+  receivedOn: string;
+  fundingSourceId: string | null;
+  fundingSourceName: string | null;
+  fundingCommitmentId: string | null;
+  fundingCommitmentName: string | null;
+  note: string | null;
+  amounts: (LegacyToken & { amount: string })[];
+}
+/** GET /api/legacy-history/receipts/rows */
+export interface LegacyReceiptRowsResponse {
+  rows: LegacyReceiptView[];
+  total: number;
+  offset: number;
 }
 /** POST /api/legacy-history/wallets */
 export interface LegacyWalletCreatedResponse {
