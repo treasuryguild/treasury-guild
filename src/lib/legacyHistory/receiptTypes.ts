@@ -67,6 +67,12 @@ export interface LegacyReceiptImportPlan {
   tickers: TickerResolution[];
   sources: SourceResolution[];
   commitments: CommitmentResolution[];
+  /** Community funding sources, for tagging blank-source rows in the preview. */
+  availableSources: FundingSourceRef[];
+  availableCommitments: FundingCommitmentRef[];
+  /** Applied to blank-source rows; null when not set. */
+  defaultSourceId: string | null;
+  defaultCommitmentId: string | null;
   rows: PlannedReceiptRow[];
   issues: LegacyIssue[];
   counts: { lines: number; new: number; duplicates: number; fileDuplicates: number; invalid: number };

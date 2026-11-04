@@ -53,6 +53,33 @@ describe("planLegacyReceipts", () => {
     expect(plan.rows[0]?.status).toBe("new");
     expect(plan.rows[1]?.duplicateOfLine).toBe(2);
     expect(plan.counts.fileDuplicates).toBe(1);
+    expect(plan.defaultSourceId).toBeNull();
+  });
+
+  it("tags blank-source rows with a default funding source and commitment", () => {
+    const parsed = readReceiptsCsv(
+      "date,ADA,source\n15.09.2024,1,\n16.09.2024,2,Catalyst",
+      "2026-11-04",
+    );
+    const plan = planLegacyReceipts(parsed, {
+      registry: [],
+      manual: new Map(),
+      history: [],
+      wallet: [],
+      sources: [{ id: "s1", name: "Catalyst" }, { id: "s2", name: "Other" }],
+      commitments: [{ id: "c1", sourceId: "s2", name: "Grant" }],
+      defaultSourceId: "s2",
+      defaultCommitmentId: "c1",
+      existingKeys: new Set(),
+      hash,
+      includeDuplicates: false,
+    });
+    expect(plan.ready).toBe(true);
+    expect(plan.defaultSourceId).toBe("s2");
+    expect(plan.defaultCommitmentId).toBe("c1");
+    expect(plan.rows[0]).toMatchObject({ sourceRef: "", sourceId: "s2", commitmentId: "c1" });
+    expect(plan.rows[1]).toMatchObject({ sourceRef: "catalyst", sourceId: "s1", commitmentId: null });
+    expect(legacyReceiptRpcRows(plan, false).map((r) => r.fundingSourceId)).toEqual(["s2", "s1"]);
   });
 });
 

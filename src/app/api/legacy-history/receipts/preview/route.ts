@@ -25,6 +25,8 @@ export const POST = sessionRoute(async (req, { session }) => {
     tickerUnits: body.tickerUnits,
     sourceMap: body.sourceMap,
     commitmentMap: body.commitmentMap,
+    defaultSourceId: body.defaultSourceId ?? null,
+    defaultCommitmentId: body.defaultCommitmentId ?? null,
     replaceImportId: body.replaceImportId ?? null,
     includeDuplicates: body.includeDuplicates,
     now: new Date(),

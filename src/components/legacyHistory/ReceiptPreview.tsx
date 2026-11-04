@@ -90,6 +90,73 @@ function CommitmentResolver({
   );
 }
 
+function UntaggedDefaults({
+  untaggedCount,
+  sources,
+  commitments,
+  sourceId,
+  commitmentId,
+  busy,
+  onChange,
+}: {
+  untaggedCount: number;
+  sources: { id: string; name: string }[];
+  commitments: { id: string; sourceId: string; name: string }[];
+  sourceId: string | null;
+  commitmentId: string | null;
+  busy: boolean;
+  onChange: (sourceId: string | null, commitmentId: string | null) => void;
+}) {
+  const underSource = commitments.filter((c) => c.sourceId === sourceId);
+  return (
+    <div className="space-y-3 rounded-lg border border-zinc-700 p-3">
+      <p className="text-sm text-zinc-300">
+        {plural(untaggedCount, "line")} {untaggedCount === 1 ? "has" : "have"} no funding source in the file.
+        Choose one to tag {untaggedCount === 1 ? "it" : "them"} all (so they count as Received), or leave blank
+        for unclassified Dashboard income.
+      </p>
+      {sources.length === 0 ? (
+        <WarningText>
+          No funding sources yet. Create one on the Funding page, then choose the file again.
+        </WarningText>
+      ) : (
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <label className="space-y-1 text-sm">
+            <span className="text-zinc-500">Funding source</span>
+            <Select
+              aria-label="Funding source for untagged lines"
+              value={sourceId ?? ""}
+              disabled={busy}
+              onChange={(e) => onChange(e.target.value || null, null)}
+            >
+              <option value="">Leave untagged</option>
+              {sources.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </label>
+          {sourceId && underSource.length > 0 && (
+            <label className="space-y-1 text-sm">
+              <span className="text-zinc-500">Commitment (optional)</span>
+              <Select
+                aria-label="Commitment for untagged lines"
+                value={commitmentId ?? ""}
+                disabled={busy}
+                onChange={(e) => onChange(sourceId, e.target.value || null)}
+              >
+                <option value="">None</option>
+                {underSource.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+            </label>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ReceiptPreview({
   preview,
   includeDuplicates,
@@ -101,6 +168,7 @@ export function ReceiptPreview({
   onTickerUnit,
   onSource,
   onCommitment,
+  onDefaults,
   onImport,
 }: {
   preview: LegacyReceiptPreview;
@@ -113,6 +181,7 @@ export function ReceiptPreview({
   onTickerUnit: (ticker: string, unit: string) => void;
   onSource: (ref: string, sourceId: string) => void;
   onCommitment: (key: string, commitmentId: string) => void;
+  onDefaults: (sourceId: string | null, commitmentId: string | null) => void;
   onImport: () => void;
 }) {
   const { counts } = preview;
@@ -124,9 +193,12 @@ export function ReceiptPreview({
   const rowLines = new Set(preview.rows.map((r) => r.line));
   const unparsed = [...lineIssues].filter(([line]) => !rowLines.has(line));
   const toImport = counts.new + (includeDuplicates ? counts.duplicates : 0);
+  const untaggedCount = preview.rows.filter((r) => r.sourceRef === "").length;
   const sourceNames = new Map<string, string>();
+  for (const s of preview.availableSources) sourceNames.set(s.id, s.name);
   for (const s of preview.sources) if (s.status === "resolved") sourceNames.set(s.source.id, s.source.name);
   const commitmentNames = new Map<string, string>();
+  for (const c of preview.availableCommitments) commitmentNames.set(c.id, c.name);
   for (const c of preview.commitments) {
     if (c.status === "resolved") commitmentNames.set(c.commitment.id, c.commitment.name);
   }
@@ -168,6 +240,17 @@ export function ReceiptPreview({
             onChoose={(id) => onCommitment(`${keySource || sourceId || ""}|${c.ref}`, id)} />
         );
       })}
+      {untaggedCount > 0 && (
+        <UntaggedDefaults
+          untaggedCount={untaggedCount}
+          sources={preview.availableSources}
+          commitments={preview.availableCommitments}
+          sourceId={preview.defaultSourceId}
+          commitmentId={preview.defaultCommitmentId}
+          busy={busy}
+          onChange={onDefaults}
+        />
+      )}
 
       {unparsed.length > 0 && (
         <div>
