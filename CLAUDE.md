@@ -761,31 +761,31 @@ Supabase (RLS, no ORM) + Netlify.
   workgroup name an admin resolved is remembered in
   `workgroup_import_aliases`; names are compared truncated to the metadatum
   cap, as the builder writes them.
-- **Previous-wallet history** (migration 0050, `src/lib/legacyHistory/`,
-  `src/lib/db/legacyHistory.ts`, page `/c/[slug]/treasury/history`): a
-  community's payments from the wallet it used before Treasury Guild, imported
-  from an admin's CSV (`userId` = receiver address end, one column per token
-  ticker, `task`, `date`, `workgroup`). Own tables only (`legacy_wallets`,
-  `legacy_imports`, `legacy_payments`, `legacy_payment_amounts`; RLS, no
-  policies, service role only): never tasks, payouts, transactions, payments
-  or `community_assets`, and the wallet's `address` is a label that no chain
-  code reads. Parsing and planning are pure (`parse.ts`, `plan.ts`); the
-  preview and import routes re-parse the uploaded text (`planLegacyUpload`),
-  never rows from the browser, and the only writer is the
-  `import_legacy_history` RPC (wallet row lock; skips a line whose
-  `dedupe_key`, sha256 of the canonical row, the wallet already holds unless
-  duplicates are included; optional atomic replace of one import). A manual
-  token unit counts only once Koios confirms the asset. `budget_month` comes
-  from `taskBudgetPeriod`; amounts are read as `amount::text`. On the
-  Dashboard a line is workgroup spend with the wallet id in the treasury slot
-  (`legacyWalletLabel`), counted in budgets and in contributor/task counts
-  (`legacyTaskKey`: workgroup + date + task text; `legacyContributorKey`:
-  the one known wallet ending with the recipient ref, else the ref);
-  `DashboardResponse.legacy` carries the wallets and token display. Recipients
-  are stored as the address end and named at read time (`recipientLabel`). A
-  workgroup with history cannot be deleted (`workgroup_lifecycle_status`);
-  workgroup names resolved by an admin go to `workgroup_import_aliases`
-  (normalized), shared with the chain import.
+- **Previous-wallet history** (migration 0050 payments + 0095 receipts,
+  `src/lib/legacyHistory/`, `src/lib/db/legacyHistory.ts`, page
+  `/c/[slug]/treasury/history`): a community's payments and receipts from the
+  wallet it used before Treasury Guild, imported from an admin's CSV. Payments:
+  `userId` = receiver address end, one column per token ticker, `task`,
+  `date`, `workgroup`. Receipts: `date`, token columns, optional `source` /
+  `commitment` / `note` (funding source must already exist; untagged receipts
+  are unclassified Dashboard income into the previous wallet). Own tables only
+  (`legacy_wallets`, `legacy_imports` / `legacy_payments` /
+  `legacy_payment_amounts`, `legacy_receipt_imports` / `legacy_receipts` /
+  `legacy_receipt_amounts`; RLS, no policies, service role only): never tasks,
+  payouts, transactions, payments, `incoming_txs` or `community_assets`, and
+  the wallet's `address` is a label that no chain code reads. Parsing and
+  planning are pure (`parse.ts` / `plan.ts`, `receiptParse.ts` /
+  `receiptPlan.ts`); the preview and import routes re-parse the uploaded text,
+  never rows from the browser, and the only writers are
+  `import_legacy_history` / `import_legacy_receipts` (wallet row lock; skip by
+  `dedupe_key`; optional atomic replace). Tagged receipts count as Funding
+  Received (`loadFundingOverview` merges them as `legacy:<id>` inflows) and
+  feed the Dashboard funding flow into the previous-wallet node. On the
+  Dashboard a payment line is workgroup spend with the wallet id in the
+  treasury slot (`legacyWalletLabel`); `DashboardResponse.legacy` carries the
+  wallets and token display. A workgroup with payment history cannot be
+  deleted (`workgroup_lifecycle_status`); workgroup names resolved by an admin
+  go to `workgroup_import_aliases` (normalized), shared with the chain import.
 - **Funding sources** (migration 0052, `src/lib/funding/`,
   `src/lib/db/funding.ts`, page `/c/[slug]/funding`): outside funders and
   their commitments (`one_off` total, `recurring` amount per period,

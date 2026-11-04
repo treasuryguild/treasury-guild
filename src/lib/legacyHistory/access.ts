@@ -5,8 +5,10 @@ import "server-only";
 import { requireAdmin } from "@/lib/authz";
 import { addressToNetwork } from "@/lib/cardano/multisigSDK";
 import { requireCommunity } from "@/lib/db/communities";
-import { loadLegacyImport, loadLegacyPayment, loadLegacyWallet } from "@/lib/db/legacyHistory";
-import type { LegacyImportRow, LegacyWalletRow } from "@/lib/db/types";
+import {
+  loadLegacyImport, loadLegacyPayment, loadLegacyReceipt, loadLegacyReceiptImport, loadLegacyWallet,
+} from "@/lib/db/legacyHistory";
+import type { LegacyImportRow, LegacyReceiptImportRow, LegacyWalletRow } from "@/lib/db/types";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 
 export async function requireLegacyWalletAdmin(walletId: string, wallet: string): Promise<LegacyWalletRow> {
@@ -26,6 +28,23 @@ export async function requireLegacyImportAdmin(importId: string, wallet: string)
 export async function requireLegacyPaymentAdmin(paymentId: string, wallet: string) {
   const row = await loadLegacyPayment(paymentId);
   if (!row) throw new NotFoundError("History line not found");
+  await requireAdmin(row.community_id, wallet);
+  return row;
+}
+
+export async function requireLegacyReceiptImportAdmin(
+  importId: string,
+  wallet: string,
+): Promise<LegacyReceiptImportRow> {
+  const row = await loadLegacyReceiptImport(importId);
+  if (!row) throw new NotFoundError("Receipt import not found");
+  await requireAdmin(row.community_id, wallet);
+  return row;
+}
+
+export async function requireLegacyReceiptAdmin(receiptId: string, wallet: string) {
+  const row = await loadLegacyReceipt(receiptId);
+  if (!row) throw new NotFoundError("Receipt line not found");
   await requireAdmin(row.community_id, wallet);
   return row;
 }

@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { FundingCommitmentRow, FundingPeriodRow, FundingSourceRow } from "@/lib/db/types";
 import { describeCommitment, formatFundingAmount, type FundingTokenOption } from "@/lib/funding/display";
 import type { SourceSummary } from "@/lib/funding/plan";
+import { LEGACY_RECEIPT_TX_PREFIX } from "@/lib/constants";
 import { formatDate, shortHash } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import type { FundingData } from "@/hooks/useFunding";
@@ -145,22 +146,29 @@ export function FundingSourceCard({
           <div className="mt-2 space-y-1">
             {received.length === 0 && (
               <p className="text-sm text-zinc-500">
-                None yet. Tie an inflow to this source with <strong>Details</strong> on the Incoming page.
+                None yet. Tie an inflow to this source with <strong>Details</strong> on the Incoming page, or import
+                previous-wallet receipts on Treasury → Payment history.
               </p>
             )}
-            {received.map((inflow) => (
-              <div key={inflow.tx_hash} className="flex flex-wrap justify-between gap-2 text-sm">
-                <span className="text-zinc-400">
-                  {inflow.block_time ? formatDate(inflow.block_time) : "Pending"} · {treasuryName(inflow.treasury_id)}
-                  {commitmentName(inflow.funding_commitment_id) && ` · ${commitmentName(inflow.funding_commitment_id)}`}
-                  {" · "}<span className="font-mono text-xs">{shortHash(inflow.tx_hash)}</span>
-                </span>
-                <span className="font-mono text-xs">
-                  {[formatFundingAmount("lovelace", inflow.amount_lovelace, options),
-                    ...Object.entries(inflow.assets ?? {}).map(([unit, qty]) => formatFundingAmount(unit, qty, options))].join(", ")}
-                </span>
-              </div>
-            ))}
+            {received.map((inflow) => {
+              const legacy = inflow.tx_hash.startsWith(LEGACY_RECEIPT_TX_PREFIX);
+              return (
+                <div key={inflow.tx_hash} className="flex flex-wrap justify-between gap-2 text-sm">
+                  <span className="text-zinc-400">
+                    {inflow.block_time ? formatDate(inflow.block_time) : "Pending"} · {treasuryName(inflow.treasury_id)}
+                    {commitmentName(inflow.funding_commitment_id) && ` · ${commitmentName(inflow.funding_commitment_id)}`}
+                    {" · "}
+                    <span className="font-mono text-xs">
+                      {legacy ? "previous-wallet receipt" : shortHash(inflow.tx_hash)}
+                    </span>
+                  </span>
+                  <span className="font-mono text-xs">
+                    {[formatFundingAmount("lovelace", inflow.amount_lovelace, options),
+                      ...Object.entries(inflow.assets ?? {}).map(([unit, qty]) => formatFundingAmount(unit, qty, options))].join(", ")}
+                  </span>
+                </div>
+              );
+            })}
             <LinkButton href={routes.reconcile(slug)} variant="ghost" className="!px-0 text-sm">Open Incoming</LinkButton>
           </div>
         )}

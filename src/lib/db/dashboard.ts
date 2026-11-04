@@ -3,6 +3,7 @@
 import "server-only";
 
 import type { BudgetIncomingItem, DashboardFlows, DashboardLegacy, DashboardSeries } from "@/lib/api/types";
+import { LOVELACE } from "@/lib/assets";
 import { monthOf, quarterStartMonth } from "@/lib/budgets";
 import { cadenceAt } from "@/lib/budgetSetups";
 import { SPENT_PAYOUT_STATUSES, TxState } from "@/lib/constants";
@@ -24,7 +25,7 @@ import { loadBudgetSetupsForTreasuries, loadBudgetSetupsForWorkgroups, type Budg
 import { allRows, relation, rows, serviceClient } from "./client";
 import { loadCommunityConversions } from "./conversions";
 import { legacyContributorKey, legacyTaskKey } from "@/lib/legacyHistory/display";
-import { loadKnownWallets, loadLegacySpend, loadLegacyWallets } from "./legacyHistory";
+import { loadKnownWallets, loadLegacyReceipts, loadLegacySpend, loadLegacyWallets } from "./legacyHistory";
 import type { DashboardConversionFee } from "@/lib/api/types";
 
 interface PayoutSeriesRow {
@@ -131,7 +132,7 @@ export async function loadDashboardActivity(
     `budget_month.is.null,and(budget_month.gte.${quarterStartMonth(monthOf(range.start))}-01,budget_month.lt.${range.end.slice(0, 10)})`;
   const db = serviceClient();
 
-  const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyWallets, fundingRows, conversions] = await Promise.all([
+  const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyReceiptRows, legacyWallets, fundingRows, conversions] = await Promise.all([
     allRows<IncomingFlowRow>((from, to) => db
       .from("incoming_txs")
       .select("treasury_id, from_treasury_id, from_float_wallet_id, funding_source_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
@@ -192,6 +193,10 @@ export async function loadDashboardActivity(
       .order("created_at"),
     loadLegacySpend(communityId, {
       from: `${quarterStartMonth(monthOf(range.start))}-01`,
+      to: range.end.slice(0, 10),
+    }),
+    loadLegacyReceipts(communityId, {
+      from: range.start.slice(0, 10),
       to: range.end.slice(0, 10),
     }),
     loadLegacyWallets(communityId),
@@ -266,6 +271,29 @@ export async function loadDashboardActivity(
   });
   const treasuries = rows<{ id: string; name: string }>(treasuryRows, "load dashboard treasuries");
   const floats = rows<{ id: string; name: string }>(floatWalletRows, "load dashboard float wallets");
+  // Collapse multi-token receipt lines into one FlowIncomingRow per receipt day
+  // (amount_lovelace + assets), matching how chain inflows are shaped.
+  const receiptFlows = new Map<string, FlowIncomingRow>();
+  for (const row of legacyReceiptRows) {
+    const key = `${row.id.split(":")[0]}`;
+    const cur = receiptFlows.get(key) ?? {
+      treasuryId: row.legacyWalletId,
+      fromTreasuryId: null,
+      fromFloatWalletId: null,
+      incomingType: row.fundingSourceId ? "contribution" : "unclassified",
+      amountLovelace: "0",
+      assets: {} as Record<string, string>,
+      blockTime: `${row.receivedOn}T00:00:00.000Z`,
+      fundingSourceId: row.fundingSourceId,
+    };
+    if (row.unit === LOVELACE) {
+      cur.amountLovelace = (BigInt(cur.amountLovelace) + BigInt(row.amount)).toString();
+    } else {
+      cur.assets = { ...cur.assets, [row.unit]: row.amount };
+    }
+    receiptFlows.set(key, cur);
+  }
+
   const flows: FlowIncomingRow[] = [
     ...flowRows.map((row) => ({
       treasuryId: row.treasury_id,
@@ -288,6 +316,10 @@ export async function loadDashboardActivity(
       assets: row.assets,
       blockTime: row.block_time,
       fundingSourceId: null as string | null,
+    })),
+    ...[...receiptFlows.values()].map((row) => ({
+      ...row,
+      assets: Object.keys(row.assets ?? {}).length > 0 ? row.assets : null,
     })),
   ];
 

@@ -6,11 +6,12 @@ import "server-only";
 import { PgCode } from "@/lib/constants";
 import { ConflictError } from "@/lib/errors";
 import { DRAFT_TOKEN_TTL_SECONDS } from "@/lib/mcp/draftToken";
+import type { LegacyReceiptRpcRow } from "@/lib/legacyHistory/receiptTypes";
 import type { LegacyRpcRow } from "@/lib/legacyHistory/types";
 import type { FundingAmount } from "./types";
 import { maybe, must, rpc, serviceClient } from "./client";
 
-export type AgentImportKind = "legacy_history" | "funding_schedule";
+export type AgentImportKind = "legacy_history" | "funding_schedule" | "legacy_receipts";
 
 export interface AgentImportPayload {
   id: string;
@@ -98,6 +99,35 @@ export async function importAgentLegacyHistory(args: AgentHistoryWrite): Promise
       p_wallet_name: args.walletName,
       p_wallet_address: args.walletAddress,
       p_workgroups: args.workgroups,
+      p_rows: args.rows,
+      p_skip_existing: args.skipExisting,
+    }),
+    { [PgCode.UniqueViolation]: ConflictError },
+  );
+}
+
+export interface AgentReceiptWrite {
+  draftId: string;
+  communityId: string;
+  actor: string;
+  fileName: string;
+  legacyWalletId: string | null;
+  walletName: string | null;
+  walletAddress: string | null;
+  rows: LegacyReceiptRpcRow[];
+  skipExisting: boolean;
+}
+
+export async function importAgentLegacyReceipts(args: AgentReceiptWrite): Promise<AgentHistoryWriteResult> {
+  return rpc<AgentHistoryWriteResult>(
+    await serviceClient().rpc("import_agent_legacy_receipts", {
+      p_draft_id: args.draftId,
+      p_community_id: args.communityId,
+      p_actor: args.actor,
+      p_file_name: args.fileName,
+      p_legacy_wallet_id: args.legacyWalletId,
+      p_wallet_name: args.walletName,
+      p_wallet_address: args.walletAddress,
       p_rows: args.rows,
       p_skip_existing: args.skipExisting,
     }),

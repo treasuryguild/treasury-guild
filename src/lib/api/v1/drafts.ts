@@ -19,6 +19,7 @@ import { defineEndpoint } from "./endpoint";
 import { confirmFundingScheduleImport } from "./fundingImport";
 import { confirmDrep, confirmStake, confirmVote } from "./governanceWrite";
 import { confirmLegacyHistoryImport } from "./historyImport";
+import { confirmLegacyReceiptsImport } from "./receiptImport";
 import { confirmPayout } from "./payoutWrite";
 import { confirmProposalWithdraw } from "./proposalWithdraw";
 import { confirmProposalCreate } from "./proposalWrite";
@@ -43,6 +44,7 @@ export const DRAFT_ACTION_DEFS: Record<DraftAction, DraftActionDef> = {
   drep_create: { scope: "governance:write", confirm: confirmDrep },
   vote_create: { scope: "governance:write", confirm: confirmVote },
   legacy_history_import: { scope: "imports:write", confirm: confirmLegacyHistoryImport },
+  legacy_receipts_import: { scope: "imports:write", confirm: confirmLegacyReceiptsImport },
   funding_schedule_import: { scope: "imports:write", confirm: confirmFundingScheduleImport },
 };
 

@@ -72,7 +72,12 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
   if (blocked) return blocked;
 
   const now = new Date();
-  const treasuryName = (id: string) => (treasuries.data ?? []).find((t) => t.id === id)?.name ?? "Treasury";
+  const treasuryName = (id: string) => {
+    const treasury = (treasuries.data ?? []).find((t) => t.id === id)?.name;
+    if (treasury) return treasury;
+    const legacy = (data?.legacyWallets ?? []).find((w) => w.id === id)?.name;
+    return legacy ? `${legacy} (previous wallet)` : "Treasury";
+  };
   const close = () => { setDialog(null); setConfirmName(""); remove.setError(null); };
   const saved = () => { close(); funding.reload(); };
 
@@ -101,8 +106,8 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
       </PageTitle>
       <p className="-mt-3 max-w-3xl text-sm text-zinc-400">
         Track what outside funders committed, such as a treasury that releases a monthly allocation or Project Catalyst
-        proposals, against what actually arrived in your treasuries. Tie an inflow to a source with <strong>Details</strong> on
-        the Incoming page.
+        proposals, against what actually arrived in your treasuries (and in a previous wallet&apos;s imported receipts).
+        Tie a live inflow to a source with <strong>Details</strong> on the Incoming page.
       </p>
       <ErrorText error={funding.error ?? treasuries.error ?? conversions.error} />
       {data && data.sources.length === 0 && (

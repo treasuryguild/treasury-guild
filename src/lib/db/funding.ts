@@ -1,11 +1,13 @@
 // Service-role writes of funding sources and commitments (migration 0052).
 // Members read them through RLS in the browser; every write is an admin
-// route that authorizes first.
+// route that authorizes first. loadFundingOverview also merges previous-wallet
+// receipts (0095) so Funding Received includes pre-migration income.
 import "server-only";
 
 import { PgCode } from "@/lib/constants";
 import { ConflictError } from "@/lib/errors";
 import { check, maybe, must, rows, rpc, serviceClient } from "./client";
+import { loadLegacyReceiptFundingInflows, loadLegacyWallets } from "./legacyHistory";
 import {
   FUNDING_COMMITMENT_COLUMNS, FUNDING_PERIOD_COLUMNS, FUNDING_SOURCE_COLUMNS, type FundingAmount, type FundingCommitmentRow,
   type FundingPeriodRow, type IncomingTxRow,
@@ -97,20 +99,35 @@ export async function fundingSourceCommunity(sourceId: string): Promise<string |
   return (await loadFundingSource(sourceId))?.community_id ?? null;
 }
 
+/** One funded inflow on the Funding page (chain or previous-wallet receipt). */
+export interface FundingOverviewInflow {
+  tx_hash: string;
+  treasury_id: string;
+  amount_lovelace: string;
+  assets: Record<string, string> | null;
+  block_time: string | null;
+  funding_source_id: string;
+  funding_commitment_id: string | null;
+}
+
 /** Everything the Funding page reads, for the agent API: sources, commitments, schedules, tagged inflows. */
-export interface FundingOverview {
+export type FundingOverview = {
   sources: FundingSourceRow[];
   commitments: FundingCommitmentRow[];
   periods: FundingPeriodRow[];
-  inflows: Pick<IncomingTxRow, "tx_hash" | "amount_lovelace" | "assets" | "block_time" | "funding_source_id" | "funding_commitment_id">[];
-}
+  inflows: FundingOverviewInflow[];
+  /** Previous wallets, so receipt inflows can be labelled on the Funding page. */
+  legacyWallets: { id: string; name: string }[];
+};
 
-/** The same four reads as the Funding page (src/hooks/useFunding.ts), as the service role. */
+/** The same reads as the Funding page, as the service role (includes previous-wallet receipts). */
 export async function loadFundingOverview(communityId: string, treasuryIds: readonly string[]): Promise<FundingOverview> {
   const db = serviceClient();
-  const [sources, commitments] = await Promise.all([
+  const [sources, commitments, legacyWallets, receiptInflows] = await Promise.all([
     db.from("funding_sources").select(FUNDING_SOURCE_COLUMNS).eq("community_id", communityId).order("name"),
     db.from("funding_commitments").select(FUNDING_COMMITMENT_COLUMNS).eq("community_id", communityId).order("created_at"),
+    loadLegacyWallets(communityId),
+    loadLegacyReceiptFundingInflows(communityId),
   ]);
   const commitmentRows = rows<FundingCommitmentRow>(commitments, "load funding commitments");
   const scheduleIds = commitmentRows.filter((c) => c.kind === "schedule").map((c) => c.id);
@@ -120,15 +137,39 @@ export async function loadFundingOverview(communityId: string, treasuryIds: read
       : null,
     treasuryIds.length > 0
       ? db.from("incoming_txs")
-        .select("tx_hash, amount_lovelace, assets, block_time, funding_source_id, funding_commitment_id")
+        .select("tx_hash, treasury_id, amount_lovelace, assets, block_time, funding_source_id, funding_commitment_id")
         .in("treasury_id", [...treasuryIds])
         .not("funding_source_id", "is", null)
       : null,
   ]);
+  const chain = inflows
+    ? rows<Pick<IncomingTxRow, "tx_hash" | "treasury_id" | "amount_lovelace" | "assets" | "block_time" | "funding_source_id" | "funding_commitment_id">>(
+      inflows,
+      "load funded inflows",
+    ).map((row) => ({
+      tx_hash: row.tx_hash,
+      treasury_id: row.treasury_id,
+      amount_lovelace: row.amount_lovelace,
+      assets: row.assets,
+      block_time: row.block_time,
+      funding_source_id: row.funding_source_id!,
+      funding_commitment_id: row.funding_commitment_id,
+    }))
+    : [];
+  const receipts: FundingOverviewInflow[] = receiptInflows.map((r) => ({
+    tx_hash: r.txHash,
+    treasury_id: r.treasuryId,
+    amount_lovelace: r.amountLovelace,
+    assets: r.assets,
+    block_time: r.blockTime,
+    funding_source_id: r.sourceId,
+    funding_commitment_id: r.commitmentId,
+  }));
   return {
     sources: rows<FundingSourceRow>(sources, "load funding sources"),
     commitments: commitmentRows,
     periods: periods ? rows<FundingPeriodRow>(periods, "load funding periods") : [],
-    inflows: inflows ? rows<FundingOverview["inflows"][number]>(inflows, "load funded inflows") : [],
+    inflows: [...chain, ...receipts],
+    legacyWallets: legacyWallets.map((w) => ({ id: w.id, name: w.name })),
   };
 }

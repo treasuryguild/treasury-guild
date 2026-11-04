@@ -1012,6 +1012,13 @@ export const legacyUploadSchema = z.object({
   includeDuplicates: z.boolean().default(false),
 });
 
+/** Payment-history upload plus optional maps when a CSV source/commitment name is ambiguous. */
+export const legacyReceiptUploadSchema = legacyUploadSchema.extend({
+  sourceMap: z.record(z.string().min(1).max(80), id).default({}),
+  commitmentMap: z.record(z.string().min(1).max(200), id).default({}),
+});
+export type LegacyReceiptUploadBody = z.input<typeof legacyReceiptUploadSchema>;
+
 export const legacyOverviewQuerySchema = z.object({ communityId: id });
 export const legacyRowsQuerySchema = z.object({
   communityId: id,

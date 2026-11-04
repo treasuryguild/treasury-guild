@@ -1,24 +1,32 @@
-// Service-role reads and writes of previous-wallet history (migration 0050):
-// the wallets, their CSV imports and lines, the context an upload is planned
-// against, the import_legacy_history RPC and the Dashboard's spend reads.
-// Amounts are selected as text: numeric arrives as a JSON number otherwise,
-// which is not exact past 2^53.
+// Service-role reads and writes of previous-wallet history (migration 0050)
+// and receipts (0095): the wallets, their CSV imports and lines, the context
+// an upload is planned against, the import RPCs and the Dashboard's spend /
+// income reads. Amounts are selected as text: numeric arrives as a JSON
+// number otherwise, which is not exact past 2^53.
 import "server-only";
 
-import type { LegacyHistoryImportResponse, LegacyImportSummary, LegacyPaymentView, LegacyWalletSummary } from "@/lib/api/types";
-import { addQuantity } from "@/lib/assets";
+import type {
+  LegacyHistoryImportResponse, LegacyImportSummary, LegacyPaymentView, LegacyReceiptImportSummary,
+  LegacyReceiptView, LegacyWalletSummary,
+} from "@/lib/api/types";
+import { addQuantity, LOVELACE } from "@/lib/assets";
 import type { AssetDef } from "@/lib/assets";
-import { PgCode } from "@/lib/constants";
+import { LEGACY_RECEIPT_TX_PREFIX, PgCode } from "@/lib/constants";
 import { recipientLabel, type KnownWallet } from "@/lib/legacyHistory/display";
-import type { LegacyRpcRow, LegacyToken, LegacyWorkgroup } from "@/lib/legacyHistory/types";
+import type {
+  FundingCommitmentRef, FundingSourceRef, LegacyReceiptRpcRow, LegacyToken,
+} from "@/lib/legacyHistory/receiptTypes";
+import type { LegacyRpcRow, LegacyWorkgroup } from "@/lib/legacyHistory/types";
 import { ConflictError } from "@/lib/errors";
+import type { FundingInflow } from "@/lib/funding/plan";
 import { loadAssetRegistry } from "./assets";
 import { loadBudgetSetupsForWorkgroups, type BudgetSetupCadenceRow } from "./budgetSetups";
 import { allRows, check, maybe, must, optionalRelation, relation, rows, rpc, serviceClient } from "./client";
 import {
-  LEGACY_AMOUNT_COLUMNS, LEGACY_IMPORT_COLUMNS, LEGACY_PAYMENT_COLUMNS, LEGACY_WALLET_COLUMNS,
-  MEMBER_WITH_CONTRIBUTOR_COLUMNS, type LegacyAmountRow, type LegacyImportRow, type LegacyPaymentRow,
-  type LegacyWalletRow, type MemberWithContributor,
+  LEGACY_AMOUNT_COLUMNS, LEGACY_IMPORT_COLUMNS, LEGACY_PAYMENT_COLUMNS, LEGACY_RECEIPT_COLUMNS,
+  LEGACY_RECEIPT_IMPORT_COLUMNS, LEGACY_WALLET_COLUMNS, MEMBER_WITH_CONTRIBUTOR_COLUMNS,
+  type LegacyAmountRow, type LegacyImportRow, type LegacyPaymentRow, type LegacyReceiptImportRow,
+  type LegacyReceiptRow, type LegacyWalletRow, type MemberWithContributor,
 } from "./types";
 
 // --- Wallets ---------------------------------------------------------------------
@@ -235,9 +243,9 @@ function emptyStats(): Stats {
 /** The community's previous wallets and imports with what each still holds. */
 export async function loadLegacyOverview(
   communityId: string,
-): Promise<{ wallets: LegacyWalletSummary[]; imports: LegacyImportSummary[] }> {
+): Promise<{ wallets: LegacyWalletSummary[]; imports: LegacyImportSummary[]; receiptImports: LegacyReceiptImportSummary[] }> {
   const db = serviceClient();
-  const [wallets, imports, amounts] = await Promise.all([
+  const [wallets, imports, amounts, receiptOverview] = await Promise.all([
     loadLegacyWallets(communityId),
     db.from("legacy_imports").select(LEGACY_IMPORT_COLUMNS).eq("community_id", communityId).order("created_at", { ascending: false }),
     allRows<AmountWithPayment>((from, to) => db
@@ -247,6 +255,7 @@ export async function loadLegacyOverview(
       .order("payment_id")
       .order("unit")
       .range(from, to), "load history amounts"),
+    loadLegacyReceiptOverview(communityId),
   ]);
   const byWallet = new Map<string, Stats>();
   const byImport = new Map<string, Stats>();
@@ -297,6 +306,7 @@ export async function loadLegacyOverview(
         })),
       };
     }),
+    receiptImports: receiptOverview.imports,
   };
 }
 
@@ -416,4 +426,329 @@ export async function loadLegacySpend(
       amount: a.amount,
     };
   });
+}
+
+// --- Receipts (migration 0095) -----------------------------------------------------
+
+export async function loadLegacyReceiptImport(id: string): Promise<LegacyReceiptImportRow | null> {
+  return maybe<LegacyReceiptImportRow>(
+    await serviceClient().from("legacy_receipt_imports").select(LEGACY_RECEIPT_IMPORT_COLUMNS).eq("id", id).maybeSingle(),
+    "load receipt import",
+  );
+}
+
+export async function deleteLegacyReceiptImport(id: string): Promise<void> {
+  check(await serviceClient().from("legacy_receipt_imports").delete().eq("id", id), "delete receipt import");
+}
+
+export async function loadLegacyReceipt(
+  id: string,
+): Promise<Pick<LegacyReceiptRow, "id" | "import_id" | "community_id"> | null> {
+  return maybe(
+    await serviceClient().from("legacy_receipts").select("id, import_id, community_id").eq("id", id).maybeSingle(),
+    "load receipt line",
+  );
+}
+
+export async function deleteLegacyReceipt(id: string, importId: string): Promise<void> {
+  const db = serviceClient();
+  check(await db.from("legacy_receipts").delete().eq("id", id), "delete receipt line");
+  const left = await db.from("legacy_receipts").select("id", { count: "exact", head: true }).eq("import_id", importId);
+  check(left, "count receipt lines");
+  if (left.count === 0) await deleteLegacyReceiptImport(importId);
+}
+
+export interface ImportLegacyReceiptArgs {
+  walletId: string;
+  fileName: string;
+  actor: string;
+  rows: LegacyReceiptRpcRow[];
+  replaceImportId: string | null;
+  includeDuplicates: boolean;
+}
+
+export async function importLegacyReceipts(args: ImportLegacyReceiptArgs): Promise<LegacyHistoryImportResponse> {
+  return rpc<LegacyHistoryImportResponse>(
+    await serviceClient().rpc("import_legacy_receipts", {
+      p_legacy_wallet_id: args.walletId,
+      p_file_name: args.fileName,
+      p_actor: args.actor,
+      p_rows: args.rows,
+      p_replace_import_id: args.replaceImportId,
+      p_skip_existing: !args.includeDuplicates,
+    }),
+  );
+}
+
+export interface LegacyReceiptImportContext {
+  network: number;
+  sources: FundingSourceRef[];
+  commitments: FundingCommitmentRef[];
+  registry: AssetDef[];
+  history: LegacyToken[];
+  existingKeys: Set<string>;
+  treasuryAddresses: string[];
+}
+
+export async function loadLegacyReceiptImportContext(
+  communityId: string,
+  walletId: string | null,
+  excludeImportId: string | null,
+): Promise<LegacyReceiptImportContext> {
+  const db = serviceClient();
+  const [community, sources, commitments, registry, history, keys, treasuries, paymentHistory] = await Promise.all([
+    db.from("communities").select("network").eq("id", communityId).single(),
+    db.from("funding_sources").select("id, name").eq("community_id", communityId).order("name"),
+    db.from("funding_commitments").select("id, source_id, name").eq("community_id", communityId),
+    loadAssetRegistry(communityId),
+    allRows<LegacyToken & { legacy_receipts: unknown }>((from, to) => db
+      .from("legacy_receipt_amounts")
+      .select("unit, ticker, decimals, legacy_receipts!inner(community_id)")
+      .eq("legacy_receipts.community_id", communityId)
+      .order("receipt_id")
+      .order("unit")
+      .range(from, to), "load receipt tokens"),
+    walletId === null
+      ? Promise.resolve([] as { dedupe_key: string; import_id: string }[])
+      : allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
+        .from("legacy_receipts")
+        .select("dedupe_key, import_id")
+        .eq("legacy_wallet_id", walletId)
+        .order("id")
+        .range(from, to), "load receipt keys"),
+    db.from("treasuries").select("address").eq("community_id", communityId),
+    allRows<LegacyToken & { legacy_payments: unknown }>((from, to) => db
+      .from("legacy_payment_amounts")
+      .select("unit, ticker, decimals, legacy_payments!inner(community_id)")
+      .eq("legacy_payments.community_id", communityId)
+      .order("payment_id")
+      .order("unit")
+      .range(from, to), "load history tokens for receipts"),
+  ]);
+  const tokens = new Map<string, LegacyToken>();
+  for (const t of [...history, ...paymentHistory]) {
+    tokens.set(`${t.unit}:${t.ticker.toLowerCase()}`, { unit: t.unit, ticker: t.ticker, decimals: t.decimals });
+  }
+  return {
+    network: must<{ network: number }>(community, "load community network").network,
+    sources: rows<{ id: string; name: string }>(sources, "load funding sources"),
+    commitments: rows<{ id: string; source_id: string; name: string }>(commitments, "load funding commitments")
+      .map((c) => ({ id: c.id, sourceId: c.source_id, name: c.name })),
+    registry,
+    history: [...tokens.values()],
+    existingKeys: new Set(keys.filter((k) => k.import_id !== excludeImportId).map((k) => k.dedupe_key)),
+    treasuryAddresses: rows<{ address: string }>(treasuries, "load treasuries").map((t) => t.address),
+  };
+}
+
+interface ReceiptAmountWithRow extends LegacyAmountRow {
+  receipt_id: string;
+  legacy_receipts: {
+    import_id: string;
+    legacy_wallet_id: string;
+    received_on: string;
+  };
+}
+
+/** Previous-wallet receipt imports with what each still holds; wallets keep payment overview. */
+export async function loadLegacyReceiptOverview(
+  communityId: string,
+): Promise<{ imports: LegacyReceiptImportSummary[] }> {
+  const db = serviceClient();
+  const [imports, amounts] = await Promise.all([
+    db.from("legacy_receipt_imports").select(LEGACY_RECEIPT_IMPORT_COLUMNS)
+      .eq("community_id", communityId).order("created_at", { ascending: false }),
+    allRows<ReceiptAmountWithRow>((from, to) => db
+      .from("legacy_receipt_amounts")
+      .select(`receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(import_id, legacy_wallet_id, received_on, community_id)`)
+      .eq("legacy_receipts.community_id", communityId)
+      .order("receipt_id")
+      .order("unit")
+      .range(from, to), "load receipt amounts"),
+  ]);
+  const byImport = new Map<string, Stats>();
+  const tokens = new Map<string, { ticker: string; decimals: number }>();
+  for (const a of amounts) {
+    const receipt = relation(a.legacy_receipts);
+    tokens.set(a.unit, { ticker: a.ticker, decimals: a.decimals });
+    const stats = byImport.get(receipt.import_id) ?? emptyStats();
+    stats.payments.add(a.receipt_id);
+    if (stats.first === null || receipt.received_on < stats.first) stats.first = receipt.received_on;
+    if (stats.last === null || receipt.received_on > stats.last) stats.last = receipt.received_on;
+    addQuantity(stats.totals, a.unit, BigInt(a.amount));
+    byImport.set(receipt.import_id, stats);
+  }
+  return {
+    imports: rows<LegacyReceiptImportRow>(imports, "load receipt imports").map((i) => {
+      const stats = byImport.get(i.id) ?? emptyStats();
+      return {
+        id: i.id,
+        legacyWalletId: i.legacy_wallet_id,
+        fileName: i.file_name,
+        createdAt: i.created_at,
+        createdBy: i.created_by,
+        lineCount: i.line_count,
+        rowCount: stats.payments.size,
+        firstReceivedOn: stats.first,
+        lastReceivedOn: stats.last,
+        totals: [...stats.totals].map(([unit, amount]) => ({
+          workgroupId: null,
+          unit,
+          ticker: tokens.get(unit)?.ticker ?? unit,
+          decimals: tokens.get(unit)?.decimals ?? 0,
+          amount: amount.toString(),
+        })),
+      };
+    }),
+  };
+}
+
+interface ReceiptWithDetail extends LegacyReceiptRow {
+  legacy_receipt_amounts: LegacyAmountRow[];
+  funding_sources: { name: string } | null;
+  funding_commitments: { name: string } | null;
+}
+
+export async function loadLegacyReceiptRows(
+  communityId: string,
+  filter: { importId?: string; walletId?: string; offset: number },
+): Promise<{ rows: LegacyReceiptView[]; total: number }> {
+  let query = serviceClient()
+    .from("legacy_receipts")
+    .select(
+      `${LEGACY_RECEIPT_COLUMNS}, legacy_receipt_amounts(${LEGACY_AMOUNT_COLUMNS}), funding_sources(name), funding_commitments(name)`,
+      { count: "exact" },
+    )
+    .eq("community_id", communityId);
+  if (filter.importId) query = query.eq("import_id", filter.importId);
+  if (filter.walletId) query = query.eq("legacy_wallet_id", filter.walletId);
+  const res = await query
+    .order("received_on", { ascending: false })
+    .order("line_no")
+    .order("id")
+    .range(filter.offset, filter.offset + LEGACY_ROWS_PAGE - 1);
+  const page = rows<ReceiptWithDetail>(res, "load receipt lines");
+  return {
+    total: res.count ?? page.length,
+    rows: page.map((r) => ({
+      id: r.id,
+      importId: r.import_id,
+      legacyWalletId: r.legacy_wallet_id,
+      lineNo: r.line_no,
+      receivedOn: r.received_on,
+      fundingSourceId: r.funding_source_id,
+      fundingSourceName: optionalRelation(r.funding_sources)?.name ?? null,
+      fundingCommitmentId: r.funding_commitment_id,
+      fundingCommitmentName: optionalRelation(r.funding_commitments)?.name ?? null,
+      note: r.note,
+      amounts: [...r.legacy_receipt_amounts].sort((a, b) => a.unit.localeCompare(b.unit)),
+    })),
+  };
+}
+
+/** One receipt amount for the Dashboard funding flow. */
+export interface LegacyReceiptFlowRow {
+  id: string;
+  legacyWalletId: string;
+  receivedOn: string;
+  fundingSourceId: string | null;
+  unit: string;
+  amount: string;
+}
+
+interface ReceiptFlowAmount extends LegacyAmountRow {
+  receipt_id: string;
+  legacy_receipts: {
+    legacy_wallet_id: string;
+    received_on: string;
+    funding_source_id: string | null;
+  };
+}
+
+/** Receipts whose received_on is in [from, to) as calendar dates ("YYYY-MM-DD"). */
+export async function loadLegacyReceipts(
+  communityId: string,
+  range: { from: string; to: string },
+): Promise<LegacyReceiptFlowRow[]> {
+  const found = await allRows<ReceiptFlowAmount>((from, to) =>
+    serviceClient()
+      .from("legacy_receipt_amounts")
+      .select(
+        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(legacy_wallet_id, received_on, funding_source_id, community_id)`,
+      )
+      .eq("legacy_receipts.community_id", communityId)
+      .gte("legacy_receipts.received_on", range.from)
+      .lt("legacy_receipts.received_on", range.to)
+      .order("receipt_id")
+      .order("unit")
+      .range(from, to), "load history receipts");
+  return found.map((a) => {
+    const receipt = relation(a.legacy_receipts);
+    return {
+      id: `${a.receipt_id}:${a.unit}`,
+      legacyWalletId: receipt.legacy_wallet_id,
+      receivedOn: receipt.received_on,
+      fundingSourceId: receipt.funding_source_id,
+      unit: a.unit,
+      amount: a.amount,
+    };
+  });
+}
+
+interface FundedReceiptAmount extends LegacyAmountRow {
+  receipt_id: string;
+  legacy_receipts: {
+    id: string;
+    legacy_wallet_id: string;
+    received_on: string;
+    funding_source_id: string;
+    funding_commitment_id: string | null;
+  };
+}
+
+/** Tagged receipts as FundingInflow rows (txHash = legacy:<id>). */
+export async function loadLegacyReceiptFundingInflows(communityId: string): Promise<(FundingInflow & { treasuryId: string })[]> {
+  const found = await allRows<FundedReceiptAmount>((from, to) =>
+    serviceClient()
+      .from("legacy_receipt_amounts")
+      .select(
+        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, community_id)`,
+      )
+      .eq("legacy_receipts.community_id", communityId)
+      .not("legacy_receipts.funding_source_id", "is", null)
+      .order("receipt_id")
+      .order("unit")
+      .range(from, to), "load funded receipts");
+
+  const byReceipt = new Map<string, {
+    treasuryId: string;
+    receivedOn: string;
+    sourceId: string;
+    commitmentId: string | null;
+    lovelace: bigint;
+    assets: Record<string, string>;
+  }>();
+  for (const a of found) {
+    const receipt = relation(a.legacy_receipts);
+    const cur = byReceipt.get(receipt.id) ?? {
+      treasuryId: receipt.legacy_wallet_id,
+      receivedOn: receipt.received_on,
+      sourceId: receipt.funding_source_id,
+      commitmentId: receipt.funding_commitment_id,
+      lovelace: 0n,
+      assets: {},
+    };
+    if (a.unit === LOVELACE) cur.lovelace += BigInt(a.amount);
+    else cur.assets[a.unit] = a.amount;
+    byReceipt.set(receipt.id, cur);
+  }
+  return [...byReceipt].map(([id, r]) => ({
+    txHash: `${LEGACY_RECEIPT_TX_PREFIX}${id}`,
+    blockTime: `${r.receivedOn}T00:00:00.000Z`,
+    sourceId: r.sourceId,
+    commitmentId: r.commitmentId,
+    amountLovelace: r.lovelace.toString(),
+    assets: Object.keys(r.assets).length > 0 ? r.assets : null,
+    treasuryId: r.treasuryId,
+  }));
 }

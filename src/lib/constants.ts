@@ -249,14 +249,24 @@ export const LegacyIssueCode = {
   UnresolvedWorkgroup: "unresolved_workgroup",
   ArchivedWorkgroup: "archived_workgroup",
   DuplicateInFile: "duplicate_in_file",
+  /** Receipt CSV: funding source name could not be matched. */
+  UnresolvedSource: "unresolved_source",
+  /** Receipt CSV: commitment name could not be matched under its source. */
+  UnresolvedCommitment: "unresolved_commitment",
+  /** Receipt CSV: commitment given without a source. */
+  CommitmentWithoutSource: "commitment_without_source",
+  NoteTooLong: "note_too_long",
 } as const;
 export type LegacyIssueCode = (typeof LegacyIssueCode)[keyof typeof LegacyIssueCode];
 
-/** Limits of one payment-history upload. */
+/** Limits of one payment-history or receipt upload. */
 export const LEGACY_MAX_ROWS = 20_000;
 export const LEGACY_MAX_TICKERS = 20;
 export const LEGACY_MAX_TASK_CHARS = 500;
+export const LEGACY_MAX_NOTE_CHARS = 500;
 export const LEGACY_MAX_CSV_CHARS = 1_000_000;
+/** Prefix of a synthetic Funding inflow id for a previous-wallet receipt. */
+export const LEGACY_RECEIPT_TX_PREFIX = "legacy:";
 
 /** community_members.role */
 export const Role = {

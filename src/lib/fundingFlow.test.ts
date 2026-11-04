@@ -82,6 +82,21 @@ describe("aggregateFlows", () => {
     expect(flows).toHaveLength(12);
   });
 
+  it("accepts a previous-wallet id as the receiving treasury with a funding source", () => {
+    const LEGACY = "legacy-wallet-1";
+    const flows = aggregateFlows([
+      row({
+        treasuryId: LEGACY,
+        amountLovelace: "50000000000",
+        fundingSourceId: "fs-1",
+        incomingType: "contribution",
+      }),
+    ], window);
+    expect(flows.find((month) => month.month === "2026-09")!.inflows).toEqual([
+      { treasuryId: LEGACY, unit: "lovelace", kind: "contribution", fundingSourceId: "fs-1", amount: "50000000000" },
+    ]);
+  });
+
   it("turns linked inflows into transfers whatever their type and drops refunds", () => {
     const flows = aggregateFlows([
       row({ treasuryId: DEV, fromTreasuryId: MAIN, incomingType: "transfer", amountLovelace: "4000000" }),
