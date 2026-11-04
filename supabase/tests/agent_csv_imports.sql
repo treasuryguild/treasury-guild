@@ -105,6 +105,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0091_payday_allocation_rules.sql
 \ir ../migrations/0092_recognition.sql
 \ir ../migrations/0093_agent_csv_imports.sql
+\ir ../migrations/0094_legacy_history_row_cap.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin

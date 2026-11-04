@@ -173,7 +173,11 @@ export function HistoryPreview({
       )}
       <ErrorText error={importError} />
       <Button onClick={onImport} loading={importing} disabled={busy || !preview.ready}>
-        {toImport > 0 ? `Import ${plural(toImport, "line")}` : "Nothing new to import"}
+        {toImport > 0
+          ? `Import ${plural(toImport, "line")}`
+          : fileIssues.some((issue) => issue.severity === "error")
+            ? "Cannot import this file"
+            : "Nothing new to import"}
       </Button>
     </div>
   );

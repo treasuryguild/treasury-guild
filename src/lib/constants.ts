@@ -253,7 +253,7 @@ export const LegacyIssueCode = {
 export type LegacyIssueCode = (typeof LegacyIssueCode)[keyof typeof LegacyIssueCode];
 
 /** Limits of one payment-history upload. */
-export const LEGACY_MAX_ROWS = 5000;
+export const LEGACY_MAX_ROWS = 20_000;
 export const LEGACY_MAX_TICKERS = 20;
 export const LEGACY_MAX_TASK_CHARS = 500;
 export const LEGACY_MAX_CSV_CHARS = 1_000_000;
