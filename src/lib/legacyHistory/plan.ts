@@ -252,6 +252,11 @@ function willImport(row: PlannedRow, includeDuplicates: boolean): boolean {
   return row.status === "new" || (row.status === "duplicate" && includeDuplicates);
 }
 
+/** Totals for the lines an import would still add after chain / dedupe refresh. */
+export function legacyImportableTotals(plan: LegacyImportPlan, includeDuplicates: boolean): LegacyTotal[] {
+  return legacyTotals(plan.rows.filter((row) => willImport(row, includeDuplicates)), plan.tickers);
+}
+
 /** Per workgroup and overall, per token, of the lines an import would add. */
 function legacyTotals(rows: readonly PlannedRow[], tickers: readonly TickerResolution[]): LegacyTotal[] {
   const info = new Map<string, { ticker: string; decimals: number }>();

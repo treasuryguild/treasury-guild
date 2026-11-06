@@ -149,7 +149,7 @@ As with new treasuries, base signers of the first (primary) treasury become comm
 
 ## Payment history from a previous wallet
 
-A community that paid its workgroups from an ordinary wallet before moving to a Treasury Guild treasury can bring that history along, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) show everything spent, before and after the move. Optionally import the **receipts** that funded those payments too, so the funding flow and [Funding](/docs/funding) page show income into the previous wallet. Both come from CSV files you prepare: each line names the on-chain transaction (`txHash`, `outputIndex`), and payment lines name the **full** receiver address. The app checks those rows against the chain for the previous wallet you register, then a base signer of that wallet must sign before the import becomes active. Moving remaining funds is a separate step: send them from the old wallet to the treasury address as usual (see [Funding a treasury](/docs/treasury#funding-a-treasury)).
+A community that paid its workgroups from an ordinary wallet before moving to a Treasury Guild treasury can bring that history along, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) show everything spent, before and after the move. Optionally import the **receipts** that funded those payments too, so the funding flow and [Funding](/docs/funding) page show income into the previous wallet. Both come from CSV files you prepare: each line names the on-chain transaction (`txHash`, `outputIndex`), and payment lines name the receiver (full Shelley address or the last 6+ characters of it). The app checks those rows against the chain for the previous wallet you register, expands a short `userId` to the full output address, then a base signer of that wallet must sign before the import becomes active. Moving remaining funds is a separate step: send them from the old wallet to the treasury address as usual (see [Funding a treasury](/docs/treasury#funding-a-treasury)).
 
 Only admins can import history. On **Treasury**, click **Payment history**.
 
@@ -163,7 +163,7 @@ Only admins can import history. On **Treasury**, click **Payment history**.
 
 The first row names the columns, in any order and any letter case:
 
-- **userId**: the receiver's full Shelley address (`addr1…` or `addr_test1…`).
+- **userId**: the receiver's full Shelley address (`addr1…` or `addr_test1…`), or at least the last 6 characters of that address. When you give a short end, the app looks up the named transaction output and stores the full address from the chain.
 - **txHash** and **outputIndex**: the transaction output that paid this line (64-character hex hash and a non-negative index). Several tasks paid from the same output are allowed when the amounts add up on chain.
 - **One column per token**, named by its ticker, for example **ADA** or **AGIX**. A cell is the amount paid in that token, in whole units with a dot for decimals (`480`, `114.5`). Leave it empty when the line paid none of that token; a line can pay several tokens.
 - **task**: what was paid for. Put it in double quotes when it contains commas.

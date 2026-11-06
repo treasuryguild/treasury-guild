@@ -43,17 +43,38 @@ describe("sumClaimsFitsOutput", () => {
 
 describe("matchPaymentClaims", () => {
   const txs = { [HASH]: tx() };
+  const suffix = RECIPIENT.slice(-8);
 
   it("accepts multiple tasks on the same output when amounts sum within the output", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues, resolvedRecipients } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }], taskNormalized: "task-a" },
       { line: 3, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "500000" }], taskNormalized: "task-b" },
     ], txs, new Map());
     expect(issues).toEqual([]);
+    expect(resolvedRecipients.get(2)).toBe(RECIPIENT);
+    expect(resolvedRecipients.get(3)).toBe(RECIPIENT);
+  });
+
+  it("resolves a bech32 address suffix to the full output address", () => {
+    const { issues, resolvedRecipients } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: suffix, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedRecipients.get(2)).toBe(RECIPIENT);
+  });
+
+  it("accepts a suffix and a full address claiming the same output together", () => {
+    const { issues, resolvedRecipients } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: suffix, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+      { line: 3, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "500000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedRecipients.get(2)).toBe(RECIPIENT);
+    expect(resolvedRecipients.get(3)).toBe(RECIPIENT);
   });
 
   it("flags duplicate normalized task on the same output", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }], taskNormalized: "same" },
       { line: 4, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "500000" }], taskNormalized: "same" },
     ], txs, new Map());
@@ -61,7 +82,7 @@ describe("matchPaymentClaims", () => {
   });
 
   it("rejects over-claim on lovelace", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1500000" }] },
       { line: 3, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "600000" }] },
     ], txs, new Map());
@@ -69,21 +90,29 @@ describe("matchPaymentClaims", () => {
   });
 
   it("rejects wrong recipient", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: WALLET, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
     ], txs, new Map());
     expect(issues).toEqual([{ code: Code.RecipientMismatch, line: 2, severity: "error" }]);
   });
 
+  it("rejects a suffix that does not match the output", () => {
+    const { issues, resolvedRecipients } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: "zzzzzz", amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([{ code: Code.RecipientMismatch, line: 2, severity: "error" }]);
+    expect(resolvedRecipients.size).toBe(0);
+  });
+
   it("rejects when the previous wallet is not an input", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
     ], { [HASH]: tx({ inputAddresses: ["addr_test1other"] }) }, new Map());
     expect(issues).toEqual([{ code: Code.WalletNotInput, line: 2, severity: "error" }]);
   });
 
   it("rejects missing transaction", () => {
-    const issues = matchPaymentClaims(WALLET, [
+    const { issues } = matchPaymentClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 0, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
     ], {}, new Map());
     expect(issues).toEqual([{ code: Code.TxNotFound, line: 2, severity: "error", value: HASH }]);

@@ -63,10 +63,13 @@ describe("normalizers", () => {
     expect(normalizeWorkgroupName("--a--b--")).toBe("a-b");
   });
 
-  it("accepts a full Shelley address, lowercased", () => {
+  it("accepts a full Shelley address or a bech32 address suffix, lowercased", () => {
     expect(normalizeRecipientRef(` ${ADDR1} `)).toBe(ADDR1);
+    expect(normalizeRecipientRef("f39ntm")).toBe("f39ntm");
+    expect(normalizeRecipientRef("F39NTM")).toBe("f39ntm");
     expect(normalizeRecipientRef("abc12")).toBeNull();
-    expect(normalizeRecipientRef("f39ntm")).toBeNull();
+    expect(normalizeRecipientRef("short")).toBeNull();
+    expect(normalizeRecipientRef("has1one")).toBeNull();
   });
 });
 
@@ -121,6 +124,17 @@ describe("readHistoryCsv", () => {
     expect(parsed.issues).toEqual([]);
     expect(parsed.rows).toHaveLength(1);
     expect(parsed.rows[0]!.recipientRef).toBe(ADDR1);
+  });
+
+  it("accepts the last 6+ characters of an address as userId", () => {
+    const tail = ADDR1.slice(-6);
+    const parsed = readHistoryCsv(
+      `${HEADER}\n${tail},1,,t,01.09.2026,ops,${TX1},0`,
+      TODAY,
+    );
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]!.recipientRef).toBe(tail);
   });
 
   it("reads a file past the old 5000-row cap and refuses one past the ceiling", () => {

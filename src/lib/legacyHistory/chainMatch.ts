@@ -1,6 +1,7 @@
 // Match planned previous-wallet rows against chain tx_info-shaped data. Pure.
 import { LegacyIssueCode as Code } from "@/lib/constants";
 import { joinUnit } from "@/lib/cardano/units";
+import { isFullShelleyAddress } from "./parse";
 import type { LegacyIssue } from "./types";
 
 export interface ChainTxOutput {
@@ -182,29 +183,67 @@ function duplicateTasks(
   }
 }
 
+/** Claimed userId matches the output: full address equality, or bech32 tail endsWith. */
+export function recipientMatchesOutput(claimed: string, outputAddress: string): boolean {
+  const c = claimed.trim().toLowerCase();
+  const o = outputAddress.trim().toLowerCase();
+  if (c === o) return true;
+  if (!isFullShelleyAddress(c) && c.length >= 6 && o.endsWith(c)) return true;
+  return false;
+}
+
+export interface PaymentMatchResult {
+  issues: LegacyIssue[];
+  /** CSV line → full output address for claims that matched. */
+  resolvedRecipients: Map<number, string>;
+}
+
 export function matchPaymentClaims(
   previousWalletAddress: string,
   claims: PaymentChainClaim[],
   txs: Map<string, ChainTxInfo> | Record<string, ChainTxInfo>,
   alreadyClaimed: Map<string, Record<string, string>> | Record<string, Record<string, string>>,
-): LegacyIssue[] {
+): PaymentMatchResult {
   const issues: LegacyIssue[] = [];
+  const resolvedRecipients = new Map<number, string>();
   const wallet = previousWalletAddress.toLowerCase();
-  const parsed: (PaymentChainClaim & { txHash: string; outputIndex: number })[] = [];
+  type Matched = PaymentChainClaim & { txHash: string; outputIndex: number; resolved: string };
+  const matched: Matched[] = [];
 
   for (const claim of claims) {
     const ids = validateClaimIds(claim, issues);
     if (!ids) continue;
-    parsed.push({
+    const tx = getTx(txs, ids.txHash);
+    if (!tx) {
+      issues.push(lineIssue(claim.line, Code.TxNotFound, { value: ids.txHash }));
+      continue;
+    }
+    if (!tx.inputAddresses.includes(wallet)) {
+      issues.push(lineIssue(claim.line, Code.WalletNotInput));
+      continue;
+    }
+    const output = findOutput(tx, ids.outputIndex);
+    if (!output) {
+      issues.push(lineIssue(claim.line, Code.OutputNotFound));
+      continue;
+    }
+    const claimed = claim.recipientAddress.toLowerCase();
+    if (!recipientMatchesOutput(claimed, output.address)) {
+      issues.push(lineIssue(claim.line, Code.RecipientMismatch));
+      continue;
+    }
+    resolvedRecipients.set(claim.line, output.address);
+    matched.push({
       ...claim,
       txHash: ids.txHash,
       outputIndex: ids.outputIndex,
-      recipientAddress: claim.recipientAddress.toLowerCase(),
+      recipientAddress: claimed,
+      resolved: output.address,
     });
   }
 
-  const groups = new Map<string, typeof parsed>();
-  for (const c of parsed) {
+  const groups = new Map<string, Matched[]>();
+  for (const c of matched) {
     const key = groupKey(c.txHash, c.outputIndex);
     const list = groups.get(key) ?? [];
     list.push(c);
@@ -212,41 +251,16 @@ export function matchPaymentClaims(
   }
 
   for (const [key, group] of groups) {
-    const recipients = new Set(group.map((g) => g.recipientAddress));
-    if (recipients.size > 1) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.RecipientMismatch));
-      continue;
-    }
-
     const head = group[0];
     if (!head) continue;
     const tx = getTx(txs, head.txHash);
-    if (!tx) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.TxNotFound, { value: head.txHash }));
-      continue;
-    }
-
-    if (!tx.inputAddresses.includes(wallet)) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.WalletNotInput));
-      continue;
-    }
-
-    const output = findOutput(tx, head.outputIndex);
-    if (!output) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.OutputNotFound));
-      continue;
-    }
-
-    if (output.address !== head.recipientAddress) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.RecipientMismatch));
-      continue;
-    }
-
+    const output = tx ? findOutput(tx, head.outputIndex) : undefined;
+    if (!output) continue;
     duplicateTasks(group, issues);
     checkAmounts(group, key, output, alreadyClaimed, issues);
   }
 
-  return issues;
+  return { issues, resolvedRecipients };
 }
 
 export function matchReceiptClaims(
