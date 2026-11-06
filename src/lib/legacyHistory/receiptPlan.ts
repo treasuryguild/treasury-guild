@@ -203,6 +203,7 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
     }
 
     const complete = amounts.every((a) => a.quantity !== null && a.unit !== null)
+      && row.outputIndex !== null
       && (row.sourceRef === "" || sourceId !== null)
       && (row.commitmentRef === "" || commitmentId !== null);
     let dedupeKey: string | null = null;
@@ -214,7 +215,7 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
         commitmentRef: canonicalCommitment,
         note: row.note,
         txHash: row.txHash,
-        outputIndex: row.outputIndex,
+        outputIndex: row.outputIndex!,
         amounts: amounts.map((a) => ({ unit: a.unit!, quantity: a.quantity! })),
       });
       dedupeKey = ctx.hash(canonical);
@@ -305,7 +306,7 @@ export function legacyReceiptRpcRows(
     note: row.note,
     dedupeKey: row.dedupeKey!,
     txHash: row.txHash,
-    outputIndex: row.outputIndex,
+    outputIndex: row.outputIndex!,
     amounts: row.amounts.map((a) => ({
       unit: a.unit!,
       ticker: a.unit === ADA_ASSET.unit ? ADA_ASSET.fieldName : a.ticker,

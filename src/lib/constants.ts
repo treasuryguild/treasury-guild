@@ -260,6 +260,8 @@ export const LegacyIssueCode = {
   BadTxHash: "bad_tx_hash",
   MissingOutputIndex: "missing_output_index",
   BadOutputIndex: "bad_output_index",
+  /** Tx has multiple matching outputs; CSV must name outputIndex. */
+  AmbiguousOutput: "ambiguous_output",
   TxNotFound: "tx_not_found",
   WalletNotInput: "wallet_not_input",
   OutputNotFound: "output_not_found",

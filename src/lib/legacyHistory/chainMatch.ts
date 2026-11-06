@@ -124,7 +124,7 @@ function lineIssue(line: number, code: LegacyIssue["code"], extra: Partial<Legac
 function validateClaimIds(
   claim: { line: number; txHash: string; outputIndex: number | null | undefined },
   issues: LegacyIssue[],
-): { txHash: string; outputIndex: number } | null {
+): { txHash: string; outputIndex: number | null } | null {
   const rawHash = claim.txHash?.trim() ?? "";
   if (!rawHash) {
     issues.push(lineIssue(claim.line, Code.MissingTxHash));
@@ -136,8 +136,7 @@ function validateClaimIds(
     return null;
   }
   if (claim.outputIndex === null || claim.outputIndex === undefined) {
-    issues.push(lineIssue(claim.line, Code.MissingOutputIndex));
-    return null;
+    return { txHash, outputIndex: null };
   }
   if (!Number.isInteger(claim.outputIndex) || claim.outputIndex < 0) {
     issues.push(lineIssue(claim.line, Code.BadOutputIndex, { value: String(claim.outputIndex) }));
@@ -148,6 +147,43 @@ function validateClaimIds(
 
 function findOutput(tx: ChainTxInfo, outputIndex: number): ChainTxOutput | undefined {
   return tx.outputs.find((o) => o.txIndex === outputIndex);
+}
+
+/**
+ * Pick the named output, or the unique address-matching output when index is blank.
+ * matchAddr: for payments the claimed recipient (suffix OK via recipientMatchesOutput);
+ * for receipts the previous wallet (exact).
+ */
+export function resolveMatchingOutput(
+  tx: ChainTxInfo,
+  matchAddr: string,
+  index: number | null,
+  issues: LegacyIssue[],
+  line: number,
+  addressMatches: (claimed: string, outputAddress: string) => boolean,
+): ChainTxOutput | null {
+  if (index !== null) {
+    const output = findOutput(tx, index);
+    if (!output) {
+      issues.push(lineIssue(line, Code.OutputNotFound));
+      return null;
+    }
+    if (!addressMatches(matchAddr, output.address)) {
+      issues.push(lineIssue(line, Code.RecipientMismatch));
+      return null;
+    }
+    return output;
+  }
+  const matches = tx.outputs.filter((o) => addressMatches(matchAddr, o.address));
+  if (matches.length === 0) {
+    issues.push(lineIssue(line, Code.OutputNotFound));
+    return null;
+  }
+  if (matches.length > 1) {
+    issues.push(lineIssue(line, Code.AmbiguousOutput));
+    return null;
+  }
+  return matches[0]!;
 }
 
 function checkAmounts(
@@ -192,10 +228,21 @@ export function recipientMatchesOutput(claimed: string, outputAddress: string): 
   return false;
 }
 
+function exactAddress(claimed: string, outputAddress: string): boolean {
+  return claimed.trim().toLowerCase() === outputAddress.trim().toLowerCase();
+}
+
 export interface PaymentMatchResult {
   issues: LegacyIssue[];
   /** CSV line → full output address for claims that matched. */
   resolvedRecipients: Map<number, string>;
+  /** CSV line → resolved output index (named or unique match). */
+  resolvedOutputIndexes: Map<number, number>;
+}
+
+export interface ReceiptMatchResult {
+  issues: LegacyIssue[];
+  resolvedOutputIndexes: Map<number, number>;
 }
 
 export function matchPaymentClaims(
@@ -206,6 +253,7 @@ export function matchPaymentClaims(
 ): PaymentMatchResult {
   const issues: LegacyIssue[] = [];
   const resolvedRecipients = new Map<number, string>();
+  const resolvedOutputIndexes = new Map<number, number>();
   const wallet = previousWalletAddress.toLowerCase();
   type Matched = PaymentChainClaim & { txHash: string; outputIndex: number; resolved: string };
   const matched: Matched[] = [];
@@ -222,21 +270,17 @@ export function matchPaymentClaims(
       issues.push(lineIssue(claim.line, Code.WalletNotInput));
       continue;
     }
-    const output = findOutput(tx, ids.outputIndex);
-    if (!output) {
-      issues.push(lineIssue(claim.line, Code.OutputNotFound));
-      continue;
-    }
     const claimed = claim.recipientAddress.toLowerCase();
-    if (!recipientMatchesOutput(claimed, output.address)) {
-      issues.push(lineIssue(claim.line, Code.RecipientMismatch));
-      continue;
-    }
+    const output = resolveMatchingOutput(
+      tx, claimed, ids.outputIndex, issues, claim.line, recipientMatchesOutput,
+    );
+    if (!output) continue;
     resolvedRecipients.set(claim.line, output.address);
+    resolvedOutputIndexes.set(claim.line, output.txIndex);
     matched.push({
       ...claim,
       txHash: ids.txHash,
-      outputIndex: ids.outputIndex,
+      outputIndex: output.txIndex,
       recipientAddress: claimed,
       resolved: output.address,
     });
@@ -260,7 +304,7 @@ export function matchPaymentClaims(
     checkAmounts(group, key, output, alreadyClaimed, issues);
   }
 
-  return { issues, resolvedRecipients };
+  return { issues, resolvedRecipients, resolvedOutputIndexes };
 }
 
 export function matchReceiptClaims(
@@ -268,15 +312,26 @@ export function matchReceiptClaims(
   claims: ReceiptChainClaim[],
   txs: Map<string, ChainTxInfo> | Record<string, ChainTxInfo>,
   alreadyClaimed: Map<string, Record<string, string>> | Record<string, Record<string, string>>,
-): LegacyIssue[] {
+): ReceiptMatchResult {
   const issues: LegacyIssue[] = [];
+  const resolvedOutputIndexes = new Map<number, number>();
   const wallet = previousWalletAddress.toLowerCase();
   const parsed: (ReceiptChainClaim & { txHash: string; outputIndex: number })[] = [];
 
   for (const claim of claims) {
     const ids = validateClaimIds(claim, issues);
     if (!ids) continue;
-    parsed.push({ ...claim, txHash: ids.txHash, outputIndex: ids.outputIndex });
+    const tx = getTx(txs, ids.txHash);
+    if (!tx) {
+      issues.push(lineIssue(claim.line, Code.TxNotFound, { value: ids.txHash }));
+      continue;
+    }
+    const output = resolveMatchingOutput(
+      tx, wallet, ids.outputIndex, issues, claim.line, exactAddress,
+    );
+    if (!output) continue;
+    resolvedOutputIndexes.set(claim.line, output.txIndex);
+    parsed.push({ ...claim, txHash: ids.txHash, outputIndex: output.txIndex });
   }
 
   const groups = new Map<string, typeof parsed>();
@@ -292,18 +347,13 @@ export function matchReceiptClaims(
     if (!head) continue;
     const tx = getTx(txs, head.txHash);
     if (!tx) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.TxNotFound, { value: head.txHash }));
+      // Already reported per claim above when building parsed.
       continue;
     }
 
     const output = findOutput(tx, head.outputIndex);
     if (!output) {
       for (const c of group) issues.push(lineIssue(c.line, Code.OutputNotFound));
-      continue;
-    }
-
-    if (output.address !== wallet) {
-      for (const c of group) issues.push(lineIssue(c.line, Code.RecipientMismatch));
       continue;
     }
 
@@ -316,5 +366,5 @@ export function matchReceiptClaims(
     }
   }
 
-  return issues;
+  return { issues, resolvedOutputIndexes };
 }

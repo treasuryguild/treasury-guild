@@ -189,12 +189,18 @@ export function planLegacyImport(parsed: ParsedHistory, ctx: PlanContext): Legac
     const budgetMonth = workgroupId === null ? null
       : `${taskBudgetPeriod(row.paidOn, ctx.setups.get(workgroupId) ?? [], row.paidOn.slice(0, 7)).month}-01`;
 
-    const complete = amounts.every((a) => a.quantity !== null && a.unit !== null);
+    const complete = amounts.every((a) => a.quantity !== null && a.unit !== null)
+      && row.outputIndex !== null;
     let dedupeKey: string | null = null;
     let duplicateOfLine: number | null = null;
     if (complete) {
       const canonical = canonicalRow({
-        ...row,
+        recipientRef: row.recipientRef,
+        workgroupRef: row.workgroupRef,
+        paidOn: row.paidOn,
+        task: row.task,
+        txHash: row.txHash,
+        outputIndex: row.outputIndex!,
         amounts: amounts.map((a) => ({ unit: a.unit!, quantity: a.quantity! })),
       });
       dedupeKey = ctx.hash(canonical);
@@ -295,7 +301,7 @@ export function legacyRpcRows(plan: LegacyImportPlan, includeDuplicates: boolean
     budgetMonth: row.budgetMonth!,
     dedupeKey: row.dedupeKey!,
     txHash: row.txHash,
-    outputIndex: row.outputIndex,
+    outputIndex: row.outputIndex!,
     amounts: row.amounts.map((a) => ({
       unit: a.unit!,
       ticker: a.unit === ADA_ASSET.unit ? ADA_ASSET.fieldName : a.ticker,

@@ -86,6 +86,8 @@ export function legacyIssueText(issue: LegacyIssue): string {
       return value
         ? `Output index "${value}" is not a non-negative whole number.`
         : "The output index is not valid.";
+    case Code.AmbiguousOutput:
+      return "This transaction has more than one matching output; name the outputIndex.";
     case Code.TxNotFound:
       return value
         ? `Transaction ${value} was not found on chain.`

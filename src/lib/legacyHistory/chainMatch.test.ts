@@ -121,6 +121,62 @@ describe("matchPaymentClaims", () => {
   it("groups by groupKey", () => {
     expect(groupKey(HASH, 3)).toBe(`${HASH}:3`);
   });
+
+  it("fills outputIndex when exactly one recipient output matches", () => {
+    const { issues, resolvedOutputIndexes, resolvedRecipients } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedOutputIndexes.get(2)).toBe(0);
+    expect(resolvedRecipients.get(2)).toBe(RECIPIENT);
+  });
+
+  it("fills from a unique suffix match when outputIndex is blank", () => {
+    const { issues, resolvedOutputIndexes } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, recipientAddress: suffix, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedOutputIndexes.get(2)).toBe(0);
+  });
+
+  it("rejects AmbiguousOutput when several outputs match and index is blank", () => {
+    const multi = {
+      [HASH]: tx({
+        outputs: [
+          { txIndex: 0, address: RECIPIENT, amounts: { lovelace: "1000000" } },
+          { txIndex: 1, address: RECIPIENT, amounts: { lovelace: "500000" } },
+        ],
+      }),
+    };
+    const { issues, resolvedOutputIndexes } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], multi, new Map());
+    expect(issues).toEqual([{ code: Code.AmbiguousOutput, line: 2, severity: "error" }]);
+    expect(resolvedOutputIndexes.size).toBe(0);
+  });
+
+  it("accepts a named index when several outputs match", () => {
+    const multi = {
+      [HASH]: tx({
+        outputs: [
+          { txIndex: 0, address: RECIPIENT, amounts: { lovelace: "1000000" } },
+          { txIndex: 1, address: RECIPIENT, amounts: { lovelace: "500000" } },
+        ],
+      }),
+    };
+    const { issues, resolvedOutputIndexes } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: 1, recipientAddress: RECIPIENT, amounts: [{ unit: "lovelace", quantity: "500000" }] },
+    ], multi, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedOutputIndexes.get(2)).toBe(1);
+  });
+
+  it("rejects blank index when no output matches", () => {
+    const { issues } = matchPaymentClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, recipientAddress: "zzzzzz", amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([{ code: Code.OutputNotFound, line: 2, severity: "error" }]);
+  });
 });
 
 describe("matchReceiptClaims", () => {
@@ -136,11 +192,45 @@ describe("matchReceiptClaims", () => {
     const ok = matchReceiptClaims(WALLET, [
       { line: 2, txHash: HASH, outputIndex: 1, amounts: [{ unit: "lovelace", quantity: "5000000" }], csvDay: "2024-01-01" },
     ], txs, new Map());
-    expect(ok).toEqual([]);
+    expect(ok.issues).toEqual([]);
+    expect(ok.resolvedOutputIndexes.get(2)).toBe(1);
 
     const badDate = matchReceiptClaims(WALLET, [
       { line: 3, txHash: HASH, outputIndex: 1, amounts: [{ unit: "lovelace", quantity: "1000000" }], csvDay: "2024-01-02" },
     ], txs, new Map());
-    expect(badDate).toEqual([{ code: Code.ChainDateMismatch, line: 3, severity: "error", value: "2024-01-02" }]);
+    expect(badDate.issues).toEqual([{ code: Code.ChainDateMismatch, line: 3, severity: "error", value: "2024-01-02" }]);
+  });
+
+  it("fills a blank outputIndex when exactly one wallet output matches", () => {
+    const txs = {
+      [HASH]: tx({
+        inputAddresses: ["addr_test1spender"],
+        outputs: [
+          { txIndex: 0, address: RECIPIENT, amounts: { lovelace: "1" } },
+          { txIndex: 2, address: WALLET, amounts: { lovelace: "5000000" } },
+        ],
+      }),
+    };
+    const { issues, resolvedOutputIndexes } = matchReceiptClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, amounts: [{ unit: "lovelace", quantity: "5000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([]);
+    expect(resolvedOutputIndexes.get(2)).toBe(2);
+  });
+
+  it("rejects AmbiguousOutput for receipts when several wallet outputs match", () => {
+    const txs = {
+      [HASH]: tx({
+        inputAddresses: ["addr_test1spender"],
+        outputs: [
+          { txIndex: 0, address: WALLET, amounts: { lovelace: "1000000" } },
+          { txIndex: 1, address: WALLET, amounts: { lovelace: "2000000" } },
+        ],
+      }),
+    };
+    const { issues } = matchReceiptClaims(WALLET, [
+      { line: 2, txHash: HASH, outputIndex: null, amounts: [{ unit: "lovelace", quantity: "1000000" }] },
+    ], txs, new Map());
+    expect(issues).toEqual([{ code: Code.AmbiguousOutput, line: 2, severity: "error" }]);
   });
 });

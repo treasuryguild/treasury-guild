@@ -103,4 +103,33 @@ describe("applyPaymentChainChecks", () => {
     expect(result.issues.some((i) => i.code === Code.RecipientMismatch)).toBe(true);
     expect(result.ready).toBe(false);
   });
+
+  it("fills a blank outputIndex from the unique matching output before ready/dedupe", async () => {
+    const { applyPaymentChainChecks } = await import("./verifyChain");
+    const fullKey = sha256Hex(canonicalRow({
+      recipientRef: RECIPIENT,
+      workgroupRef: "ops",
+      paidOn: "2024-01-01",
+      task: "Fee",
+      txHash: HASH,
+      outputIndex: 0,
+      amounts: [{ unit: "lovelace", quantity: "1000000" }],
+    }));
+    const result = await applyPaymentChainChecks(planOf(plannedRow({
+      outputIndex: null,
+      dedupeKey: null,
+      recipientRef: RECIPIENT,
+    })), {
+      network: 0,
+      previousWalletAddress: WALLET,
+      alreadyClaimed: new Map(),
+      includeDuplicates: false,
+      existingKeys: new Set(),
+      hash: sha256Hex,
+    });
+    expect(result.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(result.rows[0]!.outputIndex).toBe(0);
+    expect(result.rows[0]!.dedupeKey).toBe(fullKey);
+    expect(result.ready).toBe(true);
+  });
 });

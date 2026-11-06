@@ -13,7 +13,7 @@ import type { ParsedReceiptRow, ParsedReceipts } from "./receiptTypes";
 
 const META = ["date", "source", "commitment", "note", "txhash", "outputindex"] as const;
 type MetaColumn = (typeof META)[number];
-const REQUIRED_META = ["date", "txhash", "outputindex"] as const;
+const REQUIRED_META = ["date", "txhash"] as const;
 
 function headerKey(cell: string): string {
   return cell.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -73,7 +73,7 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
   for (const name of REQUIRED_META) {
     if (!columns.has(name)) {
       fileIssue(Code.MissingColumn, {
-        column: name === "txhash" ? "txHash" : name === "outputindex" ? "outputIndex" : name,
+        column: name === "txhash" ? "txHash" : name,
       });
       headerOk = false;
     }
@@ -134,8 +134,7 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
 
     const outRaw = cell("outputindex").trim();
     let outputIndex: number | null = null;
-    if (outRaw === "") lineIssue(Code.MissingOutputIndex);
-    else {
+    if (outRaw !== "") {
       outputIndex = normalizeOutputIndex(outRaw);
       if (outputIndex === null) lineIssue(Code.BadOutputIndex, { value: outRaw });
     }
@@ -159,7 +158,7 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
         commitmentName,
         note,
         txHash: txHash!,
-        outputIndex: outputIndex!,
+        outputIndex,
         amounts,
       });
     }

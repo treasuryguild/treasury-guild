@@ -139,6 +139,31 @@ describe("readHistoryCsv", () => {
     expect(parsed.rows[0]!.recipientRef).toBe(tail);
   });
 
+  it("accepts a missing or blank outputIndex column", () => {
+    const noColumn = readHistoryCsv(
+      `userId,ADA,task,date,workgroup,txHash\n${ADDR1},1,t,01.09.2026,ops,${TX1}`,
+      TODAY,
+    );
+    expect(noColumn.issues).toEqual([]);
+    expect(noColumn.rows[0]!.outputIndex).toBeNull();
+
+    const blank = readHistoryCsv(
+      `${HEADER}\n${ADDR1},1,,t,01.09.2026,ops,${TX1},`,
+      TODAY,
+    );
+    expect(blank.issues).toEqual([]);
+    expect(blank.rows[0]!.outputIndex).toBeNull();
+  });
+
+  it("still refuses a non-blank invalid outputIndex", () => {
+    const parsed = readHistoryCsv(
+      `${HEADER}\n${ADDR1},1,,t,01.09.2026,ops,${TX1},x`,
+      TODAY,
+    );
+    expect(parsed.rows).toEqual([]);
+    expect(parsed.issues).toEqual([{ code: Code.BadOutputIndex, line: 2, severity: "error", value: "x" }]);
+  });
+
   it("reads a file past the old 5000-row cap and refuses one past the ceiling", () => {
     const csv = (rows: number) => [
       HEADER,
@@ -161,7 +186,6 @@ describe("readHistoryCsv", () => {
     expect(codes(`userId,amount!,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.BadTickerColumn, Code.NoTickerColumns]);
     expect(codes(`userId,ADA,ada,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.DuplicateColumn]);
     expect(codes(`userId,ADA,task,date\n${ADDR1},1,t,01.09.2026`)).toEqual([
-      Code.MissingColumn,
       Code.MissingColumn,
       Code.MissingColumn,
     ]);

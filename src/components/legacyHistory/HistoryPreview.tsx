@@ -123,7 +123,7 @@ export function HistoryPreview({
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
                     <a href={explorerTxUrl(network, row.txHash)} target="_blank" rel="noreferrer"
                       className="text-sky-400 hover:underline">
-                      …{row.txHash.slice(-8)}:{row.outputIndex}
+                      …{row.txHash.slice(-8)}{row.outputIndex === null ? "" : `:${row.outputIndex}`}
                     </a>
                   </td>
                   <td className="px-3 py-2">
