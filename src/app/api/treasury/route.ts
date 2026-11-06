@@ -34,6 +34,7 @@ import {
 import type { TreasurySignerRow } from "@/lib/db/types";
 import { setWorkgroupTreasury } from "@/lib/db/workgroupRouting";
 import { requireActiveWorkgroup, workgroupCommunityId } from "@/lib/db/workgroups";
+import { deleteImportDraft, loadOpenImportDraft } from "@/lib/db/importDrafts";
 import { deleteSignerDraft, loadOpenSignerDraft } from "@/lib/db/signerDrafts";
 import { BadRequestError, ConflictError, errorMessage, ForbiddenError, InvariantError, NotFoundError } from "@/lib/errors";
 import { describeTreasury } from "@/lib/treasury";
@@ -177,16 +178,8 @@ function importedTreasuryRows(body: CreateTreasuryBody, shape: TreasuryShape): S
 
 export const POST = sessionRoute(async (req, { session }) => {
   let body = await parseJson(req, createTreasurySchema);
-  const { communityId, name, workgroupId, source } = body;
+  const { communityId, source } = body;
   await requireAdmin(communityId, session.wallet);
-
-  // A bad workgroup pick fails here, before any wallet exists.
-  if (workgroupId) {
-    if ((await workgroupCommunityId(workgroupId)) !== communityId) {
-      throw new BadRequestError("Choose a workgroup of this community");
-    }
-    await requireActiveWorkgroup(workgroupId);
-  }
 
   // The wallet lives on the community's network (chosen at creation); a
   // signer from the other network could never produce a valid witness.
@@ -237,6 +230,43 @@ export const POST = sessionRoute(async (req, { session }) => {
     imported = discovered.decoded;
     importStakeCredentialHash = discovered.stakeCredentialHash;
   }
+
+  if (body.importDraftId) {
+    if (!source || !imported) {
+      throw new BadRequestError("An import invite needs the script source");
+    }
+    const draft = await loadOpenImportDraft(body.importDraftId, communityId);
+    if (!draft) {
+      throw new BadRequestError("Finish claiming every signer on the import invite before creating the treasury");
+    }
+    if (draft.scriptCbor !== imported.scriptCbor) {
+      throw new BadRequestError("The import invite does not match this script");
+    }
+    const draftStake = draft.stakeCredentialHash?.toLowerCase() ?? null;
+    if (draftStake !== (importStakeCredentialHash?.toLowerCase() ?? null)) {
+      throw new BadRequestError("The import invite does not match this script");
+    }
+    body = {
+      ...body,
+      name: draft.name,
+      workgroupId: draft.workgroupId,
+      signers: draft.signers.map((s) => ({
+        address: s.address,
+        name: s.name ?? undefined,
+      })),
+    };
+  }
+
+  const { name, workgroupId } = body;
+  // A bad workgroup pick fails here, before any wallet exists (after an
+  // import invite may have replaced workgroupId from the draft).
+  if (workgroupId) {
+    if ((await workgroupCommunityId(workgroupId)) !== communityId) {
+      throw new BadRequestError("Choose a workgroup of this community");
+    }
+    await requireActiveWorkgroup(workgroupId);
+  }
+
   const everyAddress = [
     ...body.signers.map((s) => s.address),
     ...(imported ? [] : (body.recovery?.signers ?? []).map((s) => s.address)),
@@ -402,6 +432,11 @@ export const POST = sessionRoute(async (req, { session }) => {
   if (body.signerDraftId) {
     await deleteSignerDraft(body.signerDraftId).catch((err) =>
       console.error(`delete signer draft ${body.signerDraftId} failed`, err),
+    );
+  }
+  if (body.importDraftId) {
+    await deleteImportDraft(body.importDraftId).catch((err) =>
+      console.error(`delete import draft ${body.importDraftId} failed`, err),
     );
   }
 

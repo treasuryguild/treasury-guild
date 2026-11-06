@@ -280,8 +280,11 @@ export const createTreasurySchema = z.object({
   required: z.number().int().min(0).max(MAX_TREASURY_SIGNERS).optional(),
   /** The base group's rule. */
   scriptType: z.enum(["all", "any", "atLeast"]).default("atLeast"),
-  /** The base signers; with `source`, every signer of the script in any group. */
-  signers: treasurySigners,
+  /**
+   * The base signers; with `source`, every signer of the script in any group.
+   * Empty only when `importDraftId` supplies the claimed addresses.
+   */
+  signers: z.array(treasurySignerInput).max(MAX_TREASURY_SIGNERS).default([]),
   /** The workgroup this wallet pays; absent or null = a community treasury. */
   workgroupId: z.uuid().nullable().optional(),
   source: treasuryImportSourceSchema.optional(),
@@ -305,7 +308,33 @@ export const createTreasurySchema = z.object({
    * route ignores any stake or DRep on `signers`.
    */
   signerDraftId: id.optional(),
+  /**
+   * CBOR / CIP-0146 import: claimed payment addresses come from this invite.
+   * Requires `source`; incompatible with `signerDraftId`.
+   */
+  importDraftId: id.optional(),
 }).superRefine((body, ctx) => {
+  if (body.signerDraftId && body.importDraftId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["importDraftId"],
+      message: "Choose either an SDK signer invite or an import invite",
+    });
+  }
+  if (body.importDraftId && !body.source) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["source"],
+      message: "An import invite needs the script source",
+    });
+  }
+  if (!body.importDraftId && body.signers.length < 1) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["signers"],
+      message: "Add at least one signer",
+    });
+  }
   if (body.source) return; // the CBOR decides the template and its groups
   const needsLock = body.template === "clawback" || body.template === "lock_until";
   if (needsLock && !body.lockUntil) ctx.addIssue({ code: "custom", path: ["lockUntil"], message: "Choose the lock date" });
@@ -386,6 +415,55 @@ export const signerDraftQuerySchema = z.object({
 export const contributeSignerKeysSchema = z.object({
   stakeAddress,
   drepKeyHash: keyHash56.optional(),
+});
+
+/** POST /api/treasury/import-draft */
+export const createImportDraftSchema = z.object({
+  communityId: id,
+  name: nonEmpty.max(100),
+  workgroupId: z.uuid().nullable().optional(),
+  source: treasuryImportSourceSchema,
+  /** Optional display names keyed by script key hash (from CIP-0146 participants). */
+  signerNames: z.record(keyHash56, text(100)).optional(),
+});
+
+/** PATCH /api/treasury/import-draft */
+export const saveImportDraftSchema = z.object({
+  communityId: id,
+  draftId: id,
+  name: nonEmpty.max(100),
+  workgroupId: z.uuid().nullable().optional(),
+});
+
+export const deleteImportDraftSchema = z.object({ draftId: id });
+
+export const importDraftQuerySchema = z.object({
+  communityId: id.optional(),
+  draftId: id.optional(),
+}).superRefine((q, ctx) => {
+  if (Boolean(q.communityId) === Boolean(q.draftId)) {
+    ctx.addIssue({ code: "custom", message: "Pass a community or a draft" });
+  }
+});
+
+/** POST /api/treasury/import-draft/claim */
+export const importDraftClaimSchema = z.object({
+  draftId: id,
+  name: text(100).optional(),
+});
+
+/** POST /api/treasury/import-draft/slot — admin paste. */
+export const importDraftSlotSchema = z.object({
+  draftId: id,
+  communityId: id,
+  keyHash: keyHash56,
+  address: storedWallet,
+  name: text(100).optional(),
+});
+
+/** POST /api/treasury-import-invites/[token]/claim */
+export const claimImportInviteSchema = z.object({
+  name: text(100).optional(),
 });
 
 export const signerDraftKeysSchema = contributeSignerKeysSchema.extend({ draftId: id });
@@ -1436,6 +1514,11 @@ export type CreateSignerDraftBody = z.infer<typeof createSignerDraftSchema>;
 export type SaveSignerDraftBody = z.infer<typeof saveSignerDraftSchema>;
 export type SignerDraftKeysBody = z.infer<typeof signerDraftKeysSchema>;
 export type ContributeSignerKeysBody = z.infer<typeof contributeSignerKeysSchema>;
+export type CreateImportDraftBody = z.infer<typeof createImportDraftSchema>;
+export type SaveImportDraftBody = z.infer<typeof saveImportDraftSchema>;
+export type ImportDraftClaimBody = z.infer<typeof importDraftClaimSchema>;
+export type ImportDraftSlotBody = z.infer<typeof importDraftSlotSchema>;
+export type ClaimImportInviteBody = z.infer<typeof claimImportInviteSchema>;
 export type SetTreasuryDiscordDestinationBody = z.infer<typeof setTreasuryDiscordDestinationSchema>;
 export type DevDiscordSendBody = z.infer<typeof devDiscordSendSchema>;
 export type DevCronRunBody = z.infer<typeof devCronRunSchema>;

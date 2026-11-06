@@ -564,6 +564,12 @@ export const RATE_LIMITS = {
   signerDraftPreview: { limit: 60, windowSeconds: 600 },
   /** A signer sending their stake and DRep keys, per wallet. */
   signerDraftContribute: { limit: 20, windowSeconds: 600 },
+  /** Creating a CBOR / CIP-0146 import invite, per admin wallet. */
+  importDraftCreate: { limit: 20, windowSeconds: 3600 },
+  /** Looking up an import invite before connecting, per client IP. */
+  importDraftPreview: { limit: 60, windowSeconds: 600 },
+  /** Claiming an import invite signer slot, per wallet. */
+  importDraftClaim: { limit: 20, windowSeconds: 600 },
   /** Lead/admin endorsements, per wallet. */
   recognitionEndorse: { limit: 40, windowSeconds: 3600 },
   /** Peer kudos grants, per wallet. */

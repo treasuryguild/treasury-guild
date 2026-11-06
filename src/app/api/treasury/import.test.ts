@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   session: vi.fn(), requireAdmin: vi.fn(), insert: vi.fn(), single: vi.fn(), rpc: vi.fn(),
   count: vi.fn(), members: vi.fn(), addMember: vi.fn(), promote: vi.fn(), link: vi.fn(),
   memberRole: vi.fn(), cosignerKey: vi.fn(),
+  loadImportDraft: vi.fn(), deleteImportDraft: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.requireAdmin, requireMember: vi.fn(), memberRole: mocks.memberRole }));
@@ -37,6 +38,10 @@ vi.mock("@/lib/db/treasuries", async (importOriginal) => ({
 }));
 vi.mock("@/lib/db/workgroups", () => ({ workgroupCommunityId: async () => "10000000-0000-4000-8000-000000000001", requireActiveWorkgroup: vi.fn() }));
 vi.mock("@/lib/db/workgroupRouting", () => ({ setWorkgroupTreasury: mocks.link }));
+vi.mock("@/lib/db/importDrafts", () => ({
+  loadOpenImportDraft: mocks.loadImportDraft,
+  deleteImportDraft: mocks.deleteImportDraft,
+}));
 import { POST } from "./route";
 import { POST as preview } from "./import/preview/route";
 
@@ -62,6 +67,7 @@ beforeEach(() => {
   mocks.single.mockResolvedValue({ data: { id: "treasury-1" }, error: null });
   mocks.rpc.mockResolvedValue({ data: 0, error: null });
   mocks.members.mockResolvedValue({ data: [{ wallet_address: addrB }], error: null });
+  mocks.deleteImportDraft.mockResolvedValue(undefined);
 });
 
 describe("import treasury API", () => {
@@ -92,6 +98,47 @@ describe("import treasury API", () => {
       { treasury_id: "treasury-1", wallet_address: addrB, key_hash: hashB, display_name: null, signer_group: "base", stake_key_hash: null, drep_key_hash: null },
     ]);
     expect(mocks.promote).toHaveBeenCalledWith("10000000-0000-4000-8000-000000000001", [addrA, addrB]);
+  });
+
+  it("creates from a completed import invite and deletes the draft", async () => {
+    const draftId = "30000000-0000-4000-8000-000000000099";
+    mocks.loadImportDraft.mockResolvedValue({
+      id: draftId,
+      scriptCbor: imported.scriptCbor,
+      stakeCredentialHash: null,
+      name: "From invite",
+      workgroupId: null,
+      signers: [
+        { keyHash: hashA, group: "base", address: addrA, name: "Alice" },
+        { keyHash: hashB, group: "base", address: addrB, name: null },
+      ],
+    });
+    const response = await POST(request({
+      importDraftId: draftId,
+      name: "Ignored",
+      signers: [],
+    }), context);
+    expect(response.status).toBe(200);
+    expect(mocks.loadImportDraft).toHaveBeenCalledWith(draftId, "10000000-0000-4000-8000-000000000001");
+    expect(mocks.insert).toHaveBeenNthCalledWith(1, expect.objectContaining({ name: "From invite" }));
+    expect(mocks.insert).toHaveBeenNthCalledWith(2, [
+      { treasury_id: "treasury-1", wallet_address: addrA, key_hash: hashA, display_name: "Alice", signer_group: "base", stake_key_hash: null, drep_key_hash: null },
+      { treasury_id: "treasury-1", wallet_address: addrB, key_hash: hashB, display_name: null, signer_group: "base", stake_key_hash: null, drep_key_hash: null },
+    ]);
+    expect(mocks.deleteImportDraft).toHaveBeenCalledWith(draftId);
+  });
+
+  it("refuses an incomplete import invite", async () => {
+    mocks.loadImportDraft.mockResolvedValue(null);
+    const response = await POST(request({
+      importDraftId: "30000000-0000-4000-8000-000000000099",
+      signers: [],
+    }), context);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "Finish claiming every signer on the import invite before creating the treasury",
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
   });
 
   it.each([

@@ -135,6 +135,36 @@ export const TREASURY_SIGNER_DRAFT_COLUMNS =
 export const TREASURY_SIGNER_DRAFT_SIGNER_COLUMNS =
   "draft_id, position, wallet_address, display_name, stake_address, drep_key_hash, contributed_at";
 
+/** CBOR / CIP-0146 import invite: script + key-hash slots until every signer claims. */
+export interface TreasuryImportDraftRow {
+  id: string;
+  community_id: string;
+  token_hash: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  name: string;
+  workgroup_id: string | null;
+  script_cbor: string;
+  stake_credential_hash: string | null;
+}
+
+export interface TreasuryImportDraftSignerRow {
+  draft_id: string;
+  position: number;
+  key_hash: string;
+  signer_group: "base" | "recovery" | "cosigner";
+  wallet_address: string | null;
+  display_name: string | null;
+  claimed_at: string | null;
+}
+
+export const TREASURY_IMPORT_DRAFT_COLUMNS =
+  "id, community_id, token_hash, created_by, created_at, expires_at, name, workgroup_id, script_cbor, stake_credential_hash";
+
+export const TREASURY_IMPORT_DRAFT_SIGNER_COLUMNS =
+  "draft_id, position, key_hash, signer_group, wallet_address, display_name, claimed_at";
+
 export interface WorkgroupRow {
   id: string;
   community_id: string;

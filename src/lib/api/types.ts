@@ -202,6 +202,51 @@ export interface SignerInvitePreviewResponse {
   filled: number;
   total: number;
 }
+
+/** One key-hash slot on a CBOR / CIP-0146 import invite (admin view). */
+export interface ImportDraftSigner {
+  keyHash: string;
+  group: "base" | "recovery" | "cosigner";
+  address: string | null;
+  name: string | null;
+  claimed: boolean;
+}
+
+/** An open import invite as the creating admin sees it. Never includes the token. */
+export interface ImportDraftView {
+  id: string;
+  communityId: string;
+  name: string;
+  workgroupId: string | null;
+  expiresAt: string;
+  scriptCbor: string;
+  stakeCredentialHash: string | null;
+  filled: number;
+  total: number;
+  signers: ImportDraftSigner[];
+}
+
+export interface ImportDraftResponse {
+  draft: ImportDraftView;
+  /** Full URL to share. Present only on create; the raw token is not stored. */
+  url?: string;
+}
+
+export interface ListImportDraftsResponse {
+  drafts: ImportDraftView[];
+}
+
+/** GET /api/treasury-import-invites/[token]: no key hashes or addresses. */
+export interface ImportInvitePreviewResponse {
+  communityName: string;
+  treasuryName: string;
+  slug: string;
+  network: number;
+  expiresAt: string;
+  valid: boolean;
+  filled: number;
+  total: number;
+}
 /** The routing assignment made for a treasury linked to a workgroup at creation. */
 export interface TreasuryWorkgroupLink {
   workgroupId: string;
