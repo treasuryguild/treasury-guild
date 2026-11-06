@@ -150,20 +150,20 @@ beforeEach(() => {
 
 describe("loadOnChainTxPageData", () => {
   it("returns null for a bad hash", async () => {
-    expect(await loadOnChainTxPageData(SLUG, "nope", "addr")).toBeNull();
+    expect(await loadOnChainTxPageData(SLUG, "nope")).toBeNull();
     expect(mocks.serverClient).not.toHaveBeenCalled();
   });
 
   it("returns null when the external row is missing", async () => {
     mockTables({ external: { data: null, error: null } });
-    expect(await loadOnChainTxPageData(SLUG, HASH, "addr")).toBeNull();
+    expect(await loadOnChainTxPageData(SLUG, HASH)).toBeNull();
   });
 
   it("returns null and logs when a select errors", async () => {
     mockTables({
       external: { data: null, error: { message: "column activity does not exist" } },
     });
-    expect(await loadOnChainTxPageData(SLUG, HASH, "addr")).toBeNull();
+    expect(await loadOnChainTxPageData(SLUG, HASH)).toBeNull();
     expect(console.error).toHaveBeenCalledWith(
       "on-chain tx page: load external_txs",
       "column activity does not exist",
@@ -172,13 +172,13 @@ describe("loadOnChainTxPageData", () => {
 
   it("returns null when the community slug mismatches", async () => {
     mockTables({ community: { data: { slug: "other" }, error: null } });
-    expect(await loadOnChainTxPageData(SLUG, HASH, "addr")).toBeNull();
+    expect(await loadOnChainTxPageData(SLUG, HASH)).toBeNull();
   });
 
   it("fetches CBOR, enriches labels, and persists both via service role", async () => {
     const updates = mockServiceUpdate();
     const from = mockTables({});
-    const data = await loadOnChainTxPageData(SLUG, HASH.toUpperCase(), "addr");
+    const data = await loadOnChainTxPageData(SLUG, HASH.toUpperCase());
     expect(from.mock.calls.map((c) => c[0])).toEqual(
       expect.arrayContaining(["external_txs", "treasuries", "communities", "community_assets"]),
     );
@@ -223,7 +223,7 @@ describe("loadOnChainTxPageData", () => {
       },
     });
     mocks.lookupDrep.mockResolvedValue(null);
-    const data = await loadOnChainTxPageData(SLUG, HASH, "addr");
+    const data = await loadOnChainTxPageData(SLUG, HASH);
     expect(data?.cborTrusted).toBe(true);
     expect(mocks.txCborBulk).not.toHaveBeenCalled();
     expect(mocks.decodeTxForDisplay).toHaveBeenCalledWith(CBOR);
@@ -233,7 +233,7 @@ describe("loadOnChainTxPageData", () => {
   it("still returns the row when CBOR is missing", async () => {
     mocks.txCborBulk.mockResolvedValue(new Map());
     mockTables({});
-    const data = await loadOnChainTxPageData(SLUG, HASH, null);
+    const data = await loadOnChainTxPageData(SLUG, HASH);
     expect(data?.cborTrusted).toBe(false);
     expect(data?.decoded).toEqual(EMPTY_TX_VIEW);
     expect(data?.title).toContain("Stake:");

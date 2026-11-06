@@ -10,7 +10,7 @@ import {
   paymentKeyHash,
 } from "@/lib/cardano/multisigSDK";
 import { asNetwork, networkName, type Network } from "@/lib/config";
-import { SignerGroup } from "@/lib/constants";
+import type { SignerGroup } from "@/lib/constants";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { IMPORT_DRAFT_TTL_MS } from "@/lib/invites/options";
 import { generateInviteToken, hashInviteToken } from "@/lib/invites/token";

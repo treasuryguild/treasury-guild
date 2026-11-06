@@ -94,7 +94,6 @@ async function persistExternalCache(
 export async function loadOnChainTxPageData(
   slug: string,
   txHash: string,
-  _viewer: string | null,
 ): Promise<OnChainTxPageData | null> {
   if (!isTxHash(txHash)) return null;
   const hash = txHash.toLowerCase();

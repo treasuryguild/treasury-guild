@@ -144,7 +144,7 @@ function DashboardContent({ slug, initialMonth, initialView }: { slug: string; i
           inBudgetPeriod(item.createdAt, budget.periodStart, budget.periodEnd)) ||
         inBudgetPeriod(item.createdAt, period.start, period.end)),
     };
-  }, [allTime, data, display, mainUnit, month, names, spendSources, unit, view, workgroupId]);
+  }, [allTime, data, display, floats, mainUnit, month, names, spendSources, unit, view, workgroupId]);
 
   if (blocked) return blocked;
 

@@ -277,7 +277,7 @@ function FloatActivity({ floatWalletId, isAdmin }: { floatWalletId: string; isAd
       if (row.float_incoming_tx_hash) map.set(row.float_incoming_tx_hash, row);
     }
     return map;
-  }, [conversions.data]);
+  }, [conversions]);
 
   const rows = useMemo(() => {
     if (!activity.data) return [];

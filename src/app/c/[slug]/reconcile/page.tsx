@@ -135,7 +135,7 @@ export default function ReconcilePage({ params }: { params: Promise<{ slug: stri
   // Background chain poll on visit (two-minute staleness); reloads the list if anything was polled.
   const sync = useChainSync(community?.id, incoming.reload);
   const registry = useAssetRegistry(community?.id);
-  const funding = useFunding(community?.id, []);
+  const funding = useFunding(community?.id);
   const [matchOpen, setMatchOpen] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "review" | "complete">("all");
