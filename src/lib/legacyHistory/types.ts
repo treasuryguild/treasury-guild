@@ -33,7 +33,8 @@ export interface ParsedHistoryRow {
   workgroupName: string;
   /** Lowercase hex tx hash. */
   txHash: string;
-  outputIndex: number;
+  /** Null when the CSV omitted it; chain match fills a unique matching output. */
+  outputIndex: number | null;
   amounts: ParsedAmount[];
 }
 
@@ -93,7 +94,8 @@ export interface PlannedRow {
   workgroupRef: string;
   workgroupId: string | null;
   txHash: string;
-  outputIndex: number;
+  /** Null until chain match resolves a unique (or named) output. */
+  outputIndex: number | null;
   amounts: PlannedAmount[];
   /** sha256 of the canonical row; null until every part resolved. */
   dedupeKey: string | null;

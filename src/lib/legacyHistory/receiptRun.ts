@@ -92,6 +92,8 @@ async function planReceipts(
     previousWalletAddress: upload.walletAddress ?? ctx.walletAddress,
     alreadyClaimed: ctx.claimedByOutput,
     includeDuplicates: upload.includeDuplicates,
+    existingKeys: ctx.existingKeys,
+    hash: sha256,
   });
 }
 

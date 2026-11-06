@@ -90,6 +90,8 @@ async function planHistory(
     previousWalletAddress,
     alreadyClaimed: ctx.claimedByOutput,
     includeDuplicates: upload.includeDuplicates,
+    existingKeys: ctx.existingKeys,
+    hash: sha256Hex,
   });
 }
 

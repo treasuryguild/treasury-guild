@@ -207,6 +207,8 @@ function suggest(table: Table): { map: HistoryColumnMap; questions: HistoryQuest
     }
   }
   for (const role of ROLES) {
+    // outputIndex is optional: chain match fills it when exactly one output matches.
+    if (role === "outputIndex") continue;
     if (map[role] === null && !questions.some((q) => q.message.startsWith(`Which column is the ${ROLE_LABEL[role]}`))) {
       questions.push({ column: null, message: `Which column is the ${ROLE_LABEL[role]}? Columns: ${table.headers.join(", ")}.` });
     }
@@ -245,8 +247,13 @@ function validateMap(table: Table, map: HistoryColumnMap): HistoryQuestion[] {
   };
   for (const role of ROLES) {
     const index = map[role];
-    if (index === null) questions.push({ column: null, message: `Which column is the ${ROLE_LABEL[role]}? Columns: ${table.headers.join(", ")}.` });
-    else claim(index, ROLE_LABEL[role]);
+    if (index === null) {
+      if (role !== "outputIndex") {
+        questions.push({ column: null, message: `Which column is the ${ROLE_LABEL[role]}? Columns: ${table.headers.join(", ")}.` });
+      }
+    } else {
+      claim(index, ROLE_LABEL[role]);
+    }
   }
   for (const amount of map.amounts) {
     claim(amount.index, amount.ticker);
@@ -288,7 +295,16 @@ function canonicalCsv(table: Table, map: HistoryColumnMap): string | null {
   const recipient = map.recipient!;
   const bad = badRecipients(table, recipient);
   if (bad.length > 0) return null;
-  const header = ["userId", ...map.amounts.map((a) => a.ticker), "task", "date", "workgroup", "txHash", "outputIndex"];
+  const withIndex = map.outputIndex !== null;
+  const header = [
+    "userId",
+    ...map.amounts.map((a) => a.ticker),
+    "task",
+    "date",
+    "workgroup",
+    "txHash",
+    ...(withIndex ? ["outputIndex"] as const : []),
+  ];
   const lines = table.rows.map((row) => {
     const cells = [
       row.cells[recipient] ?? "",
@@ -297,7 +313,7 @@ function canonicalCsv(table: Table, map: HistoryColumnMap): string | null {
       row.cells[map.date!] ?? "",
       row.cells[map.workgroup!] ?? "",
       row.cells[map.txHash!] ?? "",
-      row.cells[map.outputIndex!] ?? "",
+      ...(withIndex ? [row.cells[map.outputIndex!] ?? ""] : []),
     ];
     return cells.map(quoteField).join(",");
   });

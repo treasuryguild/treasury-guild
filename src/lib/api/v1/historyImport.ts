@@ -37,7 +37,8 @@ const columnMap = z.object({
   date: z.number().int().min(0).max(500),
   workgroup: z.number().int().min(0).max(500),
   txHash: z.number().int().min(0).max(500),
-  outputIndex: z.number().int().min(0).max(500),
+  /** Optional: omit when the tx has exactly one matching recipient output. */
+  outputIndex: z.number().int().min(0).max(500).nullish().transform((v) => v ?? null),
   amounts: z.array(z.object({
     index: z.number().int().min(0).max(500),
     ticker: z.string().trim().min(1).max(32).describe("Ticker this column is paid in, such as ADA"),

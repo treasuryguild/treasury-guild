@@ -58,6 +58,17 @@ describe("applyHistoryColumnMap", () => {
     expect(parsed.tickers).toEqual(["ADA"]);
   });
 
+  it("does not require an outputIndex column when remapping", () => {
+    const text = `userId,ADA,task,date,workgroup,txHash\n${ADDR},1,Fee,15.09.2026,ops,${TX}\n`;
+    const result = applyHistoryColumnMap(text, null);
+    expect(result.questions).toEqual([]);
+    expect(result.csv).toContain("txHash");
+    expect(result.csv).not.toContain("outputIndex");
+    const parsed = readHistoryCsv(result.csv!, TODAY);
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.rows[0]!.outputIndex).toBeNull();
+  });
+
   it("asks which field an extra column is, until it is skipped", () => {
     const text = `userId,ADA,task,date,workgroup,txHash,outputIndex,Internal note\n${ADDR},1,Fee,15.09.2026,ops,${TX},0,hello\n`;
     const open = applyHistoryColumnMap(text, null);

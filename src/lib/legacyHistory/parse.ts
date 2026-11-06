@@ -8,8 +8,10 @@ import {
 import { parseCsv, parseCsvAmount, parseCsvDate } from "@/lib/csv";
 import type { LegacyIssue, ParsedAmount, ParsedHistory, ParsedHistoryRow } from "./types";
 
-const REQUIRED = ["userid", "task", "date", "workgroup", "txhash", "outputindex"] as const;
-type RequiredColumn = (typeof REQUIRED)[number];
+const REQUIRED = ["userid", "task", "date", "workgroup", "txhash"] as const;
+const OPTIONAL = ["outputindex"] as const;
+type MetaColumn = (typeof REQUIRED)[number] | (typeof OPTIONAL)[number];
+const META = [...REQUIRED, ...OPTIONAL] as const;
 
 /** Workgroup names are compared (and aliased) up to one metadatum, like the chain import. */
 export const MAX_WORKGROUP_REF_BYTES = 64;
@@ -17,16 +19,17 @@ export const MAX_WORKGROUP_REF_BYTES = 64;
 const FIRST_YEAR = 2017;
 
 const ADDRESS_RE = /^addr(_test)?1[02-9ac-hj-np-z]{10,190}$/;
+/** Bech32 data alphabet (no b, i, o, 1); at least 6 chars — CSV "last of address" form. */
+const ADDRESS_SUFFIX_RE = /^[02-9ac-hj-np-z]{6,}$/;
 const TX_HASH_RE = /^[0-9a-fA-F]{64}$/;
 const TICKER_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
 
-const REQUIRED_LABEL: Record<RequiredColumn, string> = {
+const REQUIRED_LABEL: Record<(typeof REQUIRED)[number], string> = {
   userid: "userId",
   task: "task",
   date: "date",
   workgroup: "workgroup",
   txhash: "txHash",
-  outputindex: "outputIndex",
 };
 
 function headerKey(cell: string): string {
@@ -42,10 +45,21 @@ export function normalizeWorkgroupName(name: string): string {
   return name.trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "");
 }
 
-/** Full Shelley receiver address, lowercased; null when not a whole address. */
+/** True when the ref is a full Shelley payment address (not a short tail). */
+export function isFullShelleyAddress(ref: string): boolean {
+  return ADDRESS_RE.test(ref.trim().toLowerCase());
+}
+
+/**
+ * Receiver from CSV: full Shelley address, or the last 6+ bech32 characters of one.
+ * Lowercased; null when neither form. Chain verification expands a tail to the
+ * full output address before the row is stored.
+ */
 export function normalizeRecipientRef(raw: string): string | null {
   const ref = raw.trim().toLowerCase();
-  return ADDRESS_RE.test(ref) ? ref : null;
+  if (ADDRESS_RE.test(ref)) return ref;
+  if (ADDRESS_SUFFIX_RE.test(ref)) return ref;
+  return null;
 }
 
 /** Lowercase 64-hex tx hash, or null. */
@@ -101,7 +115,7 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
     return empty;
   }
 
-  const columns = new Map<RequiredColumn, number>();
+  const columns = new Map<MetaColumn, number>();
   const tickerColumns: { index: number; ticker: string }[] = [];
   const seen = new Set<string>();
   let headerOk = true;
@@ -121,8 +135,8 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
       return;
     }
     seen.add(key);
-    if ((REQUIRED as readonly string[]).includes(key)) {
-      columns.set(key as RequiredColumn, index);
+    if ((META as readonly string[]).includes(key)) {
+      columns.set(key as MetaColumn, index);
     } else if (isTickerHeader(cell.trim())) {
       tickerColumns.push({ index, ticker: cell.trim() });
     } else {
@@ -156,7 +170,8 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
     const lineIssue = (code: LegacyIssue["code"], extra: Partial<LegacyIssue> = {}) =>
       issues.push({ code, line, severity: "error", ...extra });
     const before = issues.length;
-    const cell = (name: RequiredColumn) => record.fields[columns.get(name)!] ?? "";
+    const cell = (name: MetaColumn) =>
+      columns.has(name) ? (record.fields[columns.get(name)!] ?? "") : "";
 
     // More values than columns: most often a comma in an unquoted task.
     if (record.fields.slice(header.fields.length).some((f) => f.trim() !== "")) {
@@ -165,14 +180,7 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
 
     const userRaw = cell("userid").trim();
     const recipientRef = normalizeRecipientRef(userRaw);
-    if (!recipientRef) {
-      lineIssue(
-        userRaw !== "" && !ADDRESS_RE.test(userRaw.toLowerCase()) && /^[02-9ac-hj-np-z]{6,}$/i.test(userRaw)
-          ? Code.FullAddressRequired
-          : Code.BadRecipient,
-        { value: userRaw },
-      );
-    }
+    if (!recipientRef) lineIssue(Code.BadRecipient, { value: userRaw });
 
     const task = cell("task").trim();
     if (task === "") lineIssue(Code.EmptyTask);
@@ -197,8 +205,7 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
 
     const outRaw = cell("outputindex").trim();
     let outputIndex: number | null = null;
-    if (outRaw === "") lineIssue(Code.MissingOutputIndex);
-    else {
+    if (outRaw !== "") {
       outputIndex = normalizeOutputIndex(outRaw);
       if (outputIndex === null) lineIssue(Code.BadOutputIndex, { value: outRaw });
     }
@@ -221,7 +228,7 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
         workgroupRef,
         workgroupName,
         txHash: txHash!,
-        outputIndex: outputIndex!,
+        outputIndex,
         amounts,
       });
     }

@@ -289,7 +289,7 @@ export function ReceiptPreview({
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
                     <a href={explorerTxUrl(network, row.txHash)} target="_blank" rel="noreferrer"
                       className="text-sky-400 hover:underline">
-                      …{row.txHash.slice(-8)}:{row.outputIndex}
+                      …{row.txHash.slice(-8)}{row.outputIndex === null ? "" : `:${row.outputIndex}`}
                     </a>
                     {(lineIssues.get(row.line) ?? []).map((issue, i) => (
                       <p key={i} className={`mt-1 text-xs ${issue.severity === "error" ? "text-red-400" : "text-amber-300"}`}>

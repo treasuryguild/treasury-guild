@@ -38,7 +38,7 @@ export function HistoryUpload({
       <Field label="CSV file" hint={
         <>Columns: <span className="font-mono">userId</span> (last 6 characters of the receiver&apos;s address),
           one column per token named by its ticker (for example <span className="font-mono">ADA</span>),{" "}
-          <span className="font-mono">task</span>, <span className="font-mono">date</span> (DD.MM.YYYY) and{" "}
+          <span className="font-mono">task</span>, <span className="font-mono">date</span> (DD.MM.YYYY or unambiguous slash) and{" "}
           <span className="font-mono">workgroup</span>.</>
       }>
         <input

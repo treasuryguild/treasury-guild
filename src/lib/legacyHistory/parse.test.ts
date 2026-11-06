@@ -26,9 +26,11 @@ describe("parseHistoryDate", () => {
     ["15.09.26", "2026-09-15"],
     ["1.2.2025", "2025-02-01"],
     ["2026-09-03", "2026-09-03"],
+    ["15/09/2026", "2026-09-15"],
+    ["09/15/2026", "2026-09-15"],
   ])("reads %s", (raw, expected) => expect(parseHistoryDate(raw)).toBe(expected));
 
-  it.each(["31.02.2026", "15/09/2026", "2026-9-3", "15.13.2026", "01.01.2016", "", "yesterday"])(
+  it.each(["31.02.2026", "03/09/2026", "2026-9-3", "15.13.2026", "01.01.2016", "", "yesterday"])(
     "refuses %s",
     (raw) => expect(parseHistoryDate(raw)).toBeNull(),
   );
@@ -63,10 +65,13 @@ describe("normalizers", () => {
     expect(normalizeWorkgroupName("--a--b--")).toBe("a-b");
   });
 
-  it("accepts a full Shelley address, lowercased", () => {
+  it("accepts a full Shelley address or a bech32 address suffix, lowercased", () => {
     expect(normalizeRecipientRef(` ${ADDR1} `)).toBe(ADDR1);
+    expect(normalizeRecipientRef("f39ntm")).toBe("f39ntm");
+    expect(normalizeRecipientRef("F39NTM")).toBe("f39ntm");
     expect(normalizeRecipientRef("abc12")).toBeNull();
-    expect(normalizeRecipientRef("f39ntm")).toBeNull();
+    expect(normalizeRecipientRef("short")).toBeNull();
+    expect(normalizeRecipientRef("has1one")).toBeNull();
   });
 });
 
@@ -123,6 +128,42 @@ describe("readHistoryCsv", () => {
     expect(parsed.rows[0]!.recipientRef).toBe(ADDR1);
   });
 
+  it("accepts the last 6+ characters of an address as userId", () => {
+    const tail = ADDR1.slice(-6);
+    const parsed = readHistoryCsv(
+      `${HEADER}\n${tail},1,,t,01.09.2026,ops,${TX1},0`,
+      TODAY,
+    );
+    expect(parsed.issues).toEqual([]);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]!.recipientRef).toBe(tail);
+  });
+
+  it("accepts a missing or blank outputIndex column", () => {
+    const noColumn = readHistoryCsv(
+      `userId,ADA,task,date,workgroup,txHash\n${ADDR1},1,t,01.09.2026,ops,${TX1}`,
+      TODAY,
+    );
+    expect(noColumn.issues).toEqual([]);
+    expect(noColumn.rows[0]!.outputIndex).toBeNull();
+
+    const blank = readHistoryCsv(
+      `${HEADER}\n${ADDR1},1,,t,01.09.2026,ops,${TX1},`,
+      TODAY,
+    );
+    expect(blank.issues).toEqual([]);
+    expect(blank.rows[0]!.outputIndex).toBeNull();
+  });
+
+  it("still refuses a non-blank invalid outputIndex", () => {
+    const parsed = readHistoryCsv(
+      `${HEADER}\n${ADDR1},1,,t,01.09.2026,ops,${TX1},x`,
+      TODAY,
+    );
+    expect(parsed.rows).toEqual([]);
+    expect(parsed.issues).toEqual([{ code: Code.BadOutputIndex, line: 2, severity: "error", value: "x" }]);
+  });
+
   it("reads a file past the old 5000-row cap and refuses one past the ceiling", () => {
     const csv = (rows: number) => [
       HEADER,
@@ -145,7 +186,6 @@ describe("readHistoryCsv", () => {
     expect(codes(`userId,amount!,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.BadTickerColumn, Code.NoTickerColumns]);
     expect(codes(`userId,ADA,ada,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.DuplicateColumn]);
     expect(codes(`userId,ADA,task,date\n${ADDR1},1,t,01.09.2026`)).toEqual([
-      Code.MissingColumn,
       Code.MissingColumn,
       Code.MissingColumn,
     ]);

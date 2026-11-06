@@ -38,7 +38,7 @@ export function ReceiptUpload({
   return (
     <div className="space-y-2">
       <Field label="CSV file" hint={
-        <>Columns: <span className="font-mono">date</span> (DD.MM.YYYY), one column per token named by its ticker
+        <>Columns: <span className="font-mono">date</span> (DD.MM.YYYY or unambiguous slash), one column per token named by its ticker
           (for example <span className="font-mono">ADA</span>), optional{" "}
           <span className="font-mono">source</span> (funding source name),{" "}
           <span className="font-mono">commitment</span> and <span className="font-mono">note</span>.</>

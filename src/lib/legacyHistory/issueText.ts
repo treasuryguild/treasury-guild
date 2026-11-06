@@ -39,7 +39,7 @@ export function legacyIssueText(issue: LegacyIssue): string {
     case Code.TaskTooLong:
       return `The task is longer than ${LEGACY_MAX_TASK_CHARS} characters.`;
     case Code.BadDate:
-      return `"${value}" is not a date. Use DD.MM.YYYY, DD.MM.YY or YYYY-MM-DD.`;
+      return `"${value}" is not a date. Use DD.MM.YYYY, DD.MM.YY, YYYY-MM-DD, or a slash date with day above 12 (15/09/2026 or 09/15/2026).`;
     case Code.FutureDate:
       return `${value} is in the future.`;
     case Code.EmptyWorkgroup:
@@ -86,6 +86,8 @@ export function legacyIssueText(issue: LegacyIssue): string {
       return value
         ? `Output index "${value}" is not a non-negative whole number.`
         : "The output index is not valid.";
+    case Code.AmbiguousOutput:
+      return "This transaction has more than one matching output; name the outputIndex.";
     case Code.TxNotFound:
       return value
         ? `Transaction ${value} was not found on chain.`
@@ -95,13 +97,13 @@ export function legacyIssueText(issue: LegacyIssue): string {
     case Code.OutputNotFound:
       return "This transaction has no output at that index.";
     case Code.RecipientMismatch:
-      return "The named output address does not match the row.";
+      return "The named output's address does not match this line's userId (full address or its last 6+ characters).";
     case Code.AmountExceedsOutput:
       return "The claimed amounts exceed what that output carries.";
     case Code.TooManyDistinctTx:
       return `The file names too many distinct transactions; at most ${LEGACY_MAX_DISTINCT_TX} are allowed per import.`;
     case Code.FullAddressRequired:
-      return "Chain verification needs a full bech32 address, not a short reference.";
+      return "Chain verification could not resolve this line to a full bech32 address.";
     case Code.ChainDateMismatch:
       return value
         ? `The CSV date ${value} does not match the transaction's on-chain day (UTC).`

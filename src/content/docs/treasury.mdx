@@ -149,7 +149,7 @@ As with new treasuries, base signers of the first (primary) treasury become comm
 
 ## Payment history from a previous wallet
 
-A community that paid its workgroups from an ordinary wallet before moving to a Treasury Guild treasury can bring that history along, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) show everything spent, before and after the move. Optionally import the **receipts** that funded those payments too, so the funding flow and [Funding](/docs/funding) page show income into the previous wallet. Both come from CSV files you prepare: each line names the on-chain transaction (`txHash`, `outputIndex`), and payment lines name the **full** receiver address. The app checks those rows against the chain for the previous wallet you register, then a base signer of that wallet must sign before the import becomes active. Moving remaining funds is a separate step: send them from the old wallet to the treasury address as usual (see [Funding a treasury](/docs/treasury#funding-a-treasury)).
+A community that paid its workgroups from an ordinary wallet before moving to a Treasury Guild treasury can bring that history along, so the [Dashboard](/docs/budgets#dashboard) and [budgets](/docs/budgets) show everything spent, before and after the move. Optionally import the **receipts** that funded those payments too, so the funding flow and [Funding](/docs/funding) page show income into the previous wallet. Both come from CSV files you prepare: each line names the on-chain transaction (`txHash`, and `outputIndex` when needed), and payment lines name the receiver (full Shelley address or the last 6+ characters of it). The app checks those rows against the chain for the previous wallet you register, fills a blank output index when exactly one output matches, expands a short `userId` to the full output address, then a base signer of that wallet must sign before the import becomes active. Moving remaining funds is a separate step: send them from the old wallet to the treasury address as usual (see [Funding a treasury](/docs/treasury#funding-a-treasury)).
 
 Only admins can import history. On **Treasury**, click **Payment history**.
 
@@ -163,11 +163,12 @@ Only admins can import history. On **Treasury**, click **Payment history**.
 
 The first row names the columns, in any order and any letter case:
 
-- **userId**: the receiver's full Shelley address (`addr1…` or `addr_test1…`).
-- **txHash** and **outputIndex**: the transaction output that paid this line (64-character hex hash and a non-negative index). Several tasks paid from the same output are allowed when the amounts add up on chain.
+- **userId**: the receiver's full Shelley address (`addr1…` or `addr_test1…`), or at least the last 6 characters of that address. When you give a short end, the app looks up the named transaction output and stores the full address from the chain.
+- **txHash**: the 64-character hex hash of the transaction that paid this line.
+- **outputIndex** (optional): which output of that transaction paid the line (a non-negative index). Leave it blank when the transaction has exactly one output to this `userId`; name it when there are several. Several tasks paid from the same output are allowed when the amounts add up on chain.
 - **One column per token**, named by its ticker, for example **ADA** or **AGIX**. A cell is the amount paid in that token, in whole units with a dot for decimals (`480`, `114.5`). Leave it empty when the line paid none of that token; a line can pay several tokens.
 - **task**: what was paid for. Put it in double quotes when it contains commas.
-- **date**: the day of the payment, `DD.MM.YYYY` (`15.09.2026`), `DD.MM.YY` (`15.09.26`) or `YYYY-MM-DD`.
+- **date**: the day of the payment, `DD.MM.YYYY` (`15.09.2026`), `DD.MM.YY` (`15.09.26`), `YYYY-MM-DD`, or a slash form with the day above 12 so EU and US cannot be confused (`15/09/2026` or `09/15/2026`; `03/09/2026` is refused).
 - **workgroup**: the workgroup's name. Case, spaces, hyphens and underscores do not matter: `governance-workgroup` matches a workgroup named "Governance Workgroup".
 
 ```
@@ -201,8 +202,9 @@ A workgroup with imported history cannot be deleted (archive it instead) until t
 
 The **Receipts** track imports income the previous wallet received. The first row names the columns, in any order and any letter case:
 
-- **date**: the day the funds arrived (`DD.MM.YYYY`, `DD.MM.YY` or `YYYY-MM-DD`).
-- **txHash** and **outputIndex**: the on-chain output that received this income (same rules as payments).
+- **date**: the day the funds arrived (`DD.MM.YYYY`, `DD.MM.YY`, `YYYY-MM-DD`, or an unambiguous slash date as for payments).
+- **txHash**: the transaction that received this income (same rules as payments).
+- **outputIndex** (optional): which output received it. Leave it blank when the transaction has exactly one output to the previous wallet; name it when there are several.
 - **One column per token**, named by its ticker (same rules as payments).
 - **source** (optional): the [funding source](/docs/funding) name. It must already exist; the preview will not create one. Untagged lines still appear on the Dashboard as unclassified income into the previous wallet, but do not count as Funding **Received**. When every blank line is from the same funder, the preview lets you **apply one funding source** (and optional commitment) to all of them without editing the file.
 - **commitment** (optional): a commitment name under that source. A commitment without a source is an error.

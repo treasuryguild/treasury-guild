@@ -39,6 +39,22 @@ describe("readReceiptsCsv", () => {
     expect(readReceiptsCsv("date,source\n15.09.2024,Catalyst", "2026-11-04").issues.map((i) => i.code))
       .toContain(LegacyIssueCode.NoTickerColumns);
   });
+
+  it("accepts a missing or blank outputIndex", () => {
+    const noColumn = readReceiptsCsv(
+      `date,ADA,txHash\n15.09.2024,1,${"a".repeat(64)}`,
+      "2026-11-04",
+    );
+    expect(noColumn.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(noColumn.rows[0]!.outputIndex).toBeNull();
+
+    const blank = readReceiptsCsv(
+      `date,ADA,txHash,outputIndex\n15.09.2024,1,${"b".repeat(64)},`,
+      "2026-11-04",
+    );
+    expect(blank.issues.filter((i) => i.severity === "error")).toEqual([]);
+    expect(blank.rows[0]!.outputIndex).toBeNull();
+  });
 });
 
 describe("normalizeFundingName", () => {

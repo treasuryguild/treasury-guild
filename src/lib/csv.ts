@@ -79,15 +79,17 @@ export function parseCsv(text: string): CsvResult {
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * "15.09.2026", "15.09.26" (20YY) or "2026-09-15" → "2026-09-15", checked
- * against the calendar. Slashes are refused: 03/09 reads as March in one
- * locale and September in another.
+ * "15.09.2026", "15.09.26" (20YY), "2026-09-15", or unambiguous slash forms →
+ * "2026-09-15", checked against the calendar. Slash dates need day > 12 so
+ * EU `DD/MM` and US `MM/DD` cannot be confused (`15/09` vs `09/15`; `03/09`
+ * is refused).
  */
 export function parseCsvDate(raw: string): string | null {
   const value = raw.trim();
   let year: number, month: number, day: number;
   const dotted = /^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/.exec(value);
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const slashed = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(value);
   if (dotted) {
     day = Number(dotted[1]);
     month = Number(dotted[2]);
@@ -96,6 +98,19 @@ export function parseCsvDate(raw: string): string | null {
     year = Number(iso[1]);
     month = Number(iso[2]);
     day = Number(iso[3]);
+  } else if (slashed) {
+    const a = Number(slashed[1]);
+    const b = Number(slashed[2]);
+    year = slashed[3]!.length === 2 ? 2000 + Number(slashed[3]) : Number(slashed[3]);
+    if (a > 12 && b >= 1 && b <= 12) {
+      day = a;
+      month = b;
+    } else if (b > 12 && a >= 1 && a <= 12) {
+      month = a;
+      day = b;
+    } else {
+      return null;
+    }
   } else {
     return null;
   }
