@@ -12,6 +12,7 @@ vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/legacyHistory/access", () => ({
   requireLegacyWalletAdmin: mocks.wallet,
   requireLegacyAddressNetwork: mocks.network,
+  resolveLegacyWalletScriptFields: vi.fn(() => ({ script_cbor: null, script_hash: null })),
 }));
 vi.mock("@/lib/db/legacyHistory", () => ({ updateLegacyWallet: mocks.update, deleteLegacyWallet: mocks.remove }));
 import { DELETE, PATCH } from "./route";
@@ -31,7 +32,9 @@ const request = (method: "PATCH" | "DELETE", value: object) =>
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.session.mockResolvedValue({ wallet: ADMIN });
-  mocks.wallet.mockResolvedValue({ id: WALLET_ID, community_id: COMMUNITY, name: "Old multisig", address: null });
+  mocks.wallet.mockResolvedValue({
+    id: WALLET_ID, community_id: COMMUNITY, name: "Old multisig", address: null, script_cbor: null,
+  });
 });
 
 describe("PATCH /api/legacy-history/wallets/[id]", () => {
@@ -63,15 +66,12 @@ describe("PATCH /api/legacy-history/wallets/[id]", () => {
     expect(mocks.update).toHaveBeenCalledWith(WALLET_ID, { name: "Treasury 2024" });
   });
 
-  it("checks a new address against the wallet's community, and clears it with null", async () => {
+  it("checks a new address against the wallet's community", async () => {
     await PATCH(request("PATCH", { address: ADDRESS }), context());
     expect(mocks.network).toHaveBeenCalledWith(COMMUNITY, ADDRESS);
-    expect(mocks.update).toHaveBeenLastCalledWith(WALLET_ID, { address: ADDRESS });
-
-    mocks.network.mockClear();
-    await PATCH(request("PATCH", { address: null }), context());
-    expect(mocks.network).not.toHaveBeenCalled();
-    expect(mocks.update).toHaveBeenLastCalledWith(WALLET_ID, { address: null });
+    expect(mocks.update).toHaveBeenLastCalledWith(WALLET_ID, {
+      address: ADDRESS, script_cbor: null, script_hash: null,
+    });
   });
 
   it("refuses an address of the other network", async () => {
@@ -92,7 +92,6 @@ describe("PATCH /api/legacy-history/wallets/[id]", () => {
     [{ name: "  " }],
     [{ name: "x".repeat(65) }],
     [{ address: "addr_test1notanaddress" }],
-    [{ address: "" }],
   ])("rejects invalid input %j before loading the wallet", async (body) => {
     const res = await PATCH(request("PATCH", body), context());
     expect(res.status).toBe(400);

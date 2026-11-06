@@ -10,8 +10,9 @@ import { formatQuantity } from "@/lib/assets";
 import { sha256Hex } from "@/lib/auth/crypto";
 import { LEGACY_MAX_CSV_CHARS, LegacyIssueCode, ProposalKind } from "@/lib/constants";
 import {
-  deleteAgentImportPayload, importAgentLegacyHistory, loadAgentImportPayload, storeAgentImportPayload,
+  deleteAgentImportPayload, loadAgentImportPayload, storeAgentImportPayload,
 } from "@/lib/db/agentImports";
+import { loadLegacyImportByDraft, stageAgentLegacyHistory } from "@/lib/legacyHistory/agentConfirm";
 import { loadGovernanceSettings } from "@/lib/db/governance";
 import { loadLegacyImportContext, loadLegacyWallet, loadLegacyWallets } from "@/lib/db/legacyHistory";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
@@ -35,6 +36,8 @@ const columnMap = z.object({
   task: z.number().int().min(0).max(500),
   date: z.number().int().min(0).max(500),
   workgroup: z.number().int().min(0).max(500),
+  txHash: z.number().int().min(0).max(500),
+  outputIndex: z.number().int().min(0).max(500),
   amounts: z.array(z.object({
     index: z.number().int().min(0).max(500),
     ticker: z.string().trim().min(1).max(32).describe("Ticker this column is paid in, such as ADA"),
@@ -64,9 +67,11 @@ const historyInput = z.object({
     .describe("How to settle a workgroup name the community does not have: create, or map to an existing id"),
   legacyWalletId: z.string().uuid().optional().describe("An existing previous wallet"),
   walletName: z.string().trim().min(1).max(64).optional().describe("Name of a previous wallet to create"),
-  walletAddress: z.string().trim().min(1).max(200).optional().describe("Optional address label of the wallet being created. Never read on chain."),
+  walletAddress: z.string().trim().min(1).max(200).optional()
+    .describe("Shelley address of the previous wallet being created (required with walletName)."),
   includeDuplicates: z.boolean().optional().describe("Also import lines this wallet already holds, when the user says they are separate payments"),
 }).refine((v) => !(v.legacyWalletId && v.walletName), { message: "Give a previous wallet's id or a name to create, not both" })
+  .refine((v) => !v.walletName || !!v.walletAddress?.trim(), { message: "Give the previous wallet's address when creating one" })
   .refine((v) => !v.walletAddress || v.walletName, { message: "An address belongs to the previous wallet being created" });
 
 interface StoredHistory {
@@ -74,7 +79,7 @@ interface StoredHistory {
   tickerUnits: Record<string, string>;
   workgroups: WorkgroupDecision[];
   legacyWalletId: string | null;
-  wallet: { name: string; address: string | null } | null;
+  wallet: { name: string; address: string } | null;
   fileName: string;
   includeDuplicates: boolean;
 }
@@ -89,7 +94,7 @@ const storedHistory = z.object({
     displayName: z.string().optional(),
   })),
   legacyWalletId: z.string().nullable(),
-  wallet: z.object({ name: z.string(), address: z.string().nullable() }).nullable(),
+  wallet: z.object({ name: z.string(), address: z.string() }).nullable(),
   fileName: z.string(),
   includeDuplicates: z.boolean(),
 });
@@ -158,6 +163,9 @@ async function planStored(
   const governance = await loadGovernanceSettings(communityId, ProposalKind.Workgroup);
   const ctx = await loadLegacyImportContext(communityId, stored.legacyWalletId, null);
   const decided = applyWorkgroupDecisions(ctx.workgroups, ctx.aliases, stored.workgroups, governance.enabled);
+  const walletAddress = stored.legacyWalletId
+    ? ctx.walletAddress
+    : stored.wallet?.address ?? null;
   const plan = await planAgentHistory({
     communityId,
     walletId: stored.legacyWalletId,
@@ -167,6 +175,7 @@ async function planStored(
     now: new Date(),
     workgroups: decided.workgroups,
     aliases: decided.aliases,
+    walletAddress,
   });
   return {
     plan,
@@ -224,7 +233,7 @@ export const previewPaymentHistory = defineEndpoint({
       if (taken) {
         questions.push({ column: null, message: `A previous wallet named "${taken.name}" already exists (${taken.id}). Use that id, or choose another name.` });
       } else {
-        wallet = { name: input.walletName.trim(), address: input.walletAddress ?? null };
+        wallet = { name: input.walletName.trim(), address: input.walletAddress!.trim() };
       }
     } else {
       const existing = wallets.length ? ` Existing wallets: ${wallets.map((w) => `${w.name} (${w.id})`).join(", ")}.` : "";
@@ -269,25 +278,23 @@ export const previewPaymentHistory = defineEndpoint({
   },
 });
 
-async function replayLegacyHistory(caller: ApiCaller, draft: VerifiedDraft, communityId: string, slug: string): Promise<object> {
-  try {
-    const result = await importAgentLegacyHistory({
-      draftId: draft.draftId,
-      communityId,
-      actor: caller.wallet,
-      fileName: "history.csv",
-      legacyWalletId: null,
-      walletName: null,
-      walletAddress: null,
-      workgroups: [],
-      rows: [],
-      skipExisting: true,
-    });
-    return { ...result, url: appLink(routes.paymentHistory(slug)) };
-  } catch (err) {
-    if (err instanceof ConflictError) throw new BadRequestError("This draft is not valid or has expired: preview it again");
-    throw err;
+async function replayLegacyHistory(_caller: ApiCaller, draft: VerifiedDraft, communityId: string, slug: string): Promise<object> {
+  const existing = await loadLegacyImportByDraft(draft.draftId);
+  if (!existing || existing.community_id !== communityId) {
+    throw new BadRequestError("This draft is not valid or has expired: preview it again");
   }
+  return {
+    created: false,
+    importId: existing.id,
+    legacyWalletId: existing.legacy_wallet_id,
+    state: existing.state,
+    planHash: existing.plan_hash ?? undefined,
+    signatures: 0,
+    required: 1,
+    inserted: existing.state === "active" ? existing.line_count : undefined,
+    skipped: 0,
+    url: appLink(routes.paymentHistory(slug)),
+  };
 }
 
 export async function confirmLegacyHistoryImport(caller: ApiCaller, draft: VerifiedDraft): Promise<object> {
@@ -312,7 +319,7 @@ export async function confirmLegacyHistoryImport(caller: ApiCaller, draft: Verif
   if (planned.questions.length > 0 || !planned.plan.ready || historyFingerprint(planned.plan, stored) !== draft.fingerprint) {
     throw new ConflictError("The import changed since the preview. Preview it again.");
   }
-  const result = await importAgentLegacyHistory({
+  const result = await stageAgentLegacyHistory({
     draftId: draft.draftId,
     communityId: community.id,
     actor: caller.wallet,

@@ -1,14 +1,13 @@
-// Import an uploaded receipts CSV. Re-parsed and planned here; written by
-// import_legacy_receipts in one transaction.
+// Import an uploaded receipts CSV. Re-parsed and planned here; staged pending
+// ownership signatures, then optionally attested in the same request.
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { legacyReceiptUploadSchema } from "@/lib/api/schemas";
 import type { LegacyHistoryImportResponse } from "@/lib/api/types";
-import { importLegacyReceipts } from "@/lib/db/legacyHistory";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { requireLegacyReceiptImportAdmin, requireLegacyWalletAdmin } from "@/lib/legacyHistory/access";
-import { legacyReceiptRpcRows } from "@/lib/legacyHistory/receiptPlan";
 import { planLegacyReceiptUpload } from "@/lib/legacyHistory/receiptRun";
+import { stageReceiptUpload } from "@/lib/legacyHistory/stageUpload";
 
 export const POST = sessionRoute(async (req, { session }) => {
   const body = await parseJson(req, legacyReceiptUploadSchema);
@@ -40,13 +39,14 @@ export const POST = sessionRoute(async (req, { session }) => {
         : "Nothing new to import: every line is already here.",
     );
   }
-  const result = await importLegacyReceipts({
-    walletId: wallet.id,
+  const result = await stageReceiptUpload({
+    wallet,
     fileName: body.fileName.trim(),
     actor: session.wallet,
-    rows: legacyReceiptRpcRows(plan, body.includeDuplicates),
-    replaceImportId: body.replaceImportId ?? null,
+    plan,
     includeDuplicates: body.includeDuplicates,
+    replaceImportId: body.replaceImportId ?? null,
+    signature: body.signature,
   });
   return { ...result } satisfies LegacyHistoryImportResponse;
 });

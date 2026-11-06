@@ -3,6 +3,8 @@
 // What an uploaded receipts CSV would import. Nothing is written until Import.
 import { useState } from "react";
 import type { LegacyReceiptPreview } from "@/lib/api/types";
+import type { Network } from "@/lib/config";
+import { explorerTxUrl } from "@/lib/config";
 import { formatUnits, plural } from "@/lib/format";
 import { formatDay } from "@/lib/legacyHistory/display";
 import { receiptIssueText } from "@/lib/legacyHistory/receiptIssueText";
@@ -159,6 +161,7 @@ function UntaggedDefaults({
 
 export function ReceiptPreview({
   preview,
+  network,
   includeDuplicates,
   busy,
   importing,
@@ -172,6 +175,7 @@ export function ReceiptPreview({
   onImport,
 }: {
   preview: LegacyReceiptPreview;
+  network: Network;
   includeDuplicates: boolean;
   busy: boolean;
   importing: boolean;
@@ -270,6 +274,7 @@ export function ReceiptPreview({
               <tr>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Date</th>
+                <th className="px-3 py-2">Tx</th>
                 <th className="px-3 py-2">Source</th>
                 <th className="px-3 py-2">Commitment</th>
                 <th className="px-3 py-2">Note</th>
@@ -281,6 +286,17 @@ export function ReceiptPreview({
                 <tr key={row.line} className="align-top">
                   <td className="px-3 py-2">{statusBadge(row)}</td>
                   <td className="whitespace-nowrap px-3 py-2">{formatDay(row.receivedOn)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                    <a href={explorerTxUrl(network, row.txHash)} target="_blank" rel="noreferrer"
+                      className="text-sky-400 hover:underline">
+                      …{row.txHash.slice(-8)}:{row.outputIndex}
+                    </a>
+                    {(lineIssues.get(row.line) ?? []).map((issue, i) => (
+                      <p key={i} className={`mt-1 text-xs ${issue.severity === "error" ? "text-red-400" : "text-amber-300"}`}>
+                        {receiptIssueText(issue)}
+                      </p>
+                    ))}
+                  </td>
                   <td className="px-3 py-2">
                     {row.sourceId ? (sourceNames.get(row.sourceId) ?? row.sourceRef) : row.sourceRef || "—"}
                   </td>

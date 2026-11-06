@@ -10,9 +10,10 @@ import { formatQuantity } from "@/lib/assets";
 import { sha256Hex } from "@/lib/auth/crypto";
 import { LEGACY_MAX_CSV_CHARS } from "@/lib/constants";
 import {
-  deleteAgentImportPayload, importAgentLegacyReceipts, loadAgentImportPayload, storeAgentImportPayload,
+  deleteAgentImportPayload, loadAgentImportPayload, storeAgentImportPayload,
 } from "@/lib/db/agentImports";
-import { loadLegacyWallet, loadLegacyWallets } from "@/lib/db/legacyHistory";
+import { loadLegacyReceiptImportByDraft, stageAgentLegacyReceipts } from "@/lib/legacyHistory/agentConfirm";
+import { loadLegacyImportContext, loadLegacyWallet, loadLegacyWallets } from "@/lib/db/legacyHistory";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError, ConflictError, NotFoundError } from "@/lib/errors";
 import { canonicalJson } from "@/lib/governance/rules";
@@ -47,9 +48,11 @@ const receiptInput = z.object({
     .describe("Optional commitment under defaultSourceId for blank commitment cells"),
   legacyWalletId: z.string().uuid().optional().describe("An existing previous wallet"),
   walletName: z.string().trim().min(1).max(64).optional().describe("Name of a previous wallet to create"),
-  walletAddress: z.string().trim().min(1).max(200).optional().describe("Optional address label. Never read on chain."),
+  walletAddress: z.string().trim().min(1).max(200).optional()
+    .describe("Shelley address of the previous wallet being created (required with walletName)."),
   includeDuplicates: z.boolean().optional(),
 }).refine((v) => !(v.legacyWalletId && v.walletName), { message: "Give a previous wallet's id or a name to create, not both" })
+  .refine((v) => !v.walletName || !!v.walletAddress?.trim(), { message: "Give the previous wallet's address when creating one" })
   .refine((v) => !v.walletAddress || v.walletName, { message: "An address belongs to the previous wallet being created" });
 
 interface StoredReceipt {
@@ -59,7 +62,7 @@ interface StoredReceipt {
   defaultSourceId: string | null;
   defaultCommitmentId: string | null;
   legacyWalletId: string | null;
-  wallet: { name: string; address: string | null } | null;
+  wallet: { name: string; address: string } | null;
   fileName: string;
   includeDuplicates: boolean;
 }
@@ -71,7 +74,7 @@ const storedReceipt = z.object({
   defaultSourceId: z.string().nullable(),
   defaultCommitmentId: z.string().nullable(),
   legacyWalletId: z.string().nullable(),
-  wallet: z.object({ name: z.string(), address: z.string().nullable() }).nullable(),
+  wallet: z.object({ name: z.string(), address: z.string() }).nullable(),
   fileName: z.string(),
   includeDuplicates: z.boolean(),
 });
@@ -109,6 +112,8 @@ function receiptFingerprint(plan: LegacyReceiptImportPlan, stored: StoredReceipt
 }
 
 async function planStored(communityId: string, csv: string, stored: StoredReceipt) {
+  const ctx = await loadLegacyImportContext(communityId, stored.legacyWalletId, null);
+  const walletAddress = stored.legacyWalletId ? ctx.walletAddress : stored.wallet?.address ?? null;
   const plan = await planAgentReceipts({
     communityId,
     walletId: stored.legacyWalletId,
@@ -120,6 +125,7 @@ async function planStored(communityId: string, csv: string, stored: StoredReceip
     defaultCommitmentId: stored.defaultCommitmentId,
     includeDuplicates: stored.includeDuplicates,
     now: new Date(),
+    walletAddress,
   });
   const questions: Question[] = [];
   for (const t of plan.tickers) {
@@ -186,7 +192,7 @@ export const previewReceiptHistory = defineEndpoint({
       if (taken) {
         questions.push({ column: null, message: `A previous wallet named "${taken.name}" already exists (${taken.id}). Use that id, or choose another name.` });
       } else {
-        wallet = { name: input.walletName.trim(), address: input.walletAddress ?? null };
+        wallet = { name: input.walletName.trim(), address: input.walletAddress!.trim() };
       }
     } else {
       const existing = wallets.length ? ` Existing wallets: ${wallets.map((w) => `${w.name} (${w.id})`).join(", ")}.` : "";
@@ -230,24 +236,23 @@ export const previewReceiptHistory = defineEndpoint({
   },
 });
 
-async function replayReceipts(caller: ApiCaller, draft: VerifiedDraft, communityId: string, slug: string): Promise<object> {
-  try {
-    const result = await importAgentLegacyReceipts({
-      draftId: draft.draftId,
-      communityId,
-      actor: caller.wallet,
-      fileName: "receipts.csv",
-      legacyWalletId: null,
-      walletName: null,
-      walletAddress: null,
-      rows: [],
-      skipExisting: true,
-    });
-    return { ...result, url: appLink(routes.paymentHistory(slug)) };
-  } catch (err) {
-    if (err instanceof ConflictError) throw new BadRequestError("This draft is not valid or has expired: preview it again");
-    throw err;
+async function replayReceipts(_caller: ApiCaller, draft: VerifiedDraft, communityId: string, slug: string): Promise<object> {
+  const existing = await loadLegacyReceiptImportByDraft(draft.draftId);
+  if (!existing || existing.community_id !== communityId) {
+    throw new BadRequestError("This draft is not valid or has expired: preview it again");
   }
+  return {
+    created: false,
+    importId: existing.id,
+    legacyWalletId: existing.legacy_wallet_id,
+    state: existing.state,
+    planHash: existing.plan_hash ?? undefined,
+    signatures: 0,
+    required: 1,
+    inserted: existing.state === "active" ? existing.line_count : undefined,
+    skipped: 0,
+    url: appLink(routes.paymentHistory(slug)),
+  };
 }
 
 export async function confirmLegacyReceiptsImport(caller: ApiCaller, draft: VerifiedDraft): Promise<object> {
@@ -271,7 +276,7 @@ export async function confirmLegacyReceiptsImport(caller: ApiCaller, draft: Veri
   if (planned.questions.length > 0 || !planned.plan.ready || receiptFingerprint(planned.plan, stored) !== draft.fingerprint) {
     throw new ConflictError("The import changed since the preview. Preview it again.");
   }
-  const result = await importAgentLegacyReceipts({
+  const result = await stageAgentLegacyReceipts({
     draftId: draft.draftId,
     communityId: community.id,
     actor: caller.wallet,

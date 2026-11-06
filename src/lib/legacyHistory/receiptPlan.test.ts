@@ -8,7 +8,7 @@ const hash = (s: string) => `hash:${s.length}`;
 describe("planLegacyReceipts", () => {
   it("resolves a known funding source and builds rpc rows", () => {
     const parsed = readReceiptsCsv(
-      "date,ADA,source,commitment\n15.09.2024,1.5,Catalyst,Fund 10",
+      `date,ADA,source,commitment,txHash,outputIndex\n15.09.2024,1.5,Catalyst,Fund 10,${"c".repeat(64)},0`,
       "2026-11-04",
     );
     const plan = planLegacyReceipts(parsed, {
@@ -31,13 +31,15 @@ describe("planLegacyReceipts", () => {
       fundingSourceId: "s1",
       fundingCommitmentId: "c1",
       note: null,
+      txHash: "c".repeat(64),
+      outputIndex: 0,
       dedupeKey: expect.stringMatching(/^hash:/),
       amounts: [{ unit: ADA_ASSET.unit, ticker: "ADA", decimals: 6, amount: "1500000" }],
     }]);
   });
 
   it("allows untagged income and marks duplicates", () => {
-    const parsed = readReceiptsCsv("date,ADA\n15.09.2024,1\n15.09.2024,1", "2026-11-04");
+    const parsed = readReceiptsCsv(`date,ADA,txHash,outputIndex\n15.09.2024,1,${"a".repeat(64)},0\n15.09.2024,1,${"a".repeat(64)},0`, "2026-11-04");
     const plan = planLegacyReceipts(parsed, {
       registry: [],
       manual: new Map(),
@@ -58,7 +60,7 @@ describe("planLegacyReceipts", () => {
 
   it("tags blank-source rows with a default funding source and commitment", () => {
     const parsed = readReceiptsCsv(
-      "date,ADA,source\n15.09.2024,1,\n16.09.2024,2,Catalyst",
+      `date,ADA,source,txHash,outputIndex\n15.09.2024,1,,${"d".repeat(64)},0\n16.09.2024,2,Catalyst,${"e".repeat(64)},0`,
       "2026-11-04",
     );
     const plan = planLegacyReceipts(parsed, {
@@ -90,12 +92,16 @@ describe("canonicalReceiptRow", () => {
       sourceRef: "catalyst",
       commitmentRef: "",
       note: "  Hello   world ",
+      txHash: "a".repeat(64),
+      outputIndex: 0,
       amounts: [{ unit: "b", quantity: "2" }, { unit: "a", quantity: "1" }],
     })).toBe(canonicalReceiptRow({
       receivedOn: "2024-01-01",
       sourceRef: "catalyst",
       commitmentRef: "",
       note: "hello world",
+      txHash: "a".repeat(64),
+      outputIndex: 0,
       amounts: [{ unit: "a", quantity: "1" }, { unit: "b", quantity: "2" }],
     }));
   });

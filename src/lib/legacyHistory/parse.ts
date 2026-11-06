@@ -8,7 +8,7 @@ import {
 import { parseCsv, parseCsvAmount, parseCsvDate } from "@/lib/csv";
 import type { LegacyIssue, ParsedAmount, ParsedHistory, ParsedHistoryRow } from "./types";
 
-const REQUIRED = ["userid", "task", "date", "workgroup"] as const;
+const REQUIRED = ["userid", "task", "date", "workgroup", "txhash", "outputindex"] as const;
 type RequiredColumn = (typeof REQUIRED)[number];
 
 /** Workgroup names are compared (and aliased) up to one metadatum, like the chain import. */
@@ -16,9 +16,18 @@ export const MAX_WORKGROUP_REF_BYTES = 64;
 /** Cardano went live in 2017: an earlier date is a typo. */
 const FIRST_YEAR = 2017;
 
-const BECH32_TAIL_RE = /^[02-9ac-hj-np-z]{6,128}$/;
 const ADDRESS_RE = /^addr(_test)?1[02-9ac-hj-np-z]{10,190}$/;
+const TX_HASH_RE = /^[0-9a-fA-F]{64}$/;
 const TICKER_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/;
+
+const REQUIRED_LABEL: Record<RequiredColumn, string> = {
+  userid: "userId",
+  task: "task",
+  date: "date",
+  workgroup: "workgroup",
+  txhash: "txHash",
+  outputindex: "outputIndex",
+};
 
 function headerKey(cell: string): string {
   return cell.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -33,10 +42,23 @@ export function normalizeWorkgroupName(name: string): string {
   return name.trim().toLowerCase().replace(/[\s_]+/g, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "");
 }
 
-/** The receiver's address end (at least 6 bech32 characters) or a whole address, lowercased; null when neither. */
+/** Full Shelley receiver address, lowercased; null when not a whole address. */
 export function normalizeRecipientRef(raw: string): string | null {
   const ref = raw.trim().toLowerCase();
-  return ADDRESS_RE.test(ref) || BECH32_TAIL_RE.test(ref) ? ref : null;
+  return ADDRESS_RE.test(ref) ? ref : null;
+}
+
+/** Lowercase 64-hex tx hash, or null. */
+export function normalizeTxHash(raw: string): string | null {
+  const hash = raw.trim().toLowerCase();
+  return TX_HASH_RE.test(hash) ? hash : null;
+}
+
+/** Non-negative integer output index, or null. */
+export function normalizeOutputIndex(raw: string): number | null {
+  const cell = raw.trim();
+  if (!/^(0|[1-9][0-9]{0,5})$/.test(cell)) return null;
+  return Number(cell);
 }
 
 /** A payment date: `parseCsvDate`, from 2017 (Cardano's launch) on; earlier is a typo. */
@@ -110,7 +132,7 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
   });
   for (const name of REQUIRED) {
     if (!columns.has(name)) {
-      fileIssue(Code.MissingColumn, { column: name === "userid" ? "userId" : name });
+      fileIssue(Code.MissingColumn, { column: REQUIRED_LABEL[name] });
       headerOk = false;
     }
   }
@@ -141,8 +163,16 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
       lineIssue(Code.FieldCount, { value: String(record.fields.length) });
     }
 
-    const recipientRef = normalizeRecipientRef(cell("userid"));
-    if (!recipientRef) lineIssue(Code.BadRecipient, { value: cell("userid").trim() });
+    const userRaw = cell("userid").trim();
+    const recipientRef = normalizeRecipientRef(userRaw);
+    if (!recipientRef) {
+      lineIssue(
+        userRaw !== "" && !ADDRESS_RE.test(userRaw.toLowerCase()) && /^[02-9ac-hj-np-z]{6,}$/i.test(userRaw)
+          ? Code.FullAddressRequired
+          : Code.BadRecipient,
+        { value: userRaw },
+      );
+    }
 
     const task = cell("task").trim();
     if (task === "") lineIssue(Code.EmptyTask);
@@ -157,6 +187,22 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
     if (workgroupRef === "") lineIssue(Code.EmptyWorkgroup);
     else if (utf8Bytes(workgroupRef) > MAX_WORKGROUP_REF_BYTES) lineIssue(Code.WorkgroupTooLong);
 
+    const txRaw = cell("txhash").trim();
+    let txHash: string | null = null;
+    if (txRaw === "") lineIssue(Code.MissingTxHash);
+    else {
+      txHash = normalizeTxHash(txRaw);
+      if (!txHash) lineIssue(Code.BadTxHash, { value: txRaw });
+    }
+
+    const outRaw = cell("outputindex").trim();
+    let outputIndex: number | null = null;
+    if (outRaw === "") lineIssue(Code.MissingOutputIndex);
+    else {
+      outputIndex = normalizeOutputIndex(outRaw);
+      if (outputIndex === null) lineIssue(Code.BadOutputIndex, { value: outRaw });
+    }
+
     const amounts: ParsedAmount[] = [];
     for (const { index, ticker } of tickerColumns) {
       const raw = record.fields[index] ?? "";
@@ -167,7 +213,17 @@ export function readHistoryCsv(text: string, latestDate: string): ParsedHistory 
     if (amounts.length === 0 && !issues.slice(before).some((i) => i.column)) lineIssue(Code.NoAmount);
 
     if (issues.length === before) {
-      rows.push({ line, recipientRef: recipientRef!, task, paidOn: paidOn!, workgroupRef, workgroupName, amounts });
+      rows.push({
+        line,
+        recipientRef: recipientRef!,
+        task,
+        paidOn: paidOn!,
+        workgroupRef,
+        workgroupName,
+        txHash: txHash!,
+        outputIndex: outputIndex!,
+        amounts,
+      });
     }
   }
   return { tickers, rows, lineCount: data.length, issues };

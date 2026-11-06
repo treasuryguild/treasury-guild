@@ -104,11 +104,21 @@ export function canonicalRow(row: {
   workgroupRef: string;
   paidOn: string;
   task: string;
+  txHash: string;
+  outputIndex: number;
   amounts: readonly { unit: string; quantity: string }[];
 }): string {
   const amounts = [...row.amounts].map((a) => `${a.unit}:${a.quantity}`).sort().join(",");
   const task = row.task.replace(/\s+/g, " ").trim().toLowerCase();
-  return [row.recipientRef, row.workgroupRef, row.paidOn, task, amounts].join("|");
+  return [
+    row.txHash.toLowerCase(),
+    String(row.outputIndex),
+    row.recipientRef,
+    row.workgroupRef,
+    row.paidOn,
+    task,
+    amounts,
+  ].join("|");
 }
 
 export interface PlanContext extends TickerContext {
@@ -205,6 +215,8 @@ export function planLegacyImport(parsed: ParsedHistory, ctx: PlanContext): Legac
       budgetMonth,
       workgroupRef: row.workgroupRef,
       workgroupId,
+      txHash: row.txHash,
+      outputIndex: row.outputIndex,
       amounts,
       dedupeKey,
       status: invalid ? "invalid" : dedupeKey !== null && ctx.existingKeys.has(dedupeKey) ? "duplicate" : "new",
@@ -277,6 +289,8 @@ export function legacyRpcRows(plan: LegacyImportPlan, includeDuplicates: boolean
     paidOn: row.paidOn,
     budgetMonth: row.budgetMonth!,
     dedupeKey: row.dedupeKey!,
+    txHash: row.txHash,
+    outputIndex: row.outputIndex,
     amounts: row.amounts.map((a) => ({
       unit: a.unit!,
       ticker: a.unit === ADA_ASSET.unit ? ADA_ASSET.fieldName : a.ticker,
@@ -284,6 +298,15 @@ export function legacyRpcRows(plan: LegacyImportPlan, includeDuplicates: boolean
       amount: a.quantity!,
     })),
   }));
+}
+
+/** sha256 plan fingerprint for ownership attestation (sorted dedupe keys). */
+export function legacyPlanHash(
+  rows: readonly { dedupeKey: string }[],
+  hash: (canonical: string) => string,
+): string {
+  const keys = rows.map((r) => r.dedupeKey).sort();
+  return hash(keys.join("\n"));
 }
 
 /** Rows the preview always lists (anything not plainly new), then clean ones up to `cleanLimit`. */

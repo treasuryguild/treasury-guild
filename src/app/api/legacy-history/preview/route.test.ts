@@ -28,8 +28,10 @@ const request = (value: object) =>
   });
 
 const row = (line: number) => ({
-  line, recipientRef: "f39ntm", task: "T", paidOn: "2026-09-15", budgetMonth: "2026-09-01", workgroupRef: "gov",
-  workgroupId: "w", amounts: [], dedupeKey: "k", status: "new" as const, duplicateOfLine: null,
+  line, recipientRef: "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae",
+  task: "T", paidOn: "2026-09-15", budgetMonth: "2026-09-01", workgroupRef: "gov",
+  workgroupId: "w", txHash: "a".repeat(64), outputIndex: 0,
+  amounts: [], dedupeKey: "k", status: "new" as const, duplicateOfLine: null,
 });
 
 beforeEach(() => {

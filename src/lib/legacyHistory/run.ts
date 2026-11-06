@@ -1,7 +1,7 @@
 // Plan an uploaded payment-history CSV against the community as it is now.
 // Shared by the preview and the import route, so what an admin previewed is
 // exactly what gets written: the import re-parses the file and never takes
-// rows from the browser.
+// rows from the browser. Chain verification runs against Koios tx_info.
 import "server-only";
 
 import { createHash } from "node:crypto";
@@ -13,6 +13,7 @@ import type { MatchableToken } from "@/lib/tokenMatch";
 import { readHistoryCsv } from "./parse";
 import { planLegacyImport, resolveLegacyTicker, type TickerContext } from "./plan";
 import type { LegacyImportPlan, LegacyToken, LegacyWorkgroup } from "./types";
+import { applyPaymentChainChecks } from "./verifyChain";
 
 export interface LegacyUpload {
   communityId: string;
@@ -27,21 +28,23 @@ export interface LegacyUpload {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function sha256(canonical: string): string {
+export function sha256Hex(canonical: string): string {
   return createHash("sha256").update(canonical, "utf8").digest("hex");
 }
 
 async function planHistory(
   upload: Omit<LegacyUpload, "walletId"> & { walletId: string | null },
-  patch: { workgroups: readonly LegacyWorkgroup[]; aliases: ReadonlyMap<string, string> } | null,
+  patch: {
+    workgroups: readonly LegacyWorkgroup[];
+    aliases: ReadonlyMap<string, string>;
+    walletAddress?: string | null;
+  } | null,
 ): Promise<LegacyImportPlan> {
   const ctx = await loadLegacyImportContext(upload.communityId, upload.walletId, upload.replaceImportId);
   const network = asNetwork(ctx.network);
-  // A day of slack: "today" where the admin is may already be tomorrow in UTC.
+  const previousWalletAddress = patch?.walletAddress ?? ctx.walletAddress;
   const parsed = readHistoryCsv(upload.csv, new Date(upload.now.getTime() + DAY_MS).toISOString().slice(0, 10));
 
-  // An admin's unit counts only once the chain confirms the asset exists, so
-  // its decimals are real.
   const chosen = Object.entries(upload.tickerUnits);
   let described = new Map<string, { ticker: string | null; decimals: number }>();
   if (chosen.length > 0) {
@@ -58,7 +61,6 @@ async function planHistory(
   }));
 
   const tickers: TickerContext = { registry: ctx.registry, manual, history: ctx.history, wallet: [] };
-  // The treasuries' tokens are read only when a ticker is still open.
   const open = parsed.tickers.some((t) => resolveLegacyTicker(t, tickers).status !== "resolved");
   const wallet: MatchableToken[] = [];
   if (open) {
@@ -72,14 +74,21 @@ async function planHistory(
     }
   }
 
-  return planLegacyImport(parsed, {
+  const plan = planLegacyImport(parsed, {
     ...tickers,
     wallet,
     aliases: patch?.aliases ?? ctx.aliases,
     workgroups: patch?.workgroups ?? ctx.workgroups,
     setups: ctx.setups,
     existingKeys: ctx.existingKeys,
-    hash: sha256,
+    hash: sha256Hex,
+    includeDuplicates: upload.includeDuplicates,
+  });
+
+  return applyPaymentChainChecks(plan, {
+    network,
+    previousWalletAddress,
+    alreadyClaimed: ctx.claimedByOutput,
     includeDuplicates: upload.includeDuplicates,
   });
 }
@@ -99,6 +108,8 @@ export interface AgentHistoryPlan {
   /** Workgroups and aliases after the caller's create/map choices, standing in for what the confirm writes. */
   workgroups: readonly LegacyWorkgroup[];
   aliases: ReadonlyMap<string, string>;
+  /** Address the confirm will store on the new wallet (required for chain checks). */
+  walletAddress: string | null;
 }
 
 /** The same plan as an upload, against a wallet that may not exist yet and workgroups the confirm has not created. */
@@ -111,5 +122,9 @@ export async function planAgentHistory(plan: AgentHistoryPlan): Promise<LegacyIm
     replaceImportId: null,
     includeDuplicates: plan.includeDuplicates,
     now: plan.now,
-  }, { workgroups: plan.workgroups, aliases: plan.aliases });
+  }, {
+    workgroups: plan.workgroups,
+    aliases: plan.aliases,
+    walletAddress: plan.walletAddress,
+  });
 }

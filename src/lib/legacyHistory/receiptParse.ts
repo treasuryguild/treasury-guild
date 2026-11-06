@@ -5,12 +5,15 @@ import {
   LEGACY_MAX_NOTE_CHARS, LEGACY_MAX_ROWS, LEGACY_MAX_TICKERS, LegacyIssueCode as Code,
 } from "@/lib/constants";
 import { parseCsv } from "@/lib/csv";
-import { isTickerHeader, parseAmountCell, parseHistoryDate } from "./parse";
+import {
+  isTickerHeader, normalizeOutputIndex, normalizeTxHash, parseAmountCell, parseHistoryDate,
+} from "./parse";
 import type { LegacyIssue } from "./types";
 import type { ParsedReceiptRow, ParsedReceipts } from "./receiptTypes";
 
-const META = ["date", "source", "commitment", "note"] as const;
+const META = ["date", "source", "commitment", "note", "txhash", "outputindex"] as const;
 type MetaColumn = (typeof META)[number];
+const REQUIRED_META = ["date", "txhash", "outputindex"] as const;
 
 function headerKey(cell: string): string {
   return cell.trim().toLowerCase().replace(/[\s_-]+/g, "");
@@ -67,9 +70,13 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
       headerOk = false;
     }
   });
-  if (!columns.has("date")) {
-    fileIssue(Code.MissingColumn, { column: "date" });
-    headerOk = false;
+  for (const name of REQUIRED_META) {
+    if (!columns.has(name)) {
+      fileIssue(Code.MissingColumn, {
+        column: name === "txhash" ? "txHash" : name === "outputindex" ? "outputIndex" : name,
+      });
+      headerOk = false;
+    }
   }
   if (tickerColumns.length === 0) {
     fileIssue(Code.NoTickerColumns);
@@ -117,6 +124,22 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
       note = null;
     }
 
+    const txRaw = cell("txhash").trim();
+    let txHash: string | null = null;
+    if (txRaw === "") lineIssue(Code.MissingTxHash);
+    else {
+      txHash = normalizeTxHash(txRaw);
+      if (!txHash) lineIssue(Code.BadTxHash, { value: txRaw });
+    }
+
+    const outRaw = cell("outputindex").trim();
+    let outputIndex: number | null = null;
+    if (outRaw === "") lineIssue(Code.MissingOutputIndex);
+    else {
+      outputIndex = normalizeOutputIndex(outRaw);
+      if (outputIndex === null) lineIssue(Code.BadOutputIndex, { value: outRaw });
+    }
+
     const amounts: ParsedReceiptRow["amounts"] = [];
     for (const { index, ticker } of tickerColumns) {
       const raw = record.fields[index] ?? "";
@@ -135,6 +158,8 @@ export function readReceiptsCsv(text: string, latestDate: string): ParsedReceipt
         commitmentRef,
         commitmentName,
         note,
+        txHash: txHash!,
+        outputIndex: outputIndex!,
         amounts,
       });
     }

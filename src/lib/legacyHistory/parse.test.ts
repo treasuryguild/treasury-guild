@@ -5,12 +5,19 @@ import {
 } from "./parse";
 
 const TODAY = "2026-09-28";
+const HEADER = "userId,ADA,AGIX,task,date,workgroup,txHash,outputIndex";
+const ADDR1 = "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae";
+const ADDR2 = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
+const ADDR3 = "addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+const TX1 = "a".repeat(64);
+const TX2 = "b".repeat(64);
+const TX3 = "c".repeat(64);
 
 const SAMPLE = [
-  "userId,ADA,AGIX,task,date,workgroup",
-  'f39ntm,,480,"Meeting documentation: 25th, 27th Aug and 1st, 3rd,",15.09.2026,governance-workgroup',
-  "7xcueh,114.5,,singularitynet contribution handling fee,15.09.26,treasury-guild",
-  'rcgctj,80,0.25,"Meeting documentation, 11th Aug 2026",09.09.2026,Governance Workgroup',
+  HEADER,
+  `${ADDR1},,480,"Meeting documentation: 25th, 27th Aug and 1st, 3rd,",15.09.2026,governance-workgroup,${TX1},0`,
+  `${ADDR2},114.5,,singularitynet contribution handling fee,15.09.26,treasury-guild,${TX2},0`,
+  `${ADDR3},80,0.25,"Meeting documentation, 11th Aug 2026",09.09.2026,Governance Workgroup,${TX3},1`,
 ].join("\n");
 
 describe("parseHistoryDate", () => {
@@ -56,12 +63,10 @@ describe("normalizers", () => {
     expect(normalizeWorkgroupName("--a--b--")).toBe("a-b");
   });
 
-  it("accepts an address end or a whole address, lowercased", () => {
-    expect(normalizeRecipientRef(" F39NTM ")).toBe("f39ntm");
-    expect(normalizeRecipientRef("addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae"))
-      .toMatch(/^addr_test1/);
+  it("accepts a full Shelley address, lowercased", () => {
+    expect(normalizeRecipientRef(` ${ADDR1} `)).toBe(ADDR1);
     expect(normalizeRecipientRef("abc12")).toBeNull();
-    expect(normalizeRecipientRef("f3bntm")).toBeNull();
+    expect(normalizeRecipientRef("f39ntm")).toBeNull();
   });
 });
 
@@ -74,43 +79,55 @@ describe("readHistoryCsv", () => {
     expect(parsed.rows).toEqual([
       {
         line: 2,
-        recipientRef: "f39ntm",
+        recipientRef: ADDR1,
         task: "Meeting documentation: 25th, 27th Aug and 1st, 3rd,",
         paidOn: "2026-09-15",
         workgroupRef: "governance-workgroup",
         workgroupName: "governance-workgroup",
+        txHash: TX1,
+        outputIndex: 0,
         amounts: [{ ticker: "AGIX", raw: "480" }],
       },
       {
         line: 3,
-        recipientRef: "7xcueh",
+        recipientRef: ADDR2,
         task: "singularitynet contribution handling fee",
         paidOn: "2026-09-15",
         workgroupRef: "treasury-guild",
         workgroupName: "treasury-guild",
+        txHash: TX2,
+        outputIndex: 0,
         amounts: [{ ticker: "ADA", raw: "114.5" }],
       },
       {
         line: 4,
-        recipientRef: "rcgctj",
+        recipientRef: ADDR3,
         task: "Meeting documentation, 11th Aug 2026",
         paidOn: "2026-09-09",
         workgroupRef: "governance-workgroup",
         workgroupName: "Governance Workgroup",
+        txHash: TX3,
+        outputIndex: 1,
         amounts: [{ ticker: "ADA", raw: "80" }, { ticker: "AGIX", raw: "0.25" }],
       },
     ]);
   });
 
   it("matches headers in any case and order and ignores spreadsheet padding", () => {
-    const parsed = readHistoryCsv("Workgroup,Date,Task,ADA,User ID,\nops,01.09.2026,Fee,5,acdefg,\n,,,,,\n", TODAY);
+    const parsed = readHistoryCsv(
+      `Workgroup,Date,Task,ADA,User ID,txHash,outputIndex\nops,01.09.2026,Fee,5,${ADDR1},${TX1},0\n,,,,,,,,\n`,
+      TODAY,
+    );
     expect(parsed.issues).toEqual([]);
     expect(parsed.rows).toHaveLength(1);
-    expect(parsed.rows[0]!.recipientRef).toBe("acdefg");
+    expect(parsed.rows[0]!.recipientRef).toBe(ADDR1);
   });
 
   it("reads a file past the old 5000-row cap and refuses one past the ceiling", () => {
-    const csv = (rows: number) => ["userId,ADA,task,date,workgroup", ...Array.from({ length: rows }, () => "acdefg,1,t,01.09.2026,ops")].join("\n");
+    const csv = (rows: number) => [
+      HEADER,
+      ...Array.from({ length: rows }, () => `${ADDR1},1,,t,01.09.2026,ops,${TX1},0`),
+    ].join("\n");
     const accepted = readHistoryCsv(csv(5001), TODAY);
     expect(accepted.issues).toEqual([]);
     expect(accepted.rows).toHaveLength(5001);
@@ -124,25 +141,29 @@ describe("readHistoryCsv", () => {
   it("reports header problems for the whole file", () => {
     const codes = (csv: string) => readHistoryCsv(csv, TODAY).issues.map((i) => i.code);
     expect(codes("")).toEqual([Code.EmptyFile]);
-    expect(codes("userId,task,date,workgroup\nacdefg,t,01.09.2026,ops")).toEqual([Code.NoTickerColumns]);
-    expect(codes("userId,amount!,task,date,workgroup\nacdefg,1,t,01.09.2026,ops")).toEqual([Code.BadTickerColumn, Code.NoTickerColumns]);
-    expect(codes("userId,ADA,ada,task,date,workgroup\nacdefg,1,1,t,01.09.2026,ops")).toEqual([Code.DuplicateColumn]);
-    expect(codes("userId,ADA,task,date\nacdefg,1,t,01.09.2026")).toEqual([Code.MissingColumn]);
-    expect(codes("userId,ADA,task,date,workgroup,\nacdefg,1,t,01.09.2026,ops,x")).toEqual([Code.UnnamedColumn]);
+    expect(codes(`userId,task,date,workgroup,txHash,outputIndex\n${ADDR1},x,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.NoTickerColumns]);
+    expect(codes(`userId,amount!,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.BadTickerColumn, Code.NoTickerColumns]);
+    expect(codes(`userId,ADA,ada,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,1,t,01.09.2026,ops,${TX1},0`)).toEqual([Code.DuplicateColumn]);
+    expect(codes(`userId,ADA,task,date\n${ADDR1},1,t,01.09.2026`)).toEqual([
+      Code.MissingColumn,
+      Code.MissingColumn,
+      Code.MissingColumn,
+    ]);
+    expect(codes(`userId,ADA,task,date,workgroup,txHash,outputIndex,\n${ADDR1},1,t,01.09.2026,ops,${TX1},0,x`)).toEqual([Code.UnnamedColumn]);
   });
 
   it("reports each bad line and leaves it out", () => {
     const csv = [
-      "userId,ADA,task,date,workgroup",
-      "abc,1,t,01.09.2026,ops",
-      "acdefg,1,,01.09.2026,ops",
-      "acdefg,1,t,03/09/2026,ops",
-      "acdefg,1,t,01.10.2026,ops",
-      "acdefg,1,5,t,01.09.2026,ops",
-      "acdefg,1;5,t,01.09.2026,ops",
-      "acdefg,,t,01.09.2026,ops",
-      "acdefg,1,t,01.09.2026,",
-      "acdefg,2,fine,01.09.2026,ops",
+      HEADER,
+      `not-an-address,1,,t,01.09.2026,ops,${TX1},0`,
+      `${ADDR1},1,,,01.09.2026,ops,${TX1},0`,
+      `${ADDR1},1,,t,03/09/2026,ops,${TX1},0`,
+      `${ADDR1},1,,t,01.10.2026,ops,${TX1},0`,
+      `${ADDR1},1,,t,extra,01.09.2026,ops,${TX1},0`,
+      `${ADDR1},1;;5,,t,01.09.2026,ops,${TX1},0`,
+      `${ADDR1},,,t,01.09.2026,ops,${TX1},0`,
+      `${ADDR1},1,,t,01.09.2026,,${TX1},0`,
+      `${ADDR1},2,,fine,01.09.2026,ops,${TX2},0`,
     ].join("\n");
     const parsed = readHistoryCsv(csv, TODAY);
     expect(parsed.issues.map((i) => [i.line, i.code])).toEqual([
@@ -152,6 +173,8 @@ describe("readHistoryCsv", () => {
       [5, Code.FutureDate],
       [6, Code.FieldCount],
       [6, Code.BadDate],
+      [6, Code.BadTxHash],
+      [6, Code.BadOutputIndex],
       [7, Code.BadAmount],
       [8, Code.NoAmount],
       [9, Code.EmptyWorkgroup],
@@ -172,17 +195,17 @@ describe("isTickerHeader", () => {
   ])("refuses %j", (cell) => expect(isTickerHeader(cell)).toBe(false));
 
   it("decides which header cells become ticker columns (the cell is trimmed first)", () => {
-    const parsed = readHistoryCsv("userId, AGIX2 ,USDC.e,task,date,workgroup\nacdefg,1,2,t,01.09.2026,ops", TODAY);
+    const parsed = readHistoryCsv(`userId, AGIX2 ,USDC.e,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,2,t,01.09.2026,ops,${TX1},0`, TODAY);
     expect(parsed.issues).toEqual([]);
     expect(parsed.tickers).toEqual(["AGIX2", "USDC.e"]);
-    const bad = readHistoryCsv("userId,AGIX,$NEK,task,date,workgroup\nacdefg,1,2,t,01.09.2026,ops", TODAY);
+    const bad = readHistoryCsv(`userId,AGIX,$NEK,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,2,t,01.09.2026,ops,${TX1},0`, TODAY);
     expect(bad.issues).toEqual([{ code: Code.BadTickerColumn, line: null, severity: "error", column: "$NEK" }]);
   });
 
   it("is not asked about the required columns, whose names would pass", () => {
     // "task" and "date" look like tickers; the reader takes them as columns first.
     expect(isTickerHeader("task")).toBe(true);
-    const parsed = readHistoryCsv("userId,ADA,task,date,workgroup\nacdefg,1,t,01.09.2026,ops", TODAY);
+    const parsed = readHistoryCsv(`userId,ADA,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,t,01.09.2026,ops,${TX1},0`, TODAY);
     expect(parsed.tickers).toEqual(["ADA"]);
   });
 });

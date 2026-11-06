@@ -106,6 +106,9 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0092_recognition.sql
 \ir ../migrations/0093_agent_csv_imports.sql
 \ir ../migrations/0094_legacy_history_row_cap.sql
+\ir ../migrations/0095_legacy_receipts.sql
+\ir ../migrations/0096_verified_legacy_import.sql
+\ir ../migrations/0097_legacy_import_stage_guards.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -149,12 +152,15 @@ begin
   r := import_agent_legacy_history(
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     '10000000-0000-0000-0000-000000000000', 'admin', 'history.csv',
-    null, 'Old wallet', null,
+    null, 'Old wallet',
+    'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
     jsonb_build_array(jsonb_build_object('ref', 'design', 'action', 'create', 'displayName', 'Design')),
     jsonb_build_array(jsonb_build_object(
       'lineNo', 2, 'workgroupId', '00000000-0000-0000-0000-000000000000', 'workgroupRef', 'design',
-      'recipientRef', 'f39ntm', 'task', 'Poster', 'paidOn', '2026-09-15', 'budgetMonth', '2026-09-01',
+      'recipientRef', 'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
+      'task', 'Poster', 'paidOn', '2026-09-15', 'budgetMonth', '2026-09-01',
       'dedupeKey', repeat('a', 64),
+      'txHash', repeat('a', 64), 'outputIndex', 0,
       'amounts', jsonb_build_array(jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '10000000'))
     )),
     true);
@@ -172,7 +178,9 @@ begin
   r := import_agent_legacy_history(
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     '10000000-0000-0000-0000-000000000000', 'admin', 'history.csv',
-    null, 'Old wallet', null, '[]'::jsonb, '[]'::jsonb, true);
+    null, 'Old wallet',
+    'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
+    '[]'::jsonb, '[]'::jsonb, true);
   if (r->>'created')::boolean is not false or (select count(*) from legacy_payments) <> 1 then
     raise exception 'history replay returned %', r;
   end if;
@@ -183,7 +191,7 @@ select pg_temp.reject($q$ select import_agent_legacy_history('cccccccccccccccccc
 insert into governance_settings(community_id, kind, enabled, proposers, electorate, method, quorum_pct,
   threshold_pct, discussion_hours, voting_hours, updated_by)
   values ('10000000-0000-0000-0000-000000000000', 'workgroup', true, 'members', 'members', 'majority', 20, 50, 48, 120, 'admin');
-select pg_temp.reject($q$ select import_agent_legacy_history('dddddddddddddddddddddddddddddddd', '10000000-0000-0000-0000-000000000000', 'admin', 'h.csv', null, 'Another', null, jsonb_build_array(jsonb_build_object('ref', 'ops', 'action', 'create', 'displayName', 'Ops')), jsonb_build_array(jsonb_build_object('lineNo', 2, 'workgroupRef', 'ops', 'recipientRef', 'f39ntm', 'task', 'T', 'paidOn', '2026-09-15', 'budgetMonth', '2026-09-01', 'dedupeKey', repeat('c', 64), 'amounts', jsonb_build_array(jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1')))), true) $q$, '23514');
+select pg_temp.reject($q$ select import_agent_legacy_history('dddddddddddddddddddddddddddddddd', '10000000-0000-0000-0000-000000000000', 'admin', 'h.csv', null, 'Another', 'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2', jsonb_build_array(jsonb_build_object('ref', 'ops', 'action', 'create', 'displayName', 'Ops')), jsonb_build_array(jsonb_build_object('lineNo', 2, 'workgroupRef', 'ops', 'recipientRef', 'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2', 'task', 'T', 'paidOn', '2026-09-15', 'budgetMonth', '2026-09-01', 'dedupeKey', repeat('c', 64), 'txHash', repeat('c', 64), 'outputIndex', 0, 'amounts', jsonb_build_array(jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1')))), true) $q$, '23514');
 
 -- Funding: one draft creates the source, the schedule and its period; a second reads it back.
 do $$

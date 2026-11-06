@@ -1,6 +1,7 @@
 // One sentence per payment-history issue, for the import preview.
 import {
-  LEGACY_MAX_NOTE_CHARS, LEGACY_MAX_ROWS, LEGACY_MAX_TASK_CHARS, LEGACY_MAX_TICKERS, LegacyIssueCode as Code,
+  LEGACY_MAX_DISTINCT_TX, LEGACY_MAX_NOTE_CHARS, LEGACY_MAX_ROWS, LEGACY_MAX_TASK_CHARS, LEGACY_MAX_TICKERS,
+  LegacyIssueCode as Code,
 } from "@/lib/constants";
 import { MAX_WORKGROUP_REF_BYTES } from "./parse";
 import type { LegacyIssue } from "./types";
@@ -73,5 +74,41 @@ export function legacyIssueText(issue: LegacyIssue): string {
         : "A commitment needs a funding source on the same line.";
     case Code.NoteTooLong:
       return `The note is longer than ${LEGACY_MAX_NOTE_CHARS} characters.`;
+    case Code.MissingTxHash:
+      return "This line has no transaction hash.";
+    case Code.BadTxHash:
+      return value
+        ? `"${value}" is not a transaction hash (64 hexadecimal characters).`
+        : "The transaction hash is not valid.";
+    case Code.MissingOutputIndex:
+      return "This line has no output index.";
+    case Code.BadOutputIndex:
+      return value
+        ? `Output index "${value}" is not a non-negative whole number.`
+        : "The output index is not valid.";
+    case Code.TxNotFound:
+      return value
+        ? `Transaction ${value} was not found on chain.`
+        : "The transaction was not found on chain.";
+    case Code.WalletNotInput:
+      return "The previous wallet did not spend in this transaction.";
+    case Code.OutputNotFound:
+      return "This transaction has no output at that index.";
+    case Code.RecipientMismatch:
+      return "The named output address does not match the row.";
+    case Code.AmountExceedsOutput:
+      return "The claimed amounts exceed what that output carries.";
+    case Code.TooManyDistinctTx:
+      return `The file names too many distinct transactions; at most ${LEGACY_MAX_DISTINCT_TX} are allowed per import.`;
+    case Code.FullAddressRequired:
+      return "Chain verification needs a full bech32 address, not a short reference.";
+    case Code.ChainDateMismatch:
+      return value
+        ? `The CSV date ${value} does not match the transaction's on-chain day (UTC).`
+        : "The CSV date does not match the transaction's on-chain day (UTC).";
+    case Code.ScriptCborRequired:
+      return "Chain verification needs the treasury script CBOR.";
+    case Code.ScriptMismatch:
+      return "The treasury script CBOR does not match this community's wallet.";
   }
 }

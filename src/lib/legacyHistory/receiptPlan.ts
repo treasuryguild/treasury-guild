@@ -53,17 +53,27 @@ export function resolveFundingCommitment(
   return { ref, name, status: "missing" };
 }
 
-/** What a receipt line is compared by: date, source, commitment, note, amounts. */
+/** What a receipt line is compared by: chain output + attribution fields. */
 export function canonicalReceiptRow(row: {
   receivedOn: string;
   sourceRef: string;
   commitmentRef: string;
   note: string | null;
+  txHash: string;
+  outputIndex: number;
   amounts: readonly { unit: string; quantity: string }[];
 }): string {
   const amounts = [...row.amounts].map((a) => `${a.unit}:${a.quantity}`).sort().join(",");
   const note = (row.note ?? "").replace(/\s+/g, " ").trim().toLowerCase();
-  return [row.receivedOn, row.sourceRef, row.commitmentRef, note, amounts].join("|");
+  return [
+    row.txHash.toLowerCase(),
+    String(row.outputIndex),
+    row.receivedOn,
+    row.sourceRef,
+    row.commitmentRef,
+    note,
+    amounts,
+  ].join("|");
 }
 
 export interface ReceiptPlanContext extends TickerContext {
@@ -203,6 +213,8 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
         sourceRef: canonicalSource,
         commitmentRef: canonicalCommitment,
         note: row.note,
+        txHash: row.txHash,
+        outputIndex: row.outputIndex,
         amounts: amounts.map((a) => ({ unit: a.unit!, quantity: a.quantity! })),
       });
       dedupeKey = ctx.hash(canonical);
@@ -222,6 +234,8 @@ export function planLegacyReceipts(parsed: ParsedReceipts, ctx: ReceiptPlanConte
       commitmentRef: row.commitmentRef,
       commitmentId,
       note: row.note,
+      txHash: row.txHash,
+      outputIndex: row.outputIndex,
       amounts,
       dedupeKey,
       status: invalid ? "invalid" : dedupeKey !== null && ctx.existingKeys.has(dedupeKey) ? "duplicate" : "new",
@@ -290,6 +304,8 @@ export function legacyReceiptRpcRows(
     fundingCommitmentId: row.commitmentId,
     note: row.note,
     dedupeKey: row.dedupeKey!,
+    txHash: row.txHash,
+    outputIndex: row.outputIndex,
     amounts: row.amounts.map((a) => ({
       unit: a.unit!,
       ticker: a.unit === ADA_ASSET.unit ? ADA_ASSET.fieldName : a.ticker,
@@ -297,6 +313,13 @@ export function legacyReceiptRpcRows(
       amount: a.quantity!,
     })),
   }));
+}
+
+export function legacyReceiptPlanHash(
+  rows: readonly LegacyReceiptRpcRow[],
+  hash: (canonical: string) => string,
+): string {
+  return hash(rows.map((r) => r.dedupeKey).sort().join("\n"));
 }
 
 export function previewReceiptRows(

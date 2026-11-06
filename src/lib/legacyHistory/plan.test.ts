@@ -10,6 +10,13 @@ import { LEGACY_CSV_TEMPLATE, LEGACY_CSV_TEMPLATE_NAME } from "./template";
 const AGIX = "f43a62fdc3965df486de8a0d32fe800963589c41b38946602a0dc53541474958";
 const OTHER_AGIX = "aa".repeat(28) + "41474958";
 const TODAY = "2026-09-28";
+const HEADER = "userId,ADA,AGIX,task,date,workgroup,txHash,outputIndex";
+const ADDR1 = "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae";
+const ADDR2 = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
+const ADDR3 = "addr_test1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq";
+const TX1 = "a".repeat(64);
+const TX2 = "b".repeat(64);
+const TX3 = "c".repeat(64);
 
 const GOV = { id: "w-gov", name: "Governance Workgroup", archived: false };
 const TREASURY = { id: "w-tg", name: "Treasury Guild", archived: false };
@@ -31,10 +38,10 @@ function context(overrides: Partial<PlanContext> = {}): PlanContext {
 }
 
 const CSV = [
-  "userId,ADA,AGIX,task,date,workgroup",
-  'f39ntm,,480,"Meeting documentation: 25th, 27th Aug",15.09.2026,governance-workgroup',
-  "7xcueh,114.5,,Handling fee,15.08.26,treasury-guild",
-  'rcgctj,80,0.00000001,"Meeting facilitation",08.09.2026,governance-workgroup',
+  HEADER,
+  `${ADDR1},,480,"Meeting documentation: 25th, 27th Aug",15.09.2026,governance-workgroup,${TX1},0`,
+  `${ADDR2},114.5,,Handling fee,15.08.26,treasury-guild,${TX2},0`,
+  `${ADDR3},80,0.00000001,"Meeting facilitation",08.09.2026,governance-workgroup,${TX3},1`,
 ].join("\n");
 
 describe("resolveLegacyTicker", () => {
@@ -104,11 +111,13 @@ describe("planLegacyImport", () => {
       lineNo: 3,
       workgroupId: TREASURY.id,
       workgroupRef: "treasury-guild",
-      recipientRef: "7xcueh",
+      recipientRef: ADDR2,
       task: "Handling fee",
       paidOn: "2026-08-15",
       budgetMonth: "2026-08-01",
-      dedupeKey: "h(7xcueh|treasury-guild|2026-08-15|handling fee|lovelace:114500000)",
+      txHash: TX2,
+      outputIndex: 0,
+      dedupeKey: expect.stringMatching(/^h\(/),
       amounts: [{ unit: "lovelace", ticker: "ADA", decimals: 6, amount: "114500000" }],
     });
   });
@@ -121,7 +130,7 @@ describe("planLegacyImport", () => {
   });
 
   it("refuses more decimals than the token has", () => {
-    const csv = "userId,ADA,task,date,workgroup\nacdefg,1.0000001,t,01.09.2026,treasury guild";
+    const csv = `${HEADER.replace(",AGIX", "")}\n${ADDR1},1.0000001,t,01.09.2026,treasury guild,${TX1},0`;
     const plan = planLegacyImport(readHistoryCsv(csv, TODAY), context());
     expect(plan.rows[0]!.status).toBe("invalid");
     expect(plan.issues).toEqual([{ code: Code.TooManyDecimals, line: 2, severity: "error", column: "ADA", value: "1.0000001" }]);
@@ -129,9 +138,12 @@ describe("planLegacyImport", () => {
   });
 
   it("skips lines already imported unless asked, and warns about repeats in the file", () => {
-    const csv = "userId,ADA,task,date,workgroup\nacdefg,1,Fee,01.09.2026,ops\nacdefg,1,fee ,01.09.2026,Ops\nacdefg,2,Other,01.09.2026,ops";
+    const csv = `${HEADER.replace(",AGIX", "")}\n${ADDR1},1,Fee,01.09.2026,ops,${TX1},0\n${ADDR1},1,fee ,01.09.2026,Ops,${TX1},0\n${ADDR1},2,Other,01.09.2026,ops,${TX3},0`;
     const ops = { id: "w-ops", name: "ops", archived: false };
-    const held = `h(${canonicalRow({ recipientRef: "acdefg", workgroupRef: "ops", paidOn: "2026-09-01", task: "Other", amounts: [{ unit: "lovelace", quantity: "2000000" }] })})`;
+    const held = `h(${canonicalRow({
+      recipientRef: ADDR1, workgroupRef: "ops", paidOn: "2026-09-01", task: "Other",
+      txHash: TX3, outputIndex: 0, amounts: [{ unit: "lovelace", quantity: "2000000" }],
+    })})`;
     const plan = planLegacyImport(readHistoryCsv(csv, TODAY), context({ workgroups: [ops], existingKeys: new Set([held]) }));
     expect(plan.rows.map((r) => [r.status, r.duplicateOfLine])).toEqual([["new", null], ["new", 2], ["duplicate", null]]);
     expect(plan.issues).toEqual([{ code: Code.DuplicateInFile, line: 3, severity: "warning", value: "2" }]);
@@ -143,14 +155,17 @@ describe("planLegacyImport", () => {
   });
 
   it("has nothing to import when every line is already here", () => {
-    const csv = "userId,ADA,task,date,workgroup\nacdefg,2,Other,01.09.2026,ops";
+    const csv = `${HEADER.replace(",AGIX", "")}\n${ADDR1},2,Other,01.09.2026,ops,${TX3},0`;
     const ops = { id: "w-ops", name: "ops", archived: false };
-    const held = `h(${canonicalRow({ recipientRef: "acdefg", workgroupRef: "ops", paidOn: "2026-09-01", task: "Other", amounts: [{ unit: "lovelace", quantity: "2000000" }] })})`;
+    const held = `h(${canonicalRow({
+      recipientRef: ADDR1, workgroupRef: "ops", paidOn: "2026-09-01", task: "Other",
+      txHash: TX3, outputIndex: 0, amounts: [{ unit: "lovelace", quantity: "2000000" }],
+    })})`;
     expect(planLegacyImport(readHistoryCsv(csv, TODAY), context({ workgroups: [ops], existingKeys: new Set([held]) })).ready).toBe(false);
   });
 
   it("refuses two columns naming the same token", () => {
-    const csv = "userId,AGIX,AGIX2,task,date,workgroup\nacdefg,1,2,t,01.09.2026,ops";
+    const csv = `userId,AGIX,AGIX2,task,date,workgroup,txHash,outputIndex\n${ADDR1},1,2,t,01.09.2026,ops,${TX1},0`;
     const plan = planLegacyImport(readHistoryCsv(csv, TODAY), context({
       workgroups: [{ id: "w-ops", name: "ops", archived: false }],
       registry: [{ fieldName: "AGIX", unit: AGIX, decimals: 8 }, { fieldName: "AGIX2", unit: AGIX, decimals: 8 }],
@@ -167,12 +182,14 @@ describe("the downloadable CSV template", () => {
     expect(parsed.lineCount).toBe(2);
     expect(parsed.rows).toEqual([
       {
-        line: 2, recipientRef: "f39ntm", task: "Meeting documentation: 25th, 27th Aug", paidOn: "2026-09-15",
-        workgroupRef: "governance-workgroup", workgroupName: "governance-workgroup", amounts: [{ ticker: "AGIX", raw: "480" }],
+        line: 2, recipientRef: ADDR1, task: "Meeting documentation: 25th, 27th Aug", paidOn: "2026-09-15",
+        workgroupRef: "governance-workgroup", workgroupName: "governance-workgroup", txHash: TX1, outputIndex: 0,
+        amounts: [{ ticker: "AGIX", raw: "480" }],
       },
       {
-        line: 3, recipientRef: "7xcueh", task: "Contribution handling fee", paidOn: "2026-09-15",
-        workgroupRef: "treasury-guild", workgroupName: "treasury-guild", amounts: [{ ticker: "ADA", raw: "114.5" }],
+        line: 3, recipientRef: ADDR2, task: "Contribution handling fee", paidOn: "2026-09-15",
+        workgroupRef: "treasury-guild", workgroupName: "treasury-guild", txHash: TX2, outputIndex: 0,
+        amounts: [{ ticker: "ADA", raw: "114.5" }],
       },
     ]);
   });
@@ -202,12 +219,15 @@ describe("the downloadable CSV template", () => {
 
 describe("previewRows", () => {
   const ops = { id: "w-ops", name: "ops", archived: false };
-  const line = (n: number, amount = "1") => `acdefg,${amount},Task ${n},01.09.2026,ops`;
+  const line = (n: number, amount = "1") => `${ADDR1},${amount},Task ${n},01.09.2026,ops,${TX1},0`;
   function planOf(lines: string[], overrides: Partial<PlanContext> = {}) {
-    return planLegacyImport(readHistoryCsv(["userId,ADA,task,date,workgroup", ...lines].join("\n"), TODAY), context({ workgroups: [ops], ...overrides }));
+    return planLegacyImport(readHistoryCsv([HEADER.replace(",AGIX", ""), ...lines].join("\n"), TODAY), context({ workgroups: [ops], ...overrides }));
   }
   const keyOf = (n: number) =>
-    `h(${canonicalRow({ recipientRef: "acdefg", workgroupRef: "ops", paidOn: "2026-09-01", task: `Task ${n}`, amounts: [{ unit: "lovelace", quantity: "1000000" }] })})`;
+    `h(${canonicalRow({
+      recipientRef: ADDR1, workgroupRef: "ops", paidOn: "2026-09-01", task: `Task ${n}`,
+      txHash: TX1, outputIndex: 0, amounts: [{ unit: "lovelace", quantity: "1000000" }],
+    })})`;
 
   it("lists every row of a small clean plan, untruncated", () => {
     const plan = planOf([line(1), line(2), line(3)]);

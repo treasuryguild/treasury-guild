@@ -107,6 +107,8 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0093_agent_csv_imports.sql
 \ir ../migrations/0094_legacy_history_row_cap.sql
 \ir ../migrations/0095_legacy_receipts.sql
+\ir ../migrations/0096_verified_legacy_import.sql
+\ir ../migrations/0097_legacy_import_stage_guards.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -127,9 +129,11 @@ insert into community_members(community_id, wallet_address, role) values
   ('10000000-0000-0000-0000-000000000000', 'admin', 'owner'),
   ('10000000-0000-0000-0000-000000000000', 'member', 'member'),
   ('10000000-0000-0000-0000-000000000009', 'other', 'owner');
-insert into legacy_wallets(id, community_id, name, created_by) values
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet', 'admin'),
-  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs', 'other');
+insert into legacy_wallets(id, community_id, name, address, created_by) values
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet',
+   'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2', 'admin'),
+  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs',
+   'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae', 'other');
 insert into funding_sources(id, community_id, name, created_by) values
   ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Catalyst', 'admin'),
   ('40000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Foreign', 'other');
@@ -148,6 +152,8 @@ create function pg_temp.line(
     'lineNo', n, 'receivedOn', '2024-09-15',
     'fundingSourceId', src, 'fundingCommitmentId', cmt,
     'note', 'Allocation ' || n, 'dedupeKey', lpad(key, 64, '0'),
+    'txHash', lpad(to_hex(n), 64, 'b'),
+    'outputIndex', 0,
     'amounts', jsonb_build_array(
       jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '50000000000')))
 $$;
@@ -162,6 +168,7 @@ begin
       pg_temp.line(3, 'b'),
       jsonb_build_object(
         'lineNo', 4, 'receivedOn', '2024-10-01', 'dedupeKey', lpad('d', 64, '0'),
+        'txHash', lpad('d', 64, 'd'), 'outputIndex', 0,
         'amounts', jsonb_build_array(
           jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1000000')))));
   if (r->>'inserted')::int <> 3 or (r->>'skipped')::int <> 0 or (r->>'replaced')::boolean then
@@ -226,6 +233,7 @@ select pg_temp.reject($q$ select import_legacy_receipts('30000000-0000-0000-0000
     'lineNo', 2, 'receivedOn', '2024-09-15', 'fundingSourceId', '40000000-0000-0000-0000-000000000001',
     'fundingCommitmentId', '50000000-0000-0000-0000-00000000dead',
     'dedupeKey', lpad('dead', 64, '0'),
+    'txHash', repeat('e', 64), 'outputIndex', 0,
     'amounts', jsonb_build_array(
       jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1'))))) $q$, '23514');
 select pg_temp.reject($q$ select import_legacy_receipts('30000000-0000-0000-0000-000000000001', 'x.csv', 'admin',
@@ -233,6 +241,7 @@ select pg_temp.reject($q$ select import_legacy_receipts('30000000-0000-0000-0000
     'lineNo', 2, 'receivedOn', '2024-09-15',
     'fundingCommitmentId', '50000000-0000-0000-0000-000000000001',
     'dedupeKey', lpad('abcdef', 64, '0'),
+    'txHash', repeat('f', 64), 'outputIndex', 0,
     'amounts', jsonb_build_array(
       jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1'))))) $q$, '23514');
 
@@ -258,9 +267,11 @@ declare r jsonb;
 begin
   r := import_agent_legacy_receipts(
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '10000000-0000-0000-0000-000000000000', 'admin',
-    'agent.csv', null, 'From agent', null,
+    'agent.csv', null, 'From agent',
+    'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
     jsonb_build_array(jsonb_build_object(
       'lineNo', 2, 'receivedOn', '2024-01-01', 'dedupeKey', lpad('ae', 64, '0'),
+      'txHash', repeat('1', 64), 'outputIndex', 0,
       'amounts', jsonb_build_array(
         jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '42')))),
     true);
@@ -269,9 +280,11 @@ begin
   end if;
   r := import_agent_legacy_receipts(
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '10000000-0000-0000-0000-000000000000', 'admin',
-    'agent.csv', null, 'From agent', null,
+    'agent.csv', null, 'From agent',
+    'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
     jsonb_build_array(jsonb_build_object(
       'lineNo', 2, 'receivedOn', '2024-01-01', 'dedupeKey', lpad('ae', 64, '0'),
+      'txHash', repeat('1', 64), 'outputIndex', 0,
       'amounts', jsonb_build_array(
         jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '42')))),
     true);
