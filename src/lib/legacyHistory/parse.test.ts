@@ -26,9 +26,11 @@ describe("parseHistoryDate", () => {
     ["15.09.26", "2026-09-15"],
     ["1.2.2025", "2025-02-01"],
     ["2026-09-03", "2026-09-03"],
+    ["15/09/2026", "2026-09-15"],
+    ["09/15/2026", "2026-09-15"],
   ])("reads %s", (raw, expected) => expect(parseHistoryDate(raw)).toBe(expected));
 
-  it.each(["31.02.2026", "15/09/2026", "2026-9-3", "15.13.2026", "01.01.2016", "", "yesterday"])(
+  it.each(["31.02.2026", "03/09/2026", "2026-9-3", "15.13.2026", "01.01.2016", "", "yesterday"])(
     "refuses %s",
     (raw) => expect(parseHistoryDate(raw)).toBeNull(),
   );

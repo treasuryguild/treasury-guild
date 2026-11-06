@@ -39,7 +39,7 @@ export function legacyIssueText(issue: LegacyIssue): string {
     case Code.TaskTooLong:
       return `The task is longer than ${LEGACY_MAX_TASK_CHARS} characters.`;
     case Code.BadDate:
-      return `"${value}" is not a date. Use DD.MM.YYYY, DD.MM.YY or YYYY-MM-DD.`;
+      return `"${value}" is not a date. Use DD.MM.YYYY, DD.MM.YY, YYYY-MM-DD, or a slash date with day above 12 (15/09/2026 or 09/15/2026).`;
     case Code.FutureDate:
       return `${value} is in the future.`;
     case Code.EmptyWorkgroup:

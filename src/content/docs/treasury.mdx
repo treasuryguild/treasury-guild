@@ -167,7 +167,7 @@ The first row names the columns, in any order and any letter case:
 - **txHash** and **outputIndex**: the transaction output that paid this line (64-character hex hash and a non-negative index). Several tasks paid from the same output are allowed when the amounts add up on chain.
 - **One column per token**, named by its ticker, for example **ADA** or **AGIX**. A cell is the amount paid in that token, in whole units with a dot for decimals (`480`, `114.5`). Leave it empty when the line paid none of that token; a line can pay several tokens.
 - **task**: what was paid for. Put it in double quotes when it contains commas.
-- **date**: the day of the payment, `DD.MM.YYYY` (`15.09.2026`), `DD.MM.YY` (`15.09.26`) or `YYYY-MM-DD`.
+- **date**: the day of the payment, `DD.MM.YYYY` (`15.09.2026`), `DD.MM.YY` (`15.09.26`), `YYYY-MM-DD`, or a slash form with the day above 12 so EU and US cannot be confused (`15/09/2026` or `09/15/2026`; `03/09/2026` is refused).
 - **workgroup**: the workgroup's name. Case, spaces, hyphens and underscores do not matter: `governance-workgroup` matches a workgroup named "Governance Workgroup".
 
 ```
@@ -201,7 +201,7 @@ A workgroup with imported history cannot be deleted (archive it instead) until t
 
 The **Receipts** track imports income the previous wallet received. The first row names the columns, in any order and any letter case:
 
-- **date**: the day the funds arrived (`DD.MM.YYYY`, `DD.MM.YY` or `YYYY-MM-DD`).
+- **date**: the day the funds arrived (`DD.MM.YYYY`, `DD.MM.YY`, `YYYY-MM-DD`, or an unambiguous slash date as for payments).
 - **txHash** and **outputIndex**: the on-chain output that received this income (same rules as payments).
 - **One column per token**, named by its ticker (same rules as payments).
 - **source** (optional): the [funding source](/docs/funding) name. It must already exist; the preview will not create one. Untagged lines still appear on the Dashboard as unclassified income into the previous wallet, but do not count as Funding **Received**. When every blank line is from the same funder, the preview lets you **apply one funding source** (and optional commitment) to all of them without editing the file.

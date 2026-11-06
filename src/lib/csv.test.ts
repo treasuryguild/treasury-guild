@@ -43,9 +43,17 @@ describe("cell parsers", () => {
     expect(parseCsvDate("15.09.26")).toBe("2026-09-15");
     expect(parseCsvDate("2021-07-01")).toBe("2021-07-01");
     expect(parseCsvDate("31.02.2026")).toBeNull();
+    expect(parseCsvDate("15/09/2026")).toBe("2026-09-15");
+    expect(parseCsvDate("15/09/26")).toBe("2026-09-15");
+    expect(parseCsvDate("09/15/2026")).toBe("2026-09-15");
+    expect(parseCsvDate("09/15/26")).toBe("2026-09-15");
+    expect(parseCsvDate("03/09/2026")).toBeNull();
+    expect(parseCsvDate("15/13/2026")).toBeNull();
+    expect(parseCsvDate("13/32/2026")).toBeNull();
     expect(parseCsvMonth("2021-07")).toBe("2021-07");
     expect(parseCsvMonth("2021-07-01")).toBe("2021-07");
     expect(parseCsvMonth("01.08.2021")).toBe("2021-08");
+    expect(parseCsvMonth("15/09/2026")).toBe("2026-09");
     expect(parseCsvMonth("2021-13")).toBeNull();
   });
 
