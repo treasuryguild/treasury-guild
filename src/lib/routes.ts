@@ -33,7 +33,11 @@ export const routes = {
     opts?.draftId
       ? `/c/${slug}/treasury/new?draftId=${encodeURIComponent(opts.draftId)}`
       : `/c/${slug}/treasury/new`,
-  importTreasury: (slug: string) => `/c/${slug}/treasury/import`,
+  /** `draftId` opens Import treasury with that open import invite already continued. */
+  importTreasury: (slug: string, opts?: { draftId?: string }) =>
+    opts?.draftId
+      ? `/c/${slug}/treasury/import?draftId=${encodeURIComponent(opts.draftId)}`
+      : `/c/${slug}/treasury/import`,
   /** Payment history imported from a previous wallet's CSV (admins). */
   paymentHistory: (slug: string) => `/c/${slug}/treasury/history`,
   /** Pool staking for a plain SDK treasury. */
@@ -54,6 +58,8 @@ export const routes = {
   invite: (token: string) => `/invite/${token}`,
   /** SDK treasury: a listed signer connects so their stake and DRep keys can be read. */
   treasurySignerInvite: (token: string) => `/invite/signer/${token}`,
+  /** Import treasury: a script signer connects so their payment key can claim a slot. */
+  treasuryImportInvite: (token: string) => `/invite/import/${token}`,
   mint: (slug: string) => `/c/${slug}/mint`,
   reconcile: (slug: string) => `/c/${slug}/reconcile`,
   /** Outside funders, what they committed and what arrived. */
@@ -198,6 +204,7 @@ const PAGE_LABELS: readonly [test: (p: string) => boolean, label: string][] = [
   [(p) => p === "/welcome", "Welcome"],
   [(p) => p.startsWith("/oauth/consent"), "Connect an AI assistant"],
   [(p) => p.startsWith("/invite/signer/"), "SDK signer invite"],
+  [(p) => p.startsWith("/invite/import/"), "Import signer invite"],
   [(p) => p.startsWith("/invite/"), "Join community"],
   [(p) => p === "/dev", "Developer tools"],
   // Before the `includes` rows: /docs/treasury must not read as "Treasury".

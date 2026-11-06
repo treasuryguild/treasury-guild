@@ -8,7 +8,7 @@ import { useAsyncData, type AsyncData } from "./useAsyncData";
 
 export type FundingData = FundingOverview;
 
-export function useFunding(communityId: string | null | undefined, _treasuryIds: readonly string[]): AsyncData<FundingData> {
+export function useFunding(communityId: string | null | undefined): AsyncData<FundingData> {
   return useAsyncData(communityId ?? null, () =>
     apiFetch<FundingData>("/api/funding/overview", { query: { communityId: communityId! } }));
 }

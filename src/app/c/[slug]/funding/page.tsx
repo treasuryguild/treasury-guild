@@ -36,8 +36,7 @@ export default function FundingPage({ params }: { params: Promise<{ slug: string
   const { slug } = use(params);
   const { community, isAdmin, blocked } = useCommunityGate(slug);
   const treasuries = useTreasuries(community?.id);
-  const treasuryIds = useMemo(() => (treasuries.data ?? []).map((t) => t.id), [treasuries.data]);
-  const funding = useFunding(community?.id, treasuryIds);
+  const funding = useFunding(community?.id);
   const conversions = useCommunityConversions(community?.id);
   const registry = useAssetRegistry(community?.id);
   const wallets = useWalletAssetsMany(isAdmin ? (treasuries.data ?? []).map((t) => t.address) : []);

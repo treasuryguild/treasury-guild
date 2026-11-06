@@ -1,4 +1,3 @@
-import { getSession } from "@/lib/auth/session";
 import { loadOnChainTxPageData } from "@/lib/db/onChainTxPage";
 import { PageMessage } from "@/components/ui";
 import { OnChainTxPanel } from "@/components/tx/OnChainTxPanel";
@@ -9,8 +8,7 @@ export default async function OnChainTxPage({
   params: Promise<{ slug: string; txHash: string }>;
 }) {
   const { slug, txHash } = await params;
-  const session = await getSession();
-  const data = await loadOnChainTxPageData(slug, txHash, session?.wallet ?? null);
+  const data = await loadOnChainTxPageData(slug, txHash);
   if (!data) {
     return (
       <PageMessage>

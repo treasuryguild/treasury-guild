@@ -20,6 +20,10 @@ export const MAX_ACTIVE_INVITES_PER_COMMUNITY = 20;
 export const SIGNER_DRAFT_DAYS = 7;
 export const SIGNER_DRAFT_TTL_MS = SIGNER_DRAFT_DAYS * 24 * 60 * 60 * 1000;
 
+/** How long a CBOR / CIP-0146 import invite stays open for signers to claim. */
+export const IMPORT_DRAFT_DAYS = SIGNER_DRAFT_DAYS;
+export const IMPORT_DRAFT_TTL_MS = SIGNER_DRAFT_TTL_MS;
+
 export function inviteExpiresAt(
   expiresInDays: InviteExpiryDays | null,
   now = Date.now(),

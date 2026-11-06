@@ -16,6 +16,7 @@ import { cosignReadyTransactions, type CosignSweepResult } from "@/lib/cosigner/
 import { purgeExpiredNonces } from "@/lib/db/auth";
 import { purgeAgentImportPayloads } from "@/lib/db/agentImports";
 import { purgeCommunityInvites } from "@/lib/db/invites";
+import { purgeImportDrafts } from "@/lib/db/importDrafts";
 import { purgeSignerDrafts } from "@/lib/db/signerDrafts";
 import { purgeOAuth } from "@/lib/db/oauth";
 import { purgeRateLimits } from "@/lib/db/rateLimit";
@@ -322,6 +323,13 @@ export async function runReconcileSweep(): Promise<ReconcileSweepResult> {
     await purgeSignerDrafts(new Date());
   } catch (err) {
     console.error("signer draft purge failed", err);
+  }
+
+  // CBOR / CIP-0146 import invites whose signers did not all claim in time.
+  try {
+    await purgeImportDrafts(new Date());
+  } catch (err) {
+    console.error("import draft purge failed", err);
   }
 
   // Expired OAuth codes and refresh tokens, and AI-client registrations nobody
