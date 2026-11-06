@@ -108,6 +108,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0094_legacy_history_row_cap.sql
 \ir ../migrations/0095_legacy_receipts.sql
 \ir ../migrations/0096_verified_legacy_import.sql
+\ir ../migrations/0097_legacy_import_stage_guards.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
