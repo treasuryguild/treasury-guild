@@ -768,7 +768,8 @@ export interface ElectoratePreviewResponse {
 export interface LegacyWalletSummary {
   id: string;
   name: string;
-  address: string | null;
+  address: string;
+  scriptHash?: string | null;
   createdAt: string;
   rowCount: number;
   firstPaidOn: string | null;
@@ -801,9 +802,13 @@ export interface LegacyHistoryPreview extends LegacyImportPlan {
 /** POST /api/legacy-history/import */
 export interface LegacyHistoryImportResponse {
   importId: string;
-  inserted: number;
-  skipped: number;
-  replaced: boolean;
+  state?: "pending_signatures" | "active";
+  planHash?: string;
+  signatures?: number;
+  required?: number;
+  inserted?: number;
+  skipped?: number;
+  replaced?: boolean;
 }
 export interface LegacyPaymentView {
   id: string;
@@ -1500,7 +1505,11 @@ export interface V1LegacyHistoryImportResponse {
   created: boolean;
   importId: string;
   legacyWalletId: string;
-  inserted: number;
+  state: "pending_signatures" | "active";
+  planHash?: string;
+  signatures?: number;
+  required?: number;
+  inserted?: number;
   skipped: number;
   url: string;
 }

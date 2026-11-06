@@ -1,17 +1,14 @@
 // Import an uploaded payment-history CSV. The file is parsed and planned
-// again here (the browser's preview is never trusted) and written in one
-// transaction by import_legacy_history, which skips lines this wallet already
-// holds unless the admin asked to include them. With replaceImportId the old
-// batch is swapped for this file atomically.
+// again here (the browser's preview is never trusted), staged pending
+// ownership signatures, then optionally attested in the same request.
 import { parseJson, sessionRoute } from "@/lib/api/route";
 import { legacyUploadSchema } from "@/lib/api/schemas";
 import type { LegacyHistoryImportResponse } from "@/lib/api/types";
-import { importLegacyHistory } from "@/lib/db/legacyHistory";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
 import { requireLegacyImportAdmin, requireLegacyWalletAdmin } from "@/lib/legacyHistory/access";
-import { legacyRpcRows } from "@/lib/legacyHistory/plan";
 import { planLegacyUpload } from "@/lib/legacyHistory/run";
+import { stagePaymentUpload } from "@/lib/legacyHistory/stageUpload";
 
 export const POST = sessionRoute(async (req, { session }) => {
   const body = await parseJson(req, legacyUploadSchema);
@@ -39,13 +36,14 @@ export const POST = sessionRoute(async (req, { session }) => {
         : "Nothing new to import: every line is already here.",
     );
   }
-  const result = await importLegacyHistory({
-    walletId: wallet.id,
+  const result = await stagePaymentUpload({
+    wallet,
     fileName: body.fileName.trim(),
     actor: session.wallet,
-    rows: legacyRpcRows(plan, body.includeDuplicates),
-    replaceImportId: body.replaceImportId ?? null,
+    plan,
     includeDuplicates: body.includeDuplicates,
+    replaceImportId: body.replaceImportId ?? null,
+    signature: body.signature,
   });
   return { ...result } satisfies LegacyHistoryImportResponse;
 });

@@ -882,16 +882,15 @@ describe("chain import schemas", () => {
 describe("previous-wallet history schemas", () => {
   const walletId = "80000000-0000-4000-8000-000000000001";
 
-  it("takes a previous wallet's name and, optionally, a Shelley address", () => {
-    expect(createLegacyWalletSchema.parse({ communityId: COMMUNITY, name: " Old wallet " })).toEqual({ communityId: COMMUNITY, name: "Old wallet" });
-    expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "Old wallet", address: ADDR }).success).toBe(true);
-    expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "Old wallet", address: null }).success).toBe(true);
+  it("takes a previous wallet's name and a required Shelley address", () => {
+    expect(createLegacyWalletSchema.parse({ communityId: COMMUNITY, name: " Old wallet ", address: ADDR }))
+      .toEqual({ communityId: COMMUNITY, name: "Old wallet", address: ADDR });
+    expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "Old wallet" }).success).toBe(false);
     expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "Old wallet", address: "addr_test1garbage" }).success).toBe(false);
     expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "Old wallet", address: "" }).success).toBe(false);
     expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: "n".repeat(65) }).success).toBe(false);
     expect(createLegacyWalletSchema.safeParse({ communityId: COMMUNITY, name: " " }).success).toBe(false);
     expect(patchLegacyWalletSchema.parse({})).toEqual({});
-    expect(patchLegacyWalletSchema.parse({ address: null })).toEqual({ address: null });
     expect(patchLegacyWalletSchema.safeParse({ name: "" }).success).toBe(false);
   });
 

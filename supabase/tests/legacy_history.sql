@@ -62,6 +62,52 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0048_hide_platform_ids.sql
 \ir ../migrations/0049_task_payable_on_insert.sql
 \ir ../migrations/0050_legacy_history.sql
+\ir ../migrations/0051_budget_backfill.sql
+\ir ../migrations/0052_funding_sources.sql
+\ir ../migrations/0053_mcp_oauth.sql
+\ir ../migrations/0054_purge_oauth_cimd.sql
+\ir ../migrations/0055_governance.sql
+\ir ../migrations/0056_governance_workgroups_tasks.sql
+\ir ../migrations/0057_governance_announcements.sql
+\ir ../migrations/0058_add_signature_result.sql
+\ir ../migrations/0059_anchoring_groundwork.sql
+\ir ../migrations/0060_anchors.sql
+\ir ../migrations/0061_treasury_templates.sql
+\ir ../migrations/0062_atomic_tx_state.sql
+\ir ../migrations/0063_route_hardening.sql
+\ir ../migrations/0064_agent_proposal_drafts.sql
+\ir ../migrations/0065_agent_drafts.sql
+\ir ../migrations/0066_github_multi_install.sql
+\ir ../migrations/0067_github_document_store.sql
+\ir ../migrations/0068_proposal_replaces.sql
+\ir ../migrations/0069_primary_treasury.sql
+\ir ../migrations/0070_anchor_alerts.sql
+\ir ../migrations/0071_governance_discord_channels.sql
+\ir ../migrations/0072_treasury_discord_destinations.sql
+\ir ../migrations/0073_community_invites.sql
+\ir ../migrations/0074_treasury_lifecycle.sql
+\ir ../migrations/0075_sdk_staking_drep.sql
+\ir ../migrations/0076_registration_tx_kind.sql
+\ir ../migrations/0077_treasury_signer_drafts.sql
+\ir ../migrations/0078_reconcile_refund_cap.sql
+\ir ../migrations/0079_future_budget_month.sql
+\ir ../migrations/0080_confirm_pending_on_chain.sql
+\ir ../migrations/0081_assignee_github_user_id.sql
+\ir ../migrations/0082_p2_hardening.sql
+\ir ../migrations/0083_lead_changes.sql
+\ir ../migrations/0084_signed_delete_and_task_claim.sql
+\ir ../migrations/0085_canceled_tx_ttl.sql
+\ir ../migrations/0086_external_tx_activity.sql
+\ir ../migrations/0087_external_tx_cbor.sql
+\ir ../migrations/0088_float_wallets.sql
+\ir ../migrations/0089_incoming_conversions.sql
+\ir ../migrations/0090_float_sync_from.sql
+\ir ../migrations/0091_payday_allocation_rules.sql
+\ir ../migrations/0092_recognition.sql
+\ir ../migrations/0093_agent_csv_imports.sql
+\ir ../migrations/0094_legacy_history_row_cap.sql
+\ir ../migrations/0095_legacy_receipts.sql
+\ir ../migrations/0096_verified_legacy_import.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -86,17 +132,22 @@ insert into workgroups(id, community_id, name, kind) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Governance', 'native'),
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000000', 'Empty', 'native'),
   ('20000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Foreign', 'native');
-insert into legacy_wallets(id, community_id, name, created_by) values
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet', 'admin'),
-  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs', 'other');
+insert into legacy_wallets(id, community_id, name, address, created_by) values
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet',
+   'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2', 'admin'),
+  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs',
+   'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae', 'other');
 
 -- One CSV line as the planner builds it: ADA and AGIX.
 create function pg_temp.line(n int, key text, wg text default '20000000-0000-0000-0000-000000000001') returns jsonb
 language sql as $$
   select jsonb_build_object(
-    'lineNo', n, 'workgroupId', wg, 'workgroupRef', 'governance', 'recipientRef', 'f39ntm',
+    'lineNo', n, 'workgroupId', wg, 'workgroupRef', 'governance',
+    'recipientRef', 'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
     'task', 'Task ' || n, 'paidOn', '2026-09-15', 'budgetMonth', '2026-09-01',
     'dedupeKey', lpad(key, 64, '0'),
+    'txHash', lpad(to_hex(n), 64, 'a'),
+    'outputIndex', 0,
     'amounts', jsonb_build_array(
       jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '80000000'),
       jsonb_build_object('unit', repeat('ab', 28) || '41474958', 'ticker', 'AGIX', 'decimals', 8, 'amount', '48000000000')))
@@ -194,8 +245,10 @@ select pg_temp.reject($q$ select import_legacy_history('30000000-0000-0000-0000-
   jsonb_build_array(pg_temp.line(2, 'g') || '{"recipientRef": "f3bntm"}')) $q$, '23514');
 select pg_temp.reject($q$ insert into legacy_payment_amounts(payment_id, unit, ticker, decimals, amount)
   select id, 'lovelace', 'ADA', 6, 1.5 from legacy_payments limit 1 $q$, '23514');
-select pg_temp.reject($q$ insert into legacy_wallets(community_id, name, created_by)
-  values ('10000000-0000-0000-0000-000000000000', 'OLD WALLET', 'admin') $q$, '23505');
+select pg_temp.reject($q$ insert into legacy_wallets(community_id, name, address, created_by)
+  values ('10000000-0000-0000-0000-000000000000', 'OLD WALLET',
+    'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2',
+    'admin') $q$, '23505');
 
 -- 6. A workgroup with history cannot be deleted until its history is gone.
 select pg_temp.reject($q$ delete from workgroups where id = '20000000-0000-0000-0000-000000000001' $q$, '23514');
@@ -220,12 +273,14 @@ select pg_temp.reject($q$ select * from legacy_payment_amounts $q$, '42501');
 reset role;
 
 -- 8. Deleting a previous wallet removes its imports and lines.
-insert into legacy_imports(id, community_id, legacy_wallet_id, file_name, line_count, created_by) values
-  ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000009', 'f.csv', 1, 'other');
+insert into legacy_imports(id, community_id, legacy_wallet_id, file_name, line_count, created_by, state) values
+  ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000009', 'f.csv', 1, 'other', 'active');
 insert into legacy_payments(import_id, community_id, legacy_wallet_id, workgroup_id, workgroup_ref, recipient_ref,
-  task, paid_on, budget_month, line_no, dedupe_key) values
+  task, paid_on, budget_month, line_no, dedupe_key, tx_hash, output_index) values
   ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000009', '30000000-0000-0000-0000-000000000009',
-   '20000000-0000-0000-0000-000000000009', 'foreign', 'f39ntm', 'T', '2026-09-01', '2026-09-01', 2, repeat('0', 64));
+   '20000000-0000-0000-0000-000000000009', 'foreign',
+   'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae',
+   'T', '2026-09-01', '2026-09-01', 2, repeat('0', 64), repeat('c', 64), 0);
 delete from legacy_wallets where id = '30000000-0000-0000-0000-000000000009';
 do $$ begin
   if exists (select 1 from legacy_imports) or exists (select 1 from legacy_payments) then

@@ -5,7 +5,7 @@ import { normalizeFundingName, readReceiptsCsv } from "./receiptParse";
 describe("readReceiptsCsv", () => {
   it("parses date, token amounts, optional source/commitment/note", () => {
     const parsed = readReceiptsCsv(
-      "date,ADA,source,commitment,note\n15.09.2024,50000,Project Catalyst,Fund 10,Q3\n01.10.2024,1000,,,",
+      `date,ADA,source,commitment,note,txHash,outputIndex\n15.09.2024,50000,Project Catalyst,Fund 10,Q3,${"a".repeat(64)},0\n01.10.2024,1000,,,,${"b".repeat(64)},1`,
       "2026-11-04",
     );
     expect(parsed.issues.filter((i) => i.severity === "error")).toEqual([]);
@@ -28,7 +28,7 @@ describe("readReceiptsCsv", () => {
   });
 
   it("refuses a commitment without a source", () => {
-    const parsed = readReceiptsCsv("date,ADA,commitment\n15.09.2024,1,Fund 10", "2026-11-04");
+    const parsed = readReceiptsCsv(`date,ADA,commitment,txHash,outputIndex\n15.09.2024,1,Fund 10,${"a".repeat(64)},0`, "2026-11-04");
     expect(parsed.rows).toEqual([]);
     expect(parsed.issues.some((i) => i.code === LegacyIssueCode.CommitmentWithoutSource)).toBe(true);
   });

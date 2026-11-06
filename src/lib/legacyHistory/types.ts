@@ -22,7 +22,7 @@ export interface ParsedAmount {
 /** A CSV line that parsed; a line with an error issue is absent. */
 export interface ParsedHistoryRow {
   line: number;
-  /** Lowercased end of the receiver's address (or the whole address). */
+  /** Full Shelley receiver address, lowercased. */
   recipientRef: string;
   task: string;
   /** "YYYY-MM-DD". */
@@ -31,6 +31,9 @@ export interface ParsedHistoryRow {
   workgroupRef: string;
   /** The workgroup cell as written (trimmed), offered as the name to create. */
   workgroupName: string;
+  /** Lowercase hex tx hash. */
+  txHash: string;
+  outputIndex: number;
   amounts: ParsedAmount[];
 }
 
@@ -89,6 +92,8 @@ export interface PlannedRow {
   budgetMonth: string | null;
   workgroupRef: string;
   workgroupId: string | null;
+  txHash: string;
+  outputIndex: number;
   amounts: PlannedAmount[];
   /** sha256 of the canonical row; null until every part resolved. */
   dedupeKey: string | null;
@@ -120,7 +125,7 @@ export interface LegacyImportPlan {
   ready: boolean;
 }
 
-/** One element of import_legacy_history's p_rows. */
+/** One element of stage/activate legacy history p_rows. */
 export interface LegacyRpcRow {
   lineNo: number;
   workgroupId: string;
@@ -130,5 +135,7 @@ export interface LegacyRpcRow {
   paidOn: string;
   budgetMonth: string;
   dedupeKey: string;
+  txHash: string;
+  outputIndex: number;
   amounts: { unit: string; ticker: string; decimals: number; amount: string }[];
 }

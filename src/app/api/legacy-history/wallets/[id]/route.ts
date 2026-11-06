@@ -5,16 +5,26 @@ import { deleteLegacyWalletSchema, patchLegacyWalletSchema } from "@/lib/api/sch
 import type { OkResponse } from "@/lib/api/types";
 import { deleteLegacyWallet, updateLegacyWallet } from "@/lib/db/legacyHistory";
 import { BadRequestError } from "@/lib/errors";
-import { requireLegacyAddressNetwork, requireLegacyWalletAdmin } from "@/lib/legacyHistory/access";
+import {
+  requireLegacyAddressNetwork, requireLegacyWalletAdmin, resolveLegacyWalletScriptFields,
+} from "@/lib/legacyHistory/access";
 
 export const PATCH = sessionRoute<{ id: string }>(async (req, { params, session }) => {
   const body = await parseJson(req, patchLegacyWalletSchema);
   const wallet = await requireLegacyWalletAdmin(params.id, session.wallet);
-  if (body.address) await requireLegacyAddressNetwork(wallet.community_id, body.address);
-  await updateLegacyWallet(wallet.id, {
-    ...(body.name !== undefined && { name: body.name.trim() }),
-    ...(body.address !== undefined && { address: body.address }),
-  });
+  const patch: Parameters<typeof updateLegacyWallet>[1] = {};
+  if (body.name !== undefined) patch.name = body.name.trim();
+  if (body.address !== undefined) {
+    await requireLegacyAddressNetwork(wallet.community_id, body.address);
+    const scriptCbor = body.scriptCbor !== undefined
+      ? body.scriptCbor
+      : body.address === wallet.address ? wallet.script_cbor : null;
+    Object.assign(patch, { address: body.address, ...resolveLegacyWalletScriptFields(body.address, scriptCbor) });
+  } else if (body.scriptCbor !== undefined) {
+    Object.assign(patch, resolveLegacyWalletScriptFields(wallet.address, body.scriptCbor));
+  }
+  if (Object.keys(patch).length === 0) throw new BadRequestError("Nothing to update");
+  await updateLegacyWallet(wallet.id, patch);
   return { ok: true } satisfies OkResponse;
 });
 

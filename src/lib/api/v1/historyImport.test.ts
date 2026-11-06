@@ -18,6 +18,15 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/communities", () => ({ requireCommunityBySlug: mocks.community }));
 vi.mock("@/lib/authz", () => ({ memberRole: mocks.role }));
+vi.mock("@/lib/api/v1/importAdmin", () => ({
+  requireImportAdmin: vi.fn(async (_caller: unknown, slug: string) => {
+    const community = await mocks.community(slug);
+    const role = await mocks.role();
+    if (role !== "admin" && role !== "owner") throw new ForbiddenError("Only a community admin can import payment history or a funding schedule");
+    return community;
+  }),
+}));
+vi.mock("@/lib/legacyHistory/access", () => ({ requireLegacyAddressNetwork: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rateLimit }));
 vi.mock("@/lib/db/legacyHistory", () => ({
   loadLegacyWallets: mocks.wallets,
@@ -30,7 +39,11 @@ vi.mock("@/lib/db/agentImports", () => ({
   storeAgentImportPayload: mocks.store,
   loadAgentImportPayload: mocks.loadPayload,
   deleteAgentImportPayload: mocks.deletePayload,
-  importAgentLegacyHistory: mocks.write,
+}));
+const loadByDraft = vi.hoisted(() => vi.fn().mockResolvedValue(null));
+vi.mock("@/lib/legacyHistory/agentConfirm", () => ({
+  stageAgentLegacyHistory: mocks.write,
+  loadLegacyImportByDraft: loadByDraft,
 }));
 
 import { confirmDraft } from "./drafts";
@@ -39,8 +52,11 @@ import { previewPaymentHistory } from "./historyImport";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["imports:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
 const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
-const CSV = "userId,ADA,task,date,workgroup\naddr1qx2fxv2umy,10,Poster,2024-01-15,Design\n";
-const NAME_CSV = "Name,ADA,task,date,workgroup\nAlice,10,Poster,2024-01-15,Design\n";
+const WALLET_ADDR = "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae";
+const PAYEE = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
+const TX = "f".repeat(64);
+const CSV = `userId,ADA,task,date,workgroup,txHash,outputIndex\n${PAYEE},10,Poster,2024-01-15,Design,${TX},0\n`;
+const NAME_CSV = `Name,ADA,task,date,workgroup,txHash,outputIndex\nAlice,10,Poster,2024-01-15,Design,${TX},0\n`;
 const PLAN = {
   tickers: [{ ticker: "ADA", status: "resolved", unit: "lovelace", decimals: 6 }],
   workgroups: [{ name: "Design", status: "resolved", workgroup: { id: "wg-1", name: "Design", archived: false } }],
@@ -88,11 +104,16 @@ beforeEach(() => {
     expires_at: new Date(Date.now() + 60_000).toISOString(),
   }));
   mocks.deletePayload.mockImplementation(async () => { saved = null; });
-  mocks.write.mockResolvedValue({ importId: "i1", legacyWalletId: "w1", inserted: 1, skipped: 0, created: true });
+  loadByDraft.mockResolvedValue(null);
+  mocks.write.mockResolvedValue({
+    importId: "i1", legacyWalletId: "w1", state: "pending_signatures", planHash: "ph", signatures: 0, required: 1, skipped: 0, created: true,
+  });
 });
 
 const preview = (input: Record<string, unknown> = {}) =>
-  callEndpoint(previewPaymentHistory, caller, { community: "signius", csv: CSV, walletName: "Old wallet", ...input });
+  callEndpoint(previewPaymentHistory, caller, {
+    community: "signius", csv: CSV, walletName: "Old wallet", walletAddress: WALLET_ADDR, ...input,
+  });
 const confirm = (draftToken: string) => callEndpoint(confirmDraft, caller, { draftToken });
 
 describe("payment_history_preview", () => {
@@ -133,6 +154,7 @@ describe("legacy_history_import confirm", () => {
       communityId: "c1",
       actor: "addr_w",
       walletName: "Old wallet",
+      walletAddress: WALLET_ADDR,
       skipExisting: true,
     }));
     expect(mocks.write.mock.calls[0]![0].rows).toHaveLength(1);
@@ -151,9 +173,16 @@ describe("legacy_history_import confirm", () => {
   it("reads the import back when the file is already gone", async () => {
     const previewed = await preview() as { draftToken: string };
     await confirm(previewed.draftToken);
-    mocks.write.mockResolvedValue({ importId: "i1", legacyWalletId: "w1", inserted: 1, skipped: 0, created: false });
+    loadByDraft.mockResolvedValue({
+      id: "i1",
+      community_id: "c1",
+      legacy_wallet_id: "w1",
+      state: "pending_signatures",
+      plan_hash: "ph",
+      line_count: 1,
+    });
     const again = await confirm(previewed.draftToken) as { created: boolean };
     expect(again.created).toBe(false);
-    expect(mocks.write.mock.calls.at(-1)![0].rows).toEqual([]);
+    expect(mocks.write).toHaveBeenCalledTimes(1);
   });
 });

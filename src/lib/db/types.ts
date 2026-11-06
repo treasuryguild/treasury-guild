@@ -768,17 +768,20 @@ export interface CallTaskLink {
 
 export const CALL_TASKS_EMBED = "task_id, chunk_index, tasks(number, title, pay_state, paid_tx_hash)";
 
-/** A wallet a community paid from before Treasury Guild (migration 0050). The address is a label, never read. */
+/** A wallet a community paid from before Treasury Guild (migrations 0050 / 0096). */
 export interface LegacyWalletRow {
   id: string;
   community_id: string;
   name: string;
-  address: string | null;
+  address: string;
+  script_cbor: string | null;
+  script_hash: string | null;
   created_by: string;
   created_at: string;
 }
 
-export const LEGACY_WALLET_COLUMNS = "id, community_id, name, address, created_by, created_at";
+export const LEGACY_WALLET_COLUMNS =
+  "id, community_id, name, address, script_cbor, script_hash, created_by, created_at";
 
 /** One uploaded payment-history CSV. */
 export interface LegacyImportRow {
@@ -789,9 +792,13 @@ export interface LegacyImportRow {
   line_count: number;
   created_by: string;
   created_at: string;
+  plan_hash: string | null;
+  state: "pending_signatures" | "active";
+  attested_at: string | null;
 }
 
-export const LEGACY_IMPORT_COLUMNS = "id, community_id, legacy_wallet_id, file_name, line_count, created_by, created_at";
+export const LEGACY_IMPORT_COLUMNS =
+  "id, community_id, legacy_wallet_id, file_name, line_count, created_by, created_at, plan_hash, state, attested_at";
 
 /** One token amount of an imported line; `amount` is selected as text (base units, exact). */
 export interface LegacyAmountRow {
@@ -815,12 +822,14 @@ export interface LegacyPaymentRow {
   paid_on: string;
   budget_month: string;
   line_no: number;
+  tx_hash: string;
+  output_index: number;
 }
 
 export const LEGACY_PAYMENT_COLUMNS =
-  "id, import_id, community_id, legacy_wallet_id, workgroup_id, recipient_ref, task, paid_on, budget_month, line_no";
+  "id, import_id, community_id, legacy_wallet_id, workgroup_id, recipient_ref, task, paid_on, budget_month, line_no, tx_hash, output_index";
 
-/** One uploaded previous-wallet receipts CSV (migration 0095). */
+/** One uploaded previous-wallet receipts CSV (migration 0095 / 0096). */
 export interface LegacyReceiptImportRow {
   id: string;
   community_id: string;
@@ -829,10 +838,13 @@ export interface LegacyReceiptImportRow {
   line_count: number;
   created_by: string;
   created_at: string;
+  plan_hash: string | null;
+  state: "pending_signatures" | "active";
+  attested_at: string | null;
 }
 
 export const LEGACY_RECEIPT_IMPORT_COLUMNS =
-  "id, community_id, legacy_wallet_id, file_name, line_count, created_by, created_at";
+  "id, community_id, legacy_wallet_id, file_name, line_count, created_by, created_at, plan_hash, state, attested_at";
 
 /** One imported receipt line. */
 export interface LegacyReceiptRow {
@@ -845,10 +857,12 @@ export interface LegacyReceiptRow {
   funding_commitment_id: string | null;
   note: string | null;
   line_no: number;
+  tx_hash: string;
+  output_index: number;
 }
 
 export const LEGACY_RECEIPT_COLUMNS =
-  "id, import_id, community_id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, note, line_no";
+  "id, import_id, community_id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, note, line_no, tx_hash, output_index";
 
 /** A planned amount of a funding commitment, in base units (the budget amount shape). */
 export interface FundingAmount {

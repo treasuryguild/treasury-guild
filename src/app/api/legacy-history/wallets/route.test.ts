@@ -9,7 +9,10 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ requireSession: mocks.session }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.admin }));
-vi.mock("@/lib/legacyHistory/access", () => ({ requireLegacyAddressNetwork: mocks.network }));
+vi.mock("@/lib/legacyHistory/access", () => ({
+  requireLegacyAddressNetwork: mocks.network,
+  resolveLegacyWalletScriptFields: vi.fn().mockReturnValue({ script_cbor: null, script_hash: null }),
+}));
 vi.mock("@/lib/db/legacyHistory", () => ({ createLegacyWallet: mocks.create }));
 import { POST } from "./route";
 
@@ -48,24 +51,19 @@ describe("POST /api/legacy-history/wallets", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
-  it("creates a wallet without an address", async () => {
+  it("requires an address", async () => {
     const res = await POST(request({ communityId: COMMUNITY, name: "  Old multisig " }), context);
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ id: "wallet-new" });
-    expect(mocks.network).not.toHaveBeenCalled();
-    expect(mocks.create).toHaveBeenCalledTimes(1);
-    expect(mocks.create).toHaveBeenCalledWith({
-      community_id: COMMUNITY, name: "Old multisig", address: null, created_by: ADMIN,
-    });
+    expect(res.status).toBe(400);
+    expect(mocks.create).not.toHaveBeenCalled();
   });
 
   it("checks an address against the community's network, then stores it", async () => {
     const res = await POST(request({ communityId: COMMUNITY, name: "Old multisig", address: ADDRESS }), context);
     expect(res.status).toBe(200);
     expect(mocks.network).toHaveBeenCalledWith(COMMUNITY, ADDRESS);
-    expect(mocks.create).toHaveBeenCalledWith({
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({
       community_id: COMMUNITY, name: "Old multisig", address: ADDRESS, created_by: ADMIN,
-    });
+    }));
   });
 
   it("refuses an address of the other network", async () => {
@@ -78,7 +76,7 @@ describe("POST /api/legacy-history/wallets", () => {
 
   it("maps a taken name to 409", async () => {
     mocks.create.mockRejectedValue(new ConflictError("This community already has a previous wallet with that name"));
-    const res = await POST(request({ communityId: COMMUNITY, name: "Old multisig" }), context);
+    const res = await POST(request({ communityId: COMMUNITY, name: "Old multisig", address: ADDRESS }), context);
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "This community already has a previous wallet with that name", conflict: true });
   });

@@ -25,6 +25,10 @@ export function receiptIssueText(issue: LegacyIssue): string {
       return `The file has ${value} token columns; at most ${LEGACY_MAX_TICKERS} are allowed.`;
     case Code.TooManyRows:
       return `The file has ${value} rows; at most ${LEGACY_MAX_ROWS} can be imported at once. Split it into several files.`;
+    case Code.ChainDateMismatch:
+      return value
+        ? `The CSV date ${value} does not match the transaction's on-chain day (UTC).`
+        : "The CSV date does not match the transaction's on-chain day (UTC).";
     default:
       return legacyIssueText(issue);
   }

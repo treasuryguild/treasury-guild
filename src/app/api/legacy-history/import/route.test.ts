@@ -18,7 +18,7 @@ vi.mock("@/lib/legacyHistory/access", () => ({
 }));
 vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rate }));
 vi.mock("@/lib/legacyHistory/run", () => ({ planLegacyUpload: mocks.plan }));
-vi.mock("@/lib/db/legacyHistory", () => ({ importLegacyHistory: mocks.rpc }));
+vi.mock("@/lib/legacyHistory/stageUpload", () => ({ stagePaymentUpload: mocks.rpc }));
 import { POST } from "./route";
 
 const ADMIN = "addr_test1admin";
@@ -42,7 +42,9 @@ const upload = (extra: object = {}) => ({
 
 const ROW: PlannedRow = {
   line: 2,
-  recipientRef: "f39ntm",
+  recipientRef: "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae",
+  txHash: "a".repeat(64),
+  outputIndex: 0,
   task: "Docs",
   paidOn: "2026-09-15",
   budgetMonth: "2026-09-01",
@@ -66,10 +68,13 @@ const READY: LegacyImportPlan = {
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.session.mockResolvedValue({ wallet: ADMIN });
-  mocks.wallet.mockResolvedValue({ id: WALLET_ID, community_id: COMMUNITY, name: "Old" });
+  mocks.wallet.mockResolvedValue({
+    id: WALLET_ID, community_id: COMMUNITY, name: "Old",
+    address: "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5",
+  });
   mocks.importRow.mockResolvedValue({ id: IMPORT_ID, legacy_wallet_id: WALLET_ID, community_id: COMMUNITY });
   mocks.plan.mockResolvedValue(READY);
-  mocks.rpc.mockResolvedValue({ importId: IMPORT_ID, inserted: 1, skipped: 0, replaced: false });
+  mocks.rpc.mockResolvedValue({ importId: IMPORT_ID, state: "pending_signatures", planHash: "d".repeat(64), signatures: 0, required: 1, skipped: 0, replaced: false });
 });
 
 describe("POST /api/legacy-history/import", () => {
@@ -88,17 +93,18 @@ describe("POST /api/legacy-history/import", () => {
       communityId: COMMUNITY, walletId: WALLET_ID, replaceImportId: null, includeDuplicates: false,
     }));
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    const args = mocks.rpc.mock.calls[0]![0];
-    expect(args.rows.map((r: { lineNo: number }) => r.lineNo)).toEqual([2]);
-    expect(args).toMatchObject({ walletId: WALLET_ID, actor: ADMIN, fileName: "history.csv", includeDuplicates: false });
+    expect(mocks.rpc.mock.calls[0]![0]).toMatchObject({
+      wallet: expect.objectContaining({ id: WALLET_ID }),
+      actor: ADMIN,
+      fileName: "history.csv",
+      includeDuplicates: false,
+    });
     expect(mocks.rate).toHaveBeenCalledWith("legacyHistory", ADMIN);
   });
 
   it("includes duplicates only when asked", async () => {
     await POST(request(upload({ includeDuplicates: true })), context);
-    const args = mocks.rpc.mock.calls[0]![0];
-    expect(args.rows.map((r: { lineNo: number }) => r.lineNo)).toEqual([2, 3]);
-    expect(args.includeDuplicates).toBe(true);
+    expect(mocks.rpc.mock.calls[0]![0].includeDuplicates).toBe(true);
   });
 
   it("refuses a plan that is not ready", async () => {

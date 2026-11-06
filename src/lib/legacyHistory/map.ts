@@ -17,6 +17,8 @@ export interface HistoryColumnMap {
   task: number | null;
   date: number | null;
   workgroup: number | null;
+  txHash: number | null;
+  outputIndex: number | null;
   amounts: HistoryAmountColumn[];
   skip: number[];
 }
@@ -35,7 +37,7 @@ export interface HistoryMapResult {
   suggested: HistoryColumnMap;
 }
 
-const ROLES = ["recipient", "task", "date", "workgroup"] as const;
+const ROLES = ["recipient", "task", "date", "workgroup", "txHash", "outputIndex"] as const;
 type Role = (typeof ROLES)[number];
 
 const ROLE_HEADERS: Record<Role, readonly string[]> = {
@@ -43,6 +45,8 @@ const ROLE_HEADERS: Record<Role, readonly string[]> = {
   task: ["task", "description", "title", "what", "item"],
   date: ["date", "paid", "paidon", "paymentdate", "paiddate"],
   workgroup: ["workgroup", "group", "team"],
+  txHash: ["txhash", "transactionhash", "txid", "hash"],
+  outputIndex: ["outputindex", "output", "vout", "index"],
 };
 
 /** Headers that are people's names. Never treated as an address column or a ticker. */
@@ -53,6 +57,8 @@ const ROLE_LABEL: Record<Role, string> = {
   task: "task",
   date: "date",
   workgroup: "workgroup",
+  txHash: "transaction hash (64 hex characters)",
+  outputIndex: "output index",
 };
 
 function headerKey(cell: string): string {
@@ -141,7 +147,9 @@ function addressByContents(table: Table, taken: ReadonlySet<number>): number | n
 
 function suggest(table: Table): { map: HistoryColumnMap; questions: HistoryQuestion[] } {
   const questions: HistoryQuestion[] = [];
-  const buckets: Record<Role, number[]> = { recipient: [], task: [], date: [], workgroup: [] };
+  const buckets: Record<Role, number[]> = {
+    recipient: [], task: [], date: [], workgroup: [], txHash: [], outputIndex: [],
+  };
   const names: number[] = [];
   const amounts: HistoryAmountColumn[] = [];
   const other: number[] = [];
@@ -167,7 +175,9 @@ function suggest(table: Table): { map: HistoryColumnMap; questions: HistoryQuest
     if (filled || !unnamed) other.push(index);
   });
 
-  const map: HistoryColumnMap = { recipient: null, task: null, date: null, workgroup: null, amounts, skip: [] };
+  const map: HistoryColumnMap = {
+    recipient: null, task: null, date: null, workgroup: null, txHash: null, outputIndex: null, amounts, skip: [],
+  };
   for (const role of ROLES) {
     const hits = buckets[role];
     if (hits.length === 1) map[role] = hits[0]!;
@@ -179,7 +189,7 @@ function suggest(table: Table): { map: HistoryColumnMap; questions: HistoryQuest
     }
   }
   const taken = new Set<number>([
-    ...[map.recipient, map.task, map.date, map.workgroup].filter((i): i is number => i !== null),
+    ...[map.recipient, map.task, map.date, map.workgroup, map.txHash, map.outputIndex].filter((i): i is number => i !== null),
     ...amounts.map((a) => a.index),
   ]);
   if (map.date === null) {
@@ -278,7 +288,7 @@ function canonicalCsv(table: Table, map: HistoryColumnMap): string | null {
   const recipient = map.recipient!;
   const bad = badRecipients(table, recipient);
   if (bad.length > 0) return null;
-  const header = ["userId", ...map.amounts.map((a) => a.ticker), "task", "date", "workgroup"];
+  const header = ["userId", ...map.amounts.map((a) => a.ticker), "task", "date", "workgroup", "txHash", "outputIndex"];
   const lines = table.rows.map((row) => {
     const cells = [
       row.cells[recipient] ?? "",
@@ -286,6 +296,8 @@ function canonicalCsv(table: Table, map: HistoryColumnMap): string | null {
       row.cells[map.task!] ?? "",
       row.cells[map.date!] ?? "",
       row.cells[map.workgroup!] ?? "",
+      row.cells[map.txHash!] ?? "",
+      row.cells[map.outputIndex!] ?? "",
     ];
     return cells.map(quoteField).join(",");
   });
@@ -300,7 +312,9 @@ function canonicalCsv(table: Table, map: HistoryColumnMap): string | null {
 export function applyHistoryColumnMap(text: string, map: HistoryColumnMap | null): HistoryMapResult {
   const table = readTable(text);
   if (table.questions.length > 0) {
-    const empty: HistoryColumnMap = { recipient: null, task: null, date: null, workgroup: null, amounts: [], skip: [] };
+    const empty: HistoryColumnMap = {
+      recipient: null, task: null, date: null, workgroup: null, txHash: null, outputIndex: null, amounts: [], skip: [],
+    };
     return { headers: table.headers, csv: null, questions: table.questions, suggested: map ?? empty };
   }
   if (map === null) {

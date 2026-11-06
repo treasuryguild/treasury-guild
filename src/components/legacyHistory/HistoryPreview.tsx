@@ -5,7 +5,9 @@
 // Nothing is written until "Import".
 import type { LegacyWorkgroupBody } from "@/lib/api/schemas";
 import type { LegacyHistoryPreview } from "@/lib/api/types";
-import { formatUnits, plural } from "@/lib/format";
+import type { Network } from "@/lib/config";
+import { explorerTxUrl } from "@/lib/config";
+import { formatUnits, plural, shortAddress } from "@/lib/format";
 import { formatDay } from "@/lib/legacyHistory/display";
 import { legacyIssueText } from "@/lib/legacyHistory/issueText";
 import type { LegacyIssue, PlannedRow } from "@/lib/legacyHistory/types";
@@ -22,6 +24,7 @@ function statusBadge(row: PlannedRow) {
 
 export function HistoryPreview({
   preview,
+  network,
   workgroups,
   includeDuplicates,
   busy,
@@ -34,6 +37,7 @@ export function HistoryPreview({
   onImport,
 }: {
   preview: LegacyHistoryPreview;
+  network: Network;
   workgroups: WorkgroupSummary[];
   includeDuplicates: boolean;
   busy: boolean;
@@ -103,6 +107,7 @@ export function HistoryPreview({
               <tr>
                 <th className="px-3 py-2">Line</th>
                 <th className="px-3 py-2">Recipient</th>
+                <th className="px-3 py-2">Tx</th>
                 <th className="px-3 py-2">Task</th>
                 <th className="px-3 py-2">Date</th>
                 <th className="px-3 py-2">Workgroup</th>
@@ -114,7 +119,13 @@ export function HistoryPreview({
               {preview.rows.map((row) => (
                 <tr key={row.line} className="align-top">
                   <td className="px-3 py-2 text-zinc-500">{row.line}</td>
-                  <td className="px-3 py-2 font-mono text-xs">…{row.recipientRef.slice(-6)}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{shortAddress(row.recipientRef)}</td>
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-xs">
+                    <a href={explorerTxUrl(network, row.txHash)} target="_blank" rel="noreferrer"
+                      className="text-sky-400 hover:underline">
+                      …{row.txHash.slice(-8)}:{row.outputIndex}
+                    </a>
+                  </td>
                   <td className="px-3 py-2">
                     <p className="max-w-xs break-words">{row.task}</p>
                     {(lineIssues.get(row.line) ?? []).map((issue, i) => (

@@ -13,6 +13,8 @@ export interface ParsedReceiptRow {
   commitmentRef: string;
   commitmentName: string;
   note: string | null;
+  txHash: string;
+  outputIndex: number;
   amounts: { ticker: string; raw: string }[];
 }
 
@@ -57,6 +59,8 @@ export interface PlannedReceiptRow {
   commitmentRef: string;
   commitmentId: string | null;
   note: string | null;
+  txHash: string;
+  outputIndex: number;
   amounts: PlannedAmount[];
   dedupeKey: string | null;
   status: PlannedReceiptStatus;
@@ -80,7 +84,7 @@ export interface LegacyReceiptImportPlan {
   ready: boolean;
 }
 
-/** One element of import_legacy_receipts' p_rows. */
+/** One element of stage/activate legacy receipts p_rows. */
 export interface LegacyReceiptRpcRow {
   lineNo: number;
   receivedOn: string;
@@ -88,6 +92,8 @@ export interface LegacyReceiptRpcRow {
   fundingCommitmentId: string | null;
   note: string | null;
   dedupeKey: string;
+  txHash: string;
+  outputIndex: number;
   amounts: { unit: string; ticker: string; decimals: number; amount: string }[];
 }
 

@@ -107,6 +107,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0093_agent_csv_imports.sql
 \ir ../migrations/0094_legacy_history_row_cap.sql
 \ir ../migrations/0095_legacy_receipts.sql
+\ir ../migrations/0096_verified_legacy_import.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -127,9 +128,11 @@ insert into community_members(community_id, wallet_address, role) values
   ('10000000-0000-0000-0000-000000000000', 'admin', 'owner'),
   ('10000000-0000-0000-0000-000000000000', 'member', 'member'),
   ('10000000-0000-0000-0000-000000000009', 'other', 'owner');
-insert into legacy_wallets(id, community_id, name, created_by) values
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet', 'admin'),
-  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs', 'other');
+insert into legacy_wallets(id, community_id, name, address, created_by) values
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Old wallet',
+   'addr_test1qp86rhgehcs4k99rpu48879jncjmeytlhv4nxfd3sw2def6xxu4ylafkwgp2ad5l74sa3s75ttr3enxg2ps2qtrpanyswgshl2', 'admin'),
+  ('30000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Theirs',
+   'addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae', 'other');
 insert into funding_sources(id, community_id, name, created_by) values
   ('40000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000000', 'Catalyst', 'admin'),
   ('40000000-0000-0000-0000-000000000009', '10000000-0000-0000-0000-000000000009', 'Foreign', 'other');
@@ -148,6 +151,8 @@ create function pg_temp.line(
     'lineNo', n, 'receivedOn', '2024-09-15',
     'fundingSourceId', src, 'fundingCommitmentId', cmt,
     'note', 'Allocation ' || n, 'dedupeKey', lpad(key, 64, '0'),
+    'txHash', lpad(to_hex(n), 64, 'b'),
+    'outputIndex', 0,
     'amounts', jsonb_build_array(
       jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '50000000000')))
 $$;
@@ -162,6 +167,7 @@ begin
       pg_temp.line(3, 'b'),
       jsonb_build_object(
         'lineNo', 4, 'receivedOn', '2024-10-01', 'dedupeKey', lpad('d', 64, '0'),
+        'txHash', lpad('d', 64, 'd'), 'outputIndex', 0,
         'amounts', jsonb_build_array(
           jsonb_build_object('unit', 'lovelace', 'ticker', 'ADA', 'decimals', 6, 'amount', '1000000')))));
   if (r->>'inserted')::int <> 3 or (r->>'skipped')::int <> 0 or (r->>'replaced')::boolean then

@@ -9,8 +9,10 @@ import type {
   LegacyHistoryImportResponse, LegacyHistoryPreview, LegacyImportSummary, LegacyReceiptImportSummary,
   LegacyReceiptPreview, LegacyWorkgroupResponse,
 } from "@/lib/api/types";
+import { asNetwork } from "@/lib/config";
 import { plural } from "@/lib/format";
 import { routes } from "@/lib/routes";
+import type { LegacyAttestKind } from "@/lib/legacyHistory/attestation";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useLegacyHistory } from "@/hooks/useLegacyHistory";
@@ -18,6 +20,7 @@ import { useWorkgroups } from "@/hooks/useWorkgroups";
 import { HistoryImportList } from "@/components/legacyHistory/HistoryImportList";
 import { HistoryPreview } from "@/components/legacyHistory/HistoryPreview";
 import { HistoryUpload } from "@/components/legacyHistory/HistoryUpload";
+import { LegacyPendingAttest } from "@/components/legacyHistory/LegacyPendingAttest";
 import { LegacyWalletPanel } from "@/components/legacyHistory/LegacyWalletPanel";
 import { ReceiptImportList } from "@/components/legacyHistory/ReceiptImportList";
 import { ReceiptPreview } from "@/components/legacyHistory/ReceiptPreview";
@@ -56,6 +59,13 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
   const [preview, setPreview] = useState<LegacyHistoryPreview | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<LegacyReceiptPreview | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pendingAttest, setPendingAttest] = useState<{
+    kind: LegacyAttestKind;
+    importId: string;
+    planHash: string;
+    signatures: number;
+    required: number;
+  } | null>(null);
   const review = useAsyncAction("Failed to read the file");
   const save = useAsyncAction("Failed to import the file");
   const mapping = useAsyncAction("Failed to save the workgroup");
@@ -65,6 +75,8 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
 
   const wallets = overview.data?.wallets ?? [];
   const walletId = wallets.some((w) => w.id === chosenWallet) ? chosenWallet : wallets[0]?.id ?? null;
+  const selectedWallet = wallets.find((w) => w.id === walletId) ?? null;
+  const network = community ? asNetwork(community.network) : asNetwork(0);
   const imports = (overview.data?.imports ?? []).filter((i) => i.legacyWalletId === walletId);
   const receiptImports = (overview.data?.receiptImports ?? []).filter((i) => i.legacyWalletId === walletId);
 
@@ -103,6 +115,7 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
     setReceiptPreview(null);
     setReplacing(null);
     setReplacingReceipt(null);
+    setPendingAttest(null);
     review.setError(null);
     save.setError(null);
   }
@@ -112,6 +125,7 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
     setTrack(next);
     reset();
     setNotice(null);
+    setPendingAttest(null);
   }
 
   async function runPaymentPreview(state: PaymentUpload, replace = replacing) {
@@ -149,9 +163,21 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
       body: paymentBody(upload, replacing),
     }));
     if (!result) return;
+    if (result.state === "pending_signatures" && result.planHash) {
+      reset();
+      setPendingAttest({
+        kind: "payments",
+        importId: result.importId,
+        planHash: result.planHash,
+        signatures: result.signatures ?? 0,
+        required: result.required ?? 1,
+      });
+      setNotice("Import staged. Sign with the previous wallet to activate it.");
+      return;
+    }
     reset();
     setNotice(
-      `Imported ${plural(result.inserted, "line")}${result.skipped > 0 ? `; ${plural(result.skipped, "line")} already here ${result.skipped === 1 ? "was" : "were"} skipped` : ""}.`,
+      `Imported ${plural(result.inserted ?? 0, "line")}${(result.skipped ?? 0) > 0 ? `; ${plural(result.skipped!, "line")} already here ${result.skipped === 1 ? "was" : "were"} skipped` : ""}.`,
     );
     overview.reload();
   }
@@ -162,10 +188,28 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
       body: receiptBody(receiptUpload, replacingReceipt),
     }));
     if (!result) return;
+    if (result.state === "pending_signatures" && result.planHash) {
+      reset();
+      setPendingAttest({
+        kind: "receipts",
+        importId: result.importId,
+        planHash: result.planHash,
+        signatures: result.signatures ?? 0,
+        required: result.required ?? 1,
+      });
+      setNotice("Import staged. Sign with the previous wallet to activate it.");
+      return;
+    }
     reset();
     setNotice(
-      `Imported ${plural(result.inserted, "receipt")}${result.skipped > 0 ? `; ${plural(result.skipped, "line")} already here ${result.skipped === 1 ? "was" : "were"} skipped` : ""}.`,
+      `Imported ${plural(result.inserted ?? 0, "receipt")}${(result.skipped ?? 0) > 0 ? `; ${plural(result.skipped!, "line")} already here ${result.skipped === 1 ? "was" : "were"} skipped` : ""}.`,
     );
+    overview.reload();
+  }
+
+  function attestDone() {
+    setPendingAttest(null);
+    setNotice("Import activated.");
     overview.reload();
   }
 
@@ -175,9 +219,9 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
         Previous wallet history
       </PageTitle>
       <p className="-mt-2 text-sm text-zinc-400">
-        Moved here from another wallet? Import its payments and the receipts that funded them from CSVs so the
-        Dashboard and Funding page show the full picture. Treasury Guild never reads the old wallet: the files are
-        taken as they are, so check them before importing. You can delete or replace an import at any time.
+        Moved here from another wallet? Import its payments and receipts from CSVs that name each line&apos;s
+        transaction hash, output index and full recipient address. The app verifies those rows against the chain,
+        then a signer of the previous wallet must approve the import before it counts on the Dashboard.
       </p>
       <ErrorText error={overview.error} />
 
@@ -232,6 +276,7 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
           {preview && upload && (
             <HistoryPreview
               preview={preview}
+              network={network}
               workgroups={workgroups.data ?? []}
               includeDuplicates={upload.includeDuplicates}
               busy={busy}
@@ -272,6 +317,7 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
           {receiptPreview && receiptUpload && (
             <ReceiptPreview
               preview={receiptPreview}
+              network={network}
               includeDuplicates={receiptUpload.includeDuplicates}
               busy={busy}
               importing={save.busy}
@@ -296,6 +342,20 @@ export default function PaymentHistoryPage({ params }: { params: Promise<{ slug:
         </Card>
       )}
       <NoticeText>{notice}</NoticeText>
+      {community && selectedWallet && pendingAttest && (
+        <LegacyPendingAttest
+          communityId={community.id}
+          communitySlug={slug}
+          legacyWalletId={selectedWallet.id}
+          walletAddress={selectedWallet.address}
+          importId={pendingAttest.importId}
+          planHash={pendingAttest.planHash}
+          kind={pendingAttest.kind}
+          signatures={pendingAttest.signatures}
+          required={pendingAttest.required}
+          onDone={attestDone}
+        />
+      )}
 
       {community && walletId && track === "payments" && (
         <HistoryImportList

@@ -256,11 +256,26 @@ export const LegacyIssueCode = {
   /** Receipt CSV: commitment given without a source. */
   CommitmentWithoutSource: "commitment_without_source",
   NoteTooLong: "note_too_long",
+  MissingTxHash: "missing_tx_hash",
+  BadTxHash: "bad_tx_hash",
+  MissingOutputIndex: "missing_output_index",
+  BadOutputIndex: "bad_output_index",
+  TxNotFound: "tx_not_found",
+  WalletNotInput: "wallet_not_input",
+  OutputNotFound: "output_not_found",
+  RecipientMismatch: "recipient_mismatch",
+  AmountExceedsOutput: "amount_exceeds_output",
+  TooManyDistinctTx: "too_many_distinct_tx",
+  FullAddressRequired: "full_address_required",
+  ChainDateMismatch: "chain_date_mismatch",
+  ScriptCborRequired: "script_cbor_required",
+  ScriptMismatch: "script_mismatch",
 } as const;
 export type LegacyIssueCode = (typeof LegacyIssueCode)[keyof typeof LegacyIssueCode];
 
 /** Limits of one payment-history or receipt upload. */
 export const LEGACY_MAX_ROWS = 20_000;
+export const LEGACY_MAX_DISTINCT_TX = 500;
 export const LEGACY_MAX_TICKERS = 20;
 export const LEGACY_MAX_TASK_CHARS = 500;
 export const LEGACY_MAX_NOTE_CHARS = 500;

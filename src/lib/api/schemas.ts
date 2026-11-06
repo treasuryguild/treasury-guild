@@ -858,11 +858,13 @@ const legacyWalletAddress = walletAddress.refine((a) => /^addr(_test)?1/.test(a)
 export const createLegacyWalletSchema = z.object({
   communityId: id,
   name: legacyWalletName,
-  address: legacyWalletAddress.nullable().optional(),
+  address: legacyWalletAddress,
+  scriptCbor: z.string().max(32768).optional(),
 });
 export const patchLegacyWalletSchema = z.object({
   name: legacyWalletName.optional(),
-  address: legacyWalletAddress.nullable().optional(),
+  address: legacyWalletAddress.optional(),
+  scriptCbor: z.string().max(32768).nullable().optional(),
 });
 export const deleteLegacyWalletSchema = z.object({ confirmName: z.string().max(64) });
 
@@ -998,6 +1000,13 @@ export const legacyWorkgroupSchema = z
   })
   .refine((v) => v.action !== "map" || !!v.workgroupId, "Choose a workgroup");
 
+const legacyImportSignatureSchema = z.object({
+  key: z.string().max(1000).regex(/^[0-9a-f]+$/i, "must be hex"),
+  signature: z.string().max(4000).regex(/^[0-9a-f]+$/i, "must be hex"),
+  signedAt: z.iso.datetime(),
+  signerAddress: walletAddress,
+});
+
 /** An uploaded CSV to preview or import; the server re-parses it every time. */
 export const legacyUploadSchema = z.object({
   communityId: id,
@@ -1010,6 +1019,17 @@ export const legacyUploadSchema = z.object({
     .default({}),
   replaceImportId: id.nullable().optional(),
   includeDuplicates: z.boolean().default(false),
+  signature: legacyImportSignatureSchema.optional(),
+});
+
+export const legacyAttestSchema = z.object({
+  communityId: id,
+  importId: id,
+  kind: z.enum(["payments", "receipts"]),
+  key: legacyImportSignatureSchema.shape.key,
+  signature: legacyImportSignatureSchema.shape.signature,
+  signedAt: legacyImportSignatureSchema.shape.signedAt,
+  signerAddress: legacyImportSignatureSchema.shape.signerAddress,
 });
 
 /** Receipts upload: maps when a CSV name is ambiguous, plus optional defaults for blank cells. */
@@ -1456,6 +1476,7 @@ export type CreateConversionBody = z.infer<typeof createConversionSchema>;
 export type PatchConversionBody = z.infer<typeof patchConversionSchema>;
 export type LegacyWorkgroupBody = z.infer<typeof legacyWorkgroupSchema>;
 export type LegacyUploadBody = z.input<typeof legacyUploadSchema>;
+export type LegacyAttestBody = z.input<typeof legacyAttestSchema>;
 export type UpsertBudgetsBody = z.infer<typeof upsertBudgetsSchema>;
 export type SaveBudgetSetupBody = z.input<typeof saveBudgetSetupSchema>;
 export type SaveGovernanceSettingsBody = z.infer<typeof saveGovernanceSettingsSchema>;

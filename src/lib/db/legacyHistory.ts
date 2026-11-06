@@ -54,7 +54,9 @@ const NAME_TAKEN = "This community already has a previous wallet with that name"
 export async function createLegacyWallet(row: {
   community_id: string;
   name: string;
-  address: string | null;
+  address: string;
+  script_cbor?: string | null;
+  script_hash?: string | null;
   created_by: string;
 }): Promise<LegacyWalletRow> {
   const res = await serviceClient().from("legacy_wallets").insert(row).select(LEGACY_WALLET_COLUMNS).single();
@@ -62,10 +64,27 @@ export async function createLegacyWallet(row: {
   return must<LegacyWalletRow>(res, "create previous wallet");
 }
 
-export async function updateLegacyWallet(id: string, patch: { name?: string; address?: string | null }): Promise<void> {
+export async function updateLegacyWallet(id: string, patch: {
+  name?: string;
+  address?: string;
+  script_cbor?: string | null;
+  script_hash?: string | null;
+}): Promise<void> {
   const res = await serviceClient().from("legacy_wallets").update(patch).eq("id", id);
   if (res.error?.code === PgCode.UniqueViolation) throw new ConflictError(NAME_TAKEN);
   check(res, "update previous wallet");
+}
+
+async function loadClaimedPaymentOutputs(walletId: string): Promise<Record<string, Record<string, string>>> {
+  return rpc<Record<string, Record<string, string>>>(
+    await serviceClient().rpc("legacy_claimed_output_amounts", { p_legacy_wallet_id: walletId }),
+  );
+}
+
+async function loadClaimedReceiptOutputs(walletId: string): Promise<Record<string, Record<string, string>>> {
+  return rpc<Record<string, Record<string, string>>>(
+    await serviceClient().rpc("legacy_claimed_receipt_output_amounts", { p_legacy_wallet_id: walletId }),
+  );
 }
 
 /** Removes the wallet with every import and line of it. */
@@ -102,25 +121,76 @@ export async function deleteLegacyPayment(id: string, importId: string): Promise
   if (left.count === 0) await deleteLegacyImport(importId);
 }
 
-export interface ImportLegacyArgs {
+export interface StageLegacyArgs {
   walletId: string;
   fileName: string;
   actor: string;
+  planHash: string;
   rows: LegacyRpcRow[];
   replaceImportId: string | null;
-  includeDuplicates: boolean;
 }
 
-export async function importLegacyHistory(args: ImportLegacyArgs): Promise<LegacyHistoryImportResponse> {
-  return rpc<LegacyHistoryImportResponse>(
-    await serviceClient().rpc("import_legacy_history", {
+export interface StageLegacyResponse {
+  importId: string;
+  state: "pending_signatures";
+  planHash: string;
+  lineCount: number;
+}
+
+export async function stageLegacyHistory(args: StageLegacyArgs): Promise<StageLegacyResponse> {
+  return rpc<StageLegacyResponse>(
+    await serviceClient().rpc("stage_legacy_history", {
       p_legacy_wallet_id: args.walletId,
       p_file_name: args.fileName,
       p_actor: args.actor,
+      p_plan_hash: args.planHash,
       p_rows: args.rows,
       p_replace_import_id: args.replaceImportId,
-      p_skip_existing: !args.includeDuplicates,
     }),
+  );
+}
+
+export async function activateLegacyHistory(
+  importId: string,
+  actor: string,
+  skipExisting = true,
+): Promise<LegacyHistoryImportResponse> {
+  return rpc<LegacyHistoryImportResponse>(
+    await serviceClient().rpc("activate_legacy_history", {
+      p_import_id: importId,
+      p_actor: actor,
+      p_skip_existing: skipExisting,
+    }),
+  );
+}
+
+export async function insertLegacyImportSignature(row: {
+  kind: "payments" | "receipts";
+  import_id: string;
+  signer_address: string;
+  key_hash: string;
+  cose_key: string;
+  signature: string;
+  signed_at: string;
+}): Promise<void> {
+  const res = await serviceClient().from("legacy_import_signatures").upsert(row, {
+    onConflict: "kind,import_id,key_hash",
+  });
+  check(res, "record import signature");
+}
+
+export async function loadLegacyImportSignatures(
+  kind: "payments" | "receipts",
+  importId: string,
+): Promise<{ key_hash: string; signer_address: string; signed_at: string }[]> {
+  return rows(
+    await serviceClient()
+      .from("legacy_import_signatures")
+      .select("key_hash, signer_address, signed_at")
+      .eq("kind", kind)
+      .eq("import_id", importId)
+      .order("signed_at"),
+    "load import signatures",
   );
 }
 
@@ -128,6 +198,10 @@ export async function importLegacyHistory(args: ImportLegacyArgs): Promise<Legac
 
 export interface LegacyImportContext {
   network: number;
+  /** Address of the previous wallet being planned against; null when the wallet does not exist yet. */
+  walletAddress: string | null;
+  /** unit→quantity already claimed on each txHash:outputIndex for this wallet (active imports). */
+  claimedByOutput: Map<string, Record<string, string>>;
   workgroups: LegacyWorkgroup[];
   aliases: Map<string, string>;
   registry: AssetDef[];
@@ -148,15 +222,16 @@ export async function loadLegacyImportContext(
   excludeImportId: string | null,
 ): Promise<LegacyImportContext> {
   const db = serviceClient();
-  const [community, workgroups, aliases, registry, history, keys, treasuries] = await Promise.all([
+  const [community, workgroups, aliases, registry, history, keys, treasuries, walletRow, claimedRaw] = await Promise.all([
     db.from("communities").select("network").eq("id", communityId).single(),
     db.from("workgroups").select("id, name, archived_at").eq("community_id", communityId),
     db.from("workgroup_import_aliases").select("name, workgroup_id").eq("community_id", communityId),
     loadAssetRegistry(communityId),
     allRows<LegacyToken & { legacy_payments: unknown }>((from, to) => db
       .from("legacy_payment_amounts")
-      .select("unit, ticker, decimals, legacy_payments!inner(community_id)")
+      .select("unit, ticker, decimals, legacy_payments!inner(community_id, legacy_imports!inner(state))")
       .eq("legacy_payments.community_id", communityId)
+      .eq("legacy_payments.legacy_imports.state", "active")
       .order("payment_id")
       .order("unit")
       .range(from, to), "load history tokens"),
@@ -164,16 +239,24 @@ export async function loadLegacyImportContext(
       ? Promise.resolve([] as { dedupe_key: string; import_id: string }[])
       : allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
         .from("legacy_payments")
-        .select("dedupe_key, import_id")
+        .select("dedupe_key, import_id, legacy_imports!inner(state)")
         .eq("legacy_wallet_id", walletId)
+        .eq("legacy_imports.state", "active")
         .order("id")
         .range(from, to), "load history keys"),
     db.from("treasuries").select("address").eq("community_id", communityId),
+    walletId === null ? Promise.resolve(null) : loadLegacyWallet(walletId),
+    walletId === null
+      ? Promise.resolve({} as Record<string, Record<string, string>>)
+      : loadClaimedPaymentOutputs(walletId),
   ]);
   const groups = rows<{ id: string; name: string; archived_at: string | null }>(workgroups, "load workgroups");
   const tokens = new Map(history.map((t) => [`${t.unit}:${t.ticker.toLowerCase()}`, { unit: t.unit, ticker: t.ticker, decimals: t.decimals }]));
+  const claimedByOutput = new Map(Object.entries(claimedRaw));
   return {
     network: must<{ network: number }>(community, "load community network").network,
+    walletAddress: walletRow?.address ?? null,
+    claimedByOutput,
     workgroups: groups.map((w) => ({ id: w.id, name: w.name, archived: w.archived_at !== null })),
     aliases: new Map(rows<{ name: string; workgroup_id: string }>(aliases, "load workgroup aliases").map((a) => [a.name, a.workgroup_id])),
     registry,
@@ -279,6 +362,7 @@ export async function loadLegacyOverview(
         id: w.id,
         name: w.name,
         address: w.address,
+        scriptHash: w.script_hash,
         createdAt: w.created_at,
         rowCount: stats.payments.size,
         firstPaidOn: stats.first,
@@ -402,9 +486,10 @@ export async function loadLegacySpend(
     let query = db
       .from("legacy_payment_amounts")
       .select(
-        `payment_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_payments!inner(legacy_wallet_id, workgroup_id, recipient_ref, task, paid_on, budget_month, community_id, workgroups(name))`,
+        `payment_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_payments!inner(legacy_wallet_id, workgroup_id, recipient_ref, task, paid_on, budget_month, community_id, workgroups(name), legacy_imports!inner(state))`,
       )
       .eq("legacy_payments.community_id", communityId)
+      .eq("legacy_payments.legacy_imports.state", "active")
       .lt("legacy_payments.budget_month", range.to);
     if (range.from !== null) query = query.gte("legacy_payments.budget_month", range.from);
     return query.order("payment_id").order("unit").range(from, to);
@@ -458,30 +543,46 @@ export async function deleteLegacyReceipt(id: string, importId: string): Promise
   if (left.count === 0) await deleteLegacyReceiptImport(importId);
 }
 
-export interface ImportLegacyReceiptArgs {
+export interface StageLegacyReceiptArgs {
   walletId: string;
   fileName: string;
   actor: string;
+  planHash: string;
   rows: LegacyReceiptRpcRow[];
   replaceImportId: string | null;
-  includeDuplicates: boolean;
 }
 
-export async function importLegacyReceipts(args: ImportLegacyReceiptArgs): Promise<LegacyHistoryImportResponse> {
-  return rpc<LegacyHistoryImportResponse>(
-    await serviceClient().rpc("import_legacy_receipts", {
+export async function stageLegacyReceipts(args: StageLegacyReceiptArgs): Promise<StageLegacyResponse> {
+  return rpc<StageLegacyResponse>(
+    await serviceClient().rpc("stage_legacy_receipts", {
       p_legacy_wallet_id: args.walletId,
       p_file_name: args.fileName,
       p_actor: args.actor,
+      p_plan_hash: args.planHash,
       p_rows: args.rows,
       p_replace_import_id: args.replaceImportId,
-      p_skip_existing: !args.includeDuplicates,
+    }),
+  );
+}
+
+export async function activateLegacyReceipts(
+  importId: string,
+  actor: string,
+  skipExisting = true,
+): Promise<LegacyHistoryImportResponse> {
+  return rpc<LegacyHistoryImportResponse>(
+    await serviceClient().rpc("activate_legacy_receipts", {
+      p_import_id: importId,
+      p_actor: actor,
+      p_skip_existing: skipExisting,
     }),
   );
 }
 
 export interface LegacyReceiptImportContext {
   network: number;
+  walletAddress: string | null;
+  claimedByOutput: Map<string, Record<string, string>>;
   sources: FundingSourceRef[];
   commitments: FundingCommitmentRef[];
   registry: AssetDef[];
@@ -496,41 +597,51 @@ export async function loadLegacyReceiptImportContext(
   excludeImportId: string | null,
 ): Promise<LegacyReceiptImportContext> {
   const db = serviceClient();
-  const [community, sources, commitments, registry, history, keys, treasuries, paymentHistory] = await Promise.all([
-    db.from("communities").select("network").eq("id", communityId).single(),
-    db.from("funding_sources").select("id, name").eq("community_id", communityId).order("name"),
-    db.from("funding_commitments").select("id, source_id, name").eq("community_id", communityId),
-    loadAssetRegistry(communityId),
-    allRows<LegacyToken & { legacy_receipts: unknown }>((from, to) => db
-      .from("legacy_receipt_amounts")
-      .select("unit, ticker, decimals, legacy_receipts!inner(community_id)")
-      .eq("legacy_receipts.community_id", communityId)
-      .order("receipt_id")
-      .order("unit")
-      .range(from, to), "load receipt tokens"),
-    walletId === null
-      ? Promise.resolve([] as { dedupe_key: string; import_id: string }[])
-      : allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
-        .from("legacy_receipts")
-        .select("dedupe_key, import_id")
-        .eq("legacy_wallet_id", walletId)
-        .order("id")
-        .range(from, to), "load receipt keys"),
-    db.from("treasuries").select("address").eq("community_id", communityId),
-    allRows<LegacyToken & { legacy_payments: unknown }>((from, to) => db
-      .from("legacy_payment_amounts")
-      .select("unit, ticker, decimals, legacy_payments!inner(community_id)")
-      .eq("legacy_payments.community_id", communityId)
-      .order("payment_id")
-      .order("unit")
-      .range(from, to), "load history tokens for receipts"),
-  ]);
+  const [community, sources, commitments, registry, history, keys, treasuries, paymentHistory, walletRow, claimedRaw] =
+    await Promise.all([
+      db.from("communities").select("network").eq("id", communityId).single(),
+      db.from("funding_sources").select("id, name").eq("community_id", communityId).order("name"),
+      db.from("funding_commitments").select("id, source_id, name").eq("community_id", communityId),
+      loadAssetRegistry(communityId),
+      allRows<LegacyToken & { legacy_receipts: unknown }>((from, to) => db
+        .from("legacy_receipt_amounts")
+        .select("unit, ticker, decimals, legacy_receipts!inner(community_id, legacy_receipt_imports!inner(state))")
+        .eq("legacy_receipts.community_id", communityId)
+        .eq("legacy_receipts.legacy_receipt_imports.state", "active")
+        .order("receipt_id")
+        .order("unit")
+        .range(from, to), "load receipt tokens"),
+      walletId === null
+        ? Promise.resolve([] as { dedupe_key: string; import_id: string }[])
+        : allRows<{ dedupe_key: string; import_id: string }>((from, to) => db
+          .from("legacy_receipts")
+          .select("dedupe_key, import_id, legacy_receipt_imports!inner(state)")
+          .eq("legacy_wallet_id", walletId)
+          .eq("legacy_receipt_imports.state", "active")
+          .order("id")
+          .range(from, to), "load receipt keys"),
+      db.from("treasuries").select("address").eq("community_id", communityId),
+      allRows<LegacyToken & { legacy_payments: unknown }>((from, to) => db
+        .from("legacy_payment_amounts")
+        .select("unit, ticker, decimals, legacy_payments!inner(community_id, legacy_imports!inner(state))")
+        .eq("legacy_payments.community_id", communityId)
+        .eq("legacy_payments.legacy_imports.state", "active")
+        .order("payment_id")
+        .order("unit")
+        .range(from, to), "load history tokens for receipts"),
+      walletId === null ? Promise.resolve(null) : loadLegacyWallet(walletId),
+      walletId === null
+        ? Promise.resolve({} as Record<string, Record<string, string>>)
+        : loadClaimedReceiptOutputs(walletId),
+    ]);
   const tokens = new Map<string, LegacyToken>();
   for (const t of [...history, ...paymentHistory]) {
     tokens.set(`${t.unit}:${t.ticker.toLowerCase()}`, { unit: t.unit, ticker: t.ticker, decimals: t.decimals });
   }
   return {
     network: must<{ network: number }>(community, "load community network").network,
+    walletAddress: walletRow?.address ?? null,
+    claimedByOutput: new Map(Object.entries(claimedRaw)),
     sources: rows<{ id: string; name: string }>(sources, "load funding sources"),
     commitments: rows<{ id: string; source_id: string; name: string }>(commitments, "load funding commitments")
       .map((c) => ({ id: c.id, sourceId: c.source_id, name: c.name })),
@@ -674,9 +785,10 @@ export async function loadLegacyReceipts(
     serviceClient()
       .from("legacy_receipt_amounts")
       .select(
-        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(legacy_wallet_id, received_on, funding_source_id, community_id)`,
+        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(legacy_wallet_id, received_on, funding_source_id, community_id, legacy_receipt_imports!inner(state))`,
       )
       .eq("legacy_receipts.community_id", communityId)
+      .eq("legacy_receipts.legacy_receipt_imports.state", "active")
       .gte("legacy_receipts.received_on", range.from)
       .lt("legacy_receipts.received_on", range.to)
       .order("receipt_id")
@@ -712,9 +824,10 @@ export async function loadLegacyReceiptFundingInflows(communityId: string): Prom
     serviceClient()
       .from("legacy_receipt_amounts")
       .select(
-        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, community_id)`,
+        `receipt_id, ${LEGACY_AMOUNT_COLUMNS}, legacy_receipts!inner(id, legacy_wallet_id, received_on, funding_source_id, funding_commitment_id, community_id, legacy_receipt_imports!inner(state))`,
       )
       .eq("legacy_receipts.community_id", communityId)
+      .eq("legacy_receipts.legacy_receipt_imports.state", "active")
       .not("legacy_receipts.funding_source_id", "is", null)
       .order("receipt_id")
       .order("unit")

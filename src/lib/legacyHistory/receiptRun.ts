@@ -12,19 +12,16 @@ import { resolveLegacyTicker, type TickerContext } from "./plan";
 import { readReceiptsCsv } from "./receiptParse";
 import { planLegacyReceipts } from "./receiptPlan";
 import type { LegacyReceiptImportPlan, LegacyToken } from "./receiptTypes";
+import { applyReceiptChainChecks } from "./verifyChain";
 
 export interface LegacyReceiptUpload {
   communityId: string;
   walletId: string;
   csv: string;
   tickerUnits: Record<string, string>;
-  /** CSV source ref → funding source id. */
   sourceMap: Record<string, string>;
-  /** `${sourceId}|${commitmentRef}` → commitment id. */
   commitmentMap: Record<string, string>;
-  /** Tag every blank-source row with this funding source. */
   defaultSourceId: string | null;
-  /** Optional commitment under defaultSourceId for blank commitment cells. */
   defaultCommitmentId: string | null;
   replaceImportId: string | null;
   includeDuplicates: boolean;
@@ -38,7 +35,10 @@ function sha256(canonical: string): string {
 }
 
 async function planReceipts(
-  upload: Omit<LegacyReceiptUpload, "walletId"> & { walletId: string | null },
+  upload: Omit<LegacyReceiptUpload, "walletId"> & {
+    walletId: string | null;
+    walletAddress?: string | null;
+  },
 ): Promise<LegacyReceiptImportPlan> {
   const ctx = await loadLegacyReceiptImportContext(upload.communityId, upload.walletId, upload.replaceImportId);
   const network = asNetwork(ctx.network);
@@ -73,7 +73,7 @@ async function planReceipts(
     }
   }
 
-  return planLegacyReceipts(parsed, {
+  const plan = planLegacyReceipts(parsed, {
     ...tickers,
     wallet,
     sources: ctx.sources,
@@ -84,6 +84,13 @@ async function planReceipts(
     defaultCommitmentId: upload.defaultCommitmentId,
     existingKeys: ctx.existingKeys,
     hash: sha256,
+    includeDuplicates: upload.includeDuplicates,
+  });
+
+  return applyReceiptChainChecks(plan, {
+    network,
+    previousWalletAddress: upload.walletAddress ?? ctx.walletAddress,
+    alreadyClaimed: ctx.claimedByOutput,
     includeDuplicates: upload.includeDuplicates,
   });
 }
@@ -103,6 +110,7 @@ export interface AgentReceiptPlan {
   defaultCommitmentId: string | null;
   includeDuplicates: boolean;
   now: Date;
+  walletAddress: string | null;
 }
 
 export async function planAgentReceipts(plan: AgentReceiptPlan): Promise<LegacyReceiptImportPlan> {
@@ -118,5 +126,6 @@ export async function planAgentReceipts(plan: AgentReceiptPlan): Promise<LegacyR
     replaceImportId: null,
     includeDuplicates: plan.includeDuplicates,
     now: plan.now,
+    walletAddress: plan.walletAddress,
   });
 }

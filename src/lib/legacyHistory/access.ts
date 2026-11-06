@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/legacyHistory";
 import type { LegacyImportRow, LegacyReceiptImportRow, LegacyWalletRow } from "@/lib/db/types";
 import { BadRequestError, NotFoundError } from "@/lib/errors";
+import { addressIsScript, resolveLegacyScriptClaim } from "./scriptClaim";
 
 export async function requireLegacyWalletAdmin(walletId: string, wallet: string): Promise<LegacyWalletRow> {
   const row = await loadLegacyWallet(walletId);
@@ -57,4 +58,18 @@ export async function requireLegacyAddressNetwork(communityId: string, address: 
       community.network === 1 ? "Use a mainnet address (addr1…)" : "Use a preprod address (addr_test1…)",
     );
   }
+}
+
+/** Script addresses need matching CBOR; key addresses must not carry script CBOR. */
+export function resolveLegacyWalletScriptFields(
+  address: string,
+  scriptCbor?: string | null,
+): { script_cbor: string | null; script_hash: string | null } {
+  if (addressIsScript(address)) {
+    if (!scriptCbor?.trim()) throw new BadRequestError("Paste the native script CBOR for this script address");
+    const claim = resolveLegacyScriptClaim(address, scriptCbor);
+    return { script_cbor: claim.scriptCbor, script_hash: claim.scriptHash };
+  }
+  if (scriptCbor?.trim()) throw new BadRequestError("Script CBOR belongs only on script addresses");
+  return { script_cbor: null, script_hash: null };
 }

@@ -1,15 +1,23 @@
 "use client";
 
 // The previous wallets a community paid from before Treasury Guild: pick the one
-// a CSV belongs to, add one, rename it or remove it with its history. The
-// address is a label only; nothing reads that wallet on-chain.
+// a CSV belongs to, add one, rename it or remove it with its history.
 import { useState } from "react";
+import { deserializeAddress } from "@meshsdk/core";
 import { apiFetch } from "@/lib/api/client";
 import type { LegacyWalletCreatedResponse, LegacyWalletSummary, OkResponse } from "@/lib/api/types";
 import { plural, shortAddress } from "@/lib/format";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
-import { Button, Card, ErrorText, Field, Input, Modal, Select } from "@/components/ui";
+import { Button, Card, ErrorText, Field, Input, Modal, Select, Textarea } from "@/components/ui";
 import { formatDay } from "@/lib/legacyHistory/display";
+
+function addressIsScript(address: string): boolean {
+  try {
+    return !!deserializeAddress(address).scriptHash;
+  } catch {
+    return false;
+  }
+}
 
 function WalletForm({
   initial,
@@ -19,30 +27,42 @@ function WalletForm({
   onSubmit,
   onCancel,
 }: {
-  initial: { name: string; address: string };
+  initial: { name: string; address: string; scriptCbor: string };
   busy: boolean;
   error: string | null;
   submitLabel: string;
-  onSubmit: (value: { name: string; address: string | null }) => void;
+  onSubmit: (value: { name: string; address: string; scriptCbor?: string | null }) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial.name);
   const [address, setAddress] = useState(initial.address);
+  const [scriptCbor, setScriptCbor] = useState(initial.scriptCbor);
+  const scriptAddr = address.trim() ? addressIsScript(address.trim()) : false;
   return (
     <div className="space-y-4">
       <Field label="Name">
         <Input aria-label="Previous wallet name" value={name} maxLength={64} disabled={busy}
           placeholder="Old treasury wallet" onChange={(e) => setName(e.target.value)} />
       </Field>
-      <Field label="Address (optional)" hint="Shown as a label only. Treasury Guild never reads or watches this wallet.">
+      <Field label="Address" hint="Required. CSV lines are verified against on-chain transactions from this address.">
         <Input aria-label="Previous wallet address" value={address} disabled={busy} className="font-mono text-xs"
-          placeholder="addr1…" spellCheck={false} onChange={(e) => setAddress(e.target.value)} />
+          placeholder="addr1… or addr_test1…" spellCheck={false} onChange={(e) => setAddress(e.target.value)} />
       </Field>
+      {(scriptAddr || scriptCbor.trim()) && (
+        <Field label="Native script CBOR (hex)" hint="Required for script addresses; must match the address.">
+          <Textarea aria-label="Script CBOR" value={scriptCbor} disabled={busy} className="font-mono text-xs"
+            rows={4} spellCheck={false} onChange={(e) => setScriptCbor(e.target.value)} />
+        </Field>
+      )}
       <ErrorText error={error} />
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={busy}>Cancel</Button>
-        <Button loading={busy} disabled={!name.trim()}
-          onClick={() => onSubmit({ name: name.trim(), address: address.trim() || null })}>
+        <Button loading={busy} disabled={!name.trim() || !address.trim()}
+          onClick={() => onSubmit({
+            name: name.trim(),
+            address: address.trim(),
+            scriptCbor: scriptCbor.trim() || null,
+          })}>
           {submitLabel}
         </Button>
       </div>
@@ -74,9 +94,14 @@ export function LegacyWalletPanel({
     action.setError(null);
   }
 
-  async function create(value: { name: string; address: string | null }) {
+  async function create(value: { name: string; address: string; scriptCbor?: string | null }) {
     const result = await action.run(() => apiFetch<LegacyWalletCreatedResponse>("/api/legacy-history/wallets", {
-      body: { communityId, ...value },
+      body: {
+        communityId,
+        name: value.name,
+        address: value.address,
+        ...(value.scriptCbor ? { scriptCbor: value.scriptCbor } : {}),
+      },
     }));
     if (!result) return;
     close();
@@ -84,11 +109,15 @@ export function LegacyWalletPanel({
     onChanged();
   }
 
-  async function edit(value: { name: string; address: string | null }) {
+  async function edit(value: { name: string; address: string; scriptCbor?: string | null }) {
     if (!selected) return;
     const result = await action.run(() => apiFetch<OkResponse>(`/api/legacy-history/wallets/${selected.id}`, {
       method: "PATCH",
-      body: value,
+      body: {
+        name: value.name,
+        address: value.address,
+        scriptCbor: value.scriptCbor ?? null,
+      },
     }));
     if (!result) return;
     close();
@@ -111,7 +140,8 @@ export function LegacyWalletPanel({
       <div>
         <h2 className="text-lg font-medium">Previous wallet</h2>
         <p className="mt-1 text-sm text-zinc-400">
-          The wallet the history was paid from. Imported payments show on the Dashboard as paid from it.
+          The wallet the history was paid from. Each CSV line names a chain transaction; a base signer of this wallet
+          must sign before imports count on the Dashboard.
         </p>
       </div>
       {wallets.length > 0 ? (
@@ -131,7 +161,8 @@ export function LegacyWalletPanel({
       )}
       {selected && (
         <p className="text-xs text-zinc-500">
-          {selected.address ? <span className="font-mono">{shortAddress(selected.address)}</span> : "No address"}
+          <span className="font-mono">{shortAddress(selected.address)}</span>
+          {selected.scriptHash ? " · script wallet" : ""}
           {" · "}
           {selected.rowCount === 0
             ? "no history yet"
@@ -140,12 +171,12 @@ export function LegacyWalletPanel({
       )}
 
       <Modal open={dialog === "create"} onClose={close} busy={action.busy} title="Add a previous wallet">
-        <WalletForm initial={{ name: "", address: "" }} busy={action.busy} error={action.error}
+        <WalletForm initial={{ name: "", address: "", scriptCbor: "" }} busy={action.busy} error={action.error}
           submitLabel="Add wallet" onSubmit={(v) => void create(v)} onCancel={close} />
       </Modal>
       <Modal open={dialog === "edit" && !!selected} onClose={close} busy={action.busy} title="Edit previous wallet">
         {selected && (
-          <WalletForm initial={{ name: selected.name, address: selected.address ?? "" }} busy={action.busy}
+          <WalletForm initial={{ name: selected.name, address: selected.address, scriptCbor: "" }} busy={action.busy}
             error={action.error} submitLabel="Save" onSubmit={(v) => void edit(v)} onCancel={close} />
         )}
       </Modal>
