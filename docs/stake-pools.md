@@ -27,6 +27,12 @@ SDK treasuries that withdraw matching the pool reward stake address get a compan
 - `float_wallets.purpose`, `incoming_txs.stake_pool_id`
 - RPC `classify_pool_reward_inflows` after `tag_float_transfers`
 
+## UI
+
+- Treasury page **Stake pools** section: link, refresh, map roles, archive.
+- **Create rewards buffer float** from the mapping UI (`purpose: pool_rewards`);
+  **Add float wallet** creates a DEX float (`purpose: dex`) only.
+
 ## Out of scope (v1)
 
 Epoch ROS / blocks / saturation dashboards; planned-vs-received commitments for margin; Agent API tools.

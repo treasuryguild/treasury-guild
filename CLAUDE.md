@@ -797,11 +797,23 @@ Supabase (RLS, no ORM) + Netlify.
   Received = inflows tagged **whole** on the Incoming page (`/c/[slug]/reconcile`)
   (`incoming_txs.funding_source_id` / `funding_commitment_id`, guarded by
   `guard_incoming_funding`: same community, commitment of that source, never a
-  transfer; a row that becomes a transfer loses its tag), counted by block
-  time; planned vs received is pure (`plan.ts`). Schedule CSVs are read by
-  `schedule.ts` on the shared `src/lib/csv.ts`. On the Dashboard a tagged
-  inflow's Funding-flow source node is the funding source; refunds and
-  transfers are still never income.
+  sibling-treasury transfer; a row that becomes such a transfer loses its tag),
+  counted by block time; planned vs received is pure (`plan.ts`). Schedule CSVs
+  are read by `schedule.ts` on the shared `src/lib/csv.ts`. On the Dashboard a
+  tagged inflow's Funding-flow source node is the funding source; refunds and
+  ordinary transfers are still never income.
+- **Community stake pools** (migration 0099, `src/lib/db/stakePools.ts`,
+  `src/lib/stakePools/classify.ts`, `/api/stake-pools`, Treasury page): admins
+  link up to `MAX_COMMUNITY_STAKE_POOLS` (3) pools by id; Koios `/pool_info`
+  prefills margin/fixed cost/pledge/reward account/owners; role mappings in
+  `stake_pool_wallets`; linking creates a funding source named `Pool <ticker>
+  rewards`. Income is booked **once** as `incoming_txs` `revenue` + that
+  funding source + `stake_pool_id` when rewards reach a community treasury
+  (direct withdraw match, or `classify_pool_reward_inflows` after a
+  `pool_rewards` float forward). Rewards buffers reuse `float_wallets.purpose =
+  'pool_rewards'` (still under `MAX_FLOAT_WALLETS`). `fundingFlow` treats
+  `stakePoolId` as income even when `fromFloatWalletId` is set. Design note:
+  `docs/stake-pools.md`; user doc `/docs/treasury#stake-pools`.
 - **Proposals & voting** (migrations 0055-0057, `src/lib/governance/`,
   `src/lib/db/governance.ts`, pages `/c/[slug]/proposals`,
   `/c/[slug]/settings/governance`): kinds `decision` (nothing applied),
