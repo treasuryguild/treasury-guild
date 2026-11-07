@@ -372,8 +372,8 @@ with `Authorization: Bearer $CRON_SECRET`:
   confirms submitted transactions of every kind (tasks become `paid`,
   app-board tasks move to the Paid column, `block_time` is stamped),
   records incoming funds and tags transfers between the
-  community's own wallets, imports outgoing transactions that carry a Guild
-  Vault record this database did not build (the chain import), announces
+  community's own wallets, imports outgoing transactions that carry a Treasury
+  Guild record this database did not build (the chain import), announces
   transactions built outside the app to the governance channel, retries
   GitHub write-backs, posts Discord payout notifications, purges API
   rate-limit counters older than a day, expired OAuth codes and refresh

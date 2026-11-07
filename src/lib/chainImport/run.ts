@@ -1,5 +1,5 @@
-// The chain import: turn the external rows of a treasury that carry a Guild
-// Vault label-190001 record into the rows the app would have written itself.
+// The chain import: turn the external rows of a treasury that carry a Treasury
+// Guild label-190001 record into the rows the app would have written itself.
 // Runs after every treasury poll (the sweep and the on-visit sync) and from
 // the admin routes. pollTreasury stays discovery-only; concurrent runs are
 // safe because import_chain_tx locks the external row and is idempotent.
