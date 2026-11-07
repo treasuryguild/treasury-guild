@@ -19,6 +19,7 @@ import { errorMessage } from "@/lib/errors";
 import { routes } from "@/lib/routes";
 import { buildCopyGraceEmbed, buildStaleAnchorsEmbed } from "./anchorMessage";
 import { DiscordBotError, postChannelMessage, type BotFetchLike } from "./bot";
+import { communityIconUrl } from "./communityIcon";
 import {
   listGovernanceChannels, recordGovernanceChannelError, recordGovernanceChannelPost,
 } from "./governanceChannel";
@@ -46,8 +47,8 @@ export async function notifyAnchorsDue(
   const channels = await listGovernanceChannels();
   if (channels.length === 0) return result;
 
-  const communities = new Map(rows<{ id: string; name: string; slug: string }>(
-    await serviceClient().from("communities").select("id, name, slug")
+  const communities = new Map(rows<{ id: string; name: string; slug: string; avatar_cid: string | null }>(
+    await serviceClient().from("communities").select("id, name, slug, avatar_cid")
       .in("id", channels.map((c) => c.community_id)),
     "load communities for anchor alerts",
   ).map((c) => [c.id, c]));
@@ -102,11 +103,15 @@ export async function notifyAnchorsDue(
       return "posted";
     };
 
+    const base = appUrl();
+    const iconUrl = communityIconUrl(community.avatar_cid, base);
+
     if (stale.length > 0) {
       const outcome = await postOrStamp(buildStaleAnchorsEmbed({
         communityName: community.name,
+        iconUrl,
         lines: stale.map((c) => ({ number: c.number, title: c.title, step: c.step })),
-        proposalsUrl: `${appUrl()}${routes.proposals(community.slug)}`,
+        proposalsUrl: `${base}${routes.proposals(community.slug)}`,
       }), stale);
       if (outcome === "posted") result.posted += 1;
       else if (outcome === "failed") result.failed += 1;
@@ -118,9 +123,10 @@ export async function notifyAnchorsDue(
       const graceEndsAt = new Date(Date.parse(item.dueSince) + CLOSED_ANCHOR_COPY_GRACE_MS).toISOString();
       const outcome = await postOrStamp(buildCopyGraceEmbed({
         communityName: community.name,
+        iconUrl,
         number: item.number,
         title: item.title,
-        proposalUrl: `${appUrl()}${routes.proposal(community.slug, item.proposalId)}`,
+        proposalUrl: `${base}${routes.proposal(community.slug, item.proposalId)}`,
         graceEndsAt,
       }), [item]);
       if (outcome === "posted") result.posted += 1;

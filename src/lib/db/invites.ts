@@ -109,6 +109,7 @@ export interface InvitePreview {
   name: string;
   slug: string;
   network: number;
+  avatarCid: string | null;
   /** False when the invite is revoked, expired or exhausted. */
   valid: boolean;
 }
@@ -119,11 +120,21 @@ export interface InvitePreview {
  */
 export async function previewInvite(token: string): Promise<InvitePreview | null> {
   const invite = maybe<CommunityInviteRow & {
-    communities: { name: string; slug: string; network: number } | { name: string; slug: string; network: number }[] | null;
+    communities: {
+      name: string;
+      slug: string;
+      network: number;
+      avatar_cid: string | null;
+    } | {
+      name: string;
+      slug: string;
+      network: number;
+      avatar_cid: string | null;
+    }[] | null;
   }>(
     await serviceClient()
       .from("community_invites")
-      .select(`${COMMUNITY_INVITE_COLUMNS}, communities!inner(name, slug, network)`)
+      .select(`${COMMUNITY_INVITE_COLUMNS}, communities!inner(name, slug, network, avatar_cid)`)
       .eq("token_hash", hashInviteToken(token))
       .maybeSingle(),
     "preview invite",
@@ -139,6 +150,7 @@ export async function previewInvite(token: string): Promise<InvitePreview | null
     name: community.name,
     slug: community.slug,
     network: community.network,
+    avatarCid: community.avatar_cid,
     valid,
   };
 }

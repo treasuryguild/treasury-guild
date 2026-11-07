@@ -90,7 +90,7 @@ function inviteRow(patch: Record<string, unknown> = {}) {
     last_used_at: null,
     revoked_at: null,
     label: null,
-    communities: { name: "Guild", slug: "guild", network: 0 },
+    communities: { name: "Guild", slug: "guild", network: 0, avatar_cid: null },
     ...patch,
   };
 }
@@ -146,7 +146,7 @@ describe("previewInvite", () => {
     vi.setSystemTime(new Date("2026-10-15T00:00:00.000Z"));
     selectData = inviteRow({ use_count: 10, max_uses: 10 });
     expect(await previewInvite(TOKEN)).toEqual({
-      name: "Guild", slug: "guild", network: 0, valid: true,
+      name: "Guild", slug: "guild", network: 0, avatarCid: null, valid: true,
     });
   });
 

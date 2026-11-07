@@ -19,6 +19,7 @@ import { SpendCheckMode } from "@/lib/governance/rules";
 import { CRON_JOB_IDS } from "@/lib/cron/jobs";
 import { DISCORD_SCENARIO_IDS } from "@/lib/discord/fixtures";
 import { errorMessage } from "@/lib/errors";
+import { CID_RE } from "@/lib/ipfs";
 
 // --- Primitives ---------------------------------------------------------------
 
@@ -146,10 +147,13 @@ export const patchCommunitySchema = z
       .toLowerCase()
       .regex(FIAT_CURRENCY_RE, "Currency code: 3 to 5 letters (usd, eur…)")
       .optional(),
+    /** IPFS CID of the profile picture; null clears it. */
+    avatarCid: z.string().regex(CID_RE, "Invalid IPFS CID").nullable().optional(),
   })
   .refine(
     (b) => b.visibility !== undefined || b.spendingUnit !== undefined ||
-      b.discordRateCoin !== undefined || b.discordRateCurrency !== undefined,
+      b.discordRateCoin !== undefined || b.discordRateCurrency !== undefined ||
+      b.avatarCid !== undefined,
     { message: "Nothing to update" },
   );
 

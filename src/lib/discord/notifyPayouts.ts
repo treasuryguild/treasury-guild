@@ -21,8 +21,8 @@ import { shortUnit } from "@/lib/format";
 import { fetchExchangeRate } from "@/lib/rates/coingecko";
 import { routes } from "@/lib/routes";
 import { DiscordBotError, postChannelMessage } from "./bot";
+import { communityIconUrl } from "./communityIcon";
 import {
-  AVATAR_PATH,
   buildPayoutEmbed,
   type BudgetBalanceLine,
   type ExchangeRate,
@@ -42,6 +42,7 @@ interface DestinationEmbed {
 interface CommunityEmbed {
   slug: string;
   name: string;
+  avatar_cid: string | null;
   discord_rate_coin: string | null;
   discord_rate_currency: string;
 }
@@ -63,7 +64,7 @@ interface PendingTx {
 }
 
 const PENDING_TX_COLUMNS =
-  "id, tx_hash, treasury_id, treasuries!inner(name, address, network, community_id, treasury_discord_destinations!inner(url, channel_id), communities!inner(slug, name, discord_rate_coin, discord_rate_currency))";
+  "id, tx_hash, treasury_id, treasuries!inner(name, address, network, community_id, treasury_discord_destinations!inner(url, channel_id), communities!inner(slug, name, avatar_cid, discord_rate_coin, discord_rate_currency))";
 
 interface PayoutLine {
   task_id: string;
@@ -229,7 +230,7 @@ export async function notifyConfirmedPayouts(options: NotifyOptions = {}): Promi
       community: {
         name: community.name,
         url: `${base}${routes.community(community.slug)}`,
-        iconUrl: `${base}${AVATAR_PATH}`,
+        iconUrl: communityIconUrl(community.avatar_cid, base),
       },
       treasuryName: treasury.name,
       txHash: tx.tx_hash,

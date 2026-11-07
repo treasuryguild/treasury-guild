@@ -53,10 +53,12 @@ export interface CommunityRow {
    * first treasury exists). Other treasuries' signers are not auto-promoted.
    */
   primary_treasury_id: string | null;
+  /** IPFS CID of the community profile picture; null when unset. */
+  avatar_cid: string | null;
 }
 
 export const COMMUNITY_COLUMNS =
-  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit, primary_treasury_id";
+  "id, slug, name, description, network, visibility, discord_rate_coin, discord_rate_currency, spending_unit, primary_treasury_id, avatar_cid";
 
 export interface CommunityMemberRow {
   community_id: string;

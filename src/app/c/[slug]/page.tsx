@@ -9,6 +9,7 @@ import { COMMUNITY_CARDS, communityHref, routes } from "@/lib/routes";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useCommunityGate } from "@/hooks/useCommunityGate";
 import { useTreasuries } from "@/hooks/useTreasuries";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import { NetworkBadge } from "@/components/community/NetworkNotice";
 import { OverviewAttention } from "@/components/community/OverviewAttention";
 import { AnchorsDueNotice } from "@/components/governance/AnchorsDueNotice";
@@ -40,7 +41,10 @@ export default function CommunityDashboard({
     // this branch means the community is public — offer to join.
     return (
       <div className="mx-auto max-w-md py-12 text-center">
-        <h1 className="text-2xl font-semibold">{community!.name}</h1>
+        <div className="flex flex-col items-center gap-3">
+          <CommunityAvatar name={community!.name} avatarCid={community!.avatar_cid} size="xl" />
+          <h1 className="text-2xl font-semibold">{community!.name}</h1>
+        </div>
         {community!.description && (
           <p className="mt-2 text-zinc-400">{community!.description}</p>
         )}
@@ -80,7 +84,10 @@ export default function CommunityDashboard({
           </span>
         }
       >
-        {community!.name}
+        <span className="inline-flex min-w-0 items-center gap-3">
+          <CommunityAvatar name={community!.name} avatarCid={community!.avatar_cid} size="lg" />
+          <span className="min-w-0 truncate">{community!.name}</span>
+        </span>
       </PageTitle>
 
       {community!.description && (

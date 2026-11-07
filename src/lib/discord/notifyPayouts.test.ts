@@ -95,7 +95,7 @@ const tx = {
     network: 0,
     community_id: "c-1",
     treasury_discord_destinations: { url: "https://discord.com/api/webhooks/1/tok", channel_id: null },
-    communities: { slug: "guild", name: "Guild DAO", discord_rate_coin: "cardano", discord_rate_currency: "usd" },
+    communities: { slug: "guild", name: "Guild DAO", avatar_cid: null, discord_rate_coin: "cardano", discord_rate_currency: "usd" },
   },
 };
 

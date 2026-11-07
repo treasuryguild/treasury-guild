@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import type { InvitePreviewResponse, RedeemInviteResponse } from "@/lib/api/types";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import { NetworkBadge } from "@/components/community/NetworkNotice";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
@@ -115,6 +116,7 @@ export default function InvitePage({
       <PageTitle>Join community</PageTitle>
       <Card>
         <div className="flex flex-wrap items-center gap-2">
+          <CommunityAvatar name={info.name} avatarCid={info.avatarCid} size="lg" />
           <h2 className="text-lg font-medium">{info.name}</h2>
           <NetworkBadge network={info.network} />
         </div>

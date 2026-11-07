@@ -5,6 +5,7 @@ describe("buildStaleAnchorsEmbed", () => {
   it("lists due steps and points at the proposals page", () => {
     const payload = buildStaleAnchorsEmbed({
       communityName: "Guild",
+      iconUrl: "https://gateway/ipfs/cid",
       proposalsUrl: "https://app.example/c/guild/proposals",
       lines: [
         { number: 3, title: "Budget Q4", step: "proposed" },
@@ -14,6 +15,7 @@ describe("buildStaleAnchorsEmbed", () => {
     const embed = payload.embeds[0]!;
     expect(embed.title).toBe("On-chain anchors waiting");
     expect(embed.url).toBe("https://app.example/c/guild/proposals");
+    expect(embed.author).toEqual({ name: "Guild", icon_url: "https://gateway/ipfs/cid" });
     expect(embed.description).toContain("Guild");
     expect(embed.fields?.[0]?.value).toContain("#3");
     expect(embed.fields?.[0]?.value).toContain("proposed");
@@ -25,6 +27,7 @@ describe("buildCopyGraceEmbed", () => {
   it("names the proposal and the grace deadline", () => {
     const payload = buildCopyGraceEmbed({
       communityName: "Guild",
+      iconUrl: "https://gateway/ipfs/cid",
       number: 7,
       title: "Raise the quorum",
       proposalUrl: "https://app.example/c/guild/proposals/p-7",
@@ -33,6 +36,7 @@ describe("buildCopyGraceEmbed", () => {
     const embed = payload.embeds[0]!;
     expect(embed.title).toBe("Tally copy needed · Proposal #7");
     expect(embed.url).toContain("p-7");
+    expect(embed.author).toEqual({ name: "Guild", icon_url: "https://gateway/ipfs/cid" });
     expect(embed.description).toContain("Raise the quorum");
     expect(embed.fields?.[0]?.value).toMatch(/^<t:\d+:R>$/);
   });

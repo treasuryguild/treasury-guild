@@ -5,6 +5,7 @@ import { use, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Role, Visibility } from "@/lib/constants";
 import { ChangeLeadsDialog } from "@/components/governance/ChangeLeadsDialog";
+import { CommunityAvatarSetting } from "@/components/community/CommunityAvatarSetting";
 import { DiscordRateSetting } from "@/components/community/DiscordRateSetting";
 import { InviteLinks } from "@/components/community/InviteLinks";
 import { SpendingTokenSetting } from "@/components/community/SpendingTokenSetting";
@@ -221,6 +222,12 @@ export default function MembersSettings({
             below, add a wallet, or let people join via GitHub assignments or
             call check-in.
           </p>
+          <CommunityAvatarSetting
+            key={community!.avatar_cid ?? "none"}
+            communityId={community!.id}
+            avatarCid={community!.avatar_cid}
+            onSaved={reloadCommunity}
+          />
           <DiscordRateSetting
             key={`${community!.discord_rate_coin ?? ""}:${community!.discord_rate_currency}`}
             communityId={community!.id}

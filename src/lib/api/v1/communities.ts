@@ -29,6 +29,7 @@ export const listCommunities = defineEndpoint({
         description: community.description,
         network: networkName(asNetwork(community.network)),
         visibility: community.visibility,
+        avatarCid: community.avatar_cid,
         role,
         url: appLink(routes.community(community.slug)),
       })),

@@ -321,6 +321,16 @@ describe("schemas", () => {
     expect(patchCommunitySchema.safeParse({ communityId: "10000000-0000-4000-8000-000000000001", discordRateCurrency: "us" }).success).toBe(false);
   });
 
+  it("accepts a CID or null for the community avatar", () => {
+    const cid = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG";
+    expect(patchCommunitySchema.parse({ communityId: "10000000-0000-4000-8000-000000000001", avatarCid: cid })).toEqual({
+      communityId: "10000000-0000-4000-8000-000000000001",
+      avatarCid: cid,
+    });
+    expect(patchCommunitySchema.parse({ communityId: "10000000-0000-4000-8000-000000000001", avatarCid: null }).avatarCid).toBeNull();
+    expect(patchCommunitySchema.safeParse({ communityId: "10000000-0000-4000-8000-000000000001", avatarCid: "not-a-cid" }).success).toBe(false);
+  });
+
   it("accepts lovelace or a native asset unit as the main spending token", () => {
     const unit = "A".repeat(56) + "48454c4c4f";
     expect(patchCommunitySchema.parse({ communityId: "10000000-0000-4000-8000-000000000001", spendingUnit: "lovelace" })).toEqual({
