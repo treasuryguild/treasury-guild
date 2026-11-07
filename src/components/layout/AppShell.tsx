@@ -35,6 +35,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { useSession } from "@/hooks/useSession";
 import { SOURCE_REPO_URL } from "@/lib/config";
 import { SIDEBAR_STORAGE_KEY } from "@/lib/constants";
@@ -47,6 +48,8 @@ import {
   routes,
   type CommunityRouteKey,
 } from "@/lib/routes";
+import { browserClient } from "@/lib/supabase/browser";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import { CommunityNetworkStrip } from "@/components/community/NetworkNotice";
 import { WalletBar } from "./WalletBar";
 import { BrandLogo } from "./BrandLogo";
@@ -147,6 +150,14 @@ function SidebarContent({
   const communitySlug = useMemo(() => communitySlugFromPath(pathname), [pathname]);
   const items = communitySlug ? communityItems(communitySlug) : [];
   const primary = developer ? [...PRIMARY_ITEMS, DEV_ITEM] : PRIMARY_ITEMS;
+  const { data: communityNav } = useAsyncData(communitySlug, async () => {
+    const { data } = await browserClient()
+      .from("communities")
+      .select("name, avatar_cid")
+      .eq("slug", communitySlug!)
+      .maybeSingle();
+    return data as { name: string; avatar_cid: string | null } | null;
+  });
 
   return (
     <>
@@ -169,8 +180,16 @@ function SidebarContent({
 
         {communitySlug && (
           <div className="mt-6">
-            <p className={compact ? "sidebar-divider" : "sidebar-label"}>
-              {compact ? <span className="sr-only">Community</span> : communitySlug}
+            <p className={compact ? "flex justify-center py-1" : "sidebar-label"}>
+              <span className="sr-only">Community</span>
+              <span className={compact ? "" : "flex min-w-0 items-center gap-2"} aria-hidden={compact}>
+                <CommunityAvatar
+                  name={communityNav?.name ?? communitySlug}
+                  avatarCid={communityNav?.avatar_cid}
+                  size="sm"
+                />
+                {!compact && <span className="truncate">{communitySlug}</span>}
+              </span>
             </p>
             <div className="mt-2 space-y-1">
               {items.map((item) => (

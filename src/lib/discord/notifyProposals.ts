@@ -20,6 +20,7 @@ import {
   removeGovernanceChannel, upsertGovernanceChannel,
 } from "./governanceChannel";
 import { stampCurrentAnchorAlerts } from "./notifyAnchorsDue";
+import { communityIconUrl } from "./communityIcon";
 import {
   buildGovernanceConnectedEmbed, buildProposalEmbed, currentMilestone, dueMilestone, type ProposalMilestone,
 } from "./proposalMessage";
@@ -42,8 +43,8 @@ export async function notifyProposalMilestones(
   const channels = await listGovernanceChannels();
   if (channels.length === 0) return result;
   const byCommunity = new Map(channels.map((c) => [c.community_id, c]));
-  const communities = new Map(rows<{ id: string; name: string; slug: string }>(
-    await db.from("communities").select("id, name, slug").in("id", [...byCommunity.keys()]),
+  const communities = new Map(rows<{ id: string; name: string; slug: string; avatar_cid: string | null }>(
+    await db.from("communities").select("id, name, slug, avatar_cid").in("id", [...byCommunity.keys()]),
     "load communities",
   ).map((c) => [c.id, c]));
   const proposals = rows<ProposalRow>(
@@ -80,11 +81,13 @@ export async function notifyProposalMilestones(
       }
     }
 
+    const base = appUrl();
     const payload = buildProposalEmbed({
       communityName: community.name,
+      iconUrl: communityIconUrl(community.avatar_cid, base),
       proposal,
       milestone,
-      url: `${appUrl()}${routes.proposal(community.slug, proposal.id)}`,
+      url: `${base}${routes.proposal(community.slug, proposal.id)}`,
     });
     const targetChannelId = proposal.discord_thread_id ?? channel.channel_id;
     try {
@@ -125,7 +128,7 @@ export async function loadGovernanceDiscordStatus(communityId: string): Promise<
  * proposal's current milestone as announced: connecting never posts history.
  */
 export async function connectGovernanceDiscordChannel(
-  community: { id: string; name: string },
+  community: { id: string; name: string; avatar_cid?: string | null },
   channelId: string,
   actor: string,
   options: { fetchImpl?: BotFetchLike } = {},
@@ -145,7 +148,12 @@ export async function connectGovernanceDiscordChannel(
   const channelType = chosen.type as GovernanceDiscordChannelType;
   await postChannelMessage(
     channelId,
-    { embeds: buildGovernanceConnectedEmbed(community.name).embeds },
+    {
+      embeds: buildGovernanceConnectedEmbed(
+        community.name,
+        communityIconUrl(community.avatar_cid, appUrl()),
+      ).embeds,
+    },
     options.fetchImpl,
   );
   const now = new Date();

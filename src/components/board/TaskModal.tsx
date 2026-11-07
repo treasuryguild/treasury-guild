@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { GithubBountyFieldPicker } from "@/components/board/GithubBountyFieldPicker";
 import { QuarterSelect } from "@/components/budgets/QuarterSelect";
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import {
   Button,
   ErrorText,
@@ -582,11 +583,24 @@ export function TaskModal({
             <div className="space-y-2">
               {assigneeRows.map((row) => {
                 const github = row.source === "github";
+                const wallet =
+                  row.selection === CUSTOM
+                    ? (row.custom.trim() || null)
+                    : (row.selection || null);
+                const member = wallet
+                  ? members.find((m) => m.wallet === wallet)
+                  : undefined;
                 return (
                   <div
                     key={row.key}
                     className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap"
                   >
+                    <PersonAvatar
+                      size="sm"
+                      wallet={wallet}
+                      handle={member?.handle}
+                      githubUsername={row.ghLogin ?? member?.githubUsername}
+                    />
                     {github && (
                       <span className="shrink-0 text-xs text-zinc-400">@{row.ghLogin}</span>
                     )}

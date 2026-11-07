@@ -71,6 +71,8 @@ export type AnnouncedProposal = Pick<ProposalRow,
 
 export function buildProposalEmbed(input: {
   communityName: string;
+  /** HTTPS URL for the embed author icon (community avatar or app logo). */
+  iconUrl?: string;
   proposal: AnnouncedProposal;
   milestone: ProposalMilestone;
   url: string;
@@ -119,6 +121,10 @@ export function buildProposalEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: input.communityName,
+        ...(input.iconUrl ? { icon_url: input.iconUrl } : {}),
+      },
       title: truncate(title, 256),
       url: input.url,
       description: `**${truncate(p.title, 300)}**\n${input.communityName}${milestone === "closed" ? "" : ` · vote with your wallet in Treasury Guild`}`,
@@ -128,10 +134,17 @@ export function buildProposalEmbed(input: {
   };
 }
 
-export function buildGovernanceConnectedEmbed(communityName: string): DiscordWebhookPayload {
+export function buildGovernanceConnectedEmbed(
+  communityName: string,
+  iconUrl?: string,
+): DiscordWebhookPayload {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: communityName,
+        ...(iconUrl ? { icon_url: iconUrl } : {}),
+      },
       title: "🔗 Treasury Guild connected",
       description: `New proposals of **${communityName}** will be announced here: a discussion thread when one opens, when voting opens, a day before it closes, and the result.`,
       color: COLORS.neutral,

@@ -7,11 +7,12 @@ import { SOURCE_REPO_URL } from "@/lib/config";
 import { routes } from "@/lib/routes";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useSession } from "@/hooks/useSession";
+import { CommunityAvatar } from "@/components/community/CommunityAvatar";
 import { Card, EmptyState, LinkButton, PageTitle } from "@/components/ui";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 import { MeshCredit } from "@/components/layout/MeshCredit";
 
-type CommunityCard = Pick<CommunityRow, "id" | "slug" | "name" | "description">;
+type CommunityCard = Pick<CommunityRow, "id" | "slug" | "name" | "description" | "avatar_cid">;
 
 const LINK_CLASS = "text-indigo-400 underline";
 
@@ -20,7 +21,7 @@ export default function Home() {
   const { data: communities } = useAsyncData(sessionWallet, async () => {
     const { data } = await browserClient()
       .from("community_members")
-      .select("communities(id, slug, name, description)")
+      .select("communities(id, slug, name, description, avatar_cid)")
       .eq("wallet_address", sessionWallet);
     return (data ?? [])
       .map((r) => r.communities as unknown as CommunityCard | null)
@@ -103,7 +104,10 @@ export default function Home() {
           {list.map((c) => (
             <Link key={c.id} href={routes.community(c.slug)}>
               <Card className="h-full transition-colors hover:border-indigo-600">
-                <h2 className="font-semibold">{c.name}</h2>
+                <div className="flex min-w-0 items-center gap-3">
+                  <CommunityAvatar name={c.name} avatarCid={c.avatar_cid} size="lg" />
+                  <h2 className="min-w-0 font-semibold">{c.name}</h2>
+                </div>
                 <p className="mt-1 text-sm text-zinc-400">
                   {c.description ?? `/${c.slug}`}
                 </p>

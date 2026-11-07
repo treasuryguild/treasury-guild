@@ -4,6 +4,7 @@ import { createCommunityStakePoolSchema } from "@/lib/api/schemas";
 import type { CommunityStakePoolCreatedResponse } from "@/lib/api/types";
 import { requireAdmin } from "@/lib/authz";
 import { fetchPoolInfo } from "@/lib/cardano/koios";
+import { resolvePoolIconUrl } from "@/lib/cardano/poolIcon";
 import { asNetwork } from "@/lib/config";
 import { requireCommunity } from "@/lib/db/communities";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
@@ -28,10 +29,12 @@ export const POST = sessionRoute(async (req, { session }) => {
 
   const detail = await fetchPoolInfo(network, poolId);
   if (!detail) throw new BadRequestError("Stake pool not found on this network");
+  const iconUrl = await resolvePoolIconUrl(network, detail.poolId);
 
   const pool = await createCommunityStakePool({
     community_id: communityId,
     detail,
+    icon_url: iconUrl,
     created_by: session.wallet,
   });
   return {

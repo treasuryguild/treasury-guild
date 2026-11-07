@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   admin: vi.fn(),
   community: vi.fn(),
   fetch: vi.fn(),
+  icon: vi.fn(),
   create: vi.fn(),
   loadTreasury: vi.fn(),
 }));
@@ -15,6 +16,7 @@ vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.limit }));
 vi.mock("@/lib/authz", () => ({ requireAdmin: mocks.admin }));
 vi.mock("@/lib/db/communities", () => ({ requireCommunity: mocks.community }));
 vi.mock("@/lib/cardano/koios", () => ({ fetchPoolInfo: mocks.fetch }));
+vi.mock("@/lib/cardano/poolIcon", () => ({ resolvePoolIconUrl: mocks.icon }));
 vi.mock("@/lib/db/stakePools", () => ({ createCommunityStakePool: mocks.create }));
 vi.mock("@/lib/db/treasuries", () => ({ loadTreasuryWithSigners: mocks.loadTreasury }));
 
@@ -48,6 +50,7 @@ beforeEach(() => {
   mocks.admin.mockResolvedValue("admin");
   mocks.community.mockResolvedValue({ id: COMMUNITY, network: 0 });
   mocks.fetch.mockResolvedValue(detail);
+  mocks.icon.mockResolvedValue("https://cdn.example/icon.png");
   mocks.create.mockResolvedValue({
     id: "pool-row",
     funding_source_id: "fs-1",
@@ -61,9 +64,11 @@ describe("POST /api/stake-pools", () => {
     expect(await res.json()).toEqual({ id: "pool-row", fundingSourceId: "fs-1" });
     expect(mocks.limit).toHaveBeenCalledWith("stakePoolCreate", WALLET);
     expect(mocks.fetch).toHaveBeenCalledWith(0, "pool1abc");
+    expect(mocks.icon).toHaveBeenCalledWith(0, "pool1abc");
     expect(mocks.create).toHaveBeenCalledWith({
       community_id: COMMUNITY,
       detail,
+      icon_url: "https://cdn.example/icon.png",
       created_by: WALLET,
     });
   });

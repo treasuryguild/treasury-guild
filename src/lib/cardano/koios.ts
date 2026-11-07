@@ -400,6 +400,34 @@ export async function fetchPoolInfo(
   return mergePoolDetail(mapped, summary);
 }
 
+/** Koios `POST /pool_metadata` row (on-chain meta URL + fetched JSON when available). */
+export interface KoiosPoolMetadataRow {
+  pool_id_bech32?: string | null;
+  meta_url?: string | null;
+  meta_hash?: string | null;
+  meta_json?: unknown;
+}
+
+/**
+ * Off-chain registration metadata for a pool (`POST /pool_metadata`).
+ * Resolves hex ids through `lookupStakePool` first so the body always uses bech32.
+ */
+export async function fetchPoolMetadata(
+  network: Network,
+  poolId: string,
+): Promise<KoiosPoolMetadataRow | null> {
+  const summary = await lookupStakePool(network, poolId);
+  const bech32 = summary?.poolId ?? (/^pool1/i.test(poolId.trim()) ? poolId.trim() : null);
+  if (!bech32) return null;
+  const rows = (await koiosPost(network, "/pool_metadata", {
+    _pool_bech32_ids: [bech32],
+  })) as KoiosPoolMetadataRow[];
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+  const row = rows[0];
+  if (!row || typeof row !== "object") return null;
+  return row;
+}
+
 function chunkIds(ids: readonly string[], size: number): string[][] {
   const out: string[][] = [];
   for (let i = 0; i < ids.length; i += size) {

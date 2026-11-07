@@ -12,12 +12,14 @@ import { loadAssetRegistry } from "@/lib/db/assets";
 import { rows, serviceClient } from "@/lib/db/client";
 import { loadGovernanceSettings } from "@/lib/db/governance";
 import { listUnalertedSpends, markSpendAlerted } from "@/lib/db/outsideSpends";
+import { appUrl } from "@/lib/env.server";
 import { errorMessage } from "@/lib/errors";
 import {
   isRecognizedExternalActivity,
   parseExternalActivity,
 } from "@/lib/externalActivity";
 import { DiscordBotError, postChannelMessage, type BotFetchLike } from "./bot";
+import { communityIconUrl } from "./communityIcon";
 import {
   listGovernanceChannelsFor, recordGovernanceChannelError, recordGovernanceChannelPost,
 } from "./governanceChannel";
@@ -37,13 +39,14 @@ export async function notifyOutsideSpends(options: { fetchImpl?: BotFetchLike } 
   const communityIds = [...new Set(spends.map((s) => s.treasuries.community_id))];
   const [channels, communities] = await Promise.all([
     listGovernanceChannelsFor(communityIds),
-    rows<{ id: string; name: string }>(
-      await serviceClient().from("communities").select("id, name").in("id", communityIds),
+    rows<{ id: string; name: string; avatar_cid: string | null }>(
+      await serviceClient().from("communities").select("id, name, avatar_cid").in("id", communityIds),
       "load communities",
     ),
   ]);
   const channelByCommunity = new Map(channels.map((c) => [c.community_id, c]));
-  const nameByCommunity = new Map(communities.map((c) => [c.id, c.name]));
+  const communityById = new Map(communities.map((c) => [c.id, c]));
+  const base = appUrl();
   const budgetKindOn = new Map<string, boolean>();
   const displays = new Map<string, ReturnType<typeof unitDisplayFromRegistry>>();
 
@@ -72,8 +75,10 @@ export async function notifyOutsideSpends(options: { fetchImpl?: BotFetchLike } 
     }
     if (!displays.has(communityId)) displays.set(communityId, unitDisplayFromRegistry(await loadAssetRegistry(communityId)));
     const network = asNetwork(spend.treasuries.network);
+    const community = communityById.get(communityId);
     const payload = buildOutsideSpendEmbed({
-      communityName: nameByCommunity.get(communityId) ?? "the community",
+      communityName: community?.name ?? "the community",
+      iconUrl: communityIconUrl(community?.avatar_cid, base),
       treasuryName: spend.treasuries.name,
       spend: {
         txHash: spend.tx_hash, blockTime: spend.block_time, amountLovelace: spend.amount_lovelace, assets: spend.assets,

@@ -54,6 +54,21 @@ function formatMargin(margin: number | null): string {
   return `${(Number(margin) * 100).toFixed(1)}%`;
 }
 
+/** Cached HTTPS pool icon; hidden when missing or the image fails to load. */
+function PoolIcon({ url }: { url: string | null }) {
+  const [broken, setBroken] = useState(false);
+  if (!url || broken) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt=""
+      className="h-5 w-5 rounded object-contain"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
 function draftsFromRows(rows: readonly StakePoolWalletRow[]): DraftWallet[] {
   return rows.map((w, i) => ({
     key: w.id || `row-${i}`,
@@ -302,6 +317,7 @@ function PoolCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
+            <PoolIcon key={pool.icon_url ?? "none"} url={pool.icon_url} />
             <h3 className="text-base font-semibold">{pool.ticker ?? "Pool"}</h3>
             {pool.archived_at && <Badge>Archived</Badge>}
             <code className="font-mono text-xs text-zinc-500">{shortAddress(pool.pool_id)}</code>

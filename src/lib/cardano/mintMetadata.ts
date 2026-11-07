@@ -2,8 +2,11 @@
 // drafts, asset-name validation and the forge-script shape. No I/O and no
 // "server-only" so vitest and the browser (CIP-26 download) can use them.
 import type { NativeScript } from "@meshsdk/core";
+import { CID_RE } from "@/lib/ipfs";
 import { byteLength, MAX_METADATUM_STR_BYTES as MAX_STR_BYTES } from "./metadata";
 import { utf8ToHex } from "./cip25";
+
+export { CID_RE };
 
 export const CIP25_LABEL = "721";
 export const MAX_ASSET_NAME_BYTES = 32;
@@ -30,9 +33,6 @@ export function chunk64(s: string): string | string[] {
   if (current) chunks.push(current);
   return chunks;
 }
-
-/** IPFS CIDv0 (Qm…, base58) or CIDv1 (b…, base32 lower-case). */
-export const CID_RE = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{50,})$/;
 
 /**
  * Validate an on-chain asset name (also the CIP-25 map key): 1–32 UTF-8

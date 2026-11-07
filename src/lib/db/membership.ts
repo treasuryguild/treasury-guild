@@ -116,7 +116,10 @@ export async function autoJoinCommunitiesForGithubUser(
   return communityIds;
 }
 
-export type MemberCommunity = Pick<CommunityRow, "id" | "slug" | "name" | "description" | "network" | "visibility">;
+export type MemberCommunity = Pick<
+  CommunityRow,
+  "id" | "slug" | "name" | "description" | "network" | "visibility" | "avatar_cid"
+>;
 
 /** Every community the wallet belongs to, with its role there, by name. */
 export async function communitiesForWallet(
@@ -125,7 +128,7 @@ export async function communitiesForWallet(
   const memberships = rows<{ role: string; communities: MemberCommunity | MemberCommunity[] }>(
     await serviceClient()
       .from("community_members")
-      .select("role, communities!inner(id, slug, name, description, network, visibility)")
+      .select("role, communities!inner(id, slug, name, description, network, visibility, avatar_cid)")
       .eq("wallet_address", wallet),
     "load wallet communities",
   );

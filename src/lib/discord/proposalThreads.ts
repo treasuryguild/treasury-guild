@@ -14,6 +14,7 @@ import {
   createForumPost, DiscordBotError, postChannelMessage, startThreadFromMessage,
   type BotFetchLike,
 } from "./bot";
+import { communityIconUrl } from "./communityIcon";
 import {
   loadDiscordGuild, loadGovernanceChannel, recordGovernanceChannelError,
 } from "./governanceChannel";
@@ -32,6 +33,7 @@ function discussionUrl(guildId: string, threadId: string): string {
 
 function starterEmbed(input: {
   communityName: string;
+  iconUrl?: string;
   proposal: Pick<ProposalRow, "number" | "title" | "kind">;
   url: string;
 }): DiscordWebhookPayload {
@@ -39,6 +41,10 @@ function starterEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: input.communityName,
+        ...(input.iconUrl ? { icon_url: input.iconUrl } : {}),
+      },
       title: truncate(`💬 Discussion · ${heading}`, 256),
       url: input.url,
       description: `**${truncate(input.proposal.title, 300)}**\n${input.communityName} · discuss here, vote with your wallet in Treasury Guild`,
@@ -72,15 +78,21 @@ export async function ensureProposalDiscordThread(
   const guild = await loadDiscordGuild(proposal.community_id);
   if (!guild) return { status: "skipped" };
 
-  const community = maybe<{ name: string; slug: string }>(
-    await serviceClient().from("communities").select("name, slug").eq("id", proposal.community_id).maybeSingle(),
+  const community = maybe<{ name: string; slug: string; avatar_cid: string | null }>(
+    await serviceClient()
+      .from("communities")
+      .select("name, slug, avatar_cid")
+      .eq("id", proposal.community_id)
+      .maybeSingle(),
     "load community for discord thread",
   );
   if (!community) return { status: "skipped" };
 
-  const url = `${appUrl()}${routes.proposal(community.slug, proposal.id)}`;
+  const base = appUrl();
+  const url = `${base}${routes.proposal(community.slug, proposal.id)}`;
   const embed = starterEmbed({
     communityName: community.name,
+    iconUrl: communityIconUrl(community.avatar_cid, base),
     proposal,
     url,
   });

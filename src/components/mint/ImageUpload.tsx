@@ -15,6 +15,7 @@ export function ImageUpload({
   onChange,
   label,
   disabled = false,
+  rounded = false,
 }: {
   communityId: string;
   state: ImageState;
@@ -23,6 +24,8 @@ export function ImageUpload({
   label: string;
   /** Hide the file picker when the image is locked (mint more). */
   disabled?: boolean;
+  /** Circular preview (community avatar). */
+  rounded?: boolean;
 }) {
   async function upload(file: File) {
     onChange({ ...state, uploading: true, error: null });
@@ -54,6 +57,12 @@ export function ImageUpload({
   }
 
   const previewUrl = state.cid && gateway ? ipfsUrl(gateway, state.cid) : null;
+  const frame = rounded
+    ? "h-24 w-24 shrink-0 rounded-full border border-zinc-800 bg-zinc-900"
+    : "h-24 w-24 shrink-0 rounded-lg border border-zinc-800 bg-zinc-900";
+  const emptyFrame = rounded
+    ? "flex h-24 w-24 shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-700 text-2xl text-zinc-600"
+    : "flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-2xl text-zinc-600";
 
   return (
     <Field label={label}>
@@ -63,10 +72,10 @@ export function ImageUpload({
           <img
             src={previewUrl}
             alt=""
-            className="h-24 w-24 shrink-0 rounded-lg border border-zinc-800 bg-zinc-900 object-cover"
+            className={`${frame} object-cover`}
           />
         ) : (
-          <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-700 text-2xl text-zinc-600">
+          <div className={emptyFrame}>
             {state.uploading ? "…" : "🖼"}
           </div>
         )}

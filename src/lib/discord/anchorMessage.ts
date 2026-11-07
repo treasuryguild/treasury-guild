@@ -24,6 +24,8 @@ export interface StaleAnchorLine {
 /** One digest for every newly stale due step in the community. */
 export function buildStaleAnchorsEmbed(input: {
   communityName: string;
+  /** HTTPS URL for the embed author icon (community avatar or app logo). */
+  iconUrl?: string;
   lines: readonly StaleAnchorLine[];
   proposalsUrl: string;
 }): DiscordWebhookPayload {
@@ -40,6 +42,10 @@ export function buildStaleAnchorsEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: input.communityName,
+        ...(input.iconUrl ? { icon_url: input.iconUrl } : {}),
+      },
       title: "On-chain anchors waiting",
       url: input.proposalsUrl,
       description:
@@ -54,6 +60,8 @@ export function buildStaleAnchorsEmbed(input: {
 /** Heads-up while the closed step still waits for a published tally copy. */
 export function buildCopyGraceEmbed(input: {
   communityName: string;
+  /** HTTPS URL for the embed author icon (community avatar or app logo). */
+  iconUrl?: string;
   number: number;
   title: string;
   proposalUrl: string;
@@ -63,6 +71,10 @@ export function buildCopyGraceEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: input.communityName,
+        ...(input.iconUrl ? { icon_url: input.iconUrl } : {}),
+      },
       title: `Tally copy needed · Proposal #${input.number}`,
       url: input.proposalUrl,
       description:

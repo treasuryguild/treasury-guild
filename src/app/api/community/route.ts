@@ -57,10 +57,14 @@ async function assertCommunityToken(communityId: string, unit: string): Promise<
 // rate). Communities have no client write policy — deliberate; all community
 // mutations authorize in code with the service role.
 export const PATCH = sessionRoute(async (req, { session }) => {
-  const { communityId, visibility, spendingUnit, discordRateCoin, discordRateCurrency } = await parseJson(
-    req,
-    patchCommunitySchema,
-  );
+  const {
+    communityId,
+    visibility,
+    spendingUnit,
+    discordRateCoin,
+    discordRateCurrency,
+    avatarCid,
+  } = await parseJson(req, patchCommunitySchema);
   await requireAdmin(communityId, session.wallet);
 
   const patch: Record<string, unknown> = {};
@@ -71,6 +75,7 @@ export const PATCH = sessionRoute(async (req, { session }) => {
   }
   if (discordRateCoin !== undefined) patch.discord_rate_coin = discordRateCoin;
   if (discordRateCurrency !== undefined) patch.discord_rate_currency = discordRateCurrency;
+  if (avatarCid !== undefined) patch.avatar_cid = avatarCid;
 
   await updateCommunity(communityId, patch);
   return { ok: true } satisfies OkResponse;

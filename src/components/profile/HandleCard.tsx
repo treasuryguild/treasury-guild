@@ -10,6 +10,7 @@ import { isValidHandle } from "@/lib/handles";
 import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useContributorProfile } from "@/hooks/useContributorProfile";
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import { Button, Card, ErrorText, Input } from "@/components/ui";
 
 export function HandleCard() {
@@ -17,6 +18,7 @@ export function HandleCard() {
   const [handle, setHandle] = useState("");
   const save = useAsyncAction("Could not save the handle.");
   const savedHandle = profile?.handle ?? null;
+  const previewHandle = handle.trim() || savedHandle;
 
   useEffect(() => {
     setHandle(savedHandle ?? "");
@@ -54,9 +56,16 @@ export function HandleCard() {
       <p className="mt-1 text-sm text-zinc-400">
         Optional name shown to other members instead of your address — no
         GitHub account needed. 2–32 letters, digits, underscores or hyphens;
-        unique ignoring case.
+        unique ignoring case. Your avatar is automatic: your GitHub photo when
+        that account is linked, otherwise a letter mark.
       </p>
       <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <PersonAvatar
+          size="lg"
+          wallet={sessionWallet}
+          handle={previewHandle}
+          githubUsername={profile?.github_username}
+        />
         <Input
           value={handle}
           onChange={(e) => setHandle(e.target.value)}

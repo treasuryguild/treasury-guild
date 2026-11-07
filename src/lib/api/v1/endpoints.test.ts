@@ -140,15 +140,15 @@ describe("whoami", () => {
 describe("community_list", () => {
   it("lists the caller's own memberships with role, network name and link", async () => {
     mocks.memberships.mockResolvedValue([
-      { role: "owner", community: { id: "c1", slug: "swarm", name: "Swarm", description: "Audits", network: 1, visibility: "private" } },
-      { role: "member", community: { id: "c2", slug: "lab", name: "Lab", description: null, network: 0, visibility: "public" } },
+      { role: "owner", community: { id: "c1", slug: "swarm", name: "Swarm", description: "Audits", network: 1, visibility: "private", avatar_cid: null } },
+      { role: "member", community: { id: "c2", slug: "lab", name: "Lab", description: null, network: 0, visibility: "public", avatar_cid: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG" } },
     ]);
     const res = await callEndpoint(listCommunities, caller, {});
     expect(mocks.memberships).toHaveBeenCalledExactlyOnceWith("addr_w");
     expect(res).toEqual({
       communities: [
-        { slug: "swarm", name: "Swarm", description: "Audits", network: "mainnet", visibility: "private", role: "owner", url: "http://localhost:3000/c/swarm" },
-        { slug: "lab", name: "Lab", description: null, network: "preprod", visibility: "public", role: "member", url: "http://localhost:3000/c/lab" },
+        { slug: "swarm", name: "Swarm", description: "Audits", network: "mainnet", visibility: "private", avatarCid: null, role: "owner", url: "http://localhost:3000/c/swarm" },
+        { slug: "lab", name: "Lab", description: null, network: "preprod", visibility: "public", avatarCid: "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", role: "member", url: "http://localhost:3000/c/lab" },
       ],
     });
     // Internal ids stay out of the answer.

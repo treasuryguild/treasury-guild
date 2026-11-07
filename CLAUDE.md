@@ -802,10 +802,12 @@ Supabase (RLS, no ORM) + Netlify.
   are read by `schedule.ts` on the shared `src/lib/csv.ts`. On the Dashboard a
   tagged inflow's Funding-flow source node is the funding source; refunds and
   ordinary transfers are still never income.
-- **Community stake pools** (migration 0099, `src/lib/db/stakePools.ts`,
+- **Community stake pools** (migration 0099 / 0100, `src/lib/db/stakePools.ts`,
   `src/lib/stakePools/classify.ts`, `/api/stake-pools`, Treasury page): admins
   link up to `MAX_COMMUNITY_STAKE_POOLS` (3) pools by id; Koios `/pool_info`
-  prefills margin/fixed cost/pledge/reward account/owners; role mappings in
+  prefills margin/fixed cost/pledge/reward account/owners; link and refresh
+  best-effort cache `icon_url` from `/pool_metadata` + CIP-6 / AdaPools
+  extended JSON (`src/lib/cardano/poolIcon.ts`, SSRF-safe); role mappings in
   `stake_pool_wallets`; linking creates a funding source named `Pool <ticker>
   rewards`. Income is booked **once** as `incoming_txs` `revenue` + that
   funding source + `stake_pool_id` when rewards reach a community treasury

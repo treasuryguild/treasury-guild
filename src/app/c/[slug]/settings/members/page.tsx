@@ -5,9 +5,11 @@ import { use, useState } from "react";
 import { apiFetch } from "@/lib/api/client";
 import { Role, Visibility } from "@/lib/constants";
 import { ChangeLeadsDialog } from "@/components/governance/ChangeLeadsDialog";
+import { CommunityAvatarSetting } from "@/components/community/CommunityAvatarSetting";
 import { DiscordRateSetting } from "@/components/community/DiscordRateSetting";
 import { InviteLinks } from "@/components/community/InviteLinks";
 import { SpendingTokenSetting } from "@/components/community/SpendingTokenSetting";
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import { formatDate, shortAddress } from "@/lib/format";
 import { isLeadPayload } from "@/lib/governance/payload";
 import { isAdminRole } from "@/lib/roles";
@@ -221,6 +223,12 @@ export default function MembersSettings({
             below, add a wallet, or let people join via GitHub assignments or
             call check-in.
           </p>
+          <CommunityAvatarSetting
+            key={community!.avatar_cid ?? "none"}
+            communityId={community!.id}
+            avatarCid={community!.avatar_cid}
+            onSaved={reloadCommunity}
+          />
           <DiscordRateSetting
             key={`${community!.discord_rate_coin ?? ""}:${community!.discord_rate_currency}`}
             communityId={community!.id}
@@ -289,21 +297,28 @@ export default function MembersSettings({
           return (
             <Card key={m.wallet_address}>
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-mono text-sm">
-                    {shortAddress(m.wallet_address)}
-                    {isSelf && (
-                      <span className="ml-2 text-xs text-zinc-500">(you)</span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {m.contributors?.handle ?? "no handle"}
-                    {m.contributors?.github_username && (
-                      <span className="ml-2 text-zinc-400">
-                        🐙 @{m.contributors.github_username}
-                      </span>
-                    )}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <PersonAvatar
+                    wallet={m.wallet_address}
+                    handle={m.contributors?.handle}
+                    githubUsername={m.contributors?.github_username}
+                  />
+                  <div className="min-w-0">
+                    <p className="font-mono text-sm">
+                      {shortAddress(m.wallet_address)}
+                      {isSelf && (
+                        <span className="ml-2 text-xs text-zinc-500">(you)</span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {m.contributors?.handle ?? "no handle"}
+                      {m.contributors?.github_username && (
+                        <span className="ml-2 text-zinc-400">
+                          🐙 @{m.contributors.github_username}
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {isSigner && <Badge tone="green">signer</Badge>}

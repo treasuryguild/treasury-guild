@@ -22,11 +22,17 @@ describe("outsideSpendAmounts", () => {
 describe("buildOutsideSpendEmbed", () => {
   it("names the treasury, the amounts and the link, never a wallet or a name", () => {
     const payload = buildOutsideSpendEmbed({
-      communityName: "Swarm", treasuryName: "Main", spend, display, explorerUrl: "https://preprod.cexplorer.io/tx/f",
+      communityName: "Swarm",
+      iconUrl: "https://gateway/ipfs/cid",
+      treasuryName: "Main",
+      spend,
+      display,
+      explorerUrl: "https://preprod.cexplorer.io/tx/f",
     });
     const embed = payload.embeds[0]!;
     expect(embed.title).toBe("⚠️ Spend built outside Treasury Guild");
     expect(embed.url).toBe("https://preprod.cexplorer.io/tx/f");
+    expect(embed.author).toEqual({ name: "Swarm", icon_url: "https://gateway/ipfs/cid" });
     expect(embed.description).toContain("**Swarm**");
     expect(embed.fields).toEqual([
       { name: "Treasury", value: "Main", inline: true },

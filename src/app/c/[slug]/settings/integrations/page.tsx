@@ -189,8 +189,8 @@ export default function IntegrationsPage({ params }: { params: Promise<{ slug: s
           onChanged={reloadAll}
           nouns={{ thing: "account", connect: "Connect Zoom account", change: "Change account" }}
           blurb={<>
-            Connect the Zoom account that hosts your community&apos;s calls. Zoom then tells Guild
-            Vault who joins and leaves its meetings, and how long they stayed; only the meetings
+            Connect the Zoom account that hosts your community&apos;s calls. Zoom then tells Treasury
+            Guild who joins and leaves its meetings, and how long they stayed; only the meetings
             you list as calls, or link under Call platforms, become visible to members. Only
             meetings hosted by this account can be captured, so use one shared account.
           </>}

@@ -4,6 +4,7 @@ import { patchCommunityStakePoolSchema } from "@/lib/api/schemas";
 import type { OkResponse } from "@/lib/api/types";
 import { requireAdmin } from "@/lib/authz";
 import { fetchPoolInfo } from "@/lib/cardano/koios";
+import { resolvePoolIconUrl } from "@/lib/cardano/poolIcon";
 import { asNetwork } from "@/lib/config";
 import { requireCommunity } from "@/lib/db/communities";
 import {
@@ -26,9 +27,11 @@ export const PATCH = sessionRoute<{ id: string }>(async (req, { params, session 
 
   if (body.refresh) {
     const community = await requireCommunity(pool.community_id);
-    const detail = await fetchPoolInfo(asNetwork(community.network), pool.pool_id);
+    const network = asNetwork(community.network);
+    const detail = await fetchPoolInfo(network, pool.pool_id);
     if (!detail) throw new BadRequestError("Stake pool not found on this network");
-    await refreshCommunityStakePool(pool.id, detail);
+    const iconUrl = await resolvePoolIconUrl(network, detail.poolId);
+    await refreshCommunityStakePool(pool.id, detail, iconUrl);
   }
 
   if (body.wallets) {

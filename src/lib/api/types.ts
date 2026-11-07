@@ -153,6 +153,7 @@ export interface InvitePreviewResponse {
   name: string;
   slug: string;
   network: number;
+  avatarCid: string | null;
   valid: boolean;
 }
 
@@ -1122,6 +1123,8 @@ export interface V1Community {
   description: string | null;
   network: "mainnet" | "preprod";
   visibility: string;
+  /** IPFS CID of the community profile picture; null when unset. */
+  avatarCid: string | null;
   /** owner, admin or member. */
   role: string;
   url: string;

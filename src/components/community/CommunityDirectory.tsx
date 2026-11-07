@@ -17,6 +17,7 @@ import { browserClient } from "@/lib/supabase/browser";
 import { useAsyncAction } from "@/hooks/useAsyncAction";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useSession } from "@/hooks/useSession";
+import { CommunityAvatar } from "./CommunityAvatar";
 import { NetworkBadge } from "./NetworkNotice";
 import {
   Badge,
@@ -92,7 +93,10 @@ export function CommunityDirectory() {
               className={`flex h-full flex-col ${otherNetwork ? "opacity-60" : ""}`}
             >
               <div className="flex min-w-0 items-start justify-between gap-2">
-                <h2 className="min-w-0 font-semibold">{c.name}</h2>
+                <div className="flex min-w-0 items-center gap-3">
+                  <CommunityAvatar name={c.name} avatarCid={c.avatar_cid} size="lg" />
+                  <h2 className="min-w-0 font-semibold">{c.name}</h2>
+                </div>
                 <span className="flex shrink-0 gap-1.5">
                   <NetworkBadge network={c.network} />
                   {c.visibility === Visibility.Private && <Badge>private</Badge>}

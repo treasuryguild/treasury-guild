@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   requirePool: vi.fn(),
   community: vi.fn(),
   fetch: vi.fn(),
+  icon: vi.fn(),
   refresh: vi.fn(),
   replace: vi.fn(),
   archive: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("@/lib/db/stakePools", () => ({
 }));
 vi.mock("@/lib/db/communities", () => ({ requireCommunity: mocks.community }));
 vi.mock("@/lib/cardano/koios", () => ({ fetchPoolInfo: mocks.fetch }));
+vi.mock("@/lib/cardano/poolIcon", () => ({ resolvePoolIconUrl: mocks.icon }));
 
 import { PATCH } from "./route";
 
@@ -57,6 +59,7 @@ beforeEach(() => {
     rewardAddress: "stake1",
     owners: [],
   });
+  mocks.icon.mockResolvedValue("https://cdn.example/icon.png");
   mocks.refresh.mockResolvedValue(pool);
   mocks.replace.mockResolvedValue([]);
   mocks.archive.mockResolvedValue(undefined);
@@ -67,7 +70,12 @@ describe("PATCH /api/stake-pools/[id]", () => {
     const res = await patch({ refresh: true });
     expect(res.status).toBe(200);
     expect(mocks.fetch).toHaveBeenCalledWith(0, "pool1abc");
-    expect(mocks.refresh).toHaveBeenCalled();
+    expect(mocks.icon).toHaveBeenCalledWith(0, "pool1abc");
+    expect(mocks.refresh).toHaveBeenCalledWith(
+      POOL_ID,
+      expect.objectContaining({ poolId: "pool1abc" }),
+      "https://cdn.example/icon.png",
+    );
   });
 
   it("replaces wallet role mappings", async () => {

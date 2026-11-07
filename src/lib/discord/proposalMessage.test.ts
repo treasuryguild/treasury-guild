@@ -44,9 +44,16 @@ describe("buildProposalEmbed", () => {
   };
 
   it("announces voting with its deadline and rules, and no names", () => {
-    const { embeds: [embed] } = buildProposalEmbed({ communityName: "Guild", proposal, milestone: "voting", url: "https://app/p/7" });
+    const { embeds: [embed] } = buildProposalEmbed({
+      communityName: "Guild",
+      iconUrl: "https://gateway/ipfs/cid",
+      proposal,
+      milestone: "voting",
+      url: "https://app/p/7",
+    });
     expect(embed!.title).toBe("🗳️ Voting open · Proposal #7 · Decision");
     expect(embed!.url).toBe("https://app/p/7");
+    expect(embed!.author).toEqual({ name: "Guild", icon_url: "https://gateway/ipfs/cid" });
     expect(embed!.fields).toEqual(expect.arrayContaining([
       { name: "Voting closes", value: `<t:${Math.floor(Date.parse(inDays(3)) / 1000)}:R>`, inline: true },
       { name: "Voters", value: "12", inline: true },
@@ -74,11 +81,12 @@ describe("buildProposalEmbed", () => {
 
 describe("buildGovernanceConnectedEmbed", () => {
   it("confirms the connection in one embed, naming the community", () => {
-    const payload = buildGovernanceConnectedEmbed("Swarm");
+    const payload = buildGovernanceConnectedEmbed("Swarm", "https://gateway/ipfs/cid");
     expect(payload.username).toBe("Treasury Guild");
     expect(payload.embeds).toHaveLength(1);
     const [embed] = payload.embeds;
     expect(embed!.title).toBe("🔗 Treasury Guild connected");
+    expect(embed!.author).toEqual({ name: "Swarm", icon_url: "https://gateway/ipfs/cid" });
     expect(embed!.description).toContain("**Swarm**");
     expect(embed!.color).toBe(0x6366f1);
     // A confirmation, not an announcement: no link, no fields.

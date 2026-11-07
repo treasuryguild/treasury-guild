@@ -26,6 +26,7 @@ beforeEach(() => {
     name: "Demo",
     slug: "demo",
     network: 0,
+    avatarCid: null,
     valid: true,
   });
 });
@@ -38,6 +39,7 @@ describe("GET /api/invites/[token]", () => {
       name: "Demo",
       slug: "demo",
       network: 0,
+      avatarCid: null,
       valid: true,
     });
     expect(mocks.preview).toHaveBeenCalledWith(TOKEN);

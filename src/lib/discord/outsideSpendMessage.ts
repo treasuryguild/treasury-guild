@@ -35,6 +35,8 @@ export function outsideSpendAmounts(spend: Pick<OutsideSpend, "amountLovelace" |
 
 export function buildOutsideSpendEmbed(input: {
   communityName: string;
+  /** HTTPS URL for the embed author icon (community avatar or app logo). */
+  iconUrl?: string;
   treasuryName: string;
   spend: OutsideSpend;
   display: UnitDisplay;
@@ -51,6 +53,10 @@ export function buildOutsideSpendEmbed(input: {
   return {
     username: USERNAME,
     embeds: [{
+      author: {
+        name: input.communityName,
+        ...(input.iconUrl ? { icon_url: input.iconUrl } : {}),
+      },
       title: "⚠️ Spend built outside Treasury Guild",
       url: input.explorerUrl,
       description:

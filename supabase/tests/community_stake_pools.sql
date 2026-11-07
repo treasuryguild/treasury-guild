@@ -112,6 +112,7 @@ alter default privileges in schema public grant execute on functions to anon, au
 \ir ../migrations/0097_legacy_import_stage_guards.sql
 \ir ../migrations/0098_treasury_import_drafts.sql
 \ir ../migrations/0099_community_stake_pools.sql
+\ir ../migrations/0100_stake_pool_icon.sql
 
 create function pg_temp.reject(command text, expected_state text) returns void language plpgsql as $$
 begin
@@ -138,7 +139,7 @@ insert into funding_sources(id, community_id, name, created_by) values
 
 insert into community_stake_pools(
   id, community_id, pool_id, ticker, margin, fixed_cost, reward_address, owners,
-  funding_source_id, created_by
+  icon_url, funding_source_id, created_by
 ) values (
   '60000000-0000-0000-0000-000000000001',
   '10000000-0000-0000-0000-000000000000',
@@ -148,8 +149,16 @@ insert into community_stake_pools(
   '340000000',
   'stake_test1_reward',
   array['stake_test1_owner'],
+  'https://cdn.example/sig.png',
   '50000000-0000-0000-0000-000000000001',
   'admin'
+);
+
+-- icon_url length check (≤ 512)
+select pg_temp.reject(
+  $q$update community_stake_pools set icon_url = 'https://x.example/' || repeat('a', 500)
+    where id = '60000000-0000-0000-0000-000000000001'$q$,
+  '23514'
 );
 
 insert into stake_pool_wallets(stake_pool_id, role, address) values

@@ -17,6 +17,7 @@ export const GET = publicRoute<{ token: string }>(async (req, { params }) => {
     name: preview.name,
     slug: preview.slug,
     network: preview.network,
+    avatarCid: preview.avatarCid,
     valid: preview.valid,
   } satisfies InvitePreviewResponse;
 });
