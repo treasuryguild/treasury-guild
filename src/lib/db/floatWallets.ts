@@ -70,6 +70,7 @@ export async function createFloatWallet(row: {
   address: string;
   note: string | null;
   created_by: string;
+  purpose?: "dex" | "pool_rewards";
   /** With sync_from_block: start polling after this Cardano tx's block. */
   sync_from_tx_hash?: string | null;
   sync_from_block?: number | null;
@@ -97,6 +98,7 @@ export async function createFloatWallet(row: {
       name: row.name,
       address: row.address,
       note: row.note,
+      purpose: row.purpose ?? "dex",
       created_by: row.created_by,
       sync_from_tx_hash: syncFromTx,
       sync_from_block: syncFromBlock,
@@ -156,6 +158,14 @@ export async function restoreFloatWallet(id: string): Promise<void> {
 export async function tagFloatTransfers(communityId: string): Promise<void> {
   const { error } = await serviceClient().rpc("tag_float_transfers", { p_community_id: communityId });
   if (error) console.error(`tag_float_transfers ${communityId} failed`, error);
+}
+
+/** Promote pool_rewards float → treasury inflows to revenue (migration 0099). */
+export async function classifyPoolRewardInflows(communityId: string): Promise<void> {
+  const { error } = await serviceClient().rpc("classify_pool_reward_inflows", {
+    p_community_id: communityId,
+  });
+  if (error) console.error(`classify_pool_reward_inflows ${communityId} failed`, error);
 }
 
 export async function loadFloatIncoming(

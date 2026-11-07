@@ -106,9 +106,10 @@ export function FloatWalletsSection({
         Float wallets
       </SectionTitle>
       <p className="mb-4 max-w-3xl text-sm text-zinc-400">
-        Watched payment-key wallets for DEX and dApp floats. Fund them from a treasury
-        on Payments, swap outside the app, then send tokens back. The app never signs
-        from these addresses.
+        Watched payment-key wallets for DEX and dApp floats (and stake-pool rewards
+        buffers created under Stake pools). Fund them from a treasury on Payments;
+        for DEX floats, swap outside the app, then send tokens back. The app never
+        signs from these addresses.
       </p>
       <ErrorText error={create.error ?? lifecycle.error ?? floats.error} className="mb-3" />
       {hasArchived && (

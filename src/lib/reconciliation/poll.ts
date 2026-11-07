@@ -7,14 +7,16 @@ import { addressTxs, txInfoBulk, type KoiosAddressTx, type KoiosTxInfo } from "@
 import { asNetwork } from "@/lib/config";
 import { PgCode, TxState } from "@/lib/constants";
 import { confirmTransaction } from "@/lib/db/transactions";
-import { tagFloatTransfers } from "@/lib/db/floatWallets";
+import { classifyPoolRewardInflows, tagFloatTransfers } from "@/lib/db/floatWallets";
 import { tagInternalTransfers } from "@/lib/db/treasuries";
 import {
   classifyExternalActivity,
   isRecognizedExternalActivity,
   type ExternalActivity,
 } from "@/lib/externalActivity";
+import { StakeAction, TxKind } from "@/lib/constants";
 import { enrichStakeActivityLabels } from "./externalActivityEnrich";
+import { applyPoolRewardIfMatched } from "./poolRewards";
 import {
   isIncomingTx,
   otherOutputAddresses,
@@ -114,10 +116,15 @@ export async function pollTreasury(treasury: {
   // Confirm our own pending, submitted or canceled txs that are now on-chain.
   // Pending covers a fully signed CBOR broadcast outside the app's submit
   // path; canceled covers the same after cancel freed the pending slot.
-  const awaiting = rows<{ id: string; tx_hash: string | null }>(
+  const awaiting = rows<{
+    id: string;
+    tx_hash: string | null;
+    kind: string | null;
+    governance_action: unknown;
+  }>(
     await db
       .from("transactions")
-      .select("id, tx_hash")
+      .select("id, tx_hash, kind, governance_action")
       .eq("treasury_id", treasury.id)
       .in("state", [TxState.Pending, TxState.Submitted, TxState.Canceled]),
     "load pending, submitted and canceled txs",
@@ -130,7 +137,22 @@ export async function pollTreasury(treasury: {
       // confirming hash, native ones moved to the Paid column). The block time
       // lets a proposal anchor be shown beside the time voting opened. False:
       // another poll confirmed it first.
-      if (await confirmTransaction(tx.id, new Date(info.tx_timestamp * 1000).toISOString())) confirmed += 1;
+      if (await confirmTransaction(tx.id, new Date(info.tx_timestamp * 1000).toISOString())) {
+        confirmed += 1;
+        const action =
+          tx.governance_action && typeof tx.governance_action === "object"
+            ? (tx.governance_action as { action?: string }).action
+            : null;
+        if (tx.kind === TxKind.Stake && action === StakeAction.Withdraw) {
+          await applyPoolRewardIfMatched({
+            communityId: treasury.community_id,
+            treasuryId: treasury.id,
+            txHash: tx.tx_hash,
+            info,
+            hasIncomingRow: false,
+          });
+        }
+      }
     }
   }
 
@@ -170,8 +192,18 @@ export async function pollTreasury(treasury: {
           ? { governance_alerted_at: new Date().toISOString() }
           : {}),
       });
-      if (!error) newExternal += 1;
-      else if (error.code !== PgCode.UniqueViolation) {
+      if (!error) {
+        newExternal += 1;
+        if (activity?.kind === TxKind.Stake && activity.action === StakeAction.Withdraw) {
+          await applyPoolRewardIfMatched({
+            communityId: treasury.community_id,
+            treasuryId: treasury.id,
+            txHash: t.tx_hash,
+            info,
+            hasIncomingRow: false,
+          });
+        }
+      } else if (error.code !== PgCode.UniqueViolation) {
         console.error(`external_txs insert ${t.tx_hash} failed`, error);
       }
       continue;
@@ -189,18 +221,28 @@ export async function pollTreasury(treasury: {
       assets: treasuryOutputAssets(info, treasury.address),
       block_time: new Date(info.tx_timestamp * 1000).toISOString(),
     });
-    if (!error) newIncoming += 1;
-    else if (error.code !== PgCode.UniqueViolation) {
+    if (!error) {
+      newIncoming += 1;
+      await applyPoolRewardIfMatched({
+        communityId: treasury.community_id,
+        treasuryId: treasury.id,
+        txHash: t.tx_hash,
+        info,
+        hasIncomingRow: true,
+      });
+    } else if (error.code !== PgCode.UniqueViolation) {
       console.error(`incoming_txs insert ${t.tx_hash} failed`, error);
     }
   }
 
   // Link new rows to the community's other treasuries and float wallets: an
   // inflow from one is a transfer (no review), an outgoing tx to one is tagged
-  // for display (and float outs skip the outside-spend alert).
+  // for display (and float outs skip the outside-spend alert). Pool-rewards
+  // buffers then promote to revenue.
   if (newIncoming + newExternal > 0) {
     await tagInternalTransfers(treasury.community_id);
     await tagFloatTransfers(treasury.community_id);
+    await classifyPoolRewardInflows(treasury.community_id);
   }
 
   // A hash Koios listed but did not describe (lag, a partial bulk answer) must

@@ -954,8 +954,62 @@ export const createFloatWalletSchema = z.object({
   name: floatWalletName,
   address: walletAddress.refine((a) => /^addr(_test)?1/.test(a), "Use a Shelley address (addr1… or addr_test1…)"),
   note: floatWalletNote,
+  /** dex (default) or pool_rewards buffer for a linked stake pool (0099). */
+  purpose: z.enum(["dex", "pool_rewards"]).optional(),
   /** Ignore history at and before this Cardano tx (seeds the sync cursor). */
   afterTxHash: txHash.optional(),
+});
+
+const stakePoolWalletRole = z.enum([
+  "reward_account",
+  "owner",
+  "operator_payment",
+  "rewards_buffer",
+  "community_treasury",
+]);
+
+export const createCommunityStakePoolSchema = z.object({
+  communityId: id,
+  /** Bech32 `pool1…` or 56-char hex; resolved via Koios. */
+  poolId: nonEmpty.max(128),
+  /** Prefer an existing treasury for network when present; else community network. */
+  treasuryId: id.optional(),
+});
+
+export const stakePoolWalletMappingSchema = z.object({
+  role: stakePoolWalletRole,
+  address: z.string().min(1).max(200).optional(),
+  floatWalletId: id.optional(),
+  treasuryId: id.optional(),
+}).superRefine((row, ctx) => {
+  const n = [row.address, row.floatWalletId, row.treasuryId].filter(Boolean).length;
+  if (n !== 1) {
+    ctx.addIssue({ code: "custom", message: "Each wallet mapping needs exactly one of address, floatWalletId, or treasuryId" });
+  }
+  if (row.role === "rewards_buffer" && !row.floatWalletId) {
+    ctx.addIssue({ code: "custom", path: ["floatWalletId"], message: "Rewards buffer needs a float wallet" });
+  }
+  if (row.role === "community_treasury" && !row.treasuryId) {
+    ctx.addIssue({ code: "custom", path: ["treasuryId"], message: "Community treasury needs a treasury" });
+  }
+  if (
+    (row.role === "reward_account" || row.role === "owner" || row.role === "operator_payment") &&
+    !row.address
+  ) {
+    ctx.addIssue({ code: "custom", path: ["address"], message: "That role needs an address" });
+  }
+});
+
+export const patchCommunityStakePoolSchema = z.object({
+  /** Re-fetch registration params from Koios. */
+  refresh: z.boolean().optional(),
+  /** Replace every role mapping when provided. */
+  wallets: z.array(stakePoolWalletMappingSchema).max(40).optional(),
+  archive: z.boolean().optional(),
+}).superRefine((body, ctx) => {
+  if (body.refresh === undefined && body.wallets === undefined && body.archive === undefined) {
+    ctx.addIssue({ code: "custom", message: "Nothing to update" });
+  }
 });
 export const patchFloatWalletSchema = z.object({
   name: floatWalletName.optional(),
@@ -1551,6 +1605,9 @@ export type PatchLegacyWalletBody = z.infer<typeof patchLegacyWalletSchema>;
 export type CreateFloatWalletBody = z.infer<typeof createFloatWalletSchema>;
 export type PatchFloatWalletBody = z.infer<typeof patchFloatWalletSchema>;
 export type FloatWalletLifecycleBody = z.infer<typeof floatWalletLifecycleSchema>;
+export type CreateCommunityStakePoolBody = z.infer<typeof createCommunityStakePoolSchema>;
+export type PatchCommunityStakePoolBody = z.infer<typeof patchCommunityStakePoolSchema>;
+export type StakePoolWalletMappingBody = z.infer<typeof stakePoolWalletMappingSchema>;
 export type CreateAllocationRuleBody = z.infer<typeof createAllocationRuleSchema>;
 export type PatchAllocationRuleBody = z.infer<typeof patchAllocationRuleSchema>;
 export type CreateConversionBody = z.infer<typeof createConversionSchema>;

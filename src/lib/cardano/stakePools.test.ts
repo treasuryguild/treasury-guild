@@ -5,8 +5,10 @@ import {
   buildPoolListPath,
   buildPoolLookupPath,
   clampPoolSearchLimit,
+  mapKoiosPoolInfoRow,
   mapKoiosPoolRow,
   mapKoiosPoolRows,
+  mergePoolDetail,
   sanitizePoolSearchQuery,
 } from "./stakePools";
 
@@ -94,6 +96,62 @@ describe("mapKoiosPoolRows", () => {
       fixedCost: null,
       activeStake: null,
       status: "registered",
+    });
+  });
+});
+
+describe("mapKoiosPoolInfoRow", () => {
+  it("maps reward address, owners and numeric strings", () => {
+    expect(
+      mapKoiosPoolInfoRow({
+        pool_id_bech32: "pool1abc",
+        ticker: "ABC",
+        margin: "0.025",
+        fixed_cost: 340000000,
+        pledge: "500000000000",
+        active_stake: "1000",
+        pool_status: "registered",
+        reward_addr: "stake1reward",
+        owners: ["stake1owner", "  ", 12, "stake1other"],
+      }),
+    ).toEqual({
+      poolId: "pool1abc",
+      ticker: "ABC",
+      margin: 0.025,
+      fixedCost: "340000000",
+      activeStake: "1000",
+      status: "registered",
+      pledge: "500000000000",
+      rewardAddress: "stake1reward",
+      owners: ["stake1owner", "stake1other"],
+    });
+    expect(mapKoiosPoolInfoRow({ ticker: "NOID" })).toBeNull();
+  });
+});
+
+describe("mergePoolDetail", () => {
+  it("fills blank detail fields from the list summary", () => {
+    const detail = mapKoiosPoolInfoRow({
+      pool_id_bech32: "pool1abc",
+      reward_addr: "stake1reward",
+      owners: ["stake1owner"],
+    })!;
+    expect(
+      mergePoolDetail(detail, {
+        poolId: "pool1abc",
+        ticker: "ABC",
+        margin: 0.02,
+        fixedCost: "340000000",
+        activeStake: "9",
+        status: "registered",
+      }),
+    ).toMatchObject({
+      ticker: "ABC",
+      margin: 0.02,
+      fixedCost: "340000000",
+      activeStake: "9",
+      rewardAddress: "stake1reward",
+      owners: ["stake1owner"],
     });
   });
 });

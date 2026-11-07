@@ -445,6 +445,8 @@ export interface IncomingTxRow {
   /** The funding source (and commitment) an admin tied this inflow to (migration 0052). */
   funding_source_id: string | null;
   funding_commitment_id: string | null;
+  /** Linked community stake pool when booked as operator rewards (migration 0099). */
+  stake_pool_id: string | null;
 }
 
 /**
@@ -501,6 +503,8 @@ export interface FloatWalletRow {
   name: string;
   address: string;
   note: string | null;
+  /** dex = DEX/dApp; pool_rewards = SPO rewards buffer (migration 0099). */
+  purpose: "dex" | "pool_rewards";
   /** Cardano tx at/before which monitoring skips history (migration 0090). */
   sync_from_tx_hash: string | null;
   /** Block height seeded into float_sync_cursors at create. */
@@ -512,7 +516,51 @@ export interface FloatWalletRow {
 }
 
 export const FLOAT_WALLET_COLUMNS =
-  "id, community_id, name, address, note, sync_from_tx_hash, sync_from_block, archived_at, archived_by, created_by, created_at";
+  "id, community_id, name, address, note, purpose, sync_from_tx_hash, sync_from_block, archived_at, archived_by, created_by, created_at";
+
+export type StakePoolWalletRole =
+  | "reward_account"
+  | "owner"
+  | "operator_payment"
+  | "rewards_buffer"
+  | "community_treasury";
+
+/** Linked Cardano stake pool for a community (migration 0099). */
+export interface CommunityStakePoolRow {
+  id: string;
+  community_id: string;
+  pool_id: string;
+  ticker: string | null;
+  margin: number | null;
+  fixed_cost: string | null;
+  pledge: string | null;
+  active_stake: string | null;
+  pool_status: string;
+  reward_address: string | null;
+  owners: string[];
+  funding_source_id: string;
+  refreshed_at: string;
+  archived_at: string | null;
+  archived_by: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export const COMMUNITY_STAKE_POOL_COLUMNS =
+  "id, community_id, pool_id, ticker, margin, fixed_cost, pledge, active_stake, pool_status, reward_address, owners, funding_source_id, refreshed_at, archived_at, archived_by, created_by, created_at";
+
+export interface StakePoolWalletRow {
+  id: string;
+  stake_pool_id: string;
+  role: StakePoolWalletRole;
+  address: string | null;
+  float_wallet_id: string | null;
+  treasury_id: string | null;
+  created_at: string;
+}
+
+export const STAKE_POOL_WALLET_COLUMNS =
+  "id, stake_pool_id, role, address, float_wallet_id, treasury_id, created_at";
 
 /** Inflow seen at a float wallet address (pollFloatWallet). */
 export interface FloatIncomingTxRow {

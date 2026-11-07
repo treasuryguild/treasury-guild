@@ -533,6 +533,7 @@ export const RATE_LIMITS = {
   fundingImport: { limit: 60, windowSeconds: 600 },
   /** Creating a watched float wallet, per admin wallet. */
   floatWalletCreate: { limit: 20, windowSeconds: 3600 },
+  stakePoolCreate: { limit: 20, windowSeconds: 3600 },
   /** Creating or updating a bridge/swap conversion episode, per admin wallet. */
   conversionWrite: { limit: 60, windowSeconds: 3600 },
   /** New proposals, per wallet. */
@@ -590,6 +591,8 @@ export const MAX_TASK_NUMBER = 2_000_000_000;
 export const MAX_TREASURY_SIGNERS = 50;
 /** Non-archived float wallets one community may watch (migration 0088). */
 export const MAX_FLOAT_WALLETS = 5;
+/** Non-archived stake pools one community may link (migration 0099). */
+export const MAX_COMMUNITY_STAKE_POOLS = 3;
 /** Payday allocation rules (ops fee / savings) one paying treasury may hold. */
 export const MAX_PAYDAY_ALLOCATION_RULES = 5;
 /** A payment memo lands in on-chain metadata: one metadatum string at most. */

@@ -74,6 +74,7 @@ interface IncomingFlowRow {
   from_treasury_id: string | null;
   from_float_wallet_id: string | null;
   funding_source_id: string | null;
+  stake_pool_id: string | null;
   incoming_type: string;
   amount_lovelace: string;
   assets: Record<string, string> | null;
@@ -135,7 +136,7 @@ export async function loadDashboardActivity(
   const [flowRows, floatFlowRows, payoutRows, refundRows, paymentRows, treasuryRows, floatWalletRows, legacyRows, legacyReceiptRows, legacyWallets, fundingRows, conversions] = await Promise.all([
     allRows<IncomingFlowRow>((from, to) => db
       .from("incoming_txs")
-      .select("treasury_id, from_treasury_id, from_float_wallet_id, funding_source_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
+      .select("treasury_id, from_treasury_id, from_float_wallet_id, funding_source_id, stake_pool_id, incoming_type, amount_lovelace, assets, block_time, treasuries!incoming_txs_treasury_id_fkey!inner(community_id)")
       .eq("treasuries.community_id", communityId)
       .gte("block_time", range.start)
       .lt("block_time", range.end)
@@ -304,6 +305,7 @@ export async function loadDashboardActivity(
       assets: row.assets,
       blockTime: row.block_time,
       fundingSourceId: row.funding_source_id,
+      stakePoolId: row.stake_pool_id,
     })),
     // Treasury → float: the float's tagged inflow is the amount source (like
     // the receiver side of an internal treasury transfer).

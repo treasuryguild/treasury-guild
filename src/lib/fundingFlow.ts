@@ -55,6 +55,8 @@ export interface FlowIncomingRow {
   assets: Record<string, string> | null;
   blockTime: string | null;
   fundingSourceId?: string | null;
+  /** Pool-reward income (migration 0099); overrides float-transfer bucketing. */
+  stakePoolId?: string | null;
 }
 
 /**
@@ -89,9 +91,10 @@ const KEY = "|";
 
 /**
  * Bucket inflows by block-time month (the window's bucket) over the window. A
- * row linked to another treasury or float wallet of the community is a
- * transfer whatever its type (the link is a chain fact); the rest are income
- * by kind, refunds and unlinked transfers excluded. Rows without a block time
+ * row linked to another treasury of the community is a transfer whatever its
+ * type; a float counterparty is a transfer unless `stakePoolId` marks pool
+ * reward income forwarded through a rewards buffer. The rest are income by
+ * kind, refunds and unlinked transfers excluded. Rows without a block time
  * are skipped.
  */
 export function aggregateFlows(rows: readonly FlowIncomingRow[], window: DashboardWindow): FlowMonth[] {
@@ -100,8 +103,12 @@ export function aggregateFlows(rows: readonly FlowIncomingRow[], window: Dashboa
   for (const row of rows) {
     if (!row.blockTime) continue;
     const month = bucketKey(row.blockTime, window.bucket);
-    const fromId = row.fromTreasuryId ?? row.fromFloatWalletId ?? null;
-    const kind = fromId ? null : inflowKind(row.incomingType);
+    const incomeKind = inflowKind(row.incomingType);
+    const poolRewardIncome = Boolean(row.stakePoolId) && incomeKind != null;
+    const fromId = row.fromTreasuryId
+      ?? (poolRewardIncome ? null : row.fromFloatWalletId)
+      ?? null;
+    const kind = fromId ? null : incomeKind;
     const target = fromId ? transfers.get(month) : kind ? inflows.get(month) : undefined;
     if (!target) continue;
     for (const [unit, quantity] of inflowAmounts(row)) {

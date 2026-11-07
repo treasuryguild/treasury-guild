@@ -240,15 +240,29 @@ With [proposals](/docs/governance) on, several treasuries also limit what a spen
 
 A workgroup's payment wallet can change over time. Each change is dated and takes effect at the start of a **budget period** (a month or a quarter, following the workgroup's [budget setup](/docs/budgets#budget-setups)): the next period, or the current one while nothing has been paid in it from another wallet yet. Payouts already made keep the wallet they came from, and a task from an earlier period is still paid from that period's wallet, so a period is never split across two wallets. The history of changes, with who made them and why, is kept with the workgroup.
 
+## Stake pools
+
+Communities that operate a Cardano stake pool can **link** it on the Treasury page (**Add stake pool**). Search by ticker or paste a `pool1…` id; Treasury Guild reads margin, fixed cost, pledge, the reward account and owner addresses from the chain so you do not type them by hand. A community may link at most three active pools.
+
+After linking, admins **map wallets** to roles:
+
+- **Reward account** — the stake address registration uses (prefilled).
+- **Owner / pledge** — owner stake keys from registration (prefilled).
+- **Operator payment** — hot wallets that pay hosting and ops (declared).
+- **Rewards buffer** — an optional watched [float wallet](#float-wallets) with purpose *pool rewards* that only receives withdrawn rewards and forwards them to a treasury.
+- **Community treasury** — which multisig (including an [SDK](#staking-and-cardano-governance) wallet) should book the income.
+
+**Income is booked once**, when ADA becomes spendable in a community treasury: a direct withdraw into that treasury, or a forward from a rewards-buffer float. Those inflows are classified as **revenue** and tied to a funding source named after the pool (for example "Pool SIG rewards"), so [Funding](/docs/funding) and the Dashboard funding flow show them. DEX floats stay transfers; only a **pool rewards** buffer promotes to pool revenue. **Refresh from chain** updates cached params when the pool changes margin or owners. **Archive** hides the pool from new mapping without deleting history. Create a rewards buffer with **Create rewards buffer float** while mapping wallets (it counts toward the float cap below).
+
 ## Float wallets
 
-A **float wallet** is a watched payment-key address for DEX and other dApp use — not a multisig treasury. Admins add one on the Treasury page (**Add float wallet**): a name, the Shelley address on the community's network, and an optional note (for example who holds the key). A community may watch at most five non-archived floats. The address cannot already be one of the community's treasuries or another float.
+A **float wallet** is a watched payment-key address — not a multisig treasury. Most are for DEX and other dApp use (**Add float wallet** on the Treasury page). A float may also be a **pool rewards** buffer created from [Stake pools](#stake-pools) while mapping wallets: it only receives withdrawn operator rewards and forwards them to a community treasury. Admins give a name, the Shelley address on the community's network, and an optional note (for example who holds the key). A community may watch at most five non-archived floats of either kind. The address cannot already be one of the community's treasuries or another float.
 
 When the address already has history (an existing hot wallet), **Start monitoring after** accepts a Cardano transaction hash that involves that address: polling ignores that transaction and everything earlier, and the card shows the cutoff. Leave it blank to sync the full history from the chain.
 
-Treasury Guild never builds or signs spends from a float. Operators connect that wallet to a DEX in their usual CIP-30 extension, swap outside the app, then send tokens back. Live balances appear on the float's card (same chain lookup as treasuries). The reconcile sweep and a visit to the Treasury page poll float activity so treasury↔float movements can be tagged.
+Treasury Guild never builds or signs spends from a float. For a DEX float, operators connect that wallet to a DEX in their usual CIP-30 extension, swap outside the app, then send tokens back. Live balances appear on the float's card (same chain lookup as treasuries). The reconcile sweep and a visit to the Treasury page poll float activity so treasury↔float movements can be tagged.
 
-Fund a float from [Payments](/docs/payments#recipients) with recipient kind **Float wallet**: that output is a **transfer** (no budget month), like a transfer to another treasury. Returns from the float to a treasury are tagged the same way and show on the Dashboard's [Funding flow](/docs/budgets#dashboard) as wallet-to-wallet edges, not as income or spend. DEX outs from the float stay on the float's own activity and are not charged to a treasury budget. Outside-spend Discord alerts skip treasury outs that only fund a community float. When a bridge or swap lands on the float first, **Recent activity** lets an admin [record the conversion](/docs/reconciliation#bridge-and-swap-conversions) (fees and foreign-chain proofs) on that incoming row.
+Fund a float from [Payments](/docs/payments#recipients) with recipient kind **Float wallet**: that output is a **transfer** (no budget month), like a transfer to another treasury. Returns from a **DEX** float to a treasury are tagged the same way and show on the Dashboard's [Funding flow](/docs/budgets#dashboard) as wallet-to-wallet edges, not as income or spend. A return from a **pool rewards** buffer is booked as [stake-pool revenue](#stake-pools) instead. DEX outs from a DEX float stay on the float's own activity and are not charged to a treasury budget. Outside-spend Discord alerts skip treasury outs that only fund a community float. When a bridge or swap lands on the float first, **Recent activity** lets an admin [record the conversion](/docs/reconciliation#bridge-and-swap-conversions) (fees and foreign-chain proofs) on that incoming row.
 
 **Archive** hides a float from Payment pickers and the active list (tick **Show archived** to restore). Archiving does not delete history. Float wallets are never primary, never pay Payday tasks, and never mint or anchor.
 

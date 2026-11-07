@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   community: vi.fn(),
   create: vi.fn(),
   tag: vi.fn(),
+  classify: vi.fn(),
   rate: vi.fn(),
   txInfo: vi.fn(),
 }));
@@ -16,6 +17,7 @@ vi.mock("@/lib/db/communities", () => ({ requireCommunity: mocks.community }));
 vi.mock("@/lib/db/floatWallets", () => ({
   createFloatWallet: mocks.create,
   tagFloatTransfers: mocks.tag,
+  classifyPoolRewardInflows: mocks.classify,
 }));
 vi.mock("@/lib/db/rateLimit", () => ({ enforceRateLimit: mocks.rate }));
 vi.mock("@/lib/cardano/koios", () => ({ txInfoBulk: mocks.txInfo }));
@@ -40,6 +42,7 @@ beforeEach(() => {
   mocks.community.mockResolvedValue({ id: COMMUNITY, network: 0 });
   mocks.create.mockResolvedValue({ id: "float-new" });
   mocks.tag.mockResolvedValue(undefined);
+  mocks.classify.mockResolvedValue(undefined);
   mocks.rate.mockResolvedValue(undefined);
   mocks.txInfo.mockResolvedValue([]);
 });
@@ -71,11 +74,21 @@ describe("POST /api/float-wallets", () => {
       name: "DEX float",
       address: ADDRESS,
       note: "Alice holds key",
+      purpose: "dex",
       created_by: ADMIN,
       sync_from_tx_hash: null,
       sync_from_block: null,
     });
     expect(mocks.tag).toHaveBeenCalledWith(COMMUNITY);
+    expect(mocks.classify).toHaveBeenCalledWith(COMMUNITY);
+  });
+
+  it("creates a pool_rewards float when purpose is set", async () => {
+    const res = await POST(request({
+      communityId: COMMUNITY, name: "Rewards buffer", address: ADDRESS, purpose: "pool_rewards",
+    }), context);
+    expect(res.status).toBe(200);
+    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ purpose: "pool_rewards" }));
   });
 
   it("seeds sync-from when afterTxHash involves the float address", async () => {

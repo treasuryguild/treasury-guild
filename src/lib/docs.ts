@@ -70,7 +70,7 @@ export const DOCS = [
   {
     slug: "treasury",
     title: "Treasury",
-    summary: "Multisig wallets: creating one, funding it and reading balances.",
+    summary: "Multisig wallets, float wallets, linked stake pools, funding them and reading balances.",
     group: "Your community",
   },
   {
