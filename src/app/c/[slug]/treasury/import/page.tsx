@@ -81,14 +81,14 @@ export default function ImportTreasury({
   >(null);
   const [draft, setDraft] = useState<ImportDraftView | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
-  const [pasteByHash, setPasteByHash] = useState<Record<string, string>>({});
+  const [pasteAddresses, setPasteAddresses] = useState("");
   const [workgroupId, setWorkgroupId] = useState(COMMUNITY_TREASURY);
   const [created, setCreated] = useState<CreateTreasuryResponse | null>(null);
   const [restoreId, setRestoreId] = useState<string | null>(null);
   const review = useAsyncAction("Failed to read treasury");
   const discover = useAsyncAction("Failed to search on-chain registrations");
   const invite = useAsyncAction("Could not save the import invite");
-  const slot = useAsyncAction("Could not set signer address");
+  const slot = useAsyncAction("Could not match signer addresses");
   const save = useAsyncAction("Failed to import treasury");
   const busy = review.busy || discover.busy || invite.busy || slot.busy || save.busy;
   const adoptedQuery = useRef<string | null>(null);
@@ -98,7 +98,7 @@ export default function ImportTreasury({
     setPreviewSource(null);
     setDraft(null);
     setInviteUrl(null);
-    setPasteByHash({});
+    setPasteAddresses("");
     review.setError(null);
     invite.setError(null);
     slot.setError(null);
@@ -113,7 +113,7 @@ export default function ImportTreasury({
     setPreviewSource(source);
     setDraft(null);
     setInviteUrl(null);
-    setPasteByHash({});
+    setPasteAddresses("");
     if (!name.trim() && result.suggestedName) setName(result.suggestedName);
   }
 
@@ -193,27 +193,22 @@ export default function ImportTreasury({
     setWorkgroupId(result.draft.workgroupId ?? COMMUNITY_TREASURY);
   }
 
-  async function pasteSlot(keyHash: string) {
+  async function matchAddresses() {
     if (!draft) return;
-    const address = (pasteByHash[keyHash] ?? "").trim();
-    if (!address) return;
+    const addresses = pasteAddresses.split(/[\s,]+/).map((a) => a.trim()).filter(Boolean);
+    if (addresses.length === 0) return;
     const result = await slot.run(() =>
       apiFetch<ImportDraftResponse>("/api/treasury/import-draft/slot", {
         body: {
           draftId: draft.id,
           communityId: community!.id,
-          keyHash,
-          address,
+          addresses,
         },
       }),
     );
     if (!result) return;
     setDraft(result.draft);
-    setPasteByHash((prev) => {
-      const next = { ...prev };
-      delete next[keyHash];
-      return next;
-    });
+    setPasteAddresses("");
   }
 
   async function refreshDraft() {
@@ -476,7 +471,8 @@ export default function ImportTreasury({
                   <p className="text-sm text-zinc-400">
                     Save an invite so each signer can connect their wallet and claim their key.
                     Your connected wallet must be a base signer (claimed when you save).
-                    You can also paste a matching payment address for any remaining slot.
+                    You can also paste the other signers&apos; payment addresses in any order;
+                    Treasury Guild matches them to the script keys.
                     The invite lasts {IMPORT_DRAFT_DAYS} days.
                   </p>
                   {!!workgroups.data?.length && <TreasuryLinkField workgroups={workgroups.data} value={workgroupId}
@@ -492,7 +488,7 @@ export default function ImportTreasury({
                   <div className="space-y-2">
                     <p className="text-sm text-zinc-400">
                       {draft.filled} of {draft.total} signers claimed. Share the invite link so the others can connect,
-                      or paste a payment address that matches an unclaimed key.
+                      or paste their payment addresses in any order below.
                     </p>
                     {inviteUrl && (
                       <div className="flex flex-wrap items-center gap-2">
@@ -501,37 +497,46 @@ export default function ImportTreasury({
                       </div>
                     )}
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {draft.signers.map((signer, i) => (
-                      <Field key={signer.keyHash} label={`${GROUP_LABELS[signer.group]} ${groupNumber(i)}`}>
-                        <p className="mb-2 break-all font-mono text-xs text-zinc-500">{signer.keyHash}</p>
+                      <div key={signer.keyHash}>
+                        <p className="text-sm font-medium text-zinc-300">
+                          {GROUP_LABELS[signer.group]} {groupNumber(i)}
+                        </p>
                         {signer.claimed ? (
-                          <p className="break-all font-mono text-xs text-zinc-300">{signer.address}</p>
+                          <p className="break-all font-mono text-xs text-zinc-400">{signer.address}</p>
                         ) : (
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            <Input
-                              aria-label={`${GROUP_LABELS[signer.group]} ${groupNumber(i)} address`}
-                              className="font-mono text-xs"
-                              value={pasteByHash[signer.keyHash] ?? ""}
-                              disabled={busy}
-                              placeholder="Payment address"
-                              onChange={(e) =>
-                                setPasteByHash((prev) => ({ ...prev, [signer.keyHash]: e.target.value }))
-                              }
-                            />
-                            <Button
-                              variant="secondary"
-                              disabled={busy || !(pasteByHash[signer.keyHash] ?? "").trim()}
-                              loading={slot.busy}
-                              onClick={() => void pasteSlot(signer.keyHash)}
-                            >
-                              Set address
-                            </Button>
-                          </div>
+                          <p className="text-xs text-zinc-500">Waiting</p>
                         )}
-                      </Field>
+                      </div>
                     ))}
                   </div>
+                  {!complete && (
+                    <Field
+                      label="Payment addresses"
+                      hint="One per line, any order. Matched to script keys automatically."
+                    >
+                      <Textarea
+                        aria-label="Payment addresses"
+                        value={pasteAddresses}
+                        rows={4}
+                        disabled={busy}
+                        spellCheck={false}
+                        className="font-mono text-xs"
+                        placeholder={"addr1…\naddr1…"}
+                        onChange={(e) => setPasteAddresses(e.target.value)}
+                      />
+                      <Button
+                        className="mt-2"
+                        variant="secondary"
+                        disabled={busy || !pasteAddresses.trim()}
+                        loading={slot.busy}
+                        onClick={() => void matchAddresses()}
+                      >
+                        Match addresses
+                      </Button>
+                    </Field>
+                  )}
                   <ErrorText error={slot.error} />
                   <ErrorText error={save.error} />
                   {restoreId && <RestoreArchivedTreasury slug={slug} treasuryId={restoreId} />}

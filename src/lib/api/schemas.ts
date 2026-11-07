@@ -452,13 +452,11 @@ export const importDraftClaimSchema = z.object({
   name: text(100).optional(),
 });
 
-/** POST /api/treasury/import-draft/slot — admin paste. */
+/** POST /api/treasury/import-draft/slot — admin paste; matched by payment key. */
 export const importDraftSlotSchema = z.object({
   draftId: id,
   communityId: id,
-  keyHash: keyHash56,
-  address: storedWallet,
-  name: text(100).optional(),
+  addresses: z.array(storedWallet).min(1).max(32),
 });
 
 /** POST /api/treasury-import-invites/[token]/claim */

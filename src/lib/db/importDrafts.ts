@@ -4,6 +4,7 @@
 import "server-only";
 
 import type { ImportDraftView } from "@/lib/api/types";
+import { matchImportAddresses } from "@/lib/cardano/importAddressMatch";
 import {
   addressToNetwork,
   checkValidAddress,
@@ -329,36 +330,46 @@ export async function claimImportDraftById(
   return toView(updated);
 }
 
-/** Admin paste: address must hash to the named key slot. */
-export async function adminSetImportSlot(input: {
+/**
+ * Admin paste: match payment addresses to script key-hash slots in any order.
+ * Applies nothing when any address is bad (typo / wrong key / conflict).
+ */
+export async function adminMatchImportSlots(input: {
   draftId: string;
   communityId: string;
-  keyHash: string;
-  address: string;
-  name?: string;
+  addresses: string[];
   network: Network;
 }): Promise<ImportDraftView> {
   const existing = await loadDraft(input.draftId);
   if (!existing || existing.community_id !== input.communityId || !stillOpen(existing)) {
     throw new NotFoundError("Import invite not found");
   }
-  assertNetworkAddress(input.address, input.network);
-  const keyHash = paymentKeyHash(input.address).toLowerCase();
-  if (keyHash !== input.keyHash.toLowerCase()) {
-    throw new BadRequestError("That address does not match this signer key");
-  }
-  rpc<null>(
-    await serviceClient().rpc("set_treasury_import_draft_slot_address", {
-      p_draft_id: input.draftId,
-      p_key_hash: keyHash,
-      p_wallet: input.address,
-      p_display_name: input.name ?? null,
-    }),
-    BAD_REQUEST,
+  for (const address of input.addresses) assertNetworkAddress(address, input.network);
+  const signers = signerList(existing.treasury_import_draft_signers);
+  const { assignments, problems } = matchImportAddresses(
+    signers.map((s) => ({ keyHash: s.key_hash, address: s.wallet_address })),
+    input.addresses.map((address) => ({
+      address,
+      keyHash: paymentKeyHash(address),
+    })),
   );
-  const row = await loadDraft(input.draftId);
-  if (!row) throw new NotFoundError("Import invite not found");
-  return toView(row);
+  if (problems.length > 0) {
+    throw new BadRequestError(problems.join("; "));
+  }
+  for (const row of assignments) {
+    rpc<null>(
+      await serviceClient().rpc("set_treasury_import_draft_slot_address", {
+        p_draft_id: input.draftId,
+        p_key_hash: row.keyHash.toLowerCase(),
+        p_wallet: row.address,
+        p_display_name: null,
+      }),
+      BAD_REQUEST,
+    );
+  }
+  const updated = await loadDraft(input.draftId);
+  if (!updated) throw new NotFoundError("Import invite not found");
+  return toView(updated);
 }
 
 /** Expired drafts (reconcile sweep). Signer rows cascade. */
