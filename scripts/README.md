@@ -41,8 +41,8 @@ $env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # Account → Access Tokens; the CLI re
 | `npm run db:status` (`supabase status`) | Local URLs and keys. `-o env` prints them as `KEY=value` for `.env`. | no |
 | `npm run db:reset` (`supabase db reset --local`) | Drops the local DB, applies every migration from scratch, loads the snapshot from `supabase/seeds/local/` (config.toml `[db.seed].sql_paths`). The check that a new migration applies cleanly. | no |
 | `npm run db:migrate` (`supabase migration up --local`) | Applies only pending migrations to the running local DB (keeps data). | no |
-| `npm run db:snapshot` (`supabase db dump --linked --data-only …`) | Dumps the remote **data** (not schema) to the gitignored `supabase/seeds/local/remote_snapshot.sql`, so Signius, its treasury, members and the GVTT mint exist locally. Skips secrets and ephemeral tables (`auth_nonces`, `webhook_events`, `call_integration_secrets`, `treasury_cosigner_keys`, Discord destinations, OAuth tables, invite hashes, rate limits, check-in codes). Needs the linked project (above). Read only. | read only |
-| `npm run seed:sandbox` / `seed:live` | Signius seeds against the **local** DB via `psql` (NOTICEs shown). Remote seeding is a manual CLI command — see [`supabase/seeds/README.md`](../supabase/seeds/README.md). | no |
+| `npm run db:snapshot` (`supabase db dump --linked --data-only …`) | Dumps the remote **data** (not schema) to the gitignored `supabase/seeds/local/remote_snapshot.sql`, so Swarm, its treasury, members and the GVTT mint exist locally. Skips secrets and ephemeral tables (`auth_nonces`, `webhook_events`, `call_integration_secrets`, `treasury_cosigner_keys`, Discord destinations, OAuth tables, invite hashes, rate limits, check-in codes). Needs the linked project (above). Read only. | read only |
+| `npm run seed:sandbox` / `seed:live` | Swarm seeds against the **local** DB via `psql` (NOTICEs shown). Remote seeding is a manual CLI command — see [`supabase/seeds/README.md`](../supabase/seeds/README.md). | no |
 | `npm run dev` | App against local (`.env`). Running against the remote is a manual env overlay — see below. | no |
 
 The stack's ports come from `supabase/config.toml`: API 54321, DB 54322,
@@ -91,7 +91,7 @@ npm run dev
 
 Without access to remote data, skip `db:snapshot` and `db:reset`: `db:start`
 creates the schema, then copy the local values into `.env` and `npm run dev`
-lets you create your own community. Signius seeds require its existing
+lets you create your own community. Swarm seeds require its existing
 community, members and GVTT mint in a snapshot.
 
 `npm run dev` is plain `next dev`, so process variables and higher-priority
@@ -125,7 +125,7 @@ Things to keep in mind while testing locally:
 
 - A transaction built from local data and submitted goes to the real
   chain for that community (mainnet or preprod); only the database record is
-  local. The Signius seeds use preprod. **`npm run db:reset`
+  local. The Swarm seeds use preprod. **`npm run db:reset`
   destroys such records** (it reloads the remote snapshot). Before a reset,
   check for local-only history — `select tx_hash, state from transactions
   where created_at > '<snapshot date>'` — and either take a
@@ -185,15 +185,15 @@ docker run -d --rm --name treasury-guild-sql-tests -e POSTGRES_PASSWORD=test -p 
 # wait until ready:  docker exec treasury-guild-sql-tests pg_isready -h 127.0.0.1 -U postgres
 $env:PGPASSWORD = 'test'
 # one fixture (name filter by hand), or loop Get-ChildItem supabase/tests/*.sql for all:
-psql postgresql://postgres@localhost:54330/postgres -X -q -v ON_ERROR_STOP=1 -f supabase/tests/signius_sandbox_seed.sql
+psql postgresql://postgres@localhost:54330/postgres -X -q -v ON_ERROR_STOP=1 -f supabase/tests/swarm_sandbox_seed.sql
 docker rm -f treasury-guild-sql-tests
 ```
 
 Each fixture builds the schema from the migrations, asserts, and rolls
 everything back, so one container serves them all. The seed fixtures
-(`-Filter signius` in the old runner's terms) are
-`signius_sandbox_seed.sql`, `signius_live_seed.sql` and
-`signius_seeds_head.sql`.
+(`-Filter swarm` in the old runner's terms) are
+`swarm_sandbox_seed.sql`, `swarm_live_seed.sql` and
+`swarm_seeds_head.sql`.
 
 ## Inspecting the remote schema
 

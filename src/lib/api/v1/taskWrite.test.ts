@@ -37,7 +37,7 @@ import { callEndpoint } from "./endpoint";
 import { previewTaskSave } from "./taskWrite";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["tasks:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const BOARD = { id: "wg-1", name: "Design", kind: "native", archived_at: null, treasury_id: null };
 const task = (patch: Record<string, unknown> = {}) => ({
   id: "t-12", number: 12, title: "Logo", body: null, amounts: { ADA: "50" }, bounty_lovelace: 50_000_000,
@@ -65,12 +65,12 @@ beforeEach(() => {
   mocks.update.mockResolvedValue(true);
 });
 
-const preview = (input: Record<string, unknown>) => callEndpoint(previewTaskSave, caller, { community: "signius", ...input });
+const preview = (input: Record<string, unknown>) => callEndpoint(previewTaskSave, caller, { community: "swarm", ...input });
 const confirm = (draftToken: string) => callEndpoint(confirmDraft, caller, { draftToken });
 
 /** A task_save draft signed for this caller; the fingerprint is the request's own unless given. */
 async function draftFor(request: Record<string, unknown>, fingerprint = sha256Hex(canonicalJson(request))): Promise<string> {
-  const { token } = await mintDraftToken(caller, { action: "task_save", community: "signius", request, fingerprint, rulesHash: "" });
+  const { token } = await mintDraftToken(caller, { action: "task_save", community: "swarm", request, fingerprint, rulesHash: "" });
   return token;
 }
 const requestOf = (draftToken: string) => decodeJwt(draftToken).req as Record<string, unknown>;
@@ -114,7 +114,7 @@ describe("task_preview: create", () => {
       title: "Poster", body: null, amounts: { ADA: "25" }, bounty_lovelace: "25000000", budget_month: null,
       workgroup_id: "wg-1", column_id: "col-todo", agent_draft_id: expect.stringMatching(/^[0-9a-f]{32}$/),
     });
-    expect(res).toMatchObject({ action: "task_save", created: true, change: "created", number: 13, url: "http://localhost:3000/c/signius/boards/wg-1" });
+    expect(res).toMatchObject({ action: "task_save", created: true, change: "created", number: 13, url: "http://localhost:3000/c/swarm/boards/wg-1" });
 
     mocks.findByDraft.mockResolvedValue({ id: "t-13", number: 13 });
     expect(await confirm(draftToken)).toMatchObject({ created: false, number: 13 });

@@ -17,8 +17,8 @@ vi.mock("@/lib/api/v1/treasuries", async (importOriginal) => {
 });
 import { GET } from "./route";
 
-const ctx = { params: Promise.resolve({ community: "signius" }) };
-const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/signius/treasuries${query}`), ctx);
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
+const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/swarm/treasuries${query}`), ctx);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -33,9 +33,9 @@ describe("GET /api/v1/communities/[community]/treasuries", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ treasuries: [] });
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
-    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.anything(), { community: "signius", balances: true });
+    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.anything(), { community: "swarm", balances: true });
     await get("?balances=false");
-    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "signius", balances: false });
+    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "swarm", balances: false });
   });
 
   it("refuses a bad flag, a missing scope and a missing caller before running", async () => {

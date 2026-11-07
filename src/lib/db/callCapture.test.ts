@@ -11,7 +11,7 @@ const INTEGRATION = {
   community_id: "10000000-0000-4000-8000-000000000001",
   provider: IntegrationProvider.Zoom,
   external_account_id: "zoom-acc",
-  label: "Signius Host",
+  label: "Swarm Host",
   created_by: "addr_test1admin",
 };
 
@@ -28,7 +28,7 @@ describe("saveIntegration", () => {
       p_community_id: INTEGRATION.community_id,
       p_provider: "zoom",
       p_external_account_id: "zoom-acc",
-      p_label: "Signius Host",
+      p_label: "Swarm Host",
       p_created_by: "addr_test1admin",
       p_access_token: "a",
       p_refresh_token: "r",

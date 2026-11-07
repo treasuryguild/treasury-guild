@@ -73,16 +73,16 @@ const previews = [
 
 describe("write preview routes", () => {
   it.each(previews)("POST /api/v1/communities/[community]/$segment runs $name with the body and the path's community", async ({ segment, handler, name, body }) => {
-    const res = await post(handler, `/api/v1/communities/signius/${segment}`, { ...body, community: "other" }, { community: "signius" });
+    const res = await post(handler, `/api/v1/communities/swarm/${segment}`, { ...body, community: "other" }, { community: "swarm" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ endpoint: name });
-    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "signius" }));
+    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "swarm" }));
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
     for (const [other, run] of Object.entries(runs)) if (other !== name) expect(run, other).not.toHaveBeenCalled();
   });
 
   it.each(previews)("$name needs $scope, a caller, and a same-site request", async ({ segment, handler, name, body, scope }) => {
-    const call = (headers: Record<string, string> = {}) => post(handler, `/api/v1/communities/signius/${segment}`, body, { community: "signius" }, headers);
+    const call = (headers: Record<string, string> = {}) => post(handler, `/api/v1/communities/swarm/${segment}`, body, { community: "swarm" }, headers);
     mocks.caller.mockResolvedValueOnce({ ...CALLER, scopes: CALLER.scopes.filter((s) => s !== scope) });
     expect((await call()).status).toBe(403);
     mocks.caller.mockRejectedValueOnce(new UnauthorizedError());

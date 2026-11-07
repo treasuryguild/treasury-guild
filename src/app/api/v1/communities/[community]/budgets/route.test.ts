@@ -17,8 +17,8 @@ vi.mock("@/lib/api/v1/budgets", async (importOriginal) => {
 });
 import { GET } from "./route";
 
-const ctx = { params: Promise.resolve({ community: "signius" }) };
-const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/signius/budgets${query}`), ctx);
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
+const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/swarm/budgets${query}`), ctx);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -33,9 +33,9 @@ describe("GET /api/v1/communities/[community]/budgets", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ budgets: [] });
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
-    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.anything(), { community: "signius", month: "2026-09", view: "quarter" });
+    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.anything(), { community: "swarm", month: "2026-09", view: "quarter" });
     await get();
-    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "signius", view: "month" });
+    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "swarm", view: "month" });
   });
 
   it("refuses a bad month or view, a missing scope and a missing caller before running", async () => {

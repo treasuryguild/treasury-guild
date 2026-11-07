@@ -46,7 +46,7 @@ describe("suggestAmountUnits", () => {
   const options = [{ unit: "lovelace", ticker: "ADA" }, { unit: GVTT, ticker: "GVTT" }];
 
   it("maps a header that names one known ticker, and leaves a shared ticker for the user", () => {
-    const table = readScheduleCsv("month,signius_ada,signius_gvtt,sister_community_gvtt\n2026-01,1,2,3\n");
+    const table = readScheduleCsv("month,swarm_ada,swarm_gvtt,sister_community_gvtt\n2026-01,1,2,3\n");
     expect(suggestAmountUnits(table, 0, options)).toEqual({ 1: "lovelace", 2: "", 3: "" });
   });
 });
@@ -114,8 +114,8 @@ describe("buildSchedule", () => {
     expect(buildSchedule(readScheduleCsv(SNET), mapping({ columns: [] })).issues[0]!.message).toContain("at least one");
   });
 
-  it("reads the Signius sample release plan", () => {
-    const table = readScheduleCsv(readFileSync("supabase/seeds/signius_funding_schedule.csv", "utf8"));
+  it("reads the Swarm sample release plan", () => {
+    const table = readScheduleCsv(readFileSync("supabase/seeds/swarm_funding_schedule.csv", "utf8"));
     const date = suggestDateColumn(table);
     expect(table.headers[date!]).toBe("release_date");
     const built = buildSchedule(table, mapping({

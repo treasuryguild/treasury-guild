@@ -37,7 +37,7 @@ const DISCONNECTED = {
   lastPostedAt: null,
   lastError: null,
 };
-const ROW = { id: COMMUNITY, name: "Signius", slug: "signius" };
+const ROW = { id: COMMUNITY, name: "Swarm", slug: "swarm" };
 const URL_ROUTE = "http://localhost/api/governance/discord";
 const context = { params: Promise.resolve({}) };
 const send = (handler: typeof POST, method: string, body: unknown, headers: Record<string, string> = {}) =>

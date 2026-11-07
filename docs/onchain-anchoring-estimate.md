@@ -227,7 +227,7 @@ The preprod test is a `/dev` tool, **Anchor test transaction**
 (`/api/dev/anchor-test`): it builds a metadata-only transaction carrying the
 test record `{v: 1, src: "treasury-guild", c: <slug>, test: 1}` under label
 190002 as a pending `anchor` transaction that the signers sign and submit on
-the normal transaction page. A real build against the Signius Main Treasury's
+the normal transaction page. A real build against the Swarm Main Treasury's
 preprod UTxOs produced a 404-byte transaction; its signing is what remains.
 Checked by the SQL fixture `supabase/tests/anchoring_groundwork.sql` (a
 second pending row of any kind fails with 23505; submitted, confirmed and

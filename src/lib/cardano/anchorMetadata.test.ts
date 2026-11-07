@@ -83,7 +83,7 @@ describe("fitAnchorEntries", () => {
 
   it("fits forty proposed anchors in a dedicated transaction, as the estimate found", () => {
     const entries = Array.from({ length: 40 }, (_, i) => due(i + 1));
-    const fitted = fitAnchorEntries("signius", entries);
+    const fitted = fitAnchorEntries("swarm", entries);
     expect(fitted?.carried).toHaveLength(40);
     expect(metadataJsonBytes(fitted!.record)).toBeLessThanOrEqual(MAX_METADATA_JSON_BYTES);
   });

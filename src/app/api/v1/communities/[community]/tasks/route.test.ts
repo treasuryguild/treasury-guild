@@ -17,8 +17,8 @@ vi.mock("@/lib/api/v1/tasks", async (importOriginal) => {
 });
 import { GET } from "./route";
 
-const ctx = { params: Promise.resolve({ community: "signius" }) };
-const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/signius/tasks${query}`), ctx);
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
+const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/swarm/tasks${query}`), ctx);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -36,13 +36,13 @@ describe("GET /api/v1/communities/[community]/tasks", () => {
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
     expect(mocks.run).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ wallet: "addr_w" }),
-      { community: "signius", workgroup: "Development", payState: "payable", includeArchived: true, limit: 10 },
+      { community: "swarm", workgroup: "Development", payState: "payable", includeArchived: true, limit: 10 },
     );
   });
 
   it("fills the defaults", async () => {
     await get();
-    expect(mocks.run).toHaveBeenCalledWith(expect.anything(), { community: "signius", includeArchived: false, limit: 50 });
+    expect(mocks.run).toHaveBeenCalledWith(expect.anything(), { community: "swarm", includeArchived: false, limit: 50 });
   });
 
   it("refuses bad filters before running", async () => {

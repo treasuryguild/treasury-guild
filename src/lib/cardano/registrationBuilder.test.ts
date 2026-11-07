@@ -38,7 +38,7 @@ describe("buildRegistrationTx", () => {
     network: 0 as const,
     provider: {} as never,
     record: { types: [0], name: "Main", participants: { ["a".repeat(56)]: { name: "Alice" } } },
-    message: "Treasury Guild registration: signius 2026-10-29",
+    message: "Treasury Guild registration: swarm 2026-10-29",
   };
 
   it("completes a change-only transaction with label 1854 and CIP-20", async () => {

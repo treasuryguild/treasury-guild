@@ -59,14 +59,14 @@ const WGID = "22222222-2222-4222-8222-222222222222";
 const TID = "33333333-3333-4333-8333-333333333333";
 const HOSKY = "a".repeat(56) + "484f534b59";
 const GOLD = "b".repeat(56) + "474f4c44";
-const COMMUNITY = { id: CID, slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: CID, slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const RULES = rulesFor({ ...DEFAULT_SETTINGS.decision, enabled: true, discussionHours: 48, votingHours: 72 });
 const prepared = (patch: Record<string, unknown> = {}) => ({
   communityId: CID, kind: "decision", title: "Adopt the handbook", body: "Why.", discussionUrl: null, payload: {},
   contentHash: "a".repeat(64), rules: RULES, rulesHash: "b".repeat(64), workgroupIds: [], beneficiaries: [],
   proposer: "addr_w", budgetOwners: [], replacesProposalId: null, ...patch,
 });
-const DECISION = { community: "signius", kind: "decision", title: "Adopt the handbook", body: "Why." };
+const DECISION = { community: "swarm", kind: "decision", title: "Adopt the handbook", body: "Why." };
 const WORKGROUP_CONTEXT = {
   communityId: CID, name: "Design", workgroupId: WGID, treasuryId: null,
   wallet: { address: "addr_test1_main", network: 0 }, notHeldMessage: "not held",
@@ -305,9 +305,9 @@ describe("proposal_create", () => {
     expect(mocks.createDraft).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^[0-9a-f]{32}$/), prepared());
     expect(mocks.findByDraft).toHaveBeenCalledWith(mocks.createDraft.mock.calls[0]![0]);
     expect(res).toEqual({
-      community: { slug: "signius", name: "Signius" }, created: true, number: 7, state: "discussion",
+      community: { slug: "swarm", name: "Swarm" }, created: true, number: 7, state: "discussion",
       title: "Adopt the handbook", votingOpensAt: "2026-10-03T12:00:00Z", votingClosesAt: "2026-10-06T12:00:00Z",
-      url: "http://localhost:3000/c/signius/proposals/p-1",
+      url: "http://localhost:3000/c/swarm/proposals/p-1",
     });
   });
 
@@ -357,7 +357,7 @@ describe("proposal_create", () => {
     await expect(callEndpoint(createProposalFromDraft, { ...caller, clientId: "c2" }, { draftToken }))
       .rejects.toBeInstanceOf(ForbiddenError);
     await expect(callEndpoint(createProposalFromDraft, caller, { draftToken, community: "lab" }))
-      .rejects.toThrow("previewed for signius, not lab");
+      .rejects.toThrow("previewed for swarm, not lab");
     mocks.role.mockResolvedValue(null);
     await expect(callEndpoint(createProposalFromDraft, caller, { draftToken })).rejects.toThrow("Community not found");
     expect(mocks.createDraft).not.toHaveBeenCalled();

@@ -74,12 +74,12 @@ describe("buildProposalEmbed", () => {
 
 describe("buildGovernanceConnectedEmbed", () => {
   it("confirms the connection in one embed, naming the community", () => {
-    const payload = buildGovernanceConnectedEmbed("Signius");
+    const payload = buildGovernanceConnectedEmbed("Swarm");
     expect(payload.username).toBe("Treasury Guild");
     expect(payload.embeds).toHaveLength(1);
     const [embed] = payload.embeds;
     expect(embed!.title).toBe("🔗 Treasury Guild connected");
-    expect(embed!.description).toContain("**Signius**");
+    expect(embed!.description).toContain("**Swarm**");
     expect(embed!.color).toBe(0x6366f1);
     // A confirmation, not an announcement: no link, no fields.
     expect(embed!.url).toBeUndefined();
@@ -87,7 +87,7 @@ describe("buildGovernanceConnectedEmbed", () => {
   });
 
   it("says which four moments of a proposal will be announced", () => {
-    const description = buildGovernanceConnectedEmbed("Signius").embeds[0]!.description!;
+    const description = buildGovernanceConnectedEmbed("Swarm").embeds[0]!.description!;
     expect(description).toMatch(/discussion thread/);
     expect(description).toMatch(/voting opens/);
     expect(description).toMatch(/a day before it closes/);
@@ -109,8 +109,8 @@ describe("buildGovernanceConnectedEmbed", () => {
       voting_starts_at: inDays(2), closes_at: null, electorate_size: null, ballots_cast: 0, tally: null,
       outcome_reason: null, execution_state: null, execution_error: null, end_reason: null,
     };
-    const announced = buildProposalEmbed({ communityName: "Signius", proposal, milestone: "discussion", url: "https://vault.test/p" });
-    expect(buildGovernanceConnectedEmbed("Signius").embeds[0]!.color).toBe(announced.embeds[0]!.color);
-    expect(buildGovernanceConnectedEmbed("Signius").username).toBe(announced.username);
+    const announced = buildProposalEmbed({ communityName: "Swarm", proposal, milestone: "discussion", url: "https://vault.test/p" });
+    expect(buildGovernanceConnectedEmbed("Swarm").embeds[0]!.color).toBe(announced.embeds[0]!.color);
+    expect(buildGovernanceConnectedEmbed("Swarm").username).toBe(announced.username);
   });
 });

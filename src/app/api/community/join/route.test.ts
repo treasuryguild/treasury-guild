@@ -17,7 +17,7 @@ const post = (body: object, headers: Record<string, string> = {}) => POST(new Re
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.session.mockResolvedValue({ wallet: WALLET });
-  mocks.community.mockResolvedValue({ id: COMMUNITY, slug: "signius", visibility: "public" });
+  mocks.community.mockResolvedValue({ id: COMMUNITY, slug: "swarm", visibility: "public" });
   mocks.add.mockResolvedValue(undefined);
   mocks.rate.mockResolvedValue(undefined);
 });
@@ -26,13 +26,13 @@ describe("POST /api/community/join", () => {
   it("joins the session wallet to a public community as a plain member", async () => {
     const res = await post({ communityId: COMMUNITY, wallet: "addr_test1someoneelse", role: "admin" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true, slug: "signius" });
+    expect(await res.json()).toEqual({ ok: true, slug: "swarm" });
     expect(mocks.community).toHaveBeenCalledWith(COMMUNITY);
     expect(mocks.add).toHaveBeenCalledExactlyOnceWith(COMMUNITY, WALLET);
   });
 
   it("refuses a private community: it is joined by invitation only", async () => {
-    mocks.community.mockResolvedValue({ id: COMMUNITY, slug: "signius", visibility: "private" });
+    mocks.community.mockResolvedValue({ id: COMMUNITY, slug: "swarm", visibility: "private" });
     const res = await post({ communityId: COMMUNITY });
     expect(res.status).toBe(403);
     expect(await res.json()).toEqual({ error: "This community is invite-only" });
@@ -44,7 +44,7 @@ describe("POST /api/community/join", () => {
     expect((await post({ communityId: COMMUNITY })).status).toBe(401);
     expect((await post({ communityId: COMMUNITY }, { origin: "https://evil.test" })).status).toBe(403);
     expect((await post({})).status).toBe(400);
-    expect((await post({ communityId: "signius" })).status).toBe(400);
+    expect((await post({ communityId: "swarm" })).status).toBe(400);
     expect(mocks.community).not.toHaveBeenCalled();
     expect(mocks.add).not.toHaveBeenCalled();
   });

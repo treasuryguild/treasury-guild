@@ -1,17 +1,17 @@
--- Live payout batches for the Signius preprod community: each run adds ONE
+-- Live payout batches for the Swarm preprod community: each run adds ONE
 -- small, unique batch of payable tasks to each of the two live workgroups,
 -- meant to be built, signed and really submitted, so transaction history
 -- accumulates and is never rewritten. The monthly workgroup's batch covers the
 -- last five budget months (the current one and the four before it), the
 -- quarterly workgroup's the current quarter and the one before, so the budget
 -- views show a spread of history after one payout. The two start out on
--- different treasuries when Signius has a second preprod one, so a payout can
+-- different treasuries when Swarm has a second preprod one, so a payout can
 -- be pending on each. Nothing is ever deleted or reset here.
 --
 -- Run:  npm run seed:live               (psql, LOCAL stack)
---       supabase db query --linked -f supabase/seeds/signius_live.sql  (the remote project; rare, see seeds/README.md)
---   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_live.sql
--- Requires migrations through 0035, the Signius "Test Token" (GVTT) mint, and
+--       supabase db query --linked -f supabase/seeds/swarm_live.sql  (the remote project; rare, see seeds/README.md)
+--   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/swarm_live.sql
+-- Requires migrations through 0035, the Swarm "Test Token" (GVTT) mint, and
 -- each workgroup's routed treasury holding some tADA plus GVTT (fund the second
 -- treasury with a transfer from the Payments page). One atomic statement.
 
@@ -63,12 +63,12 @@ declare
   v_outstanding integer;
   v_pending_tx integer;
 begin
-  select * into v_community from public.communities where slug = 'signius' for update;
+  select * into v_community from public.communities where slug = 'swarm' for update;
   if not found then
-    raise exception 'Signius community not found (expected slug signius). Create it before running this seed.';
+    raise exception 'Swarm community not found (expected slug swarm). Create it before running this seed.';
   end if;
   if v_community.network <> 0 then
-    raise exception 'This seed is only for the Signius testnet community.';
+    raise exception 'This seed is only for the Swarm testnet community.';
   end if;
   -- With budget consent on (migration 0055) budgets change only by proposal,
   -- so the seed leaves them alone. The function is absent on an older schema.
@@ -87,7 +87,7 @@ begin
       and tx.kind = 'mint' and tx.state in (1, 2) and tr.network = 0;
   exception
     when no_data_found then
-      raise exception 'No submitted/confirmed GVTT Test Token mint found in Signius.';
+      raise exception 'No submitted/confirmed GVTT Test Token mint found in Swarm.';
     when too_many_rows then
       raise exception 'Multiple GVTT Test Token units, precisions, or treasuries found. Narrow the mint selector before seeding.';
   end;
@@ -97,7 +97,7 @@ begin
     where community_id = v_community.id and lower(field_name) = 'gvtt'
       and (unit <> v_token.unit or decimals <> v_token.decimals)
   ) then
-    raise exception 'Signius already maps GVTT to a different token or precision. Resolve that mapping before seeding.';
+    raise exception 'Swarm already maps GVTT to a different token or precision. Resolve that mapping before seeding.';
   end if;
   select field_name into v_field from public.community_assets
     where community_id = v_community.id and lower(field_name) = 'gvtt'
@@ -113,10 +113,10 @@ begin
     into v_members
     from public.community_members m where m.community_id = v_community.id;
   if v_members is null then
-    raise exception 'Signius has no members to pay. Join the community with at least one wallet first.';
+    raise exception 'Swarm has no members to pay. Join the community with at least one wallet first.';
   end if;
 
-  -- The quarterly workgroup starts out on a second Signius preprod treasury
+  -- The quarterly workgroup starts out on a second Swarm preprod treasury
   -- (the oldest one the monthly workgroup does not pay from: the mint treasury
   -- unless it was rerouted), so two payout transactions can be pending at
   -- once: a treasury allows only one. With a single treasury it shares the
@@ -131,12 +131,12 @@ begin
   -- Two persistent workgroups collect every batch, so the boards and the
   -- budget views show the whole payout history. Each starts out routed (cache
   -- plus the dated timeline of migration 0035); rerouting one later in the app
-  -- to another Signius preprod wallet, or to "any wallet", is respected.
+  -- to another Swarm preprod wallet, or to "any wallet", is respected.
   for v_wg in select * from (values
-    ('runs', '[LIVE] Signius Payout Runs',
+    ('runs', '[LIVE] Swarm Payout Runs',
        'Real preprod payout batches (' || v_namespace || '). Each seed run adds one small batch meant to be built, signed and submitted. History here is never deleted.',
        'monthly', 5, v_token.treasury_id),
-    ('quarterly', '[LIVE] Signius Quarterly Runs',
+    ('quarterly', '[LIVE] Swarm Quarterly Runs',
        'Real preprod payout batches on a quarterly budget (' || v_namespace || '). Each seed run adds one small batch meant to be built, signed and submitted. History here is never deleted.',
        'quarterly', 2, v_second_treasury)
   ) as g(key, name, description, cadence, periods, treasury_id) loop
@@ -159,7 +159,7 @@ begin
     get diagnostics v_count = row_count;
     if v_count = 1 then
       insert into public.workgroup_treasury_assignments (workgroup_id, treasury_id, starts_on, reason, created_by)
-        values (v_group_id, v_wg.treasury_id, date '1000-01-01', 'Seeded by signius_live.sql', v_members[1])
+        values (v_group_id, v_wg.treasury_id, date '1000-01-01', 'Seeded by swarm_live.sql', v_members[1])
         on conflict (workgroup_id, starts_on) do nothing;
     end if;
     select * into v_group from public.workgroups where id = v_group_id;
@@ -173,8 +173,15 @@ begin
       select 1 from public.treasuries
       where id = v_group.treasury_id and community_id = v_community.id and network = 0
     ) then
-      raise exception 'The live workgroup % is routed to a treasury (%) outside the Signius preprod community. Fix its routing before adding a batch.', v_wg.name, v_group.treasury_id;
+      raise exception 'The live workgroup % is routed to a treasury (%) outside the Swarm preprod community. Fix its routing before adding a batch.', v_wg.name, v_group.treasury_id;
     end if;
+    -- The id, treasury cache and timeline stay. A board created under the old
+    -- name picks up the Swarm label on the next run. Archived boards are
+    -- refused above: the lifecycle trigger rejects any other edit.
+    update public.workgroups
+      set name = v_wg.name, description = v_wg.description
+      where id = v_group_id
+        and (name is distinct from v_wg.name or description is distinct from v_wg.description);
 
     for v_column in select * from (values
       (0, 'To Do', false, false), (1, 'In Progress', false, false), (2, 'Done', false, false),
@@ -209,7 +216,7 @@ begin
             'amount', (25::numeric * power(10::numeric, v_token.decimals::numeric))::bigint::text,
             'asset_label', v_field, 'decimals', v_token.decimals),
           jsonb_build_object('unit', 'lovelace', 'amount', '10000000', 'asset_label', 'ADA', 'decimals', 6)),
-        v_members[1], false, 'Seeded by signius_live.sql');
+        v_members[1], false, 'Seeded by swarm_live.sql');
       v_budgeted := true;
     end if;
 
@@ -217,7 +224,7 @@ begin
     select count(*) into v_outstanding from public.tasks
       where workgroup_id = v_group_id and archived_at is null and pay_state in ('payable', 'queued');
     -- Counted on the wallet that will pay this batch: the routed treasury, or
-    -- every Signius treasury when the workgroup is payable from any wallet.
+    -- every Swarm treasury when the workgroup is payable from any wallet.
     select count(*) into v_pending_tx from public.transactions tx
       join public.treasuries tr on tr.id = tx.treasury_id
       where tr.community_id = v_community.id and tx.state = 0
@@ -253,7 +260,7 @@ begin
           pay_state, audited, budget_month, created_at, updated_at
         ) values (
           v_task_id, v_group_id, 'native', v_tag || v_label || ' ' || v_task.title,
-          'Live Signius payout batch ' || v_run_id || '. Build, sign and submit this batch for real on preprod; '
+          'Live Swarm payout batch ' || v_run_id || '. Build, sign and submit this batch for real on preprod; '
             || 'the seed never deletes or rewrites it.' || E'\n\n' || 'Scenario: ' || v_task.hint,
           pg_temp.seed_uuid(v_group_id || ':column:3'), v_task.amounts, v_task.lovelace,
           'payable', true, case when v_task.set_month then v_task_month end, v_now, v_now
@@ -278,14 +285,14 @@ begin
       'earlierUnpaidTasks', v_outstanding, 'pendingTreasuryTransactions', v_pending_tx,
       'periods', v_wg.periods, 'firstPeriod', to_char(v_first, v_fmt), 'lastPeriod', to_char(v_current, v_fmt),
       'budgeted', v_budgeted, 'budgetsByProposal', v_budget_consent, 'routedTreasury', v_group.treasury_id));
-    raise notice 'Signius live batch % in %: % tasks (% assignee rows) over % %s (% to %); % earlier unpaid live tasks; % pending treasury transactions; budget %.',
+    raise notice 'Swarm live batch % in %: % tasks (% assignee rows) over % %s (% to %); % earlier unpaid live tasks; % pending treasury transactions; budget %.',
       v_run_id, v_wg.name, v_inserted, v_assigned, v_wg.periods, v_noun, to_char(v_first, v_fmt), to_char(v_current, v_fmt),
       v_outstanding, v_pending_tx,
       case when v_budgeted then 'set up' when v_budget_consent then 'left to proposals' else 'already in place' end;
   end loop;
 
   perform set_config('seed.summary', jsonb_build_object(
-    'seed', 'signius_live', 'runId', v_run_id, 'insertedTasks', v_total_inserted, 'assigneeRows', v_total_assigned,
+    'seed', 'swarm_live', 'runId', v_run_id, 'insertedTasks', v_total_inserted, 'assigneeRows', v_total_assigned,
     'members', cardinality(v_members),
     'field', v_field, 'unit', v_token.unit, 'mintTreasury', v_token.treasury_id,
     'workgroups', v_groups)::text, false);
@@ -296,7 +303,7 @@ $seed$;
 with live as (
   select pg_temp.seed_uuid('signius-live-payouts-v1:' || c.id || ':' || k.key) as id
   from public.communities c cross join unnest(array['runs', 'quarterly']) as k(key)
-  where c.slug = 'signius'
+  where c.slug = 'swarm'
 )
 select
   current_setting('seed.summary', true)::jsonb as this_run,

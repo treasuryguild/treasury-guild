@@ -47,7 +47,7 @@ const plainTreasury = {
 const SIGNERS = [{ wallet_address: DEV, signer_group: "base" }];
 const buildContext = (overrides: object = {}) => ({
   treasury: plainTreasury, signers: SIGNERS, role: "member", isSigner: true, callerGroups: new Set(["base"]),
-  communitySlug: "signius", network: 0, ...overrides,
+  communitySlug: "swarm", network: 0, ...overrides,
 });
 
 beforeEach(() => {
@@ -111,13 +111,13 @@ describe("developer access", () => {
 describe("GET /api/dev/anchor-test", () => {
   it("lists the treasuries of the developer's own communities", async () => {
     mocks.list.mockResolvedValue([
-      { id: TREASURY_ID, name: "Main", network: 0, communities: { name: "Signius", slug: "signius" } },
+      { id: TREASURY_ID, name: "Main", network: 0, communities: { name: "Swarm", slug: "swarm" } },
       { id: "t2", name: "Ops", network: 1, communities: { name: "Guild", slug: "guild" } },
     ]);
     const res = await get();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ treasuries: [
-      { id: TREASURY_ID, name: "Main", network: 0, communityName: "Signius", slug: "signius" },
+      { id: TREASURY_ID, name: "Main", network: 0, communityName: "Swarm", slug: "swarm" },
       { id: "t2", name: "Ops", network: 1, communityName: "Guild", slug: "guild" },
     ] });
     expect(mocks.list).toHaveBeenCalledExactlyOnceWith(DEV);
@@ -126,17 +126,17 @@ describe("GET /api/dev/anchor-test", () => {
 
 describe("POST /api/dev/anchor-test", () => {
   it("builds the phase-0 test record as a pending anchor transaction on the treasury's own network", async () => {
-    const record = { v: 1, src: "treasury-guild", c: "signius", test: 1 };
+    const record = { v: 1, src: "treasury-guild", c: "swarm", test: 1 };
     const res = await post();
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ txId: "tx-1", txHash: HASH, slug: "signius", record });
+    expect(await res.json()).toEqual({ txId: "tx-1", txHash: HASH, slug: "swarm", record });
     expect(mocks.context).toHaveBeenCalledWith(TREASURY_ID, DEV);
     expect(mocks.noPending).toHaveBeenCalledWith(TREASURY_ID);
     expect(mocks.script).toHaveBeenCalledWith(plainTreasury, SIGNERS);
     expect(mocks.provider).toHaveBeenCalledWith(0);
     expect(mocks.build).toHaveBeenCalledExactlyOnceWith({
       treasuryAddress: TREASURY, scriptCbor: "8200", network: 0, provider: PROVIDER, record,
-      message: "Treasury Guild anchor test: signius", validFromSlot: null,
+      message: "Treasury Guild anchor test: swarm", validFromSlot: null,
     });
     expect(mocks.withTx).toHaveBeenCalledExactlyOnceWith({
       treasury_id: TREASURY_ID, kind: "anchor", spending_path: "base", tx_cbor: "84a0", tx_hash: HASH,

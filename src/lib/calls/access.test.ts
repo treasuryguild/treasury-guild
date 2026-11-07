@@ -16,7 +16,7 @@ const MAINNET =
 
 const call = (workgroups: CallWithWorkgroup["workgroups"]): CallWithWorkgroup =>
   ({ id: "call-1", community_id: "com-1", workgroup_id: "wg-1", workgroups }) as CallWithWorkgroup;
-const onNetwork = (network: number) => call({ archived_at: null, communities: { slug: "signius", network } });
+const onNetwork = (network: number) => call({ archived_at: null, communities: { slug: "swarm", network } });
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -64,7 +64,7 @@ describe("loadCallForManager", () => {
   });
 
   it("authorizes against the call's own community and workgroup, then checks the workgroup is active", async () => {
-    const found = call({ archived_at: "2026-09-01T00:00:00Z", communities: { slug: "signius", network: 0 } });
+    const found = call({ archived_at: "2026-09-01T00:00:00Z", communities: { slug: "swarm", network: 0 } });
     mocks.loadCall.mockResolvedValue(found);
     mocks.manager.mockResolvedValue(undefined);
     expect(await loadCallForManager("call-1", "addr_w")).toBe(found);

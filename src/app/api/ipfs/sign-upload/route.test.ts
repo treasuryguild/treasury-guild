@@ -38,7 +38,7 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({ wallet: WALLET });
   mocks.member.mockResolvedValue("member");
   mocks.limit.mockResolvedValue(undefined);
-  mocks.slug.mockResolvedValue("signius");
+  mocks.slug.mockResolvedValue("swarm");
   mocks.jwt.mockReturnValue(JWT);
   mocks.gateway.mockReturnValue("guild.mypinata.cloud");
   mocks.sign.mockResolvedValue(SIGNED);
@@ -61,20 +61,20 @@ describe("POST /api/ipfs/sign-upload", () => {
     expect(mocks.slug).toHaveBeenCalledWith(COMMUNITY);
     expect(mocks.sdk).toHaveBeenCalledWith({ pinataJwt: JWT, pinataGateway: "guild.mypinata.cloud" });
     expect(mocks.sign).toHaveBeenCalledExactlyOnceWith({
-      expires: 120, name: "signius/logo.png", mimeTypes: ["image/png"], maxFileSize: MAX,
-      keyvalues: { app: "treasury-guild", community: "signius", uploader: WALLET },
+      expires: 120, name: "swarm/logo.png", mimeTypes: ["image/png"], maxFileSize: MAX,
+      keyvalues: { app: "treasury-guild", community: "swarm", uploader: WALLET },
     });
   });
 
   it("caps the upload at the image limit whatever size was declared, and cleans the file name", async () => {
     await post(body({ name: "my logo (final)!.png", size: 1 }));
-    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "signius/my_logo_final_.png", maxFileSize: MAX }));
+    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "swarm/my_logo_final_.png", maxFileSize: MAX }));
     await post(body({ name: "../../etc/passwd" }));
-    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "signius/.._.._etc_passwd" }));
+    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "swarm/.._.._etc_passwd" }));
     await post(body({ name: "a".repeat(200) }));
-    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: `signius/${"a".repeat(100)}` }));
+    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: `swarm/${"a".repeat(100)}` }));
     await post(body({ name: undefined, mimeType: "image/webp" }));
-    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "signius/image", mimeTypes: ["image/webp"] }));
+    expect(mocks.sign).toHaveBeenLastCalledWith(expect.objectContaining({ name: "swarm/image", mimeTypes: ["image/webp"] }));
   });
 
   it("refuses an SVG, which can carry scripts, before checking membership", async () => {

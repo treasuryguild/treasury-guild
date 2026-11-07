@@ -38,7 +38,7 @@ beforeEach(() => {
   mocks.session.mockResolvedValue({ wallet: WALLET });
   mocks.load.mockResolvedValue(proposal("passed", true));
   mocks.member.mockResolvedValue("member");
-  mocks.slug.mockResolvedValue("signius");
+  mocks.slug.mockResolvedValue("swarm");
   mocks.ballots.mockResolvedValue(BALLOTS);
   mocks.build.mockReturnValue(DOCUMENT);
   mocks.frozen.mockResolvedValue(null);
@@ -84,12 +84,12 @@ describe("GET /api/proposals/[id]/tally", () => {
     const res = await get();
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(DOCUMENT);
-    expect(res.headers.get("content-disposition")).toBe('attachment; filename="signius-proposal-7-tally.json"');
+    expect(res.headers.get("content-disposition")).toBe('attachment; filename="swarm-proposal-7-tally.json"');
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(mocks.slug).toHaveBeenCalledWith(COMMUNITY);
     expect(mocks.ballots).toHaveBeenCalledWith(ID);
     expect(mocks.build).toHaveBeenCalledWith({
-      app: "vault.example", community: "signius", proposal: proposal("passed", true), ...BALLOTS,
+      app: "vault.example", community: "swarm", proposal: proposal("passed", true), ...BALLOTS,
     });
   });
 

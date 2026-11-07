@@ -30,7 +30,7 @@ describe("apiUrl", () => {
   });
 
   it("appends key=value pairs in order", () => {
-    expect(apiUrl("/api/tasks", { community: "signius", limit: 5 })).toBe("/api/tasks?community=signius&limit=5");
+    expect(apiUrl("/api/tasks", { community: "swarm", limit: 5 })).toBe("/api/tasks?community=swarm&limit=5");
   });
 
   it("skips null and undefined, keeping the other falsy values", () => {
@@ -46,12 +46,12 @@ describe("apiUrl", () => {
   });
 
   it("encodes keys and values", () => {
-    const url = apiUrl("/api/discord/connect", { returnTo: "/c/signius/settings?tab=a&b=c#top", "odd key": "a b+c/é" });
+    const url = apiUrl("/api/discord/connect", { returnTo: "/c/swarm/settings?tab=a&b=c#top", "odd key": "a b+c/é" });
     expect(url).toBe(
-      "/api/discord/connect?returnTo=%2Fc%2Fsignius%2Fsettings%3Ftab%3Da%26b%3Dc%23top&odd+key=a+b%2Bc%2F%C3%A9",
+      "/api/discord/connect?returnTo=%2Fc%2Fswarm%2Fsettings%3Ftab%3Da%26b%3Dc%23top&odd+key=a+b%2Bc%2F%C3%A9",
     );
     const parsed = new URL(url, "http://localhost").searchParams;
-    expect(parsed.get("returnTo")).toBe("/c/signius/settings?tab=a&b=c#top");
+    expect(parsed.get("returnTo")).toBe("/c/swarm/settings?tab=a&b=c#top");
     expect(parsed.get("odd key")).toBe("a b+c/é");
   });
 

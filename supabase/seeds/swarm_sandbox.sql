@@ -1,16 +1,16 @@
--- Sandbox fixtures for the Signius preprod community: tasks to BUILD payout
+-- Sandbox fixtures for the Swarm preprod community: tasks to BUILD payout
 -- transactions from, never to submit. Every run wipes the previous sandbox
 -- (its tasks, assignees, board columns, and any never-submitted transaction
 -- that pays them) and reseeds the same deterministic scenarios, so a tester
 -- can edit, assign, build and delete freely and then start over.
 --
 -- Run:  npm run seed:sandbox            (psql, LOCAL stack)
---       supabase db query --linked -f supabase/seeds/signius_sandbox.sql  (the remote project; rare, see seeds/README.md)
---   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/signius_sandbox.sql
--- Requires migrations through 0033 and the Signius "Test Token" (GVTT) mint.
+--       supabase db query --linked -f supabase/seeds/swarm_sandbox.sql  (the remote project; rare, see seeds/README.md)
+--   or: psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -f supabase/seeds/swarm_sandbox.sql
+-- Requires migrations through 0033 and the Swarm "Test Token" (GVTT) mint.
 -- One atomic statement: any error rolls back the whole run. The reset refuses
 -- to touch a sandbox that has on-chain history (a submitted or confirmed
--- transaction); real payouts belong to signius_live.sql.
+-- transaction); real payouts belong to swarm_live.sql.
 
 -- Deterministic ids shaped like RFC 4122 v4 (version nibble 4, variant 8):
 -- the API validates ids with z.uuid(), which rejects a bare md5 cast.
@@ -30,7 +30,7 @@ declare
   v_community public.communities%rowtype;
   v_token record;
   v_field text := 'GVTT';
-  -- Assignee pool: every Signius member, owner first. Scenario slots index
+  -- Assignee pool: every Swarm member, owner first. Scenario slots index
   -- into it modulo its size, so a one-member community still seeds.
   v_members text[];
   v_group_ids uuid[] := '{}';
@@ -67,12 +67,12 @@ declare
   v_inserted integer := 0;
   v_assigned integer := 0;
 begin
-  select * into v_community from public.communities where slug = 'signius' for update;
+  select * into v_community from public.communities where slug = 'swarm' for update;
   if not found then
-    raise exception 'Signius community not found (expected slug signius). Create it before running this seed.';
+    raise exception 'Swarm community not found (expected slug swarm). Create it before running this seed.';
   end if;
   if v_community.network <> 0 then
-    raise exception 'This seed is only for the Signius testnet community.';
+    raise exception 'This seed is only for the Swarm testnet community.';
   end if;
   -- With budget consent on (migration 0055) budgets change only by proposal,
   -- so the seed leaves them alone. The function is absent on an older schema.
@@ -93,7 +93,7 @@ begin
       and tx.kind = 'mint' and tx.state in (1, 2) and tr.network = 0;
   exception
     when no_data_found then
-      raise exception 'No submitted/confirmed GVTT Test Token mint found in Signius.';
+      raise exception 'No submitted/confirmed GVTT Test Token mint found in Swarm.';
     when too_many_rows then
       raise exception 'Multiple GVTT Test Token units, precisions, or treasuries found. Narrow the mint selector before seeding.';
   end;
@@ -103,7 +103,7 @@ begin
     where community_id = v_community.id and lower(field_name) = 'gvtt'
       and (unit <> v_token.unit or decimals <> v_token.decimals)
   ) then
-    raise exception 'Signius already maps GVTT to a different token or precision. Resolve that mapping before seeding.';
+    raise exception 'Swarm already maps GVTT to a different token or precision. Resolve that mapping before seeding.';
   end if;
   select field_name into v_field from public.community_assets
     where community_id = v_community.id and lower(field_name) = 'gvtt'
@@ -119,7 +119,7 @@ begin
     into v_members
     from public.community_members m where m.community_id = v_community.id;
   if v_members is null then
-    raise exception 'Signius has no members to assign tasks to. Join the community with at least one wallet first.';
+    raise exception 'Swarm has no members to assign tasks to. Join the community with at least one wallet first.';
   end if;
 
   for v_project in select * from (values ('community'), ('product'), ('content')) as p(key) loop
@@ -139,7 +139,7 @@ begin
           join public.transactions tx on tx.id = p.transaction_id
           where p.task_id = t.id and (tx.state in (1, 2) or tx.submitted_at is not null)))
   ) then
-    raise exception 'Sandbox tasks have on-chain payout history. The sandbox is never meant to be submitted; leave this data in place and use signius_live.sql for real payouts.';
+    raise exception 'Sandbox tasks have on-chain payout history. The sandbox is never meant to be submitted; leave this data in place and use swarm_live.sql for real payouts.';
   end if;
   -- A never-submitted transaction that also pays non-sandbox tasks is not ours to delete.
   if exists (
@@ -176,9 +176,9 @@ begin
 
   -- ---- Reseed ---------------------------------------------------------------
   for v_project in select * from (values
-    (1, 'community', '[TEST] Signius Community', 'Community onboarding, events, and member support.', true),
-    (2, 'product', '[TEST] Signius Product QA', 'Wallet, board, and treasury testing.', true),
-    (3, 'content', '[TEST] Signius Content', 'Guides, tutorials, and community updates.', false)
+    (1, 'community', '[TEST] Swarm Community', 'Community onboarding, events, and member support.', true),
+    (2, 'product', '[TEST] Swarm Product QA', 'Wallet, board, and treasury testing.', true),
+    (3, 'content', '[TEST] Swarm Content', 'Guides, tutorials, and community updates.', false)
   ) as p(position, key, name, description, routed) loop
     v_group_id := pg_temp.seed_uuid(v_namespace || ':' || v_community.id || ':' || v_project.key);
     insert into public.workgroups (id, community_id, name, description, kind, treasury_id, created_at)
@@ -204,7 +204,7 @@ begin
     for v_offset in 0..(v_months - 1) loop
       v_month := (v_start_month + make_interval(months => v_offset))::date;
       for v_task in select * from (values
-        ('community', 1, 'Review the member onboarding journey', 'Walk through joining Signius and record unclear steps. Deliver a checklist with screenshots.', 500),
+        ('community', 1, 'Review the member onboarding journey', 'Walk through joining Swarm and record unclear steps. Deliver a checklist with screenshots.', 500),
         ('community', 2, 'Prepare a community feedback session', 'Draft an agenda and five questions about the community experience. Deliver the session plan.', 750),
         ('community', 3, 'Triage member support scenarios', 'Document five sample support requests, expected responses, and escalation steps.', 1000),
         ('community', 4, 'Compile the community feedback report', 'Summarize sample feedback into themes and propose three improvements. Deliver a short report.', 1250),
@@ -212,7 +212,7 @@ begin
         ('product', 2, 'Verify task board editing and transitions', 'Check task creation, descriptions, rewards, and moves across all four columns. Deliver a reproducible QA checklist.', 750),
         ('product', 3, 'Review GVTT payout preparation', 'Check test-token amounts, recipient selection, and the payout preview. Record results before signing.', 1000),
         ('product', 4, 'Audit monthly treasury and budget views', 'Compare workgroup totals, token labels, and monthly filters. Document discrepancies with reproduction steps.', 1250),
-        ('content', 1, 'Update the Signius quick-start guide', 'Draft a beginner guide covering membership, workgroups, and finding tasks. Deliver reviewed copy.', 500),
+        ('content', 1, 'Update the Swarm quick-start guide', 'Draft a beginner guide covering membership, workgroups, and finding tasks. Deliver reviewed copy.', 500),
         ('content', 2, 'Create a task contribution tutorial', 'Explain picking a task, adding evidence, and requesting review. Deliver a tutorial with example screenshots.', 750),
         ('content', 3, 'Draft the community progress update', 'Prepare a sample update covering activities, QA findings, and upcoming priorities.', 1000),
         ('content', 4, 'Review the test-token FAQ', 'Explain GVTT rewards, testnet wallets, and the approval process. Deliver an edited FAQ and review checklist.', 1250)
@@ -285,7 +285,7 @@ begin
         ) values (
           v_task_id, v_group_id, 'native',
           '[TEST ' || to_char(v_month, 'YYYY-MM') || '] ' || v_task.title,
-          'Synthetic Signius sandbox task; the board stage is a test scenario, not evidence of completed work. '
+          'Synthetic Swarm sandbox task; the board stage is a test scenario, not evidence of completed work. '
             || 'Never submit a transaction built from sandbox tasks: the seed deletes and recreates them.' || E'\n\n'
             || 'Reporting month: ' || to_char(v_month, 'YYYY-MM') || E'\n\n' || v_task.body
             || coalesce(E'\n\n' || 'Scenario: ' || v_hint, ''),
@@ -364,7 +364,7 @@ begin
           jsonb_build_object('unit', 'lovelace',
             'amount', (v_budget.ada::numeric * 1000000)::bigint::text,
             'asset_label', 'ADA', 'decimals', 6)),
-        v_members[1], false, 'Seeded by signius_sandbox.sql');
+        v_members[1], false, 'Seeded by swarm_sandbox.sql');
     end loop;
     v_budgeted := v_budgeted + 1;
   end loop;
@@ -381,7 +381,7 @@ begin
   ) values (
     v_task_id, v_group_id, 'native',
     '[TEST ' || to_char(v_month, 'YYYY-MM') || '] Oversized reward (move to Audited to test insufficient funds)',
-    'Synthetic Signius sandbox task. Its GVTT reward exceeds anything the treasury holds, so a payout built with it must fail. '
+    'Synthetic Swarm sandbox task. Its GVTT reward exceeds anything the treasury holds, so a payout built with it must fail. '
       || 'It sits in Done so the default build of the other payable tasks still succeeds.' || E'\n\n'
       || 'Reporting month: ' || to_char(v_month, 'YYYY-MM') || E'\n\n'
       || 'Scenario: insufficient funds. Move this card to Audited, select it on Payday, and expect the build to be rejected.',
@@ -394,12 +394,12 @@ begin
   v_assigned := v_assigned + 1;
 
   perform set_config('seed.summary', jsonb_build_object(
-    'seed', 'signius_sandbox', 'deletedTransactions', v_tx_deleted, 'deletedTasks', v_tasks_deleted,
+    'seed', 'swarm_sandbox', 'deletedTransactions', v_tx_deleted, 'deletedTasks', v_tasks_deleted,
     'deletedLegacyWorkgroups', v_legacy_deleted,
     'insertedTasks', v_inserted, 'assigneeRows', v_assigned, 'members', cardinality(v_members),
     'budgetedWorkgroups', v_budgeted, 'budgetsByProposal', v_budget_consent,
     'field', v_field, 'unit', v_token.unit, 'treasury', v_token.treasury_id)::text, false);
-  raise notice 'Signius sandbox: removed % tasks, % never-submitted transactions and % legacy workgroups; inserted % tasks (% assignee rows) over % members; set up budgets on % workgroups; % through %; token % (unit %).',
+  raise notice 'Swarm sandbox: removed % tasks, % never-submitted transactions and % legacy workgroups; inserted % tasks (% assignee rows) over % members; set up budgets on % workgroups; % through %; token % (unit %).',
     v_tasks_deleted, v_tx_deleted, v_legacy_deleted, v_inserted, v_assigned, cardinality(v_members),
     v_budgeted, v_start_month, (v_start_month + make_interval(months => v_months) - interval '1 day')::date,
     v_field, v_token.unit;
@@ -411,7 +411,7 @@ $seed$;
 with groups as (
   select pg_temp.seed_uuid('signius-test-tasks-v1:' || c.id || ':' || k) as id
   from public.communities c, unnest(array['community', 'product', 'content']) as k
-  where c.slug = 'signius'
+  where c.slug = 'swarm'
 )
 select
   current_setting('seed.summary', true)::jsonb as this_run,

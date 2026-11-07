@@ -22,10 +22,10 @@ vi.mock("@/lib/api/v1/proposalWrite", async (importOriginal) => {
 import { POST as createPOST } from "../create/route";
 import { POST } from "./route";
 
-const ctx = { params: Promise.resolve({ community: "signius" }) };
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
 const WRITER = { wallet: "addr_w", scopes: ["communities:read", "proposals:write"], clientId: "c1", via: "oauth" };
 const post = (handler: typeof POST, body: unknown, headers: Record<string, string> = {}) =>
-  handler(new Request("http://localhost/api/v1/communities/signius/proposals/preview", {
+  handler(new Request("http://localhost/api/v1/communities/swarm/proposals/preview", {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
@@ -46,13 +46,13 @@ describe("POST /api/v1/communities/[community]/proposals/preview and /create", (
     expect(await res.json()).toEqual({ draftToken: "t" });
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
-    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith(WRITER, { community: "signius", kind: "decision", title: "Adopt", body: "" });
+    expect(mocks.preview).toHaveBeenCalledExactlyOnceWith(WRITER, { community: "swarm", kind: "decision", title: "Adopt", body: "" });
   });
 
   it("runs the confirmation with the draft token only", async () => {
     const res = await post(createPOST, { draftToken: "t", title: "ignored" });
     expect(res.status).toBe(200);
-    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(WRITER, { draftToken: "t", community: "signius" });
+    expect(mocks.create).toHaveBeenCalledExactlyOnceWith(WRITER, { draftToken: "t", community: "swarm" });
   });
 
   it("refuses a request another site's page sent, before resolving the caller", async () => {

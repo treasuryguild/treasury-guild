@@ -164,7 +164,7 @@ describe("flow label layout", () => {
   });
 
   it("cuts a label to its room with an ellipsis, or drops it", () => {
-    const name = "[LIVE] Signius Payout Runs";
+    const name = "[LIVE] Swarm Payout Runs";
     const room = (chars: number) => chars * FLOW_LABEL_CHAR_PX + 1;
     expect(fitFlowLabel(name, room(name.length))).toBe(name);
     expect(fitFlowLabel(name, room(9))).toBe("[LIVE] S…");

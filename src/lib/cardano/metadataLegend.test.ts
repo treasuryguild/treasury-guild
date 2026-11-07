@@ -22,7 +22,7 @@ const CITATION = { number: 7, contentHash: HASH };
 
 describe("metadata legends", () => {
   it("explain every key a payment record can carry", () => {
-    const meta = buildPaymentMetadata("signius", "2026-09", "Workgroup Budget", [
+    const meta = buildPaymentMetadata("swarm", "2026-09", "Workgroup Budget", [
       { outputIndex: 0, transfer: true, amounts: [{ ...ADA, quantity: 188_000_000n }] },
     ]);
     const keys = PAYMENT_METADATA_LEGEND.entries.map((e) => e.key);
@@ -30,7 +30,7 @@ describe("metadata legends", () => {
   });
 
   it("explain every key a payout record can carry", () => {
-    const meta = buildPayoutMetadata("signius", [
+    const meta = buildPayoutMetadata("swarm", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }] },
     ]);
     const keys = PAYOUT_METADATA_LEGEND.entries.map((e) => e.key);
@@ -65,7 +65,7 @@ describe("metadata legends, both directions", () => {
   const keysOf = (legend: { entries: readonly { key: string }[] }) => legend.entries.map((e) => e.key);
 
   it("explain the memo of a payment record that carries one", () => {
-    const meta = buildPaymentMetadata("signius", "2026-09", "  Hosting invoice 42  ", [
+    const meta = buildPaymentMetadata("swarm", "2026-09", "  Hosting invoice 42  ", [
       { outputIndex: 0, transfer: false, amounts: [{ ...ADA, quantity: 188_000_000n }] },
     ]);
     // The record really has the key this test is about.
@@ -73,32 +73,32 @@ describe("metadata legends, both directions", () => {
     for (const k of Object.keys(meta)) expect(keysOf(PAYMENT_METADATA_LEGEND), `payment key ${k}`).toContain(k);
     expect(PAYMENT_METADATA_LEGEND.entries.find((e) => e.key === "m")?.meaning).toMatch(/memo/i);
     // Without a memo the key is absent, as the legend says.
-    const bare = buildPaymentMetadata("signius", "2026-09", "   ", [
+    const bare = buildPaymentMetadata("swarm", "2026-09", "   ", [
       { outputIndex: 0, transfer: false, amounts: [{ ...ADA, quantity: 1_000_000n }] },
     ]);
     expect("m" in bare).toBe(false);
   });
 
   it("explain the decisions a record cites, absent when nothing is cited", () => {
-    const payment = buildPaymentMetadata("signius", "2026-09", null, [
+    const payment = buildPaymentMetadata("swarm", "2026-09", null, [
       { outputIndex: 0, transfer: false, amounts: [{ ...ADA, quantity: 1_000_000n }] },
     ], [CITATION]);
     expect(payment.g).toEqual([[7, HASH]]);
-    const payout = buildPayoutMetadata("signius", [
+    const payout = buildPayoutMetadata("swarm", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }], citations: [CITATION] },
     ]);
     expect(payout.g).toEqual([[7, HASH, [12]]]);
     for (const legend of [PAYMENT_METADATA_LEGEND, PAYOUT_METADATA_LEGEND]) {
       expect(legend.entries.find((e) => e.key === "g")?.meaning).toMatch(/proposal/i);
     }
-    const bare = buildPayoutMetadata("signius", [
+    const bare = buildPayoutMetadata("swarm", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }] },
     ]);
     expect("g" in bare).toBe(false);
   });
 
   it("list no payment key the builder cannot write", () => {
-    const meta = buildPaymentMetadata("signius", "2026-09", "Hosting", [
+    const meta = buildPaymentMetadata("swarm", "2026-09", "Hosting", [
       { outputIndex: 1, transfer: true, amounts: [{ ...ADA, quantity: 5_000_000n }] },
       { outputIndex: 0, transfer: false, amounts: [{ ticker: "GVTT", quantity: 3500n, decimals: 0 }] },
     ], [CITATION]);
@@ -106,7 +106,7 @@ describe("metadata legends, both directions", () => {
   });
 
   it("list no payout key the builder cannot write", () => {
-    const meta = buildPayoutMetadata("signius", [
+    const meta = buildPayoutMetadata("swarm", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }], citations: [CITATION] },
     ], [
       { outputIndex: 1, transfer: false, amounts: [{ ...ADA, quantity: 50_000n }] },
@@ -137,7 +137,7 @@ describe("metadata legends, both directions", () => {
   });
 
   it("explain every key of an anchor record, both ways, and pick the legend for a real record only", () => {
-    const record = buildAnchorMetadata("signius", [
+    const record = buildAnchorMetadata("swarm", [
       [4, "proposed", HASH, HASH], [4, "opened", HASH],
       [4, "closed", "passed", HASH, [5, 3, [["yes", 2], ["no", 1]]], ["ipfs", "bafy"]],
     ]);
@@ -146,7 +146,7 @@ describe("metadata legends, both directions", () => {
       expect(ANCHOR_METADATA_LEGEND.entries.find((e) => e.key === "a")?.meaning).toContain(`"${step}"`);
     }
     expect(anchorLegend(JSON.parse(JSON.stringify(record)))).toBe(ANCHOR_METADATA_LEGEND);
-    expect(anchorLegend(buildAnchorTestMetadata("signius"))).toBeNull();
+    expect(anchorLegend(buildAnchorTestMetadata("swarm"))).toBeNull();
     expect(anchorLegend(null)).toBeNull();
     // The 190001 picker never mistakes an anchor for a payout or payment.
     expect(payoutOrPaymentLegend(record)).toBeNull();
@@ -203,10 +203,10 @@ describe("metadata legends, both directions", () => {
   });
 
   it("pick the payment legend for a real payment record and the payout legend for a real payout", () => {
-    const payment = buildPaymentMetadata("signius", "2026-09", "Hosting", [
+    const payment = buildPaymentMetadata("swarm", "2026-09", "Hosting", [
       { outputIndex: 0, transfer: false, amounts: [{ ...ADA, quantity: 1_000_000n }] },
     ]);
-    const payout = buildPayoutMetadata("signius", [
+    const payout = buildPayoutMetadata("swarm", [
       { outputIndex: 0, taskNumber: 12, workgroupName: "Dev", budgetPeriod: "2026-05", amounts: [{ ...ADA, quantity: 5_000_000n }] },
     ]);
     expect(payoutOrPaymentLegend(payment)).toBe(PAYMENT_METADATA_LEGEND);
