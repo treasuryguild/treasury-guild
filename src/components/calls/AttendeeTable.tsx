@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import { contributorLabel } from "@/lib/assignees";
 import { attendeeStanding, type AttendeeStanding } from "@/lib/calls/qualify";
 import { AttendeeSource, AttendeeStatus } from "@/lib/constants";
@@ -75,20 +76,28 @@ export function AttendeeTable({
         const seen = presence(a);
         return (
           <InsetRow key={a.id}>
-            <div className="min-w-0">
-              <p className="truncate text-sm">
-                {a.display_name} <span className="text-xs text-zinc-500">· {SOURCE_LABELS[a.provider]}</span>
-                {seen && <span className="text-xs text-zinc-500"> · {seen}</span>}
-              </p>
-              <p className="truncate text-xs text-zinc-500">
-                {a.wallet_address
-                  ? contributorLabel({
-                    wallet: a.wallet_address,
-                    handle: a.contributors?.handle ?? null,
-                    githubUsername: a.contributors?.github_username ?? null,
-                  })
-                  : "not linked to a wallet"}
-              </p>
+            <div className="flex min-w-0 items-center gap-3">
+              <PersonAvatar
+                wallet={a.wallet_address}
+                handle={a.contributors?.handle}
+                githubUsername={a.contributors?.github_username}
+                displayName={a.display_name}
+              />
+              <div className="min-w-0">
+                <p className="truncate text-sm">
+                  {a.display_name} <span className="text-xs text-zinc-500">· {SOURCE_LABELS[a.provider]}</span>
+                  {seen && <span className="text-xs text-zinc-500"> · {seen}</span>}
+                </p>
+                <p className="truncate text-xs text-zinc-500">
+                  {a.wallet_address
+                    ? contributorLabel({
+                      wallet: a.wallet_address,
+                      handle: a.contributors?.handle ?? null,
+                      githubUsername: a.contributors?.github_username ?? null,
+                    })
+                    : "not linked to a wallet"}
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={badge.tone}>

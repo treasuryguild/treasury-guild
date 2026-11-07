@@ -3,6 +3,7 @@
 // One task, rendered the same way on native kanban columns and GitHub
 // status-grouped columns. Amount chips fall back to the legacy ADA bounty.
 
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import { Badge } from "@/components/ui";
 import { assigneeLabel, sortedAssignees } from "@/lib/assignees";
 import type { BoardTask } from "@/lib/boardTypes";
@@ -14,17 +15,28 @@ function AssigneeLine({ task }: { task: BoardTask }) {
   const assignees = sortedAssignees(task.task_assignees);
   if (assignees.length === 0) return null;
   return (
-    <p className="mt-1 text-xs text-zinc-500">
-      {assignees.map((a, i) => (
-        <span key={a.id}>
-          {i > 0 && ", "}
-          <span className={a.wallet_address ? "text-zinc-400" : "text-amber-500/70"}>
+    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+      {assignees.map((a) => {
+        const github = a.gh_login ?? a.contributors?.github_username ?? null;
+        return (
+          <span
+            key={a.id}
+            className={`inline-flex items-center gap-1.5 ${
+              a.wallet_address ? "text-zinc-400" : "text-amber-500/70"
+            }`}
+          >
+            <PersonAvatar
+              size="sm"
+              wallet={a.wallet_address}
+              handle={a.contributors?.handle}
+              githubUsername={github}
+            />
             {assigneeLabel(a)}
             {a.wallet_address ? "" : " (no wallet linked)"}
           </span>
-        </span>
-      ))}
-    </p>
+        );
+      })}
+    </div>
   );
 }
 

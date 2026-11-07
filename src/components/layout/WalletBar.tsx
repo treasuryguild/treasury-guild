@@ -4,8 +4,10 @@ import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeftRight, LogOut, Settings2, Unplug, WalletCards } from "lucide-react";
 import { useWalletBridge } from "@/components/providers/WalletBridge";
+import { useContributorProfile } from "@/hooks/useContributorProfile";
 import { useSession } from "@/hooks/useSession";
 import { NetworkBadge } from "@/components/community/NetworkNotice";
+import { PersonAvatar } from "@/components/profile/PersonAvatar";
 import { Button } from "@/components/ui";
 import { shortAddress } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -81,6 +83,7 @@ export function WalletBar() {
     signIn,
     signOut,
   } = useSession();
+  const { data: profile } = useContributorProfile();
 
   if (loading) return <div className="h-9" />;
 
@@ -129,7 +132,13 @@ export function WalletBar() {
           title="Profile & settings"
           aria-label="Profile and settings"
         >
-          <Settings2 className="h-4 w-4 shrink-0" />
+          <PersonAvatar
+            size="sm"
+            wallet={sessionWallet}
+            handle={profile?.handle}
+            githubUsername={profile?.github_username}
+          />
+          <Settings2 className="hidden h-4 w-4 shrink-0 sm:inline" />
           <span className="hidden font-mono xl:inline">
             {shortAddress(sessionWallet)}
           </span>
