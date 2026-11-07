@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { apiFetch } from "@/lib/api/client";
 import type { CommunityStakePoolCreatedResponse, OkResponse } from "@/lib/api/types";
 import { MAX_COMMUNITY_STAKE_POOLS } from "@/lib/constants";
@@ -155,7 +156,7 @@ export function StakePoolsSection({
       <p className="mb-4 text-sm text-zinc-600">
         Link a Cardano stake pool the community operates. Margin and known addresses come from the
         chain; rewards that reach a community treasury are booked as revenue on{" "}
-        <a className="underline" href="/docs/funding">Funding</a>.
+        <Link className="underline" href="/docs/funding">Funding</Link>.
       </p>
 
       {isAdmin && adding && treasuryId && (
