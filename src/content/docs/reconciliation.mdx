@@ -24,9 +24,9 @@ Newly detected inflows start as **Unclassified** and needing review.
 
 Admins see **Details** on every card. It opens a form with:
 
-- **Incoming type** — Unclassified, Refund, Contribution, Revenue, Internal transfer or Other. Contribution, Revenue, Other and Unclassified count as income on the Dashboard; a Refund is netted against the payout it returns; Internal transfer is money moved between the community's own wallets (set automatically when the sender is one of them).
+- **Incoming type** — Unclassified, Refund, Contribution, Revenue, Internal transfer or Other. Contribution, Revenue, Other and Unclassified count as income on the Dashboard; a Refund is netted against the payout it returns; Internal transfer is money moved between the community's own wallets (set automatically when the sender is one of them). Operator rewards from a linked [stake pool](/docs/treasury#stake-pools) are auto-set to **Revenue** (and tied to that pool's funding source) when they reach a community treasury.
 - **Reconciliation** — **Needs reconciliation** or **No reconciliation needed**.
-- **Funding source** and **Commitment** — shown once the community has a [funding source](/docs/funding): the outside funder this whole inflow came from and, optionally, which of its commitments it pays (for example a Catalyst proposal, or the monthly allocation). The card then shows the source as a badge, the inflow counts as received on the Funding page, and the Dashboard's Funding flow names the source. Not offered for a transfer between the community's own wallets.
+- **Funding source** and **Commitment** — shown once the community has a [funding source](/docs/funding): the outside funder this whole inflow came from and, optionally, which of its commitments it pays (for example a Catalyst proposal, or the monthly allocation). The card then shows the source as a badge, the inflow counts as received on the Funding page, and the Dashboard's Funding flow names the source. Not offered for a transfer between the community's own treasuries (a forward from a pool rewards-buffer float still counts as pool revenue).
 - **Internal note** — context for the next admin, for example "September membership contribution".
 - **Bridge / swap conversion** — optional bookkeeping when the Cardano inflow came from a bridge or swap (see below).
 

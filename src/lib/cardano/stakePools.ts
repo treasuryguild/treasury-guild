@@ -18,6 +18,13 @@ export interface StakePoolSummary {
   status: string;
 }
 
+/** Exact lookup with registration detail (`/pool_info`) for community linking. */
+export interface StakePoolDetail extends StakePoolSummary {
+  pledge: string | null;
+  rewardAddress: string | null;
+  owners: string[];
+}
+
 export interface KoiosPoolListRow {
   pool_id_bech32?: string | null;
   ticker?: string | null;
@@ -25,6 +32,18 @@ export interface KoiosPoolListRow {
   fixed_cost?: string | null;
   active_stake?: string | null;
   pool_status?: string | null;
+}
+
+export interface KoiosPoolInfoRow {
+  pool_id_bech32?: string | null;
+  ticker?: string | null;
+  margin?: number | string | null;
+  fixed_cost?: string | number | null;
+  pledge?: string | number | null;
+  active_stake?: string | number | null;
+  pool_status?: string | null;
+  reward_addr?: string | null;
+  owners?: unknown;
 }
 
 /**
@@ -121,4 +140,64 @@ export function mapKoiosPoolRows(rows: unknown): StakePoolSummary[] {
     if (mapped) out.push(mapped);
   }
   return out;
+}
+
+function asOptionalString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+}
+
+function asOptionalMargin(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function asOwnerList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  for (const item of value) {
+    if (typeof item === "string" && item.trim()) out.push(item.trim());
+  }
+  return out;
+}
+
+/** Map a Koios `/pool_info` row; null when the pool id is missing. */
+export function mapKoiosPoolInfoRow(row: KoiosPoolInfoRow): StakePoolDetail | null {
+  const poolId = typeof row.pool_id_bech32 === "string" ? row.pool_id_bech32.trim() : "";
+  if (!poolId) return null;
+  return {
+    poolId,
+    ticker: typeof row.ticker === "string" && row.ticker.length > 0 ? row.ticker : null,
+    margin: asOptionalMargin(row.margin),
+    fixedCost: asOptionalString(row.fixed_cost),
+    activeStake: asOptionalString(row.active_stake),
+    status: typeof row.pool_status === "string" ? row.pool_status : "registered",
+    pledge: asOptionalString(row.pledge),
+    rewardAddress: asOptionalString(row.reward_addr),
+    owners: asOwnerList(row.owners),
+  };
+}
+
+/**
+ * Merge list summary fields onto a detail row when `/pool_info` omits ticker
+ * (some Koios deployments leave meta-derived fields empty).
+ */
+export function mergePoolDetail(
+  detail: StakePoolDetail,
+  summary: StakePoolSummary | null,
+): StakePoolDetail {
+  if (!summary) return detail;
+  return {
+    ...detail,
+    ticker: detail.ticker ?? summary.ticker,
+    margin: detail.margin ?? summary.margin,
+    fixedCost: detail.fixedCost ?? summary.fixedCost,
+    activeStake: detail.activeStake ?? summary.activeStake,
+    status: detail.status || summary.status,
+  };
 }

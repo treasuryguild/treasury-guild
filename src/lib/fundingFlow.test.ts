@@ -124,6 +124,26 @@ describe("aggregateFlows", () => {
     expect(september.inflows).toEqual([]);
   });
 
+  it("books a pool-rewards buffer forward as income from its funding source", () => {
+    const FLOAT = "f-rewards";
+    const flows = aggregateFlows([
+      row({
+        treasuryId: MAIN,
+        fromTreasuryId: null,
+        fromFloatWalletId: FLOAT,
+        incomingType: "revenue",
+        fundingSourceId: "fs-pool",
+        stakePoolId: "pool-1",
+        amountLovelace: "5000000",
+      }),
+    ], window);
+    const september = flows.find((month) => month.month === "2026-09")!;
+    expect(september.transfers).toEqual([]);
+    expect(september.inflows).toEqual([
+      { treasuryId: MAIN, unit: "lovelace", kind: "revenue", fundingSourceId: "fs-pool", amount: "5000000" },
+    ]);
+  });
+
   it("sums a long all-time window by quarter, under the quarter's first month", () => {
     const flows = aggregateFlows([
       row({ amountLovelace: "1000000", blockTime: "2024-04-02T00:00:00Z" }),

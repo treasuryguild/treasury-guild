@@ -240,9 +240,23 @@ With [proposals](/docs/governance) on, several treasuries also limit what a spen
 
 A workgroup's payment wallet can change over time. Each change is dated and takes effect at the start of a **budget period** (a month or a quarter, following the workgroup's [budget setup](/docs/budgets#budget-setups)): the next period, or the current one while nothing has been paid in it from another wallet yet. Payouts already made keep the wallet they came from, and a task from an earlier period is still paid from that period's wallet, so a period is never split across two wallets. The history of changes, with who made them and why, is kept with the workgroup.
 
+## Stake pools
+
+Communities that operate a Cardano stake pool can **link** it on the Treasury page (**Add stake pool**). Search by ticker or paste a `pool1…` id; Treasury Guild reads margin, fixed cost, pledge, the reward account and owner addresses from the chain so you do not type them by hand. A community may link at most three active pools.
+
+After linking, admins **map wallets** to roles:
+
+- **Reward account** — the stake address registration uses (prefilled).
+- **Owner / pledge** — owner stake keys from registration (prefilled).
+- **Operator payment** — hot wallets that pay hosting and ops (declared).
+- **Rewards buffer** — an optional watched [float wallet](#float-wallets) with purpose *pool rewards* that only receives withdrawn rewards and forwards them to a treasury.
+- **Community treasury** — which multisig (including an [SDK](#staking-and-cardano-governance) wallet) should book the income.
+
+**Income is booked once**, when ADA becomes spendable in a community treasury: a direct withdraw into that treasury, or a forward from a rewards-buffer float. Those inflows are classified as **revenue** and tied to a funding source named after the pool (for example "Pool SIG rewards"), so [Funding](/docs/funding) and the Dashboard funding flow show them. DEX floats stay transfers; only `pool_rewards` buffers promote to pool revenue. **Refresh from chain** updates cached params when the pool changes margin or owners. **Archive** hides the pool from new mapping without deleting history.
+
 ## Float wallets
 
-A **float wallet** is a watched payment-key address for DEX and other dApp use — not a multisig treasury. Admins add one on the Treasury page (**Add float wallet**): a name, the Shelley address on the community's network, and an optional note (for example who holds the key). A community may watch at most five non-archived floats. The address cannot already be one of the community's treasuries or another float.
+A **float wallet** is a watched payment-key address for DEX and other dApp use — not a multisig treasury — or, with purpose **pool rewards**, a buffer that only forwards stake-pool operator rewards to a community treasury. Admins add one on the Treasury page (**Add float wallet**): a name, the Shelley address on the community's network, and an optional note (for example who holds the key). A community may watch at most five non-archived floats. The address cannot already be one of the community's treasuries or another float.
 
 When the address already has history (an existing hot wallet), **Start monitoring after** accepts a Cardano transaction hash that involves that address: polling ignores that transaction and everything earlier, and the card shows the cutoff. Leave it blank to sync the full history from the chain.
 

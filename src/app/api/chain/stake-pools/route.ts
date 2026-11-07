@@ -5,7 +5,7 @@
 import { parseQuery, sessionRoute } from "@/lib/api/route";
 import { stakePoolsQuerySchema } from "@/lib/api/schemas";
 import type { StakePoolsResponse } from "@/lib/api/types";
-import { lookupStakePool, searchStakePools } from "@/lib/cardano/koios";
+import { fetchPoolInfo, searchStakePools } from "@/lib/cardano/koios";
 import { requireMember } from "@/lib/authz";
 import { asNetwork } from "@/lib/config";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
@@ -18,7 +18,8 @@ export const GET = sessionRoute(async (req, { session }) => {
   await requireMember(treasury.community_id, session.wallet);
   const network = asNetwork(treasury.network);
   if (poolId) {
-    const pool = await lookupStakePool(network, poolId);
+    // Exact lookup pulls registration detail (reward account, owners) for linking.
+    const pool = await fetchPoolInfo(network, poolId);
     return { pools: pool ? [pool] : [] } satisfies StakePoolsResponse;
   }
   const pools = await searchStakePools(network, { q, limit });

@@ -26,13 +26,17 @@ import {
 import {
   buildPoolListPath,
   buildPoolLookupPath,
+  mapKoiosPoolInfoRow,
   mapKoiosPoolRow,
   mapKoiosPoolRows,
+  mergePoolDetail,
+  type KoiosPoolInfoRow,
+  type StakePoolDetail,
   type StakePoolSummary,
 } from "./stakePools";
 import { joinUnit, splitUnit } from "./units";
 
-export type { StakePoolSummary } from "./stakePools";
+export type { StakePoolDetail, StakePoolSummary } from "./stakePools";
 export type { DrepSummary } from "./dreps";
 
 const PAGE_SIZE = 500;
@@ -365,6 +369,35 @@ export async function lookupStakePool(
   const row = rows[0];
   if (!row || typeof row !== "object") return null;
   return mapKoiosPoolRow(row);
+}
+
+/**
+ * Registration detail for linking a community stake pool (`POST /pool_info`).
+ * Resolves hex ids through `lookupStakePool` first so the body always uses bech32.
+ */
+export async function fetchPoolInfo(
+  network: Network,
+  poolId: string,
+): Promise<StakePoolDetail | null> {
+  const summary = await lookupStakePool(network, poolId);
+  const bech32 = summary?.poolId ?? (/^pool1/i.test(poolId.trim()) ? poolId.trim() : null);
+  if (!bech32) return null;
+  const rows = (await koiosPost(network, "/pool_info", {
+    _pool_bech32_ids: [bech32],
+  })) as KoiosPoolInfoRow[];
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return summary
+      ? {
+          ...summary,
+          pledge: null,
+          rewardAddress: null,
+          owners: [],
+        }
+      : null;
+  }
+  const mapped = mapKoiosPoolInfoRow(rows[0]!);
+  if (!mapped) return null;
+  return mergePoolDetail(mapped, summary);
 }
 
 function chunkIds(ids: readonly string[], size: number): string[][] {

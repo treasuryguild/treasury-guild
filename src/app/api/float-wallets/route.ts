@@ -7,13 +7,13 @@ import { txInfoBulk } from "@/lib/cardano/koios";
 import { addressToNetwork } from "@/lib/cardano/multisigSDK";
 import { asNetwork } from "@/lib/config";
 import { requireCommunity } from "@/lib/db/communities";
-import { createFloatWallet, tagFloatTransfers } from "@/lib/db/floatWallets";
+import { classifyPoolRewardInflows, createFloatWallet, tagFloatTransfers } from "@/lib/db/floatWallets";
 import { enforceRateLimit } from "@/lib/db/rateLimit";
 import { BadRequestError } from "@/lib/errors";
 import { txTouchesAddress } from "@/lib/float/syncFrom";
 
 export const POST = sessionRoute(async (req, { session }) => {
-  const { communityId, name, address, note, afterTxHash } = await parseJson(req, createFloatWalletSchema);
+  const { communityId, name, address, note, purpose, afterTxHash } = await parseJson(req, createFloatWalletSchema);
   await requireAdmin(communityId, session.wallet);
   await enforceRateLimit("floatWalletCreate", session.wallet);
 
@@ -42,11 +42,13 @@ export const POST = sessionRoute(async (req, { session }) => {
     name: name.trim(),
     address,
     note: note?.trim() || null,
+    purpose: purpose ?? "dex",
     created_by: session.wallet,
     sync_from_tx_hash: syncFromTx,
     sync_from_block: syncFromBlock,
   });
   // Tag any already-polled treasury rows that already name this address.
   await tagFloatTransfers(communityId);
+  await classifyPoolRewardInflows(communityId);
   return { id: wallet.id } satisfies FloatWalletCreatedResponse;
 });

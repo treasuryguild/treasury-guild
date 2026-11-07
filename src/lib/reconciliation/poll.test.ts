@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   tagInternalTransfers: vi.fn(),
   tagFloatTransfers: vi.fn(),
+  classifyPoolRewardInflows: vi.fn(),
+  applyPoolReward: vi.fn(),
 }));
 // db/client re-exports this client; its real rows / maybe / check unwrap the results.
 vi.mock("@/lib/supabase/service", () => ({ serviceClient: () => ({ from: mocks.from }) }));
@@ -24,7 +26,13 @@ vi.mock("@/lib/cardano/koios", () => ({
 }));
 vi.mock("@/lib/db/transactions", () => ({ confirmTransaction: mocks.confirm }));
 vi.mock("@/lib/db/treasuries", () => ({ tagInternalTransfers: mocks.tagInternalTransfers }));
-vi.mock("@/lib/db/floatWallets", () => ({ tagFloatTransfers: mocks.tagFloatTransfers }));
+vi.mock("@/lib/db/floatWallets", () => ({
+  tagFloatTransfers: mocks.tagFloatTransfers,
+  classifyPoolRewardInflows: mocks.classifyPoolRewardInflows,
+}));
+vi.mock("@/lib/reconciliation/poolRewards", () => ({
+  applyPoolRewardIfMatched: mocks.applyPoolReward,
+}));
 
 import { pollTreasury } from "./poll";
 
@@ -139,6 +147,8 @@ beforeEach(() => {
   mocks.confirm.mockResolvedValue(true);
   mocks.tagInternalTransfers.mockResolvedValue(undefined);
   mocks.tagFloatTransfers.mockResolvedValue(undefined);
+  mocks.classifyPoolRewardInflows.mockResolvedValue(undefined);
+  mocks.applyPoolReward.mockResolvedValue(undefined);
   mocks.lookupStakePool.mockResolvedValue(null);
   mocks.lookupDrep.mockResolvedValue(null);
 });

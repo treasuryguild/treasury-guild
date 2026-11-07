@@ -20,7 +20,7 @@ vi.mock("@/lib/db/treasuries", () => ({ loadTreasuryWithSigners: mocks.load }));
 vi.mock("@/lib/authz", () => ({ requireMember: mocks.member }));
 vi.mock("@/lib/cardano/koios", () => ({
   searchStakePools: mocks.search,
-  lookupStakePool: mocks.lookup,
+  fetchPoolInfo: mocks.lookup,
 }));
 
 import { GET } from "./route";

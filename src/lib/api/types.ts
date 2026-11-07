@@ -452,8 +452,14 @@ export interface StakePoolSummary {
   activeStake: string | null;
   status: string;
 }
+/** Exact poolId lookup may include `/pool_info` registration fields. */
+export interface StakePoolDetail extends StakePoolSummary {
+  pledge: string | null;
+  rewardAddress: string | null;
+  owners: string[];
+}
 export interface StakePoolsResponse {
-  pools: StakePoolSummary[];
+  pools: StakePoolSummary[] | StakePoolDetail[];
 }
 /** GET /api/chain/dreps */
 export interface DrepSummary {
@@ -913,6 +919,11 @@ export interface LegacyWalletCreatedResponse {
 /** POST /api/float-wallets */
 export interface FloatWalletCreatedResponse {
   id: string;
+}
+/** POST /api/stake-pools */
+export interface CommunityStakePoolCreatedResponse {
+  id: string;
+  fundingSourceId: string;
 }
 /** POST /api/conversions */
 export interface ConversionCreatedResponse {

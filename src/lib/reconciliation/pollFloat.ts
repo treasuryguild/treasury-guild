@@ -7,7 +7,7 @@ import { addressTxs, txInfoBulk, type KoiosAddressTx } from "@/lib/cardano/koios
 import { asNetwork } from "@/lib/config";
 import { PgCode } from "@/lib/constants";
 import { check, maybe, serviceClient } from "@/lib/db/client";
-import { tagFloatTransfers } from "@/lib/db/floatWallets";
+import { classifyPoolRewardInflows, tagFloatTransfers } from "@/lib/db/floatWallets";
 import {
   isIncomingTx,
   otherOutputAddresses,
@@ -120,6 +120,7 @@ export async function pollFloatWallet(float: {
 
   if (newIncoming + newExternal > 0) {
     await tagFloatTransfers(float.community_id);
+    await classifyPoolRewardInflows(float.community_id);
   }
 
   if (undescribed.length > 0) {
