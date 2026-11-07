@@ -84,14 +84,13 @@ describe("treasury import page", () => {
     expect(await screen.findByDisplayValue("https://app.test/invite/import/tok")).toBeTruthy();
     const submit = screen.getByRole("button", { name: "Import treasury" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
-    await user.type(screen.getByRole("textbox", { name: "Signer 2 address" }), "addr_test1second");
-    await user.click(screen.getByRole("button", { name: "Set address" }));
+    await user.type(screen.getByRole("textbox", { name: "Payment addresses" }), "addr_test1second");
+    await user.click(screen.getByRole("button", { name: "Match addresses" }));
     expect(mocks.fetch).toHaveBeenCalledWith("/api/treasury/import-draft/slot", {
       body: {
         draftId: "draft-1",
         communityId: "community",
-        keyHash: "b".repeat(56),
-        address: "addr_test1second",
+        addresses: ["addr_test1second"],
       },
     });
     await user.click(screen.getByRole("button", { name: "Import treasury" }));
