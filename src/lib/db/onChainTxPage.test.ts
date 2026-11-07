@@ -29,7 +29,7 @@ vi.mock("@/lib/cardano/cborMetadata", () => ({
 import { loadOnChainTxPageData } from "./onChainTxPage";
 
 const HASH = "ab".repeat(32);
-const SLUG = "signius";
+const SLUG = "swarm";
 const CBOR = "84a0";
 
 const EXTERNAL_ROW = {

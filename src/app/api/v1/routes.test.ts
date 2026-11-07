@@ -100,18 +100,18 @@ describe("/api/v1 route wiring", () => {
 
   it.each(communityRoutes)("GET /api/v1/communities/[community]/$segment runs $name with the path's community", async ({ segment, handler, name }) => {
     const res = await handler(
-      new Request(`http://localhost/api/v1/communities/signius/${segment}?community=other`),
-      { params: Promise.resolve({ community: "signius" }) },
+      new Request(`http://localhost/api/v1/communities/swarm/${segment}?community=other`),
+      { params: Promise.resolve({ community: "swarm" }) },
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ endpoint: name });
     onlyRan(name);
-    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "signius" }));
+    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "swarm" }));
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
   });
 
   it.each([...rootRoutes, ...communityRoutes])("$name answers 401 without a caller and 403 without the scope", async ({ handler, name }) => {
-    const call = () => (handler as typeof budgetsGET)(new Request("http://localhost/api/v1/x"), { params: Promise.resolve({ community: "signius" }) });
+    const call = () => (handler as typeof budgetsGET)(new Request("http://localhost/api/v1/x"), { params: Promise.resolve({ community: "swarm" }) });
     mocks.caller.mockRejectedValueOnce(new UnauthorizedError());
     expect((await call()).status).toBe(401);
     mocks.caller.mockResolvedValueOnce({ ...CALLER, scopes: [] });
@@ -120,27 +120,27 @@ describe("/api/v1 route wiring", () => {
   });
 
   it.each([
-    { path: "transactions/h123", handler: transactionGET, params: { community: "signius", tx: "h123" }, name: "transactionDetail" },
-    { path: "proposals/7", handler: proposalGET, params: { community: "signius", proposal: "7" }, name: "proposalDetail" },
+    { path: "transactions/h123", handler: transactionGET, params: { community: "swarm", tx: "h123" }, name: "transactionDetail" },
+    { path: "proposals/7", handler: proposalGET, params: { community: "swarm", proposal: "7" }, name: "proposalDetail" },
   ] as const)("GET /api/v1/communities/[community]/$path runs $name with every path segment", async ({ path, handler, params, name }) => {
     const res = await (handler as typeof budgetsGET)(
-      new Request(`http://localhost/api/v1/communities/signius/${path}`),
+      new Request(`http://localhost/api/v1/communities/swarm/${path}`),
       { params: Promise.resolve(params) } as never,
     );
     expect(res.status).toBe(200);
     onlyRan(name);
-    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining(name === "transactionDetail" ? { community: "signius", tx: "h123" } : { community: "signius", proposal: 7 }));
+    expect(runs[name]).toHaveBeenCalledWith(CALLER, expect.objectContaining(name === "transactionDetail" ? { community: "swarm", tx: "h123" } : { community: "swarm", proposal: 7 }));
   });
 
   it("reads query parameters as the endpoint's input", async () => {
     await tasksGET(
-      new Request("http://localhost/api/v1/communities/signius/tasks?limit=3&includeArchived=true"),
-      { params: Promise.resolve({ community: "signius" }) },
+      new Request("http://localhost/api/v1/communities/swarm/tasks?limit=3&includeArchived=true"),
+      { params: Promise.resolve({ community: "swarm" }) },
     );
-    expect(runs.listTasks).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "signius", limit: 3, includeArchived: true }));
+    expect(runs.listTasks).toHaveBeenCalledWith(CALLER, expect.objectContaining({ community: "swarm", limit: 3, includeArchived: true }));
     const bad = await tasksGET(
-      new Request("http://localhost/api/v1/communities/signius/tasks?limit=lots"),
-      { params: Promise.resolve({ community: "signius" }) },
+      new Request("http://localhost/api/v1/communities/swarm/tasks?limit=lots"),
+      { params: Promise.resolve({ community: "swarm" }) },
     );
     expect(bad.status).toBe(400);
     expect(runs.listTasks).toHaveBeenCalledTimes(1);

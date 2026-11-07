@@ -22,7 +22,7 @@ import { callEndpoint } from "./endpoint";
 import { previewProposalWithdraw } from "./proposalWithdraw";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["proposals:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const proposal = (patch: Record<string, unknown> = {}) => ({
   id: "p-7", community_id: "c1", number: 7, title: "Adopt the handbook", kind: "decision", state: "discussion",
   proposer: "addr_w", content_hash: "a".repeat(64), ended_by: null, ...patch,
@@ -43,7 +43,7 @@ beforeEach(() => {
   mocks.end.mockResolvedValue("withdrawn");
 });
 
-const preview = (input: Record<string, unknown> = { community: "signius", proposal: 7 }) =>
+const preview = (input: Record<string, unknown> = { community: "swarm", proposal: 7 }) =>
   callEndpoint(previewProposalWithdraw, caller, input);
 const confirm = (draftToken: string, who: ApiCaller = caller) => callEndpoint(confirmDraft, who, { draftToken });
 
@@ -55,7 +55,7 @@ describe("proposal_withdraw_preview", () => {
     expect(res).toMatchObject({
       action: "proposal_withdraw",
       summary: "Withdraw proposal #7: Adopt the handbook",
-      details: { number: 7, state: "discussion", url: "http://localhost:3000/c/signius/proposals/p-7" },
+      details: { number: 7, state: "discussion", url: "http://localhost:3000/c/swarm/proposals/p-7" },
     });
     expect(res.next).toContain("draft_confirm");
   });
@@ -68,7 +68,7 @@ describe("proposal_withdraw_preview", () => {
   });
 
   it("needs proposals:write", async () => {
-    await expect(callEndpoint(previewProposalWithdraw, { ...caller, scopes: ["communities:read"] }, { community: "signius", proposal: 7 }))
+    await expect(callEndpoint(previewProposalWithdraw, { ...caller, scopes: ["communities:read"] }, { community: "swarm", proposal: 7 }))
       .rejects.toBeInstanceOf(ForbiddenError);
   });
 });
@@ -80,9 +80,9 @@ describe("draft_confirm on a withdraw", () => {
     expect(mocks.end).toHaveBeenCalledExactlyOnceWith("p-7", "addr_w", "withdrawn", null);
     expect(res).toEqual({
       action: "proposal_withdraw",
-      community: { slug: "signius", name: "Signius" },
+      community: { slug: "swarm", name: "Swarm" },
       created: true, number: 7, title: "Adopt the handbook", state: "withdrawn",
-      url: "http://localhost:3000/c/signius/proposals/p-7",
+      url: "http://localhost:3000/c/swarm/proposals/p-7",
     });
   });
 
@@ -105,7 +105,7 @@ describe("draft_confirm on a withdraw", () => {
     // A connection holding only another write scope may call draft_confirm, but not for this action.
     await expect(confirm(draftToken, { ...caller, scopes: ["tasks:write"] })).rejects.toThrow("proposals:write");
     await expect(confirm(draftToken, { ...caller, clientId: "c2" })).rejects.toBeInstanceOf(ForbiddenError);
-    await expect(callEndpoint(confirmDraft, caller, { draftToken, community: "lab" })).rejects.toThrow("previewed for signius, not lab");
+    await expect(callEndpoint(confirmDraft, caller, { draftToken, community: "lab" })).rejects.toThrow("previewed for swarm, not lab");
     await expect(confirm("nope")).rejects.toBeInstanceOf(BadRequestError);
     // No write scope at all: draft_confirm is not offered.
     await expect(confirm(draftToken, { ...caller, scopes: ["communities:read"] })).rejects.toBeInstanceOf(ForbiddenError);

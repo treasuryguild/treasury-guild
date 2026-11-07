@@ -68,7 +68,7 @@ Stack: Next.js (App Router) · [MeshJS](https://meshjs.dev/) · Koios · Supabas
 - User guides at `/docs` in the running app; source in [src/content/docs](src/content/docs).
 - [Agent API: MCP and REST](src/app/api/mcp/README.md).
 - [Development conventions](CLAUDE.md) and [repository instructions](AGENTS.md).
-- [Signius test seeds](supabase/seeds/README.md) — maintainer fixtures (need a linked remote snapshot).
+- [Swarm test seeds](supabase/seeds/README.md) — maintainer fixtures (need a linked remote snapshot).
 - Design records (historical): [on-chain anchoring, treasury templates and the co-signer](docs/onchain-anchoring-estimate.md),
   [fix plan from the 2026-10-01 test sweep](docs/test-findings-fix-plan.md).
 
@@ -328,13 +328,13 @@ the values from `.env.remote` into the process environment first (snippet in
 `scripts/README.md`). Both can submit real transactions on each community's
 network.
 
-#### Maintainers: Signius snapshot and seeds
+#### Maintainers: Swarm snapshot and seeds
 
 `npm run db:snapshot` dumps the **linked** Supabase project into the
 gitignored `supabase/seeds/local/` directory. That needs `supabase link` to
 the Treasury Guild remote and is **not available to forks**. With a snapshot
 loaded (`npm run db:reset`), `npm run seed:sandbox` / `seed:live` build
-Signius preprod test scenarios — see [supabase/seeds/README.md](supabase/seeds/README.md).
+Swarm preprod test scenarios — see [supabase/seeds/README.md](supabase/seeds/README.md).
 
 `npm test` runs Vitest tests for library logic, API routes, hooks, components
 and documentation links. `npm run typecheck` and `npm run lint` check types
@@ -354,8 +354,8 @@ CI runs them all; locally, run them with `psql` against a throwaway
 `postgres:17` Docker container (port 54330, separate from the local stack,
 never the remote) — the exact commands are in
 [`scripts/README.md`](scripts/README.md#sql-fixtures). The seed fixtures are
-`signius_sandbox_seed.sql`, `signius_live_seed.sql` and
-`signius_seeds_head.sql`, which checks both seeds on the head schema (the
+`swarm_sandbox_seed.sql`, `swarm_live_seed.sql` and
+`swarm_seeds_head.sql`, which checks both seeds on the head schema (the
 `head_*.sql` fixtures likewise test current behaviour on every migration).
 
 ### 5. Deploy (Netlify)
@@ -571,7 +571,7 @@ cites the proposals behind the spend, `[[proposalNumber, contentHash,
 
 ```json
 {
-  "v": 3, "src": "treasury-guild", "c": "signius",
+  "v": 3, "src": "treasury-guild", "c": "swarm",
   "w": ["Dev", "Design"],
   "b": ["2026-05", "2026-Q2"],
   "k": ["ADA", "GVT"],
@@ -588,7 +588,7 @@ of 188 ADA and 50 000 GVTT to another of the community's treasuries:
 
 ```json
 {
-  "v": 1, "src": "treasury-guild", "t": "payment", "c": "signius",
+  "v": 1, "src": "treasury-guild", "t": "payment", "c": "swarm",
   "b": "",
   "k": ["ADA", "GVTT"],
   "m": "Workgroup Budget",

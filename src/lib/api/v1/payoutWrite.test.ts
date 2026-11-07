@@ -28,7 +28,7 @@ import { callEndpoint } from "./endpoint";
 import { previewPayout } from "./payoutWrite";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["payouts:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const treasury = (id: string, name: string) => ({
   id, name, address: `addr_${id}`, network: 0, required: 2, script_type: "atLeast", template: "plain", lock_until: null,
   recovery_script_type: null, recovery_required: null, cosigner_kind: null,
@@ -83,7 +83,7 @@ beforeEach(() => {
   mocks.labels.mockResolvedValue(new Map([["addr_x", "Xi"]]));
 });
 
-const preview = (input: Record<string, unknown> = {}) => callEndpoint(previewPayout, caller, { community: "signius", ...input });
+const preview = (input: Record<string, unknown> = {}) => callEndpoint(previewPayout, caller, { community: "swarm", ...input });
 const confirm = (draftToken: string) => callEndpoint(confirmDraft, caller, { draftToken });
 
 describe("payout_preview", () => {
@@ -144,7 +144,7 @@ describe("payout_preview", () => {
   });
 
   it("needs payouts:write", async () => {
-    await expect(callEndpoint(previewPayout, { ...caller, scopes: ["tasks:write"] }, { community: "signius" }))
+    await expect(callEndpoint(previewPayout, { ...caller, scopes: ["tasks:write"] }, { community: "swarm" }))
       .rejects.toBeInstanceOf(ForbiddenError);
     expect(mocks.plan).not.toHaveBeenCalled();
   });
@@ -159,8 +159,8 @@ describe("draft_confirm on a payout", () => {
       expect.objectContaining({ treasuryId: "t-main" }), "addr_w", { agentDraftId: expect.stringMatching(/^[0-9a-f]{32}$/) },
     );
     expect(res).toEqual({
-      action: "payout_create", community: { slug: "signius", name: "Signius" }, created: true, txId: "tx-1",
-      txHash: "h".repeat(64), treasury: "Main", requiredSignatures: 2, url: "http://localhost:3000/c/signius/tx/tx-1",
+      action: "payout_create", community: { slug: "swarm", name: "Swarm" }, created: true, txId: "tx-1",
+      txHash: "h".repeat(64), treasury: "Main", requiredSignatures: 2, url: "http://localhost:3000/c/swarm/tx/tx-1",
     });
   });
 

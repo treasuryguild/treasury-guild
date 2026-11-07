@@ -42,7 +42,7 @@ const signers = [{
 }];
 const buildContext = (overrides: object = {}) => ({
   treasury: plainTreasury, signers, role: "member", isSigner: true, callerGroups: new Set(["base"]),
-  communitySlug: "signius", network: 0, ...overrides,
+  communitySlug: "swarm", network: 0, ...overrides,
 });
 
 beforeEach(() => {
@@ -115,7 +115,7 @@ describe("POST /api/tx/build-registration", () => {
     expect(await res.json()).toEqual({ txId: "tx-1", txHash: HASH });
     const built = mocks.build.mock.calls[0]?.[0];
     expect(built).toMatchObject({ treasuryAddress: TREASURY, scriptCbor: "00", network: 0, validFromSlot: null });
-    expect(built.message).toMatch(/^Treasury Guild registration: signius \d{4}-\d{2}-\d{2}$/);
+    expect(built.message).toMatch(/^Treasury Guild registration: swarm \d{4}-\d{2}-\d{2}$/);
     expect(built.record).toMatchObject({ types: [0], name: "Main" });
   });
 

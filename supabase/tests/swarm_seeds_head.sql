@@ -1,5 +1,5 @@
--- Head schema (migrations 0001-0065): the two Signius seeds still load, rerun
--- and coexist. signius_sandbox_seed.sql and signius_live_seed.sql stop at 0033
+-- Head schema (migrations 0001-0065): the two Swarm seeds still load, rerun
+-- and coexist. swarm_sandbox_seed.sql and swarm_live_seed.sql stop at 0033
 -- and 0035; this is the lighter check against everything since. Run with
 -- psql -f against an EMPTY disposable PostgreSQL database; everything is
 -- rolled back.
@@ -80,13 +80,13 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0064_agent_proposal_drafts.sql
 \ir ../migrations/0065_agent_drafts.sql
 
--- Fixture: Signius (preprod) with three members, a submitted GVTT mint on its
+-- Fixture: Swarm (preprod) with three members, a submitted GVTT mint on its
 -- first treasury, an older second treasury for the quarterly live workgroup,
 -- another community, and tasks neither seed may touch.
 insert into contributors(wallet_address) values
   ('seed-admin'), ('owner-wallet'), ('admin-wallet-1'), ('admin-wallet-2'), ('outsider');
 insert into communities(id, slug, name, network, created_by) values
-  ('10000000-0000-0000-0000-000000000001', 'signius', 'Signius', 0, 'seed-admin'),
+  ('10000000-0000-0000-0000-000000000001', 'swarm', 'Swarm', 0, 'seed-admin'),
   ('10000000-0000-0000-0000-000000000002', 'other-community', 'Other', 0, 'seed-admin');
 insert into community_members(community_id, wallet_address, role) values
   ('10000000-0000-0000-0000-000000000001', 'owner-wallet', 'owner'),
@@ -115,7 +115,7 @@ create temp table untouched as
   select to_jsonb(t) as row from tasks t union all select to_jsonb(w) from workgroups w;
 
 -- 1. The sandbox seed on the head schema ------------------------------------------------
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 create temp view sandbox_groups as
   select id from workgroups where description like 'Sandbox test data (signius-test-tasks-v1)%';
 create temp view sandbox_tasks as
@@ -123,7 +123,7 @@ create temp view sandbox_tasks as
     (select count(*) from task_assignees a where a.task_id = t.id) as assignee_count
   from tasks t join board_columns c on c.id = t.column_id
   where t.workgroup_id in (select id from sandbox_groups);
--- The key counts signius_sandbox_seed.sql asserts, as one check to repeat after every run.
+-- The key counts swarm_sandbox_seed.sql asserts, as one check to repeat after every run.
 create function pg_temp.check_sandbox(step text) returns void language plpgsql as $$
 begin
   if (select count(*) from sandbox_groups) <> 3
@@ -150,7 +150,7 @@ begin
   end if;
   if (select count(*) from workgroups where id in (select id from sandbox_groups)
         and treasury_id = '20000000-0000-0000-0000-000000000001' and archived_at is null and has_activity) <> 2
-      or not exists (select 1 from workgroups where name = '[TEST] Signius Content' and treasury_id is null and has_activity) then
+      or not exists (select 1 from workgroups where name = '[TEST] Swarm Content' and treasury_id is null and has_activity) then
     raise exception '%: wrong sandbox workgroup routing', step;
   end if;
   if (select sum((amounts->>'GVTT')::numeric) from sandbox_tasks where title not like '%Oversized reward%') <> 41500 then
@@ -165,10 +165,10 @@ begin
       or (select count(distinct workgroup_id) from budget_setups where workgroup_id in (select id from sandbox_groups)) <> 3
       or (select count(*) from budget_changes where workgroup_id in (select id from sandbox_groups)) <> 7
       or exists (select 1 from budget_changes where workgroup_id in (select id from sandbox_groups)
-        and (changed_by <> 'owner-wallet' or reason <> 'Seeded by signius_sandbox.sql'))
+        and (changed_by <> 'owner-wallet' or reason <> 'Seeded by swarm_sandbox.sql'))
       or (select string_agg(w.name || '=' || st.revision, ',' order by w.name)
           from budget_setup_states st join workgroups w on w.id = st.workgroup_id where st.workgroup_id in (select id from sandbox_groups))
-        <> '[TEST] Signius Community=1,[TEST] Signius Content=4,[TEST] Signius Product QA=2' then
+        <> '[TEST] Swarm Community=1,[TEST] Swarm Content=4,[TEST] Swarm Product QA=2' then
     raise exception '%: sandbox budgets wrong', step;
   end if;
   if exists ((select row from untouched) except (select to_jsonb(t) from tasks t union all select to_jsonb(w) from workgroups w)) then
@@ -192,7 +192,7 @@ create temp table first_assignees as select a.task_id, a.source, a.gh_login, a.w
 update tasks set title = 'Edited by a tester', amounts = '{"GVTT":"99"}'
   where id = (select id from sandbox_tasks where pay_state = 'payable' and archived_at is null and assignee_count = 1 order by id limit 1);
 insert into board_columns(workgroup_id, name, position) select id, 'Extra', 9 from sandbox_groups limit 1;
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 select pg_temp.check_sandbox('sandbox, rerun');
 do $$ begin
   if exists ((select row from first_tasks) except (select to_jsonb(t) - 'number' from tasks t where workgroup_id in (select id from sandbox_groups)))
@@ -213,16 +213,16 @@ do $$ begin
 end $$;
 
 -- 2. The live seed on the head schema, beside the sandbox --------------------------------
-\ir ../seeds/signius_live.sql
-create temp view runs_group as select id from workgroups where name = '[LIVE] Signius Payout Runs';
-create temp view quarterly_group as select id from workgroups where name = '[LIVE] Signius Quarterly Runs';
+\ir ../seeds/swarm_live.sql
+create temp view runs_group as select id from workgroups where name = '[LIVE] Swarm Payout Runs';
+create temp view quarterly_group as select id from workgroups where name = '[LIVE] Swarm Quarterly Runs';
 create temp view live_group as select id from runs_group union all select id from quarterly_group;
 create temp view live_tasks as
   select t.*, c.marks_payable, c.workgroup_id as column_workgroup_id,
     (select count(*) from task_assignees a where a.task_id = t.id) as assignee_count
   from tasks t join board_columns c on c.id = t.column_id
   where t.workgroup_id in (select id from live_group);
--- The key counts signius_live_seed.sql asserts, for `batches` runs of the seed.
+-- The key counts swarm_live_seed.sql asserts, for `batches` runs of the seed.
 create function pg_temp.check_live(step text, batches int) returns void language plpgsql as $$
 begin
   if (select count(*) from runs_group) <> 1 or (select count(*) from quarterly_group) <> 1
@@ -246,7 +246,7 @@ begin
   end if;
   if exists (select 1 from live_tasks where not marks_payable or column_workgroup_id <> workgroup_id
       or pay_state <> 'payable' or not audited or archived_at is not null or source <> 'native'
-      or title not like '[LIVE 2___-__-__ __:__] %' or body not like 'Live Signius payout batch %'
+      or title not like '[LIVE 2___-__-__ __:__] %' or body not like 'Live Swarm payout batch %'
       or community_id <> '10000000-0000-0000-0000-000000000001' or created_at <> updated_at or chain_number is not null) then
     raise exception '%: live task shape wrong', step;
   end if;
@@ -277,7 +277,7 @@ begin
         and s.starts_on = (date_trunc('quarter', now() at time zone 'UTC') - interval '3 months')::date)
       or (select count(*) from budget_changes where workgroup_id in (select id from live_group)) <> 2
       or exists (select 1 from budget_changes where workgroup_id in (select id from live_group)
-        and (changed_by <> 'owner-wallet' or reason <> 'Seeded by signius_live.sql'))
+        and (changed_by <> 'owner-wallet' or reason <> 'Seeded by swarm_live.sql'))
       or (select count(*) from budget_setup_states where workgroup_id in (select id from live_group) and revision = 1) <> 2 then
     raise exception '%: live workgroup budgets wrong', step;
   end if;
@@ -302,7 +302,7 @@ end $$;
 
 -- A second run appends one batch per workgroup and leaves the first alone.
 create temp table first_batch as select to_jsonb(t) as row from tasks t where workgroup_id in (select id from live_group);
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 select pg_temp.check_live('live, rerun', 2);
 do $$ begin
   if exists ((select row from first_batch) except (select to_jsonb(t) from tasks t where workgroup_id in (select id from live_group))) then
@@ -311,7 +311,7 @@ do $$ begin
 end $$;
 
 -- 3. A sandbox reset beside live batches removes only the sandbox ------------------------
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 select pg_temp.check_sandbox('sandbox, reset beside live batches');
 select pg_temp.check_live('live, after the sandbox reset', 2);
 do $$ begin
@@ -332,9 +332,9 @@ insert into governance_settings(community_id, kind, enabled, proposers, electora
     threshold_pct, discussion_hours, voting_hours, updated_by)
   select '10000000-0000-0000-0000-000000000001', k, true, 'members', 'members', 'majority', 20, 50, 48, 120, 'owner-wallet'
   from unnest(array['budget', 'workgroup', 'task', 'decision']) k;
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 select pg_temp.check_live('live, governance on', 3);
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 select pg_temp.check_sandbox('sandbox, governance on');
 select pg_temp.check_live('live, after the sandbox reset with governance on', 3);
 
@@ -344,8 +344,8 @@ select pg_temp.check_live('live, after the sandbox reset with governance on', 3)
 delete from budget_changes where workgroup_id in (select id from sandbox_groups union select id from live_group);
 delete from budget_setups where workgroup_id in (select id from sandbox_groups union select id from live_group);
 delete from budget_setup_states where workgroup_id in (select id from sandbox_groups union select id from live_group);
-\ir ../seeds/signius_live.sql
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_live.sql
+\ir ../seeds/swarm_sandbox.sql
 do $$ begin
   if exists (select 1 from budget_setups where workgroup_id in (select id from sandbox_groups union select id from live_group))
       or exists (select 1 from budget_changes where workgroup_id in (select id from sandbox_groups union select id from live_group)) then
@@ -358,10 +358,10 @@ do $$ begin
 end $$;
 -- Consent off again: the next run sets the budgets up.
 update governance_settings set enabled = false where kind = 'budget';
-\ir ../seeds/signius_live.sql
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_live.sql
+\ir ../seeds/swarm_sandbox.sql
 select pg_temp.check_sandbox('sandbox, consent off again');
 select pg_temp.check_live('live, consent off again', 5);
 
 rollback;
-\echo Signius seeds on the head schema passed (all changes rolled back).
+\echo Swarm seeds on the head schema passed (all changes rolled back).

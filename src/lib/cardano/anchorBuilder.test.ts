@@ -11,7 +11,7 @@ const BASE = {
   scriptCbor: "8201828200581c",
   network: 0 as const,
   provider: {} as IFetcher,
-  record: { v: 1, src: "treasury-guild", c: "signius", a: [[1, "proposed", "a".repeat(64), "b".repeat(64)]] },
+  record: { v: 1, src: "treasury-guild", c: "swarm", a: [[1, "proposed", "a".repeat(64), "b".repeat(64)]] },
   message: "Treasury Guild: anchor of proposal #1",
 };
 

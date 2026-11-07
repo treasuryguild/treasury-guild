@@ -67,7 +67,7 @@ const buildContext = (overrides: object = {}) => ({
   role: "member",
   isSigner: true,
   callerGroups: new Set(["base"]),
-  communitySlug: "signius",
+  communitySlug: "swarm",
   network: 0,
   ...overrides,
 });

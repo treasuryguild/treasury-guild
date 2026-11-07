@@ -7,7 +7,7 @@ import { DRAFT_TOKEN_TTL_SECONDS, mintDraftToken, verifyDraftToken, type Draft }
 const CALLER: ApiCaller = { wallet: "addr_w", scopes: ["proposals:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1_790_000_000_000 };
 const DRAFT: Draft = {
   action: "proposal_create",
-  community: "signius",
+  community: "swarm",
   request: { communityId: "c-1", kind: "decision", title: "Adopt the handbook", body: "Why." },
   fingerprint: "a".repeat(64),
   rulesHash: "b".repeat(64),
@@ -50,7 +50,7 @@ describe("draft tokens", () => {
   it("bind a session preview to the session, not to any assistant", async () => {
     const session: ApiCaller = { wallet: "addr_w", scopes: ["proposals:write"], clientId: null, via: "session" };
     const { token } = await mintDraftToken(session, DRAFT);
-    await expect(verifyDraftToken(token, session)).resolves.toMatchObject({ community: "signius" });
+    await expect(verifyDraftToken(token, session)).resolves.toMatchObject({ community: "swarm" });
     await expect(verifyDraftToken(token, CALLER)).rejects.toBeInstanceOf(ForbiddenError);
   });
 

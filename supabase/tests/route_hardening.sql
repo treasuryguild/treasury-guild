@@ -294,7 +294,7 @@ do $$ begin
   end if;
 end $$;
 -- A Discord server is saved without tokens from the start.
-select save_call_integration('10000000-0000-0000-0000-000000000000', 'discord', 'guild-1', 'Signius HQ', 'alice', null, null, null);
+select save_call_integration('10000000-0000-0000-0000-000000000000', 'discord', 'guild-1', 'Swarm HQ', 'alice', null, null, null);
 do $$ begin
   if (select external_account_id from call_integrations where provider = 'discord') <> 'guild-1'
       or exists (select 1 from call_integration_secrets s join call_integrations i on i.id = s.integration_id where i.provider = 'discord') then

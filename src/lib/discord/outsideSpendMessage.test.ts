@@ -22,12 +22,12 @@ describe("outsideSpendAmounts", () => {
 describe("buildOutsideSpendEmbed", () => {
   it("names the treasury, the amounts and the link, never a wallet or a name", () => {
     const payload = buildOutsideSpendEmbed({
-      communityName: "Signius", treasuryName: "Main", spend, display, explorerUrl: "https://preprod.cexplorer.io/tx/f",
+      communityName: "Swarm", treasuryName: "Main", spend, display, explorerUrl: "https://preprod.cexplorer.io/tx/f",
     });
     const embed = payload.embeds[0]!;
     expect(embed.title).toBe("⚠️ Spend built outside Treasury Guild");
     expect(embed.url).toBe("https://preprod.cexplorer.io/tx/f");
-    expect(embed.description).toContain("**Signius**");
+    expect(embed.description).toContain("**Swarm**");
     expect(embed.fields).toEqual([
       { name: "Treasury", value: "Main", inline: true },
       { name: "Amount", value: expect.stringContaining("12.5 ₳"), inline: true },
@@ -39,7 +39,7 @@ describe("buildOutsideSpendEmbed", () => {
 
   it("notes a payment to a sibling treasury", () => {
     const payload = buildOutsideSpendEmbed({
-      communityName: "Signius", treasuryName: "Main", spend: { ...spend, toSiblingTreasury: true }, display, explorerUrl: "u",
+      communityName: "Swarm", treasuryName: "Main", spend: { ...spend, toSiblingTreasury: true }, display, explorerUrl: "u",
     });
     expect(payload.embeds[0]!.fields?.at(-1)).toEqual({ name: "Note", value: "Paid to another of the community's treasuries" });
   });

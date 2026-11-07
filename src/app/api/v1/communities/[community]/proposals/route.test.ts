@@ -17,8 +17,8 @@ vi.mock("@/lib/api/v1/proposals", async (importOriginal) => {
 });
 import { GET } from "./route";
 
-const ctx = { params: Promise.resolve({ community: "signius" }) };
-const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/signius/proposals${query}`), ctx);
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
+const get = (query = "") => GET(new Request(`http://localhost/api/v1/communities/swarm/proposals${query}`), ctx);
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -33,9 +33,9 @@ describe("GET /api/v1/communities/[community]/proposals", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ proposals: [] });
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
-    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ via: "session" }), { community: "signius", state: "all", limit: 20 });
+    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ via: "session" }), { community: "swarm", state: "all", limit: 20 });
     await get("?state=open&limit=5");
-    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "signius", state: "open", limit: 5 });
+    expect(mocks.run).toHaveBeenLastCalledWith(expect.anything(), { community: "swarm", state: "open", limit: 5 });
   });
 
   it("refuses bad filters, a missing scope and a missing caller before running", async () => {

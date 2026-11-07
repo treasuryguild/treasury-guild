@@ -36,7 +36,7 @@ const plainTreasury = {
 };
 const buildContext = (overrides: object = {}) => ({
   treasury: plainTreasury, signers: [], role: "member", isSigner: true, callerGroups: new Set(["base"]),
-  communitySlug: "signius", network: 0, ...overrides,
+  communitySlug: "swarm", network: 0, ...overrides,
 });
 const anchor = (proposalId: string, number: number, step: string) => ({
   proposalId, number, step, entry: step === "proposed" ? [number, "proposed", "a".repeat(64), "b".repeat(64)] : [number, "opened", "c".repeat(64)],
@@ -124,8 +124,8 @@ describe("POST /api/tx/build-anchor", () => {
     expect(mocks.due).toHaveBeenCalledWith("community");
     const built = mocks.build.mock.calls[0]?.[0];
     expect(built).toMatchObject({ treasuryAddress: TREASURY, scriptCbor: "00", network: 0, validFromSlot: null });
-    expect(built.message).toMatch(/^Treasury Guild anchors: signius \d{4}-\d{2}-\d{2}, 2 proposals$/);
-    expect(built.record).toMatchObject({ v: 1, src: "treasury-guild", c: "signius" });
+    expect(built.message).toMatch(/^Treasury Guild anchors: swarm \d{4}-\d{2}-\d{2}, 2 proposals$/);
+    expect(built.record).toMatchObject({ v: 1, src: "treasury-guild", c: "swarm" });
     expect(built.record.a).toHaveLength(3);
     expect(mocks.record).toHaveBeenCalledWith("tx-1", expect.arrayContaining([expect.objectContaining({ proposalId: "p1", step: "opened" })]));
   });

@@ -6,8 +6,8 @@ import { describeExternalTx, recentTreasuryActivity } from "./externalTx";
 const META = {
   v: 3,
   src: "treasury-guild",
-  c: "signius",
-  w: ["[LIVE] Signius Payout Runs"],
+  c: "swarm",
+  w: ["[LIVE] Swarm Payout Runs"],
   b: ["2026-09"],
   k: ["GVTT", "ADA"],
   p: [
@@ -58,7 +58,7 @@ function app(created_at: string): TransactionSummary {
 describe("parsePayoutMeta", () => {
   it("reads workgroups, distinct task numbers and output count from v3 metadata", () => {
     expect(parsePayoutMeta(META)).toEqual({
-      workgroups: ["[LIVE] Signius Payout Runs"],
+      workgroups: ["[LIVE] Swarm Payout Runs"],
       taskNumbers: [50, 51, 52],
       outputs: 3,
     });
@@ -83,7 +83,7 @@ describe("describeExternalTx", () => {
   it("names the payout when metadata is present", () => {
     expect(describeExternalTx(external({ payout_meta: META }))).toEqual({
       title: "Payout on-chain: 3 tasks, 3 outputs",
-      detail: "[LIVE] Signius Payout Runs",
+      detail: "[LIVE] Swarm Payout Runs",
     });
   });
 

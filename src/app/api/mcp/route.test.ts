@@ -38,7 +38,7 @@ beforeEach(() => {
   mocks.rateLimit.mockResolvedValue(undefined);
   mocks.session.mockResolvedValue({ wallet: WALLET });
   mocks.communities.mockResolvedValue([
-    { role: "admin", community: { id: "c1", slug: "signius", name: "Signius", description: null, network: 0, visibility: "private" } },
+    { role: "admin", community: { id: "c1", slug: "swarm", name: "Swarm", description: null, network: 0, visibility: "private" } },
   ]);
 });
 
@@ -171,7 +171,7 @@ describe("/api/mcp", () => {
     };
     expect(result.isError).toBeFalsy();
     expect(result.structuredContent.communities).toEqual([
-      expect.objectContaining({ slug: "signius", role: "admin", network: "preprod", url: "http://localhost:3000/c/signius" }),
+      expect.objectContaining({ slug: "swarm", role: "admin", network: "preprod", url: "http://localhost:3000/c/swarm" }),
     ]);
     expect(result.content).toHaveLength(1);
     expect(result.content[0]).not.toHaveProperty("annotations");

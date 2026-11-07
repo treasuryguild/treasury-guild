@@ -55,7 +55,7 @@ beforeEach(() => {
   mocks.load.mockResolvedValue(null);
   mocks.elsewhere.mockResolvedValue(false);
   mocks.leave.mockResolvedValue(undefined);
-  discordAnswers({ access_token: "discord-access", refresh_token: "discord-refresh", guild: { id: "guild-1", name: "Signius HQ" } });
+  discordAnswers({ access_token: "discord-access", refresh_token: "discord-refresh", guild: { id: "guild-1", name: "Swarm HQ" } });
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -82,7 +82,7 @@ describe("discord guild-callback API", () => {
     });
     // The bot token is the application's own: this grant's tokens are not kept.
     expect(mocks.save).toHaveBeenCalledExactlyOnceWith({
-      community_id: COMMUNITY_ID, provider: "discord", external_account_id: "guild-1", label: "Signius HQ", created_by: WALLET,
+      community_id: COMMUNITY_ID, provider: "discord", external_account_id: "guild-1", label: "Swarm HQ", created_by: WALLET,
     }, null);
     expect(mocks.saveSecrets).not.toHaveBeenCalled();
     expect(mocks.leave).not.toHaveBeenCalled();

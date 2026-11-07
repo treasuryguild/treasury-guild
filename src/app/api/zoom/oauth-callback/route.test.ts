@@ -36,7 +36,7 @@ const outcome = (response: Response) => {
 const json = (body: object, status = 200) => new Response(JSON.stringify(body), { status });
 /** Zoom's two answers: the token endpoint's, then the user lookup's. */
 function zoomAnswers(token: Response, user: Response = json({
-  account_id: "zoom-acc", display_name: "Signius Host", email: "host@signius.test",
+  account_id: "zoom-acc", display_name: "Swarm Host", email: "host@swarm.test",
 })) {
   mocks.fetch.mockImplementation(async (url: string | URL) => (String(url) === TOKEN_URL ? token : user));
 }
@@ -87,7 +87,7 @@ describe("zoom oauth-callback API", () => {
     // The account id events are matched by and a label: no email is kept.
     // The row and its token pair go in one database step.
     expect(mocks.save).toHaveBeenCalledExactlyOnceWith({
-      community_id: COMMUNITY_ID, provider: "zoom", external_account_id: "zoom-acc", label: "Signius Host", created_by: WALLET,
+      community_id: COMMUNITY_ID, provider: "zoom", external_account_id: "zoom-acc", label: "Swarm Host", created_by: WALLET,
     }, { access_token: "zoom-access", refresh_token: "zoom-refresh", expires_at: "2026-09-30T13:00:00.000Z" });
     expect(mocks.saveSecrets).not.toHaveBeenCalled();
   });

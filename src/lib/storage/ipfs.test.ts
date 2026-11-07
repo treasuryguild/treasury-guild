@@ -18,8 +18,8 @@ describe("ipfsStore", () => {
     const { client, calls } = fakePinata("bafy123");
     const store = ipfsStore({ pinata: () => client, gateway: () => "gw.example" });
     const bytes = new TextEncoder().encode('{"a":1}');
-    expect(await store.put(bytes, "signius-proposal-4-tally.json", { hash: "abc" })).toBe("bafy123");
-    expect(calls.name).toBe("signius-proposal-4-tally.json");
+    expect(await store.put(bytes, "swarm-proposal-4-tally.json", { hash: "abc" })).toBe("bafy123");
+    expect(calls.name).toBe("swarm-proposal-4-tally.json");
     expect(calls.keyvalues).toEqual({ app: "treasury-guild", hash: "abc" });
     expect(calls.file?.type).toBe("application/json");
     expect(await calls.file?.text()).toBe('{"a":1}');

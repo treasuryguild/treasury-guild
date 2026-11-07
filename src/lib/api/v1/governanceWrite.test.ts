@@ -38,7 +38,7 @@ const caller: ApiCaller = {
   via: "oauth",
   grantCreatedAt: 1,
 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const MAIN = {
   id: "t-main",
   name: "Main",
@@ -112,7 +112,7 @@ beforeEach(() => {
 describe("stake_preview", () => {
   it("plans a stake action without persisting", async () => {
     const res = await callEndpoint(previewStake, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       action: "register_and_delegate",
       poolId: "pool1abc",
@@ -137,7 +137,7 @@ describe("stake_preview", () => {
   it("refuses a missing pool for register_and_delegate", async () => {
     await expect(
       callEndpoint(previewStake, caller, {
-        community: "signius",
+        community: "swarm",
         treasury: "Main",
         action: "register_and_delegate",
       }),
@@ -151,7 +151,7 @@ describe("stake_preview", () => {
     );
     await expect(
       callEndpoint(previewStake, caller, {
-        community: "signius",
+        community: "swarm",
         treasury: "Main",
         action: "register",
       }),
@@ -162,7 +162,7 @@ describe("stake_preview", () => {
 describe("draft_confirm stake_create", () => {
   it("persists when the fingerprint still matches", async () => {
     const preview = await callEndpoint(previewStake, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       action: "register_and_delegate",
       poolId: "pool1abc",
@@ -184,7 +184,7 @@ describe("draft_confirm stake_create", () => {
 
   it("refuses when the fingerprint changed", async () => {
     const preview = await callEndpoint(previewStake, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       action: "register_and_delegate",
       poolId: "pool1abc",
@@ -198,7 +198,7 @@ describe("draft_confirm stake_create", () => {
 
   it("answers from the existing row on a repeated confirm", async () => {
     const preview = await callEndpoint(previewStake, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       action: "register_and_delegate",
       poolId: "pool1abc",
@@ -218,10 +218,10 @@ describe("draft_confirm stake_create", () => {
 describe("drep_preview and vote_preview", () => {
   it("previews a DRep register without publishing", async () => {
     const res = await callEndpoint(previewDrep, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       action: "register",
-      givenName: "Signius DRep",
+      givenName: "Swarm DRep",
     });
     expect(res).toMatchObject({
       action: "drep_create",
@@ -231,7 +231,7 @@ describe("drep_preview and vote_preview", () => {
       ]),
     });
     expect(mocks.planDrep).toHaveBeenCalledWith(
-      expect.objectContaining({ action: "register", givenName: "Signius DRep" }),
+      expect.objectContaining({ action: "register", givenName: "Swarm DRep" }),
       caller.wallet,
       { publish: false },
     );
@@ -240,7 +240,7 @@ describe("drep_preview and vote_preview", () => {
 
   it("previews an on-chain vote without publishing", async () => {
     const res = await callEndpoint(previewVote, caller, {
-      community: "signius",
+      community: "swarm",
       treasury: "Main",
       votes: [{ txHash: "a".repeat(64), certIndex: 0, voteKind: "Yes" }],
     });
@@ -256,7 +256,7 @@ describe("drep_preview and vote_preview", () => {
     const noScope: ApiCaller = { ...caller, scopes: ["communities:read"] };
     await expect(
       callEndpoint(previewStake, noScope, {
-        community: "signius",
+        community: "swarm",
         treasury: "Main",
         action: "register",
       }),

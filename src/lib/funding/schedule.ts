@@ -74,7 +74,7 @@ export function amountColumns(table: ScheduleTable, dateColumn: number | null): 
 
 /**
  * The token a column header names, when exactly one known ticker appears in
- * it as a word (`signius_ada` → ADA). Null when none or several do.
+ * it as a word (`swarm_ada` → ADA). Null when none or several do.
  */
 export function suggestTokenUnit(header: string, options: readonly { unit: string; ticker: string }[]): string | null {
   const words = header.toLowerCase().split(/[^a-z0-9]+/);

@@ -326,7 +326,7 @@ describe("pollTreasury", () => {
   });
 
   describe("recording outside transactions", () => {
-    const META = { v: 3, src: "treasury-guild", c: "signius", p: [[0, [[12, 0, 0, ["3"]]]]] };
+    const META = { v: 3, src: "treasury-guild", c: "swarm", p: [[0, [[12, 0, 0, ["3"]]]]] };
 
     it("records a spend the app did not build, with the Koios label-190001 record as payout_meta", async () => {
       handlers.transactions = transactions(["h-own"], []);

@@ -48,7 +48,7 @@ alter default privileges in schema public grant all on tables to anon, authentic
 insert into contributors(wallet_address) values
   ('seed-admin'), ('owner-wallet'), ('admin-wallet-1'), ('admin-wallet-2');
 insert into communities(id, slug, name, created_by) values
-  ('10000000-0000-0000-0000-000000000001', 'signius', 'Signius', 'seed-admin');
+  ('10000000-0000-0000-0000-000000000001', 'swarm', 'Swarm', 'seed-admin');
 insert into community_members(community_id, wallet_address, role) values
   ('10000000-0000-0000-0000-000000000001', 'owner-wallet', 'owner'),
   ('10000000-0000-0000-0000-000000000001', 'admin-wallet-1', 'admin'),
@@ -73,9 +73,9 @@ create temp table untouched as
 
 -- With a single treasury both live workgroups start out on the mint treasury.
 savepoint single_treasury;
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
-  if (select count(*) from workgroups where name like '[LIVE] Signius %'
+  if (select count(*) from workgroups where name like '[LIVE] Swarm %'
       and treasury_id = '20000000-0000-0000-0000-000000000001') <> 2
     or (select count(*) from workgroup_treasury_assignments where treasury_id = '20000000-0000-0000-0000-000000000001') <> 2 then
     raise exception 'Single-treasury fallback wrong';
@@ -88,17 +88,17 @@ rollback to single_treasury;
 savepoint runs_rerouted;
 insert into treasuries(id, community_id, name, network, required, address, script_cbor) values
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Quarterly treasury', 0, 1, 'quarterly-treasury', '00');
-\ir ../seeds/signius_live.sql
-update workgroups set treasury_id = '20000000-0000-0000-0000-000000000002' where name = '[LIVE] Signius Payout Runs';
+\ir ../seeds/swarm_live.sql
+update workgroups set treasury_id = '20000000-0000-0000-0000-000000000002' where name = '[LIVE] Swarm Payout Runs';
 -- Only the workgroup row goes (triggers off: the delete guard would refuse);
 -- its leftovers are harmless here and everything is rolled back.
 set local session_replication_role = replica;
-delete from workgroups where name = '[LIVE] Signius Quarterly Runs';
+delete from workgroups where name = '[LIVE] Swarm Quarterly Runs';
 set local session_replication_role = origin;
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
-  if (select treasury_id from workgroups where name = '[LIVE] Signius Quarterly Runs') <> '20000000-0000-0000-0000-000000000001'
-    or (select treasury_id from workgroups where name = '[LIVE] Signius Payout Runs') <> '20000000-0000-0000-0000-000000000002' then
+  if (select treasury_id from workgroups where name = '[LIVE] Swarm Quarterly Runs') <> '20000000-0000-0000-0000-000000000001'
+    or (select treasury_id from workgroups where name = '[LIVE] Swarm Payout Runs') <> '20000000-0000-0000-0000-000000000002' then
     raise exception 'Quarterly workgroup must avoid the monthly workgroup''s treasury';
   end if;
 end $$;
@@ -109,11 +109,11 @@ insert into treasuries(id, community_id, name, network, required, address, scrip
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'Quarterly treasury', 0, 1, 'quarterly-treasury', '00', now() - interval '2 days'),
   ('20000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', 'Newer treasury', 0, 1, 'newer-treasury', '00', now() - interval '1 day');
 
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 create temp view runs_group as
-  select id from workgroups where name = '[LIVE] Signius Payout Runs';
+  select id from workgroups where name = '[LIVE] Swarm Payout Runs';
 create temp view quarterly_group as
-  select id from workgroups where name = '[LIVE] Signius Quarterly Runs';
+  select id from workgroups where name = '[LIVE] Swarm Quarterly Runs';
 create temp view live_group as
   select id from runs_group union all select id from quarterly_group;
 create temp view live_tasks as
@@ -164,7 +164,7 @@ do $$ begin
   end if;
   if exists (select 1 from live_tasks where not marks_payable or column_workgroup_id <> workgroup_id
     or pay_state <> 'payable' or not audited or archived_at is not null or source <> 'native'
-    or title not like '[LIVE 2___-__-__ __:__] %' or body not like 'Live Signius payout batch %'
+    or title not like '[LIVE 2___-__-__ __:__] %' or body not like 'Live Swarm payout batch %'
     or community_id <> '10000000-0000-0000-0000-000000000001' or created_at <> updated_at) then
     raise exception 'Live task shape wrong';
   end if;
@@ -242,7 +242,7 @@ do $$ begin
         jsonb_build_object('unit', repeat('a',56) || encode(convert_to('Test Token','UTF8'),'hex'), 'amount', '25000000', 'asset_label', 'GVTT', 'decimals', 6),
         jsonb_build_object('unit', 'lovelace', 'amount', '10000000', 'asset_label', 'ADA', 'decimals', 6)))
     or (select count(*) from budget_changes) <> 2
-    or exists (select 1 from budget_changes where changed_by <> 'owner-wallet' or reason <> 'Seeded by signius_live.sql')
+    or exists (select 1 from budget_changes where changed_by <> 'owner-wallet' or reason <> 'Seeded by swarm_live.sql')
     or (select count(*) from budget_setup_states where workgroup_id in (select id from live_group) and revision = 1) <> 2 then
     raise exception 'Live workgroup budget wrong';
   end if;
@@ -262,7 +262,7 @@ create temp table first_batch as select to_jsonb(t) as row from tasks t where wo
 create temp table first_assignees as select task_id, source, gh_login, wallet_address, position from task_assignees;
 create temp table first_columns as select * from board_columns;
 
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
   if (select count(*) from live_tasks) <> 42 or (select count(*) from tasks where pay_state = 'payable') <> 21
     or (select count(*) from tasks where pay_state = 'paid') <> 21
@@ -299,7 +299,7 @@ savepoint archived_group;
 update tasks set pay_state = 'paid' where workgroup_id in (select id from runs_group) and pay_state = 'payable';
 update workgroups set archived_at = now(), archived_by = 'owner-wallet' where id in (select id from runs_group);
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 \if :ERROR
 \else
   \quit 1
@@ -313,7 +313,7 @@ rollback to archived_group;
 savepoint not_native;
 update workgroups set kind = 'github' where id in (select id from quarterly_group);
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 \if :ERROR
 \else
   \quit 1
@@ -321,7 +321,7 @@ update workgroups set kind = 'github' where id in (select id from quarterly_grou
 \set ON_ERROR_STOP on
 rollback to not_native;
 
--- Rerouting in the app to another Signius preprod wallet, or to "any wallet",
+-- Rerouting in the app to another Swarm preprod wallet, or to "any wallet",
 -- is respected: the seed keeps adding batches and neither touches the routing
 -- nor the timeline. The pending count follows the wallet that will pay.
 savepoint rerouted_group;
@@ -332,7 +332,7 @@ insert into workgroup_treasury_assignments(workgroup_id, treasury_id, starts_on,
 update workgroups set treasury_id = '20000000-0000-0000-0000-000000000003' where id in (select id from runs_group);
 insert into transactions(id, treasury_id, kind, tx_cbor, created_by, state) values
   ('30000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000001', 'payout', '00', 'seed-admin', 0);
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
   if (select count(*) from live_tasks) <> 63
     or (select treasury_id from workgroups where id in (select id from runs_group)) <> '20000000-0000-0000-0000-000000000003'
@@ -347,7 +347,7 @@ do $$ begin
   end if;
 end $$;
 update workgroups set treasury_id = null where id in (select id from runs_group);
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
   if (select count(*) from live_tasks) <> 84
     or (select treasury_id from workgroups where id in (select id from runs_group)) is not null
@@ -362,7 +362,7 @@ rollback to rerouted_group;
 savepoint no_members;
 delete from community_members where community_id = '10000000-0000-0000-0000-000000000001';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 \if :ERROR
 \else
   \quit 1
@@ -371,9 +371,9 @@ delete from community_members where community_id = '10000000-0000-0000-0000-0000
 rollback to no_members;
 
 savepoint mainnet;
-update communities set network = 1 where slug = 'signius';
+update communities set network = 1 where slug = 'swarm';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 \if :ERROR
 \else
   \quit 1
@@ -384,7 +384,7 @@ rollback to mainnet;
 savepoint missing_mint;
 update transactions set state = 3 where kind = 'mint';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 \if :ERROR
 \else
   \quit 1
@@ -395,7 +395,7 @@ rollback to missing_mint;
 -- A one-member community still gets a batch: the two-assignee task collapses to one wallet.
 savepoint one_member;
 delete from community_members where community_id = '10000000-0000-0000-0000-000000000001' and role <> 'owner';
-\ir ../seeds/signius_live.sql
+\ir ../seeds/swarm_live.sql
 do $$ begin
   if (select count(*) from live_tasks) <> 63
     or exists (select 1 from task_assignees a join live_tasks t on t.id = a.task_id
@@ -406,5 +406,29 @@ do $$ begin
 end $$;
 rollback to one_member;
 
+-- A board left under the old name is relabeled. Routing and the timeline stay.
+savepoint relabel;
+create temp table relabel_before as
+  select w.id, w.treasury_id,
+    (select count(*) from workgroup_treasury_assignments a where a.workgroup_id = w.id) as assignments
+  from workgroups w where w.id in (select id from runs_group);
+update workgroups
+  set name = '[LIVE] Signius Payout Runs', description = 'old label'
+  where id in (select id from relabel_before);
+\ir ../seeds/swarm_live.sql
+do $$ begin
+  if not exists (
+    select 1 from workgroups w
+    join relabel_before b on b.id = w.id
+    where w.name = '[LIVE] Swarm Payout Runs'
+      and w.description = 'Real preprod payout batches (signius-live-payouts-v1). Each seed run adds one small batch meant to be built, signed and submitted. History here is never deleted.'
+      and w.treasury_id is not distinct from b.treasury_id
+      and (select count(*) from workgroup_treasury_assignments a where a.workgroup_id = w.id) = b.assignments
+  ) then
+    raise exception 'Live board was not relabeled in place';
+  end if;
+end $$;
+rollback to relabel;
+
 rollback;
-\echo Signius live seed tests passed (all changes rolled back).
+\echo Swarm live seed tests passed (all changes rolled back).

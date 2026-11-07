@@ -10,7 +10,7 @@ const options = [
   { unit: "lovelace", ticker: "ADA", decimals: 6 },
   { unit: GVTT, ticker: "GVTT", decimals: 6 },
 ];
-const SAMPLE = readFileSync("supabase/seeds/signius_funding_schedule.csv", "utf8");
+const SAMPLE = readFileSync("supabase/seeds/swarm_funding_schedule.csv", "utf8");
 
 afterEach(cleanup);
 
@@ -22,12 +22,12 @@ describe("ScheduleCsvImport", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Schedule CSV text" }), { target: { value: SAMPLE } });
 
     expect((screen.getByRole("combobox", { name: "Date column" }) as HTMLSelectElement).selectedOptions[0]!.textContent).toBe("release_date");
-    // signius_ada names ADA alone; two columns name GVTT, so both wait for a choice.
-    expect((screen.getByRole("combobox", { name: "Token for signius_ada" }) as HTMLSelectElement).value).toBe("lovelace");
-    expect((screen.getByRole("combobox", { name: "Token for signius_gvtt" }) as HTMLSelectElement).value).toBe("");
+    // swarm_ada names ADA alone; two columns name GVTT, so both wait for a choice.
+    expect((screen.getByRole("combobox", { name: "Token for swarm_ada" }) as HTMLSelectElement).value).toBe("lovelace");
+    expect((screen.getByRole("combobox", { name: "Token for swarm_gvtt" }) as HTMLSelectElement).value).toBe("");
     expect((screen.getByRole("combobox", { name: "Token for sister_community_gvtt" }) as HTMLSelectElement).value).toBe("");
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Token for signius_gvtt" }), GVTT);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Token for swarm_gvtt" }), GVTT);
     expect(screen.getByRole("table", { name: "Import preview" }).textContent).toContain("221.625");
     expect(screen.getByText(/12 periods/).textContent).toContain("2,488.020477 GVTT");
 

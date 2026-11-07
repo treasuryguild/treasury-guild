@@ -36,13 +36,13 @@ alter default privileges in schema public grant all on tables to anon, authentic
 \ir ../migrations/0029_budget_current_period.sql
 \ir ../migrations/0033_paid_columns.sql
 
--- Fixture: Signius with three members (owner first in the assignee pool), a
+-- Fixture: Swarm with three members (owner first in the assignee pool), a
 -- second community, a submitted GVTT mint, and pre-existing tasks that the
 -- sandbox must never touch.
 insert into contributors(wallet_address) values
   ('seed-admin'), ('owner-wallet'), ('admin-wallet-1'), ('admin-wallet-2'), ('outsider');
 insert into communities(id, slug, name, created_by) values
-  ('10000000-0000-0000-0000-000000000001', 'signius', 'Signius', 'seed-admin'),
+  ('10000000-0000-0000-0000-000000000001', 'swarm', 'Swarm', 'seed-admin'),
   ('10000000-0000-0000-0000-000000000002', 'other-community', 'Other', 'seed-admin');
 insert into community_members(community_id, wallet_address, role) values
   ('10000000-0000-0000-0000-000000000001', 'owner-wallet', 'owner'),
@@ -73,13 +73,13 @@ create temp table untouched as
 -- tester edited and a budget: the reset must remove all of it.
 insert into workgroups(id, community_id, name, description, treasury_id) values
   (md5('signius-test-tasks-v1:10000000-0000-0000-0000-000000000001:community')::uuid,
-   '10000000-0000-0000-0000-000000000001', '[TEST] Signius Community', 'Synthetic test data (signius-test-tasks-v1).',
+   '10000000-0000-0000-0000-000000000001', '[TEST] Swarm Community', 'Synthetic test data (signius-test-tasks-v1).',
    '20000000-0000-0000-0000-000000000001');
 insert into tasks(workgroup_id, title, pay_state, audited, amounts)
   values (md5('signius-test-tasks-v1:10000000-0000-0000-0000-000000000001:community')::uuid,
     '[TEST 2026-06] legacy', 'payable', true, '{"GVTT":"5"}');
 
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 create temp view sandbox_groups as
   select id from workgroups where description like 'Sandbox test data (signius-test-tasks-v1)%';
 create temp view sandbox_tasks as
@@ -115,7 +115,7 @@ do $$ begin
   end if;
   if (select count(*) from workgroups where id in (select id from sandbox_groups)
       and treasury_id = '20000000-0000-0000-0000-000000000001' and archived_at is null and has_activity) <> 2
-    or not exists (select 1 from workgroups where name = '[TEST] Signius Content' and treasury_id is null and has_activity) then
+    or not exists (select 1 from workgroups where name = '[TEST] Swarm Content' and treasury_id is null and has_activity) then
     raise exception 'Wrong workgroup routing';
   end if;
   if exists (select 1 from sandbox_tasks t where t.source <> 'native' or t.column_workgroup_id <> t.workgroup_id
@@ -192,12 +192,12 @@ do $$ begin
   if (select count(*) from sandbox_tasks where budget_month is not null) <> 5
     or exists (select 1 from sandbox_tasks t join workgroups w on w.id = t.workgroup_id
       where t.budget_month is not null and (t.pay_state <> 'payable' or t.budget_month <> case
-        when w.name = '[TEST] Signius Product QA' then date_trunc('quarter', t.created_at at time zone 'UTC')::date
+        when w.name = '[TEST] Swarm Product QA' then date_trunc('quarter', t.created_at at time zone 'UTC')::date
         else date_trunc('month', t.created_at at time zone 'UTC')::date end)) then
     raise exception 'Budget month attribution wrong';
   end if;
   if (select count(*) from sandbox_tasks t join workgroups w on w.id = t.workgroup_id
-      where w.name = '[TEST] Signius Product QA' and t.budget_month = '2026-07-01'
+      where w.name = '[TEST] Swarm Product QA' and t.budget_month = '2026-07-01'
         and date_trunc('month', t.created_at at time zone 'UTC')::date = '2026-09-01') <> 1 then
     raise exception 'Quarterly budget month must be quarter-aligned';
   end if;
@@ -227,7 +227,7 @@ do $$ declare gvtt text := repeat('a',56) || encode(convert_to('Test Token','UTF
     or (select count(distinct workgroup_id) from sandbox_setups) <> 3 then
     raise exception 'Every sandbox workgroup must have exactly one budget setup';
   end if;
-  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Signius Community'
+  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Swarm Community'
       and s.mode = 'recurring' and s.cadence = 'monthly' and s.starts_on = '2026-06-01'
       and jsonb_array_length(s.amounts) = 2
       and s.amounts @> jsonb_build_array(
@@ -236,7 +236,7 @@ do $$ declare gvtt text := repeat('a',56) || encode(convert_to('Test Token','UTF
       and not exists (select 1 from budget_plans p where p.setup_id = s.id)) then
     raise exception 'Community recurring monthly budget wrong';
   end if;
-  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Signius Product QA'
+  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Swarm Product QA'
       and s.mode = 'quarterly' and s.cadence = 'quarterly' and s.starts_on = '2026-04-01' and s.amounts = '[]'::jsonb
       and (select count(*) from budget_plans p where p.setup_id = s.id) = 2
       and exists (select 1 from budget_plans p where p.setup_id = s.id and p.starts_on = '2026-04-01'
@@ -246,7 +246,7 @@ do $$ declare gvtt text := repeat('a',56) || encode(convert_to('Test Token','UTF
         and p.amounts @> jsonb_build_array(jsonb_build_object('unit', gvtt, 'amount', '13500000000', 'asset_label', 'GVTT', 'decimals', 6)))) then
     raise exception 'Product QA quarterly plan wrong';
   end if;
-  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Signius Content'
+  if not exists (select 1 from sandbox_setups s where s.workgroup_name = '[TEST] Swarm Content'
       and s.mode = 'monthly' and s.cadence = 'monthly' and s.starts_on = '2026-06-01' and s.amounts = '[]'::jsonb
       and (select count(*) from budget_plans p where p.setup_id = s.id) = 4
       and (select string_agg(p.starts_on::text || ':' || (select b->>'amount' from jsonb_array_elements(p.amounts) b where b->>'unit' = gvtt), ',' order by p.starts_on)
@@ -256,12 +256,12 @@ do $$ declare gvtt text := repeat('a',56) || encode(convert_to('Test Token','UTF
   end if;
   if (select count(*) from budget_changes where workgroup_id in (select id from sandbox_groups)) <> 7
     or exists (select 1 from budget_changes where workgroup_id in (select id from sandbox_groups)
-      and (changed_by <> 'owner-wallet' or reason <> 'Seeded by signius_sandbox.sql')) then
+      and (changed_by <> 'owner-wallet' or reason <> 'Seeded by swarm_sandbox.sql')) then
     raise exception 'Budget audit rows wrong';
   end if;
   if (select string_agg(w.name || '=' || st.revision, ',' order by w.name)
       from budget_setup_states st join workgroups w on w.id = st.workgroup_id where st.workgroup_id in (select id from sandbox_groups))
-    <> '[TEST] Signius Community=1,[TEST] Signius Content=4,[TEST] Signius Product QA=2' then
+    <> '[TEST] Swarm Community=1,[TEST] Swarm Content=4,[TEST] Swarm Product QA=2' then
     raise exception 'Budget revisions wrong';
   end if;
   if exists (select 1 from budget_setups where workgroup_id not in (select id from sandbox_groups)) then
@@ -299,7 +299,7 @@ do $$ begin
   if (select count(*) from tasks where pay_state = 'queued') < 5 then raise exception 'Fixture did not queue tasks'; end if;
 end $$;
 -- The tester also changes a budget in the app; a reseed must keep it (budgets are seeded only once).
-select save_budget_setup((select id from workgroups where name = '[TEST] Signius Community'), 1,
+select save_budget_setup((select id from workgroups where name = '[TEST] Swarm Community'), 1,
   'recurring', 'monthly', '2026-12-01',
   '[{"unit":"lovelace","amount":"7000000","asset_label":"ADA","decimals":6}]', 'admin-wallet-1', false, 'Tester edit');
 create temp table first_budgets as
@@ -308,7 +308,7 @@ create temp table first_budgets as
   union all select 'change', to_jsonb(c) from budget_changes c where workgroup_id in (select id from sandbox_groups)
   union all select 'state', to_jsonb(st) from budget_setup_states st where workgroup_id in (select id from sandbox_groups);
 
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 do $$ begin
   if exists ((select row from first_tasks) except (select to_jsonb(t) - 'number' from tasks t where workgroup_id in (select id from sandbox_groups)))
     or exists ((select to_jsonb(t) - 'number' from tasks t where workgroup_id in (select id from sandbox_groups)) except (select row from first_tasks)) then
@@ -357,7 +357,7 @@ insert into payouts(transaction_id, task_id, contributor_wallet, unit, amount)
   select '30000000-0000-0000-0000-000000000004', id, 'owner-wallet', 'lovelace', 1
   from sandbox_tasks where pay_state = 'payable' and archived_at is null order by id limit 1;
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -369,7 +369,7 @@ savepoint paid_task;
 update tasks set pay_state = 'paid', paid_tx_hash = 'confirmed-hash'
   where id = (select id from sandbox_tasks where pay_state = 'payable' and archived_at is null order by id limit 1);
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -386,7 +386,7 @@ insert into payouts(transaction_id, task_id, contributor_wallet, unit, amount)
   select '30000000-0000-0000-0000-000000000005', id, 'owner-wallet', 'lovelace', 1
   from sandbox_tasks where pay_state = 'payable' and archived_at is null order by id limit 1;
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -397,7 +397,7 @@ rollback to mixed_transaction;
 savepoint no_members;
 delete from community_members where community_id = '10000000-0000-0000-0000-000000000001';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -406,9 +406,9 @@ delete from community_members where community_id = '10000000-0000-0000-0000-0000
 rollback to no_members;
 
 savepoint missing_community;
-update communities set slug = 'renamed-signius' where slug = 'signius';
+update communities set slug = 'renamed-swarm' where slug = 'swarm';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -417,9 +417,9 @@ update communities set slug = 'renamed-signius' where slug = 'signius';
 rollback to missing_community;
 
 savepoint mainnet;
-update communities set network = 1 where slug = 'signius';
+update communities set network = 1 where slug = 'swarm';
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -430,7 +430,7 @@ rollback to mainnet;
 savepoint missing_mint;
 update transactions set state = 3;
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -441,7 +441,7 @@ rollback to missing_mint;
 savepoint conflicting_mapping;
 update community_assets set unit = repeat('b',56);
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -457,7 +457,7 @@ select transaction_id, community_id, treasury_id, asset_kind, repeat('b',56),
   policy_script, policy_script_cbor, asset_name, asset_name_hex, quantity, decimals,
   ticker, recipient, metadata, created_by from mints;
 \set ON_ERROR_STOP off
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 \if :ERROR
 \else
   \quit 1
@@ -468,7 +468,7 @@ rollback to ambiguous_mint;
 -- A one-member community still seeds: slots wrap onto the same wallet, never duplicating it on a task.
 savepoint one_member;
 delete from community_members where community_id = '10000000-0000-0000-0000-000000000001' and role <> 'owner';
-\ir ../seeds/signius_sandbox.sql
+\ir ../seeds/swarm_sandbox.sql
 do $$ begin
   if exists (select 1 from task_assignees a join sandbox_tasks t on t.id = a.task_id where a.wallet_address is distinct from 'owner-wallet' and a.source = 'manual')
     or exists (select 1 from sandbox_tasks where pay_state = 'payable' and assignee_count > 2)
@@ -479,4 +479,4 @@ end $$;
 rollback to one_member;
 
 rollback;
-\echo Signius sandbox seed tests passed (all changes rolled back).
+\echo Swarm sandbox seed tests passed (all changes rolled back).

@@ -49,7 +49,7 @@ import { proposalDetail } from "./proposals";
 import { transactionDetail } from "./transactions";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["communities:read"], clientId: "c1", via: "oauth" };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const MAIN = {
   id: "t1", name: "Main", address: "addr_main", network: 0, required: 2, script_type: "atLeast", template: "plain",
   lock_until: null, recovery_script_type: null, recovery_required: null, cosigner_kind: null,
@@ -89,12 +89,12 @@ describe("transaction_detail", () => {
     });
     mocks.decode.mockReturnValue({
       outputs: [], fee: "180000", message: null, mint: [], cip25Meta: null, ttl: null, anchorMeta: null,
-      payoutMeta: { v: 3, src: "treasury-guild", c: "signius", w: ["Development"], b: ["2026-10"], k: ["ADA"], p: [[0, [[12, 0, 0, ["50"]]]]] },
+      payoutMeta: { v: 3, src: "treasury-guild", c: "swarm", w: ["Development"], b: ["2026-10"], k: ["ADA"], p: [[0, [[12, 0, 0, ["50"]]]]] },
     });
   });
 
   it("shows who signed and who is still needed, what it pays, and its on-chain record", async () => {
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "h".repeat(64) });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "h".repeat(64) });
     expect(mocks.findTx).toHaveBeenCalledWith(["t1"], "h".repeat(64));
     expect(mocks.decode).toHaveBeenCalledWith("84a0");
     expect(res.signing).toEqual({
@@ -109,7 +109,7 @@ describe("transaction_detail", () => {
     }]);
     expect(res.fee).toBe("0.18");
     expect(res.onChainRecord.payout).toMatchObject({ workgroups: ["Development"], taskNumbers: [12] });
-    expect(res.transaction).toMatchObject({ id: "tx-1", state: "pending", url: "http://localhost:3000/c/signius/tx/tx-1" });
+    expect(res.transaction).toMatchObject({ id: "tx-1", state: "pending", url: "http://localhost:3000/c/swarm/tx/tx-1" });
   });
 
   it("lists a payment's recipients, transfers and budget month, and its payment record", async () => {
@@ -130,9 +130,9 @@ describe("transaction_detail", () => {
     });
     mocks.decode.mockReturnValue({
       outputs: [], fee: null, message: ["Hosting"], mint: [], cip25Meta: null, ttl: null, anchorMeta: null,
-      payoutMeta: { v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "2026-09", k: ["ADA", "HOSKY"], o: [[0, ["", "1.5"], 0], [1, ["10"], 1]] },
+      payoutMeta: { v: 1, src: "treasury-guild", t: "payment", c: "swarm", b: "2026-09", k: ["ADA", "HOSKY"], o: [[0, ["", "1.5"], 0], [1, ["10"], 1]] },
     });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     // A transfer's recipient is a treasury, never looked up as a member.
     expect(mocks.labels).toHaveBeenCalledWith("c1", ["addr_x"]);
     expect(res.payments).toEqual([
@@ -165,7 +165,7 @@ describe("transaction_detail", () => {
         { asset_name: "Badge", ticker: null, asset_kind: "nft", quantity: "1", decimals: 0, recipient: "addr_y", policy_id: "f".repeat(56) },
       ],
     });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     expect(res.mints).toEqual([
       { asset: "Gold", ticker: "GOLD", kind: "ft", quantity: "1.5", recipient: "addr_x", policyId: "f".repeat(56) },
       { asset: "Badge", ticker: null, kind: "nft", quantity: "1", recipient: "addr_y", policyId: "f".repeat(56) },
@@ -184,9 +184,9 @@ describe("transaction_detail", () => {
     const entries = [[7, "proposed", "a".repeat(64), "b".repeat(64)], [7, "opened", "c".repeat(64)]];
     mocks.decode.mockReturnValue({
       outputs: [], fee: "170000", message: null, mint: [], cip25Meta: null, ttl: null, payoutMeta: null,
-      anchorMeta: { v: 1, src: "treasury-guild", c: "signius", a: entries },
+      anchorMeta: { v: 1, src: "treasury-guild", c: "swarm", a: entries },
     });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     expect(res.cosigner).toEqual([
       { at: "2026-10-01T02:00:00Z", trigger: "manual", passed: true, problems: [], signed: true, error: null },
       { at: "2026-10-01T01:00:00Z", trigger: "sign", passed: false, problems: ["Over budget"], signed: false, error: null },
@@ -197,15 +197,15 @@ describe("transaction_detail", () => {
   it("shows no anchors for a malformed anchor record", async () => {
     mocks.decode.mockReturnValue({
       outputs: [], fee: null, message: null, mint: [], cip25Meta: null, ttl: null, payoutMeta: null,
-      anchorMeta: { v: 1, src: "treasury-guild", c: "signius", a: [[7, "proposed", "not-a-hash", "b".repeat(64)]] },
+      anchorMeta: { v: 1, src: "treasury-guild", c: "swarm", a: [[7, "proposed", "not-a-hash", "b".repeat(64)]] },
     });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     expect(res.onChainRecord.anchors).toBeNull();
   });
 
   it("is ready to submit once the rule is met, and still names who has not signed", async () => {
     mocks.findTx.mockResolvedValue({ ...TX, signed_addresses: ["addr_a", "addr_b"], rejected_addresses: [] });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     expect(res.signing).toEqual({
       rule: "2 of 3", requiredSignatures: 2,
       signed: [{ name: "Ann", wallet: "addr_a" }, { name: "Bo", wallet: "addr_b" }],
@@ -217,7 +217,7 @@ describe("transaction_detail", () => {
 
   it("lists nobody still to sign once the transaction left pending, even short of the rule", async () => {
     mocks.findTx.mockResolvedValue({ ...TX, state: 3 });
-    const res = await callEndpoint(transactionDetail, caller, { community: "signius", tx: "tx-1" });
+    const res = await callEndpoint(transactionDetail, caller, { community: "swarm", tx: "tx-1" });
     expect(res.signing).toMatchObject({
       signed: [{ name: "Ann", wallet: "addr_a" }], rejected: [{ name: null, wallet: "addr_c" }], stillToSign: [], readyToSubmit: false,
     });
@@ -226,7 +226,7 @@ describe("transaction_detail", () => {
 
   it("answers 404 for a transaction of no treasury of the community", async () => {
     mocks.findTx.mockResolvedValue(null);
-    await expect(callEndpoint(transactionDetail, caller, { community: "signius", tx: "nope" })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(callEndpoint(transactionDetail, caller, { community: "swarm", tx: "nope" })).rejects.toBeInstanceOf(NotFoundError);
     expect(mocks.txDetail).not.toHaveBeenCalled();
   });
 });
@@ -242,14 +242,14 @@ describe("funding_summary", () => {
       periods: [],
       inflows: [{ tx_hash: "i1", amount_lovelace: "40000000000", assets: null, block_time: "2026-02-01T00:00:00Z", funding_source_id: "s1", funding_commitment_id: "k1" }],
     });
-    const res = await callEndpoint(fundingSummary, caller, { community: "signius" });
+    const res = await callEndpoint(fundingSummary, caller, { community: "swarm" });
     expect(mocks.funding).toHaveBeenCalledWith("c1", ["t1"]);
     expect(res.sources[0]).toMatchObject({
       name: "Catalyst",
       totals: [{ token: "ADA", planned: "100000", received: "40000", remaining: "60000" }],
       commitments: [{ name: "Fund 12", kind: "one_off", plan: "One-off, expected Jan 2026" }],
     });
-    expect(res.url).toBe("http://localhost:3000/c/signius/funding");
+    expect(res.url).toBe("http://localhost:3000/c/swarm/funding");
   });
 
   it("shows a schedule's periods and names tokens from the registry, else by their unit", async () => {
@@ -272,7 +272,7 @@ describe("funding_summary", () => {
         { tx_hash: "i2", amount_lovelace: "0", assets: { [UNKNOWN]: "7" }, block_time: "2026-02-03T00:00:00Z", funding_source_id: "s1", funding_commitment_id: null },
       ],
     });
-    const res = await callEndpoint(fundingSummary, caller, { community: "signius" });
+    const res = await callEndpoint(fundingSummary, caller, { community: "swarm" });
     const source = res.sources[0]!;
     expect(source.commitments).toHaveLength(1);
     expect(source.commitments[0]).toMatchObject({
@@ -308,7 +308,7 @@ describe("call_list", () => {
   it("counts attendees by standing, and lists one call's attendees with their task", async () => {
     mocks.calls.mockResolvedValue([CALL]);
     mocks.numberMap.mockResolvedValue(new Map([["t-9", 41]]));
-    const list = await callEndpoint(listCalls, caller, { community: "signius" });
+    const list = await callEndpoint(listCalls, caller, { community: "swarm" });
     expect(mocks.calls).toHaveBeenCalledWith("c1", { state: undefined, callId: undefined, limit: 20 });
     expect(list.calls[0]).toMatchObject({
       title: "Town hall", workgroup: "Design", platform: "discord", rewardEach: { ADA: "20" },
@@ -316,7 +316,7 @@ describe("call_list", () => {
     });
     expect(list.attendees).toBeNull();
 
-    const one = await callEndpoint(listCalls, caller, { community: "signius", call: CALL.id });
+    const one = await callEndpoint(listCalls, caller, { community: "swarm", call: CALL.id });
     expect(one.attendees).toEqual([
       expect.objectContaining({ name: "Ann", standing: "ready", task: null }),
       expect.objectContaining({ name: "Bo", standing: "unlinked" }),
@@ -324,15 +324,15 @@ describe("call_list", () => {
       expect.objectContaining({ name: "Di", standing: "rewarded", task: 41 }),
     ]);
     mocks.calls.mockResolvedValue([]);
-    await expect(callEndpoint(listCalls, caller, { community: "signius", call: CALL.id })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(callEndpoint(listCalls, caller, { community: "swarm", call: CALL.id })).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("passes the state filter and the limit on to the read", async () => {
     mocks.calls.mockResolvedValue([]);
-    const res = await callEndpoint(listCalls, caller, { community: "signius", state: "finalized", limit: "5" });
+    const res = await callEndpoint(listCalls, caller, { community: "swarm", state: "finalized", limit: "5" });
     expect(mocks.calls).toHaveBeenCalledExactlyOnceWith("c1", { state: "finalized", callId: undefined, limit: 5 });
-    expect(res).toEqual({ community: { slug: "signius", name: "Signius" }, calls: [], attendees: null, url: "http://localhost:3000/c/signius/calls" });
-    await expect(callEndpoint(listCalls, caller, { community: "signius", state: "closed" })).rejects.toBeInstanceOf(BadRequestError);
+    expect(res).toEqual({ community: { slug: "swarm", name: "Swarm" }, calls: [], attendees: null, url: "http://localhost:3000/c/swarm/calls" });
+    await expect(callEndpoint(listCalls, caller, { community: "swarm", state: "closed" })).rejects.toBeInstanceOf(BadRequestError);
     expect(mocks.calls).toHaveBeenCalledTimes(1);
   });
 
@@ -367,7 +367,7 @@ describe("proposal_detail", () => {
 
   it("keeps others' ballots hidden while a vote with hidden results runs", async () => {
     mocks.listing.mockResolvedValue(listing(proposal()));
-    const res = await callEndpoint(proposalDetail, caller, { community: "signius", proposal: 7 });
+    const res = await callEndpoint(proposalDetail, caller, { community: "swarm", proposal: 7 });
     expect(mocks.listing).toHaveBeenCalledWith("c1", "addr_w", { open: null, limit: 1, number: 7 });
     expect(res.ballots).toBeNull();
     expect(res.ballotsHidden).toContain("hidden");
@@ -385,14 +385,14 @@ describe("proposal_detail", () => {
     mocks.editable.mockResolvedValue({ number: 31, workgroup_id: "wg-1" });
     mocks.tally.mockResolvedValue({ hash: "c".repeat(64), frozen_at: "2026-10-05T00:01:00Z" });
     mocks.copies.mockResolvedValue([{ store: "ipfs", locator: "bafy" }]);
-    const res = await callEndpoint(proposalDetail, caller, { community: "signius", proposal: 7 });
+    const res = await callEndpoint(proposalDetail, caller, { community: "swarm", proposal: 7 });
     expect(res.ballots).toEqual([{ voter: "Xi", choice: "yes", reason: "Good", signedAt: "2026-10-03T00:00:00Z" }]);
     expect(res.tally).toEqual({ hash: "c".repeat(64), frozenAt: "2026-10-05T00:01:00Z", copies: [{ store: "ipfs", locator: "bafy" }] });
-    expect(res.created).toEqual({ taskNumber: 31, taskBoard: "http://localhost:3000/c/signius/boards/wg-1" });
+    expect(res.created).toEqual({ taskNumber: 31, taskBoard: "http://localhost:3000/c/swarm/boards/wg-1" });
   });
 
   it("answers 404 for a number the community has not used", async () => {
     mocks.listing.mockResolvedValue({ ...listing(proposal()), proposals: [] });
-    await expect(callEndpoint(proposalDetail, caller, { community: "signius", proposal: 99 })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(callEndpoint(proposalDetail, caller, { community: "swarm", proposal: 99 })).rejects.toBeInstanceOf(NotFoundError);
   });
 });

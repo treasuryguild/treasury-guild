@@ -21,12 +21,12 @@ Supabase (RLS, no ORM) + Netlify.
   remote. Local DB commands never write to the remote; `supabase db push`
   deploys schema changes, while running the app or seeds against the remote
   also writes data. See `scripts/README.md`.
-- `npm run seed:sandbox` (wipe + reseed build-only Signius test tasks) /
+- `npm run seed:sandbox` (wipe + reseed build-only Swarm test tasks) /
   `npm run seed:live` (append one real payout batch to each of the two live
   workgroups: monthly on the mint treasury, quarterly on a second treasury)
   target the **local** stack via `psql`; seeding the remote is a manual
   `supabase db query --linked -f …` (no npm alias, no confirmation prompt —
-  check the link target first). The three Signius seed fixtures (sandbox,
+  check the link target first). The three Swarm seed fixtures (sandbox,
   live, head schema) run in a throwaway Docker Postgres with `psql`
   (commands in `scripts/README.md`; CI runs every `supabase/tests/*.sql`
   the same way). See `supabase/seeds/README.md`.

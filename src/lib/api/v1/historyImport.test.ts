@@ -51,7 +51,7 @@ import { callEndpoint } from "./endpoint";
 import { previewPaymentHistory } from "./historyImport";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["imports:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const WALLET_ADDR = "addr_test1qz2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzer3n0d3vllmyqwsx5wktcd8cc3sq835lu7drv2xwl2wywfgs68faae";
 const PAYEE = "addr_test1vqsruvxw9c5kk50ujld079wdajlc3ptjhm20zg8uzn4a3cqpc7km5";
 const TX = "f".repeat(64);
@@ -112,7 +112,7 @@ beforeEach(() => {
 
 const preview = (input: Record<string, unknown> = {}) =>
   callEndpoint(previewPaymentHistory, caller, {
-    community: "signius", csv: CSV, walletName: "Old wallet", walletAddress: WALLET_ADDR, ...input,
+    community: "swarm", csv: CSV, walletName: "Old wallet", walletAddress: WALLET_ADDR, ...input,
   });
 const confirm = (draftToken: string) => callEndpoint(confirmDraft, caller, { draftToken });
 

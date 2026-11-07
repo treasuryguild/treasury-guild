@@ -52,7 +52,7 @@ npm run dev                   # http://localhost:3000 against the local stack
 
 Day-to-day development runs against the **local** stack. Without a data
 snapshot the database starts empty — sign in, create a community, and set
-up its treasury and workgroups. A remote Signius snapshot (`npm run
+up its treasury and workgroups. A remote Swarm snapshot (`npm run
 db:snapshot`) is maintainer-only (needs a linked Supabase project) and is
 not required for contributing.
 

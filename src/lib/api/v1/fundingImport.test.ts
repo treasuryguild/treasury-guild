@@ -35,7 +35,7 @@ import { callEndpoint } from "./endpoint";
 import { previewFundingSchedule } from "./fundingImport";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["imports:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const CSV = "month,ada\n2026-03,12.5\n";
 
 let saved: { csv: string; mapping: unknown } | null = null;
@@ -76,7 +76,7 @@ beforeEach(() => {
 });
 
 const preview = (input: Record<string, unknown> = {}) => callEndpoint(previewFundingSchedule, caller, {
-  community: "signius", csv: CSV, cadence: "monthly", sourceName: "Catalyst", commitmentName: "Wave 1", ...input,
+  community: "swarm", csv: CSV, cadence: "monthly", sourceName: "Catalyst", commitmentName: "Wave 1", ...input,
 });
 const confirm = (draftToken: string) => callEndpoint(confirmDraft, caller, { draftToken });
 

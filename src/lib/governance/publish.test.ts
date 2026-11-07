@@ -17,7 +17,7 @@ import { COPY_CHECK_INTERVAL_MS, documentFilename, publishTallyDocuments } from 
 const NOW = new Date("2026-09-30T12:00:00Z");
 const DOC = JSON.stringify({
   hashAlgorithm: "blake2b-256", hash: "ab".repeat(32),
-  body: { type: "treasury-guild/proposal-tally", version: 1, community: "signius", proposal: { number: 4 } },
+  body: { type: "treasury-guild/proposal-tally", version: 1, community: "swarm", proposal: { number: 4 } },
 });
 const document = (proposalId: string, copies: { store: string; locator: string }[] = []) => ({
   proposal_id: proposalId, community_id: "c-1", document: DOC, hash: "ab".repeat(32), frozen_at: "2026-09-29T00:00:00Z",
@@ -53,7 +53,7 @@ afterEach(() => {
 
 describe("documentFilename", () => {
   it("names the file by community and proposal number, with a fallback for an unreadable document", () => {
-    expect(documentFilename(DOC, "p-1")).toBe("signius-proposal-4-tally.json");
+    expect(documentFilename(DOC, "p-1")).toBe("swarm-proposal-4-tally.json");
     expect(documentFilename("not json", "p-1")).toBe("proposal-p-1-tally.json");
   });
 });
@@ -67,7 +67,7 @@ describe("publishTallyDocuments", () => {
     expect(store.put).toHaveBeenCalledTimes(2);
     const [bytes, filename, tags] = store.put.mock.calls[0]!;
     expect(new TextDecoder().decode(bytes as Uint8Array)).toBe(DOC);
-    expect(filename).toBe("signius-proposal-4-tally.json");
+    expect(filename).toBe("swarm-proposal-4-tally.json");
     expect(tags).toEqual({ hash: "ab".repeat(32), proposal: "p-1" });
     expect(mocks.record).toHaveBeenCalledWith({ proposal_id: "p-1", community_id: "c-1", store: "ipfs", locator: "bafy-new" });
     expect(mocks.record).toHaveBeenCalledWith({ proposal_id: "p-3", community_id: "c-1", store: "ipfs", locator: "bafy-new" });

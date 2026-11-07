@@ -30,7 +30,7 @@ function output(address: string, lovelace: bigint, tokens: Record<string, bigint
 const META: PayoutMetadata = {
   v: 3,
   src: "treasury-guild",
-  c: "signius",
+  c: "swarm",
   w: ["Payout Runs"],
   b: ["2026-Q3"],
   k: ["GVTT", "ADA"],
@@ -48,7 +48,7 @@ const OUTPUTS = [
 function payoutInput(overrides: Partial<PayoutImportInput> = {}): PayoutImportInput {
   return {
     meta: META,
-    communitySlug: "signius",
+    communitySlug: "swarm",
     treasuryAddress: TREASURY,
     outputs: OUTPUTS,
     tickers: { registry: REGISTRY, mints: [], candidates: [] },
@@ -294,7 +294,7 @@ describe("planPaymentImport", () => {
     v: 1,
     src: "treasury-guild",
     t: "payment",
-    c: "signius",
+    c: "swarm",
     b: "2026-09",
     k: ["ADA", "GVTT"],
     m: "Hosting",
@@ -303,7 +303,7 @@ describe("planPaymentImport", () => {
   function paymentInput(overrides: Partial<PaymentImportInput> = {}): PaymentImportInput {
     return {
       meta: PAYMENT,
-      communitySlug: "signius",
+      communitySlug: "swarm",
       treasuryAddress: TREASURY,
       outputs: [
         output("addr_host", 5_000_000n),

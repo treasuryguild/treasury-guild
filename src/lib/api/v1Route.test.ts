@@ -20,7 +20,7 @@ const endpoint = defineEndpoint({
   run: async (_caller, input) => mocks.run(input) as Promise<object>,
 });
 const GET = v1Route<{ community: string }>(endpoint);
-const ctx = { params: Promise.resolve({ community: "signius" }) };
+const ctx = { params: Promise.resolve({ community: "swarm" }) };
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -31,11 +31,11 @@ beforeEach(() => {
 
 describe("v1Route", () => {
   it("charges the agent API budget shared with /api/mcp, then runs the endpoint", async () => {
-    const res = await GET(new Request("http://localhost/api/v1/communities/signius/tasks?limit=3&archived=true"), ctx);
+    const res = await GET(new Request("http://localhost/api/v1/communities/swarm/tasks?limit=3&archived=true"), ctx);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(mocks.rateLimit).toHaveBeenCalledWith("agentApi", "addr_w");
-    expect(mocks.run).toHaveBeenCalledWith({ community: "signius", limit: 3, archived: true });
+    expect(mocks.run).toHaveBeenCalledWith({ community: "swarm", limit: 3, archived: true });
   });
 
   it("answers 429 over budget without running the endpoint", async () => {
@@ -52,6 +52,6 @@ describe("v1Route", () => {
 
   it("lets a path segment win over a query parameter of the same name", async () => {
     await GET(new Request("http://localhost/api/v1/x?community=other"), ctx);
-    expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({ community: "signius" }));
+    expect(mocks.run).toHaveBeenCalledWith(expect.objectContaining({ community: "swarm" }));
   });
 });

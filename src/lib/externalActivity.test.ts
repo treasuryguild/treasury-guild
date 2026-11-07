@@ -25,7 +25,7 @@ describe("classifyExternalActivity", () => {
           "190002": {
             v: 1,
             src: "treasury-guild",
-            c: "signius",
+            c: "swarm",
             a: [[3, "proposed", "a".repeat(64), "b".repeat(64)]],
           },
         },
@@ -36,7 +36,7 @@ describe("classifyExternalActivity", () => {
   it("recognizes the phase-0 anchor test record", () => {
     expect(
       classifyExternalActivity({
-        metadata: { "190002": { v: 1, src: "treasury-guild", c: "signius", test: 1 } },
+        metadata: { "190002": { v: 1, src: "treasury-guild", c: "swarm", test: 1 } },
       }),
     ).toEqual({ kind: TxKind.Anchor });
   });

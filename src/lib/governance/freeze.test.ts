@@ -31,7 +31,7 @@ afterAll(() => {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
-  mocks.slug.mockResolvedValue("signius");
+  mocks.slug.mockResolvedValue("swarm");
   mocks.ballots.mockResolvedValue({ voters: [], votes: [] });
   mocks.build.mockReturnValue(DOC);
   mocks.freeze.mockResolvedValue(true);
@@ -56,7 +56,7 @@ describe("freezable", () => {
 describe("freezeTallyDocument", () => {
   it("builds the document from the app host, slug and ballots and stores its text and hash once", async () => {
     expect(await freezeTallyDocument(row({}))).toBe(true);
-    expect(mocks.build).toHaveBeenCalledWith({ app: "vault.example", community: "signius", proposal: row({}), voters: [], votes: [] });
+    expect(mocks.build).toHaveBeenCalledWith({ app: "vault.example", community: "swarm", proposal: row({}), voters: [], votes: [] });
     expect(mocks.freeze).toHaveBeenCalledWith("p-1", JSON.stringify(DOC), "ab".repeat(32));
     mocks.freeze.mockResolvedValue(false);
     expect(await freezeTallyDocument(row({}))).toBe(false);

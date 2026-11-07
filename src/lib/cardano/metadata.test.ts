@@ -210,7 +210,7 @@ const HASH = "ab".repeat(32);
 
 describe("buildPayoutMetadata allocations (a)", () => {
   it("writes optional a aligned to k and round-trips", () => {
-    const meta = buildPayoutMetadata("signius", [
+    const meta = buildPayoutMetadata("swarm", [
       payout({
         outputIndex: 0,
         amounts: [{ ...ADA, quantity: 5_000_000n }, { ticker: "GVTT", quantity: 100n, decimals: 0 }],
@@ -235,12 +235,12 @@ describe("buildPayoutMetadata allocations (a)", () => {
   });
 
   it("omits a when no allocations", () => {
-    const meta = buildPayoutMetadata("signius", [payout({ amounts: [{ ...ADA, quantity: 1n }] })]);
+    const meta = buildPayoutMetadata("swarm", [payout({ amounts: [{ ...ADA, quantity: 1n }] })]);
     expect("a" in meta).toBe(false);
   });
 
   it("is null when an allocation entry is malformed", () => {
-    const record = buildPayoutMetadata("signius", [payout({ amounts: [{ ...ADA, quantity: 1n }] })], [
+    const record = buildPayoutMetadata("swarm", [payout({ amounts: [{ ...ADA, quantity: 1n }] })], [
       { outputIndex: 1, transfer: false, amounts: [{ ...ADA, quantity: 1n }] },
     ]);
     expect(parsePayoutMetadata({ ...record, a: [[1, ["0.000001"], 2]] })).toBeNull();
@@ -253,7 +253,7 @@ describe("buildPayoutMetadata citations (g)", () => {
   const taskProposal = { number: 8, contentHash: HASH };
 
   it("lists each cited proposal once, by number, with the tasks citing it", () => {
-    const meta = buildPayoutMetadata("signius", [
+    const meta = buildPayoutMetadata("swarm", [
       payout({ outputIndex: 0, taskNumber: 50, amounts: [{ ...ADA, quantity: 1n }], citations: [taskProposal, budget] }),
       payout({ outputIndex: 1, taskNumber: 51, amounts: [{ ...ADA, quantity: 1n }], citations: [budget] }),
       // The same task paid to a second wallet: listed once.
@@ -267,14 +267,14 @@ describe("buildPayoutMetadata citations (g)", () => {
   });
 
   it("omits g when nothing is cited", () => {
-    const meta = buildPayoutMetadata("signius", [payout({ amounts: [{ ...ADA, quantity: 1n }], citations: [] })]);
+    const meta = buildPayoutMetadata("swarm", [payout({ amounts: [{ ...ADA, quantity: 1n }], citations: [] })]);
     expect("g" in meta).toBe(false);
     expect(Object.keys(meta)).toEqual(["v", "src", "c", "w", "b", "k", "p"]);
   });
 });
 
 describe("parsePayoutMetadata", () => {
-  const record = buildPayoutMetadata("signius", [
+  const record = buildPayoutMetadata("swarm", [
     {
       outputIndex: 0,
       taskNumber: 50,
@@ -283,7 +283,7 @@ describe("parsePayoutMetadata", () => {
       amounts: [{ ticker: "ADA", quantity: 5_000_000n, decimals: 6 }],
     },
   ]);
-  const cited = buildPayoutMetadata("signius", [
+  const cited = buildPayoutMetadata("swarm", [
     payout({ taskNumber: 50, amounts: [{ ...ADA, quantity: 5_000_000n }], citations: [{ number: 4, contentHash: HASH }] }),
   ]);
 
@@ -320,7 +320,7 @@ describe("parsePayoutMetadata", () => {
     // A huge chain number would overflow the next assign_task_number (integer).
     expect(parsePayoutMetadata({ ...record, p: [[0, [[2_147_483_647, 0, 0, ["5"]]]]] })).toBeNull();
     // A payment record shares the label but has no `p`.
-    expect(parsePayoutMetadata({ v: 1, src: "treasury-guild", t: "payment", c: "signius", b: "", k: [], o: [] })).toBeNull();
+    expect(parsePayoutMetadata({ v: 1, src: "treasury-guild", t: "payment", c: "swarm", b: "", k: [], o: [] })).toBeNull();
   });
 });
 

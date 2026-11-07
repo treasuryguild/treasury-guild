@@ -30,7 +30,7 @@ import { confirmDraft } from "./drafts";
 import { callEndpoint } from "./endpoint";
 
 const caller: ApiCaller = { wallet: "addr_w", scopes: ["tasks:write"], clientId: "c1", via: "oauth", grantCreatedAt: 1 };
-const COMMUNITY = { id: "c1", slug: "signius", name: "Signius", network: 0, visibility: "private" };
+const COMMUNITY = { id: "c1", slug: "swarm", name: "Swarm", network: 0, visibility: "private" };
 const WGID = "22222222-2222-4222-8222-222222222222";
 const CALL_ID = "77777777-7777-4777-8777-777777777777";
 const CALL = {
@@ -44,7 +44,7 @@ const PLAN = {
   tasks: 1,
 };
 const CREATE = {
-  community: "signius", workgroup: "Design", provider: "manual", title: "Town hall",
+  community: "swarm", workgroup: "Design", provider: "manual", title: "Town hall",
   startsAt: "2026-10-08T17:00:00Z", endsAt: "2026-10-08T18:00:00Z", reward: { ADA: "20" },
 };
 
@@ -107,7 +107,7 @@ describe("call_create_preview", () => {
     expect(mocks.create).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ title: "Town hall" }), "addr_w", { agentDraftId: expect.stringMatching(/^[0-9a-f]{32}$/), communityId: "c1" },
     );
-    expect(res).toMatchObject({ action: "call_create", created: true, callId: CALL_ID, url: `http://localhost:3000/c/signius/calls/${CALL_ID}` });
+    expect(res).toMatchObject({ action: "call_create", created: true, callId: CALL_ID, url: `http://localhost:3000/c/swarm/calls/${CALL_ID}` });
     mocks.findByDraft.mockResolvedValue({ id: CALL_ID, title: "Town hall", community_id: "c1" });
     expect(await confirm(draftToken)).toMatchObject({ created: false, callId: CALL_ID });
     expect(mocks.create).toHaveBeenCalledOnce();
@@ -122,7 +122,7 @@ describe("call_create_preview", () => {
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(mocks.findByDraft).toHaveBeenCalledTimes(2);
     expect(mocks.findByDraft.mock.calls[1]).toEqual(mocks.findByDraft.mock.calls[0]);
-    expect(res).toMatchObject({ action: "call_create", created: false, callId: CALL_ID, title: "Town hall", url: `http://localhost:3000/c/signius/calls/${CALL_ID}` });
+    expect(res).toMatchObject({ action: "call_create", created: false, callId: CALL_ID, title: "Town hall", url: `http://localhost:3000/c/swarm/calls/${CALL_ID}` });
   });
 
   it("refuses with a conflict when the insert finds nothing and the draft has no row either", async () => {
@@ -147,7 +147,7 @@ describe("call_create_preview", () => {
 
 describe("call_finalize_preview", () => {
   it("lists who would be paid and the tasks it would create, paying nobody", async () => {
-    const res = await callEndpoint(previewCallFinalize, caller, { community: "signius", call: CALL_ID });
+    const res = await callEndpoint(previewCallFinalize, caller, { community: "swarm", call: CALL_ID });
     expect(mocks.loadForManager).toHaveBeenCalledWith(CALL_ID, "addr_w");
     expect(mocks.finalize).not.toHaveBeenCalled();
     expect(res).toMatchObject({
@@ -159,13 +159,13 @@ describe("call_finalize_preview", () => {
 
   it("says why when nobody can be paid, and refuses another community's call", async () => {
     mocks.plan.mockResolvedValue({ ready: [], standings: { ...PLAN.standings, ready: 0, rewarded: 3 }, tasks: 0 });
-    await expect(callEndpoint(previewCallFinalize, caller, { community: "signius", call: CALL_ID })).rejects.toThrow("3 already rewarded");
+    await expect(callEndpoint(previewCallFinalize, caller, { community: "swarm", call: CALL_ID })).rejects.toThrow("3 already rewarded");
     mocks.loadForManager.mockResolvedValue({ ...CALL, community_id: "c2" });
-    await expect(callEndpoint(previewCallFinalize, caller, { community: "signius", call: CALL_ID })).rejects.toThrow("No such call");
+    await expect(callEndpoint(previewCallFinalize, caller, { community: "swarm", call: CALL_ID })).rejects.toThrow("No such call");
   });
 
   it("pays exactly the previewed attendees, and answers a repeat as done", async () => {
-    const { draftToken } = await callEndpoint(previewCallFinalize, caller, { community: "signius", call: CALL_ID });
+    const { draftToken } = await callEndpoint(previewCallFinalize, caller, { community: "swarm", call: CALL_ID });
     const res = await confirm(draftToken);
     expect(mocks.finalize).toHaveBeenCalledExactlyOnceWith(CALL, "addr_w", PLAN.ready);
     expect(res).toMatchObject({ action: "call_finalize", created: true, tasks: [41], paid: 2, remaining: 1 });
@@ -176,7 +176,7 @@ describe("call_finalize_preview", () => {
   });
 
   it("refuses when attendance or the reward changed since the preview", async () => {
-    const { draftToken } = await callEndpoint(previewCallFinalize, caller, { community: "signius", call: CALL_ID });
+    const { draftToken } = await callEndpoint(previewCallFinalize, caller, { community: "swarm", call: CALL_ID });
     mocks.plan.mockResolvedValue({ ...PLAN, ready: [...PLAN.ready, attendee("a3", "addr_3")] });
     await expect(confirm(draftToken)).rejects.toBeInstanceOf(ConflictError);
     mocks.plan.mockResolvedValue(PLAN);
@@ -186,7 +186,7 @@ describe("call_finalize_preview", () => {
   });
 
   it("needs tasks:write", async () => {
-    await expect(callEndpoint(previewCallFinalize, { ...caller, scopes: ["proposals:write"] }, { community: "signius", call: CALL_ID }))
+    await expect(callEndpoint(previewCallFinalize, { ...caller, scopes: ["proposals:write"] }, { community: "swarm", call: CALL_ID }))
       .rejects.toBeInstanceOf(ForbiddenError);
   });
 });
