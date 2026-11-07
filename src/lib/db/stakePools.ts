@@ -86,7 +86,7 @@ function fundingSourceName(detail: StakePoolDetail): string {
   return `Pool ${detail.poolId.slice(0, 12)}… rewards`.slice(0, 80);
 }
 
-function cachedFields(detail: StakePoolDetail) {
+function cachedFields(detail: StakePoolDetail, iconUrl: string | null) {
   return {
     pool_id: detail.poolId,
     ticker: detail.ticker,
@@ -97,6 +97,7 @@ function cachedFields(detail: StakePoolDetail) {
     pool_status: detail.status,
     reward_address: detail.rewardAddress,
     owners: detail.owners,
+    icon_url: iconUrl,
     refreshed_at: new Date().toISOString(),
   };
 }
@@ -123,6 +124,8 @@ function defaultWalletRows(
 export async function createCommunityStakePool(input: {
   community_id: string;
   detail: StakePoolDetail;
+  /** Best-effort HTTPS icon from extended metadata; null when unknown. */
+  icon_url: string | null;
   created_by: string;
 }): Promise<CommunityStakePoolRow> {
   const active = await countActiveCommunityStakePools(input.community_id);
@@ -142,7 +145,7 @@ export async function createCommunityStakePool(input: {
       community_id: input.community_id,
       funding_source_id: source.id,
       created_by: input.created_by,
-      ...cachedFields(input.detail),
+      ...cachedFields(input.detail, input.icon_url),
     })
     .select(COMMUNITY_STAKE_POOL_COLUMNS)
     .single();
@@ -162,11 +165,12 @@ export async function createCommunityStakePool(input: {
 export async function refreshCommunityStakePool(
   id: string,
   detail: StakePoolDetail,
+  iconUrl: string | null,
 ): Promise<CommunityStakePoolRow> {
   return must<CommunityStakePoolRow>(
     await serviceClient()
       .from("community_stake_pools")
-      .update(cachedFields(detail))
+      .update(cachedFields(detail, iconUrl))
       .eq("id", id)
       .select(COMMUNITY_STAKE_POOL_COLUMNS)
       .single(),

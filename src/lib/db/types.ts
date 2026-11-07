@@ -538,6 +538,8 @@ export interface CommunityStakePoolRow {
   pool_status: string;
   reward_address: string | null;
   owners: string[];
+  /** HTTPS icon from extended pool metadata; null when unknown (migration 0100). */
+  icon_url: string | null;
   funding_source_id: string;
   refreshed_at: string;
   archived_at: string | null;
@@ -547,7 +549,7 @@ export interface CommunityStakePoolRow {
 }
 
 export const COMMUNITY_STAKE_POOL_COLUMNS =
-  "id, community_id, pool_id, ticker, margin, fixed_cost, pledge, active_stake, pool_status, reward_address, owners, funding_source_id, refreshed_at, archived_at, archived_by, created_by, created_at";
+  "id, community_id, pool_id, ticker, margin, fixed_cost, pledge, active_stake, pool_status, reward_address, owners, icon_url, funding_source_id, refreshed_at, archived_at, archived_by, created_by, created_at";
 
 export interface StakePoolWalletRow {
   id: string;

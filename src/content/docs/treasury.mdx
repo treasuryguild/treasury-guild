@@ -242,7 +242,7 @@ A workgroup's payment wallet can change over time. Each change is dated and take
 
 ## Stake pools
 
-Communities that operate a Cardano stake pool can **link** it on the Treasury page (**Add stake pool**). Search by ticker or paste a `pool1…` id; Treasury Guild reads margin, fixed cost, pledge, the reward account and owner addresses from the chain so you do not type them by hand. A community may link at most three active pools.
+Communities that operate a Cardano stake pool can **link** it on the Treasury page (**Add stake pool**). Search by ticker or paste a `pool1…` id; Treasury Guild reads margin, fixed cost, pledge, the reward account and owner addresses from the chain so you do not type them by hand, and shows the pool's published icon when its metadata includes one. A community may link at most three active pools.
 
 After linking, admins **map wallets** to roles:
 
@@ -252,7 +252,7 @@ After linking, admins **map wallets** to roles:
 - **Rewards buffer** — an optional watched [float wallet](#float-wallets) with purpose *pool rewards* that only receives withdrawn rewards and forwards them to a treasury.
 - **Community treasury** — which multisig (including an [SDK](#staking-and-cardano-governance) wallet) should book the income.
 
-**Income is booked once**, when ADA becomes spendable in a community treasury: a direct withdraw into that treasury, or a forward from a rewards-buffer float. Those inflows are classified as **revenue** and tied to a funding source named after the pool (for example "Pool SIG rewards"), so [Funding](/docs/funding) and the Dashboard funding flow show them. DEX floats stay transfers; only a **pool rewards** buffer promotes to pool revenue. **Refresh from chain** updates cached params when the pool changes margin or owners. **Archive** hides the pool from new mapping without deleting history. Create a rewards buffer with **Create rewards buffer float** while mapping wallets (it counts toward the float cap below).
+**Income is booked once**, when ADA becomes spendable in a community treasury: a direct withdraw into that treasury, or a forward from a rewards-buffer float. Those inflows are classified as **revenue** and tied to a funding source named after the pool (for example "Pool SIG rewards"), so [Funding](/docs/funding) and the Dashboard funding flow show them. DEX floats stay transfers; only a **pool rewards** buffer promotes to pool revenue. **Refresh from chain** updates cached params (and the icon, when published) when the pool changes margin, owners or metadata. **Archive** hides the pool from new mapping without deleting history. Create a rewards buffer with **Create rewards buffer float** while mapping wallets (it counts toward the float cap below).
 
 ## Float wallets
 
