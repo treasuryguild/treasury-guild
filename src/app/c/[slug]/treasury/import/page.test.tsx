@@ -82,6 +82,7 @@ describe("treasury import page", () => {
     expect(await screen.findByText("addr_test1treasury")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Save and invite" }));
     expect(await screen.findByDisplayValue("https://app.test/invite/import/tok")).toBeTruthy();
+    expect(screen.getByText("Waiting")).toBeTruthy();
     const submit = screen.getByRole("button", { name: "Import treasury" }) as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
     await user.type(screen.getByRole("textbox", { name: "Payment addresses" }), "addr_test1second");
@@ -104,6 +105,30 @@ describe("treasury import page", () => {
       },
     });
     expect(mocks.push).toHaveBeenCalledWith("/c/guild/treasury");
+  });
+
+  it("splits pasted payment addresses on newlines and commas", async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(preview)
+      .mockResolvedValueOnce({ draft: incompleteDraft, url: "https://app.test/invite/import/tok" })
+      .mockResolvedValueOnce({ draft: completeDraft });
+    const user = await open();
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Existing treasury");
+    await user.type(screen.getByRole("textbox", { name: "Native script (CBOR hex)" }), "820182");
+    await user.click(screen.getByRole("button", { name: "Read CBOR" }));
+    await user.click(await screen.findByRole("button", { name: "Save and invite" }));
+    expect(await screen.findByText("Waiting")).toBeTruthy();
+    const paste = screen.getByRole("textbox", { name: "Payment addresses" });
+    await user.click(paste);
+    await user.paste("addr_test1second\naddr_test1known, addr_test1third");
+    await user.click(screen.getByRole("button", { name: "Match addresses" }));
+    expect(mocks.fetch).toHaveBeenCalledWith("/api/treasury/import-draft/slot", {
+      body: {
+        draftId: "draft-1",
+        communityId: "community",
+        addresses: ["addr_test1second", "addr_test1known", "addr_test1third"],
+      },
+    });
   });
 
   it("clears the reviewed address when CBOR changes", async () => {

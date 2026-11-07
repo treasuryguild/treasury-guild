@@ -132,11 +132,11 @@ Admins can import an existing treasury from its payment **native script CBOR hex
 ### Native script CBOR
 
 1. On **Treasury**, click **Import treasury**, choose **Native script CBOR**, and enter a name.
-2. Paste the CBOR and click **Read CBOR**. Review the signing rule and derived treasury address.
-3. Optionally choose a workgroup under **Used for**, then click **Save and invite**. Your connected wallet must be a base signer of the script; that slot is claimed immediately. Share the invite link so every other signer can connect and claim their key. You can also paste the other signers' payment addresses in any order; Treasury Guild matches each address to its script key. The invite lasts 7 days; a community may hold at most 10 open import invites.
+2. Paste the CBOR and click **Read CBOR**. Review the template, each group's signing rule, the lock date when there is one, and the derived treasury address.
+3. Optionally choose a workgroup under **Used for**, then click **Save and invite**. Your connected wallet must be a base signer of the script; that slot is claimed immediately. The page lists each signer as claimed or **Waiting**. Share the invite link so every other signer can connect and claim their key, or paste their payment addresses (one per line, any order) and click **Match addresses** — Treasury Guild matches each address to its script key. The invite lasts 7 days; a community may hold at most 10 open import invites.
 4. When every script key is claimed (base, recovery and co-signer — not only the spend threshold), click **Import treasury**.
 
-Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. The preview names the template, each group's rule and the lock date, and lists every key with its group. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
+Import supports a flat `all`, `any` or `atLeast` multisig with distinct signer keys, and the exact shapes of the three [treasury templates](/docs/treasury#treasury-templates) (clawback, lock-until, co-signer); other nestings are refused. A co-signer read from a script is always a member's wallet: the app never holds a key it did not generate. The original script and key order are preserved. CBOR does not include a network or staking credential, so this flow imports an unstaked address on the community's network. Check the preview matches your existing treasury address before importing.
 
 ### Discover on-chain
 

@@ -83,4 +83,22 @@ describe("import draft slot API", () => {
     expect(res.status).toBe(400);
     expect(mocks.match).not.toHaveBeenCalled();
   });
+
+  it("refuses the old keyed keyHash+address body", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/treasury/import-draft/slot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          draftId: DRAFT,
+          communityId: COMMUNITY,
+          keyHash: "b".repeat(56),
+          address: OTHER,
+        }),
+      }),
+      context,
+    );
+    expect(res.status).toBe(400);
+    expect(mocks.match).not.toHaveBeenCalled();
+  });
 });
