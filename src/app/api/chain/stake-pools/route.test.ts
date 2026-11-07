@@ -57,10 +57,13 @@ beforeEach(() => {
   mocks.lookup.mockResolvedValue({
     poolId: "pool1wn6a6f23ctq06udwhw27ravdpd6zcr7jlut3yez0wzdackz3222",
     ticker: "NUTS",
-    margin: null,
-    fixedCost: null,
-    activeStake: null,
+    margin: 0.02,
+    fixedCost: "340000000",
+    activeStake: "1000",
     status: "registered",
+    pledge: "500000000000",
+    rewardAddress: "stake1reward",
+    owners: ["stake1owner"],
   });
 });
 
@@ -86,7 +89,7 @@ describe("GET /api/chain/stake-pools", () => {
     expect(mocks.lookup).not.toHaveBeenCalled();
   });
 
-  it("looks up an exact pool id for title labeling", async () => {
+  it("looks up an exact pool id with registration detail", async () => {
     const poolId = "pool1wn6a6f23ctq06udwhw27ravdpd6zcr7jlut3yez0wzdackz3222";
     const res = await get(`?treasuryId=${TREASURY_ID}&poolId=${poolId}`);
     expect(res.status).toBe(200);
@@ -95,10 +98,13 @@ describe("GET /api/chain/stake-pools", () => {
         {
           poolId,
           ticker: "NUTS",
-          margin: null,
-          fixedCost: null,
-          activeStake: null,
+          margin: 0.02,
+          fixedCost: "340000000",
+          activeStake: "1000",
           status: "registered",
+          pledge: "500000000000",
+          rewardAddress: "stake1reward",
+          owners: ["stake1owner"],
         },
       ],
     });

@@ -302,9 +302,16 @@ describe("pollTreasury", () => {
       expect(of("external_txs", "insert")).toEqual([]);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
       expect(mocks.tagFloatTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
+      expect(mocks.classifyPoolRewardInflows).toHaveBeenCalledExactlyOnceWith("c-1");
+      expect(mocks.applyPoolReward).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        communityId: "c-1",
+        treasuryId: "t-1",
+        txHash: "h-in",
+        hasIncomingRow: true,
+      }));
       // Bookkeeping comes last: the rows are in before the cursor moves.
-      const tagged = mocks.tagFloatTransfers.mock.invocationCallOrder[0]!;
-      expect(mocks.from.mock.invocationCallOrder.at(-1)!).toBeGreaterThan(tagged);
+      const classified = mocks.classifyPoolRewardInflows.mock.invocationCallOrder[0]!;
+      expect(mocks.from.mock.invocationCallOrder.at(-1)!).toBeGreaterThan(classified);
       expect(of("treasury_sync_cursors", "upsert")[0]?.values).toMatchObject({ last_block_height: 800 });
     });
 
@@ -317,6 +324,8 @@ describe("pollTreasury", () => {
       expect(of("incoming_txs", "insert")).toHaveLength(1);
       expect(mocks.tagInternalTransfers).not.toHaveBeenCalled();
       expect(mocks.tagFloatTransfers).not.toHaveBeenCalled();
+      expect(mocks.classifyPoolRewardInflows).not.toHaveBeenCalled();
+      expect(mocks.applyPoolReward).not.toHaveBeenCalled();
       expect(of("treasury_sync_cursors", "upsert")[0]?.values).toMatchObject({ last_block_height: 800 });
     });
 
@@ -357,6 +366,7 @@ describe("pollTreasury", () => {
       expect(of("incoming_txs", "insert")).toEqual([]);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
       expect(mocks.tagFloatTransfers).toHaveBeenCalledExactlyOnceWith("c-1");
+      expect(mocks.classifyPoolRewardInflows).toHaveBeenCalledExactlyOnceWith("c-1");
     });
 
     it("stores no payout_meta for a spend without the label, and a zero fee when Koios gives none", async () => {
@@ -423,6 +433,25 @@ describe("pollTreasury", () => {
       expect(console.error).toHaveBeenCalledExactlyOnceWith("external_txs insert h-bad failed", refusals["h-bad"]?.error);
       expect(mocks.tagInternalTransfers).toHaveBeenCalledTimes(1);
       expect(mocks.tagFloatTransfers).toHaveBeenCalledTimes(1);
+      expect(mocks.classifyPoolRewardInflows).toHaveBeenCalledTimes(1);
+    });
+
+    it("books pool rewards for an outside stake withdraw", async () => {
+      chain([listed("h-withdraw", 850)], [outgoing("h-withdraw", {
+        outputs: [{ payment_addr: { bech32: TREASURY.address }, value: "99820000", tx_index: 0 }],
+        withdrawals: [{ stake_addr: "stake_test1reward", amount: "2500000" }],
+      })]);
+      expect(await pollTreasury(TREASURY)).toEqual({ newIncoming: 0, confirmed: 0, newExternal: 1 });
+      expect(of("external_txs", "insert")[0]?.values).toMatchObject({
+        activity: { kind: "stake", action: "withdraw" },
+      });
+      expect(mocks.applyPoolReward).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        communityId: "c-1",
+        treasuryId: "t-1",
+        txHash: "h-withdraw",
+        hasIncomingRow: false,
+      }));
+      expect(mocks.classifyPoolRewardInflows).toHaveBeenCalledExactlyOnceWith("c-1");
     });
   });
 
